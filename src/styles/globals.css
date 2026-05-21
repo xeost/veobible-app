@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ════════════════════════════════════════════════════════════
+   DESIGN TOKENS — CSS Custom Properties
+   ════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --bg-page: theme('colors.surface.50');
+    --bg-card: #ffffff;
+    --bg-sidebar: #ffffff;
+    --bg-header: rgba(255, 255, 255, 0.85);
+    --bg-overlay: rgba(0, 0, 0, 0.4);
+
+    /* Text */
+    --text-primary: theme('colors.surface.900');
+    --text-secondary: theme('colors.surface.600');
+    --text-muted: theme('colors.surface.400');
+    --text-inverse: #ffffff;
+
+    /* Brand */
+    --brand: theme('colors.brand.500');
+    --brand-light: theme('colors.brand.100');
+    --brand-dark: theme('colors.brand.700');
+
+    /* Borders */
+    --border: theme('colors.surface.200');
+    --border-strong: theme('colors.surface.300');
+
+    /* Reader */
+    --reader-bg: #fafafa;
+    --reader-text: theme('colors.surface.900');
+    --reader-verse-num: theme('colors.brand.500');
+    --reader-selection: theme('colors.brand.100');
+
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.12), 0 6px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  .dark {
+    --bg-page: #0f0e17;
+    --bg-card: #1a1828;
+    --bg-sidebar: #14121f;
+    --bg-header: rgba(15, 14, 23, 0.9);
+    --bg-overlay: rgba(0, 0, 0, 0.6);
+
+    --text-primary: #ede9fe;
+    --text-secondary: #a09ab8;
+    --text-muted: #6b6385;
+    --text-inverse: #0f0e17;
+
+    --brand: theme('colors.brand.400');
+    --brand-light: theme('colors.brand.950');
+    --brand-dark: theme('colors.brand.300');
+
+    --border: #231f36;
+    --border-strong: #332e4a;
+
+    --reader-bg: #120f1e;
+    --reader-text: #e8e0fa;
+    --reader-verse-num: theme('colors.brand.400');
+    --reader-selection: rgba(139, 92, 246, 0.2);
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.5), 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
+
+
+  /* Base element styles */
+  html {
+    @apply antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Text selection highlight */
+  ::selection {
+    background-color: var(--reader-selection);
+    color: var(--reader-text);
+  }
+
+  /* Scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   COMPONENT UTILITIES
+   ════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* Glass morphism card */
+  .glass-card {
+    @apply backdrop-blur-md border;
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+    border-color: var(--border);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Reader text */
+  .reader-text {
+    font-family: var(--font-lora), Georgia, serif;
+    color: var(--reader-text);
+    line-height: 1.9;
+  }
+
+  /* Verse number badge */
+  .verse-num {
+    color: var(--reader-verse-num);
+    font-family: var(--font-inter), sans-serif;
+    @apply text-xs font-semibold tabular-nums select-none mr-2 opacity-70;
+    line-height: inherit;
+    vertical-align: super;
+  }
+
+  /* Floating toolbar */
+  .selection-toolbar {
+    @apply fixed z-50 flex items-center gap-1 px-2 py-1.5 rounded-xl;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    animation: scaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: bottom center;
+  }
+
+  /* Sidebar drawer */
+  .sidebar {
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+  }
+
+  /* Header */
+  .app-header {
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Book group header */
+  .testament-header {
+    @apply text-xs font-semibold uppercase tracking-widest;
+    color: var(--text-muted);
+  }
+
+  /* Button variants */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150;
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover {
+    background: var(--brand-light);
+    color: var(--brand);
+  }
+
+  .btn-brand {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150;
+    background: var(--brand);
+    color: var(--text-inverse);
+  }
+  .btn-brand:hover {
+    background: var(--brand-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  }
+  .btn-brand:active {
+    transform: translateY(0);
+  }
+
+  /* Icon button */
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded-lg p-2 transition-all duration-150;
+    color: var(--text-secondary);
+  }
+  .btn-icon:hover {
+    background: var(--brand-light);
+    color: var(--brand);
+  }
+
+  /* Chapter card */
+  .chapter-nav-btn {
+    @apply flex-1 flex flex-col items-start gap-1 rounded-xl px-4 py-3 transition-all duration-200;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+  }
+  .chapter-nav-btn:hover {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 1px var(--brand);
+  }
+
+  /* Bookmark card */
+  .bookmark-card {
+    @apply rounded-xl p-4 transition-all duration-200;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+  .bookmark-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Book link card (version overview) */
+  .book-link-card:hover {
+    border-color: var(--brand) !important;
+    color: var(--brand) !important;
+  }
+}
+

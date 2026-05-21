@@ -1,0 +1,25 @@
+{
+  "name": "veobible-app",
+  "compatibility_date": "2024-09-23",
+  "assets": {
+    "directory": "out"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    {
+      "pattern": "veobible.com",
+      "custom_domain": true
+    }
+  ]
+}
+// --- COMMANDS ---
+//
+// Note: Since the website is static, I don't 
+// need `opennextjs-cloudflare` at the moment.
+// 
+// -- For production environment application:
+// Build command: pnpm run build
+// Deploy command: pnpm wrangler deploy
+// Path: /
