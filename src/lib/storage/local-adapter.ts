@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import type {
   Bookmark,
+  BookmarkFolder,
   ReadingPosition,
   StorageRepository,
   UserPreferences,
@@ -10,6 +11,7 @@ const PREFIX = 'veobible_'
 
 const KEYS = {
   bookmarks: `${PREFIX}bookmarks`,
+  bookmarkFolders: `${PREFIX}bookmark_folders`,
   readingPositions: `${PREFIX}reading_positions`,
   preferences: `${PREFIX}preferences`,
 } as const
@@ -102,6 +104,52 @@ export class LocalStorageAdapter implements StorageRepository {
 
   async clearBookmarks(): Promise<void> {
     safePut(KEYS.bookmarks, [])
+  }
+
+  // ── Bookmark Folders ─────────────────────────────────────────────
+
+  async getFoldersByVersion(versionSlug: string): Promise<BookmarkFolder[]> {
+    const all = safeGet<BookmarkFolder[]>(KEYS.bookmarkFolders, [])
+    return all
+      .filter((f) => f.versionSlug === versionSlug)
+      .sort((a, b) => a.order - b.order)
+  }
+
+  async addFolder(
+    data: Omit<BookmarkFolder, 'id' | 'createdAt'>,
+  ): Promise<BookmarkFolder> {
+    const all = safeGet<BookmarkFolder[]>(KEYS.bookmarkFolders, [])
+    const folder: BookmarkFolder = {
+      ...data,
+      id: uuidv4(),
+      createdAt: new Date().toISOString(),
+    }
+    safePut(KEYS.bookmarkFolders, [...all, folder])
+    return folder
+  }
+
+  async updateFolder(
+    id: string,
+    patch: Partial<Omit<BookmarkFolder, 'id' | 'createdAt'>>,
+  ): Promise<BookmarkFolder> {
+    const all = safeGet<BookmarkFolder[]>(KEYS.bookmarkFolders, [])
+    const idx = all.findIndex((f) => f.id === id)
+    if (idx === -1) throw new Error(`Folder ${id} not found`)
+    const updated: BookmarkFolder = { ...all[idx], ...patch, id }
+    all[idx] = updated
+    safePut(KEYS.bookmarkFolders, all)
+    return updated
+  }
+
+  async removeFolder(id: string): Promise<void> {
+    const all = safeGet<BookmarkFolder[]>(KEYS.bookmarkFolders, [])
+    safePut(KEYS.bookmarkFolders, all.filter((f) => f.id !== id))
+    // Also unassign bookmarks that belonged to this folder
+    const bookmarks = await this.getBookmarks()
+    safePut(
+      KEYS.bookmarks,
+      bookmarks.map((b) => (b.folderId === id ? { ...b, folderId: undefined } : b)),
+    )
   }
 
   // ── Reading Position ─────────────────────────────────────────────

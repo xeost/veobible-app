@@ -232,8 +232,16 @@
   /* Bookmark card */
   .bookmark-card {
     @apply rounded-xl p-4 transition-all duration-200;
+    position: relative;
     background: var(--bg-card);
     border: 1px solid var(--border);
+  }
+  .bookmark-card[draggable="true"] {
+    padding-left: 1.75rem; /* room for grip handle */
+    cursor: default;
+  }
+  .bookmark-card[draggable="true"]:active {
+    cursor: grabbing;
   }
   .bookmark-card:hover {
     border-color: var(--border-strong);

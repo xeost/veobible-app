@@ -53,6 +53,14 @@ export const es: Translations = {
     deleteConfirm: '¿Eliminar este marcador?',
     deleteConfirmYes: 'Eliminar',
     deleteConfirmNo: 'Cancelar',
+    // Folder management
+    newFolder: 'Nueva carpeta',
+    folderNamePlaceholder: 'Nombre de carpeta…',
+    renameFolder: 'Renombrar carpeta',
+    deleteFolder: 'Eliminar carpeta',
+    deleteFolderConfirm: '¿Eliminar esta carpeta? Los marcadores dentro quedarán sin carpeta.',
+    noFolder: 'Sin carpeta',
+    dragToUnfolder: 'Arrastra aquí para sacar de la carpeta',
   },
 
   // Theme

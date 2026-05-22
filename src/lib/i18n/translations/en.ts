@@ -51,6 +51,14 @@ export const en = {
     deleteConfirm: 'Delete this bookmark?',
     deleteConfirmYes: 'Delete',
     deleteConfirmNo: 'Cancel',
+    // Folder management
+    newFolder: 'New folder',
+    folderNamePlaceholder: 'Folder name…',
+    renameFolder: 'Rename folder',
+    deleteFolder: 'Delete folder',
+    deleteFolderConfirm: 'Delete this folder? Bookmarks inside will become unfiled.',
+    noFolder: 'Unfiled',
+    dragToUnfolder: 'Drag here to remove from folder',
   },
 
   // Theme
@@ -113,7 +121,7 @@ export interface Translations {
   nav: { home: string; bookmarks: string; settings: string; search: string; tableOfContents: string }
   reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string }
   testament: { old: string; new: string }
-  bookmarks: { title: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string }
+  bookmarks: { title: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
   version: { label: string; switch: string }

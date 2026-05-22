@@ -8,4 +8,4 @@ import type { StorageRepository } from './types'
 export const storage: StorageRepository = new LocalStorageAdapter()
 
 // Re-export types for convenience
-export type { Bookmark, ReadingPosition, UserPreferences, StorageRepository } from './types'
+export type { Bookmark, BookmarkFolder, ReadingPosition, UserPreferences, StorageRepository } from './types'

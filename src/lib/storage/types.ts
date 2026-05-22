@@ -12,11 +12,22 @@ export interface Bookmark {
   verseEnd: number
   selectedText: string
   title?: string          // Optional user-defined label for identification
+  folderId?: string       // Optional reference to a BookmarkFolder id
   createdAt: string       // ISO 8601
   // Future sync fields (optional now, required when remote sync is added)
   syncStatus?: 'local' | 'synced' | 'pending' | 'conflict'
   serverId?: string
   updatedAt?: string
+}
+
+// Folders group bookmarks within a specific book of a version
+export interface BookmarkFolder {
+  id: string              // uuid v4
+  versionSlug: string
+  bookSlug: string        // folder is scoped to a single book
+  name: string
+  order: number           // for ordering folders within a book group
+  createdAt: string       // ISO 8601
 }
 
 export interface ReadingPosition {
@@ -43,6 +54,12 @@ export interface StorageRepository {
   updateBookmark(id: string, patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>): Promise<Bookmark>
   removeBookmark(id: string): Promise<void>
   clearBookmarks(): Promise<void>
+
+  // ── Bookmark Folders ───────────────────────────────────────
+  getFoldersByVersion(versionSlug: string): Promise<BookmarkFolder[]>
+  addFolder(data: Omit<BookmarkFolder, 'id' | 'createdAt'>): Promise<BookmarkFolder>
+  updateFolder(id: string, patch: Partial<Omit<BookmarkFolder, 'id' | 'createdAt'>>): Promise<BookmarkFolder>
+  removeFolder(id: string): Promise<void>
 
   // ── Reading Position (per version) ────────────────────────
   getReadingPosition(versionSlug: string): Promise<ReadingPosition | null>
