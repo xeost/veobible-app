@@ -7,6 +7,7 @@ import { ChapterReader } from '@/components/reader/ChapterReader'
 import { BookmarksList } from '@/components/bookmarks/BookmarksList'
 import { Sheet } from '@/components/ui/Sheet'
 import { useI18n } from '@/lib/i18n/client'
+import { useBookmarks } from '@/hooks/useBookmarks'
 import type { ChapterData, BookInfo } from '@/lib/bible/types'
 
 interface ChapterClientProps {
@@ -20,6 +21,9 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
   const { t } = useI18n()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [bookmarksOpen, setBookmarksOpen] = useState(false)
+
+  // Single source of truth for bookmarks — shared between reader and sidebar
+  const { bookmarks, loading: bookmarksLoading, addBookmark, removeBookmark, isBookmarked } = useBookmarks(version)
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
@@ -58,7 +62,13 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
           id="main-content"
           style={{ paddingBottom: 'calc(2.5rem + var(--sab))' }}
         >
-          <ChapterReader data={data} lang={lang} version={version} />
+          <ChapterReader
+            data={data}
+            lang={lang}
+            version={version}
+            addBookmark={addBookmark}
+            isBookmarked={isBookmarked}
+          />
         </main>
       </div>
 
@@ -85,7 +95,12 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
         title={t.nav.bookmarks}
         side="right"
       >
-        <BookmarksList lang={lang} />
+        <BookmarksList
+          lang={lang}
+          bookmarks={bookmarks}
+          loading={bookmarksLoading}
+          removeBookmark={removeBookmark}
+        />
       </Sheet>
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useBookmarks } from '@/hooks/useBookmarks'
+import type { Bookmark } from '@/lib/storage'
 import { BookmarkCard } from './BookmarkCard'
 import { useI18n } from '@/lib/i18n/client'
 
@@ -13,11 +13,13 @@ const BookmarkEmptyIcon = () => (
 
 interface BookmarksListProps {
   lang: string
+  bookmarks: Bookmark[]
+  loading: boolean
+  removeBookmark: (id: string) => Promise<void>
 }
 
-export function BookmarksList({ lang }: BookmarksListProps) {
+export function BookmarksList({ lang, bookmarks, loading, removeBookmark }: BookmarksListProps) {
   const { t } = useI18n()
-  const { bookmarks, loading, removeBookmark } = useBookmarks()
 
   if (loading) {
     return (

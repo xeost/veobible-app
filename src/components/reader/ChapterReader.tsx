@@ -6,9 +6,9 @@ import { VerseItem } from './VerseItem'
 import { SelectionToolbar } from './SelectionToolbar'
 import { useTextSelection } from '@/hooks/useTextSelection'
 import { useReadingPosition } from '@/hooks/useReadingPosition'
-import { useBookmarks } from '@/hooks/useBookmarks'
 import { toast } from '@/components/ui/Toast'
 import type { ChapterData } from '@/lib/bible/types'
+import type { Bookmark } from '@/lib/storage'
 import { useI18n } from '@/lib/i18n/client'
 
 const ChevronLeftIcon = () => (
@@ -26,13 +26,14 @@ interface ChapterReaderProps {
   data: ChapterData
   lang: string
   version: string
+  addBookmark: (data: Omit<Bookmark, 'id' | 'createdAt' | 'syncStatus'>) => Promise<Bookmark>
+  isBookmarked: (vSlug: string, bookSlug: string, chapter: number, verseStart: number) => boolean
 }
 
-export function ChapterReader({ data, lang, version }: ChapterReaderProps) {
+export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }: ChapterReaderProps) {
   const { t } = useI18n()
   const { selection, containerRef, clearSelection } = useTextSelection()
   const { savePosition } = useReadingPosition(version)
-  const { bookmarks, addBookmark, isBookmarked } = useBookmarks(version)
 
   const { verses, book, chapterNum, prevChapter, nextChapter } = data
 
