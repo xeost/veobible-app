@@ -30,16 +30,37 @@ export function Sheet({ open, onClose, title, side = 'right', children }: SheetP
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  const sideClasses = {
-    left: 'left-0 top-0 h-full w-80 max-w-full',
-    right: 'right-0 top-0 h-full w-80 max-w-full',
-    bottom: 'bottom-0 left-0 w-full max-h-[80vh] rounded-t-2xl',
+  const sideStyles: Record<string, React.CSSProperties> = {
+    left: {
+      background: 'var(--bg-sidebar)',
+      borderRight: '1px solid var(--border)',
+      paddingTop: 'var(--sat)',
+      paddingLeft: 'var(--sal)',
+    },
+    right: {
+      background: 'var(--bg-sidebar)',
+      borderLeft: '1px solid var(--border)',
+      paddingTop: 'var(--sat)',
+      paddingRight: 'var(--sar)',
+    },
+    bottom: {
+      background: 'var(--bg-sidebar)',
+      paddingBottom: 'var(--sab)',
+      paddingLeft: 'var(--sal)',
+      paddingRight: 'var(--sar)',
+    },
   }
 
   const slideClasses = {
     left: open ? 'translate-x-0' : '-translate-x-full',
     right: open ? 'translate-x-0' : 'translate-x-full',
     bottom: open ? 'translate-y-0' : 'translate-y-full',
+  }
+
+  const positionClasses = {
+    left: 'left-0 top-0 h-full w-80 max-w-full',
+    right: 'right-0 top-0 h-full w-80 max-w-full',
+    bottom: 'bottom-0 left-0 w-full max-h-[80vh] rounded-t-2xl',
   }
 
   return (
@@ -60,8 +81,8 @@ export function Sheet({ open, onClose, title, side = 'right', children }: SheetP
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`fixed z-50 flex flex-col overflow-hidden shadow-2xl transition-transform duration-300 ease-out ${sideClasses[side]} ${slideClasses[side]}`}
-        style={{ background: 'var(--bg-sidebar)', borderLeft: side === 'right' ? '1px solid var(--border)' : undefined, borderRight: side === 'left' ? '1px solid var(--border)' : undefined }}
+        className={`fixed z-50 flex flex-col overflow-hidden shadow-2xl transition-transform duration-300 ease-out ${positionClasses[side]} ${slideClasses[side]}`}
+        style={sideStyles[side]}
       >
         {title && (
           <div

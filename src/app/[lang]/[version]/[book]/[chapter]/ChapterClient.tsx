@@ -35,8 +35,12 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
       <div className="flex max-w-7xl mx-auto">
         {/* Desktop sidebar */}
         <aside
-          className="hidden md:block w-64 flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-hidden sidebar"
-          style={{ background: 'var(--bg-sidebar)' }}
+          className="hidden md:block w-64 flex-shrink-0 sticky overflow-hidden sidebar"
+          style={{
+            background: 'var(--bg-sidebar)',
+            top: 'calc(3.5rem + var(--sat))',
+            height: 'calc(100vh - 3.5rem - var(--sat))',
+          }}
         >
           <Sidebar
             lang={lang}
@@ -49,7 +53,11 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 px-4 md:px-8 py-10" id="main-content">
+        <main
+          className="flex-1 min-w-0 px-4 md:px-8 py-10"
+          id="main-content"
+          style={{ paddingBottom: 'calc(2.5rem + var(--sab))' }}
+        >
           <ChapterReader data={data} lang={lang} version={version} />
         </main>
       </div>

@@ -75,8 +75,8 @@ export function Header({ currentLang, currentVersion, onOpenSidebar, onOpenBookm
   }
 
   return (
-    <header className="app-header sticky top-0 z-30 h-14">
-      <div className="max-w-6xl mx-auto px-4 h-full flex items-center gap-2">
+    <header className="app-header app-header-height sticky top-0 z-30">
+      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-2">
         {/* Sidebar toggle */}
         {onOpenSidebar && (
           <button
