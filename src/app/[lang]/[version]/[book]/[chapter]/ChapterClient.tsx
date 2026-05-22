@@ -41,6 +41,7 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
           <Sidebar
             lang={lang}
             version={version}
+            versionName={data.version.name}
             books={books}
             currentBookSlug={data.book.slug}
             currentChapter={data.chapterNum}

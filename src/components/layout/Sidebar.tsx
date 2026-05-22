@@ -8,14 +8,35 @@ import { useI18n } from '@/lib/i18n/client'
 interface SidebarProps {
   lang: string
   version: string
+  versionName?: string
   books: BookInfo[]
   currentBookSlug?: string
   currentChapter?: number
 }
 
-export function Sidebar({ lang, version, books, currentBookSlug, currentChapter }: SidebarProps) {
+const SCROLL_KEY = 'sidebar-scroll'
+
+export function Sidebar({ lang, version, versionName, books, currentBookSlug, currentChapter }: SidebarProps) {
   const { t } = useI18n()
   const [expandedBook, setExpandedBook] = React.useState<string | null>(currentBookSlug ?? null)
+  const navRef = React.useRef<HTMLElement>(null)
+
+  // Restore scroll position on mount (before paint to avoid flash)
+  React.useLayoutEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    const saved = sessionStorage.getItem(SCROLL_KEY)
+    if (saved !== null) {
+      nav.scrollTop = parseInt(saved, 10)
+    }
+  }, [])
+
+  // Save scroll position on every scroll event
+  const handleScroll = React.useCallback(() => {
+    if (navRef.current) {
+      sessionStorage.setItem(SCROLL_KEY, String(navRef.current.scrollTop))
+    }
+  }, [])
 
   const oldTestament = books.filter((b) => b.testament === 'old')
   const newTestament = books.filter((b) => b.testament === 'new')
@@ -24,6 +45,7 @@ export function Sidebar({ lang, version, books, currentBookSlug, currentChapter 
     <div className="mb-4">
       <div className="px-4 py-2 testament-header">{testamentLabel}</div>
       {groupBooks.map((book) => {
+        // Use book.slug (localized) for URL routing and active state
         const isActive = book.slug === currentBookSlug
         const isExpanded = expandedBook === book.slug
 
@@ -75,7 +97,7 @@ export function Sidebar({ lang, version, books, currentBookSlug, currentChapter 
   )
 
   return (
-    <nav className="h-full overflow-y-auto py-3">
+    <nav ref={navRef} onScroll={handleScroll} className="h-full overflow-y-auto py-3">
       {/* Version header */}
       <div
         className="px-4 py-3 mb-2 border-b"
@@ -83,7 +105,7 @@ export function Sidebar({ lang, version, books, currentBookSlug, currentChapter 
       >
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.version.label}</p>
         <p className="font-semibold text-sm mt-0.5" style={{ color: 'var(--text-primary)' }}>
-          {version.toUpperCase()}
+          {versionName ?? version.toUpperCase()}
         </p>
       </div>
 

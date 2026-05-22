@@ -17,14 +17,15 @@ export function loadBibleIndex(langCode: string, versionSlug: string): BibleInde
 export function loadChapterVerses(
   langCode: string,
   versionSlug: string,
-  bookSlug: string,
+  bookId: string,
   chapterNum: number,
 ): Verse[] {
+  // Data directories are named after the book's English id, not the localized slug
   const filePath = path.join(
     BIBLE_DATA_ROOT,
     langCode,
     versionSlug,
-    bookSlug,
+    bookId,
     `${chapterNum}.json`,
   )
   const raw = fs.readFileSync(filePath, 'utf-8')
@@ -40,14 +41,16 @@ export function loadChapterData(
   const index = loadBibleIndex(langCode, versionSlug)
   const books = index.books
 
+  // Match by book.slug (localized, used in URLs e.g. 'levitico' for Spanish)
   const bookIndex = books.findIndex((b) => b.slug === bookSlug)
   if (bookIndex === -1) {
     throw new Error(`Book not found: ${bookSlug} in ${langCode}/${versionSlug}`)
   }
   const book = books[bookIndex]
-  const verses = loadChapterVerses(langCode, versionSlug, bookSlug, chapterNum)
+  // Use book.id (English) only for the filesystem path — directories are named in English
+  const verses = loadChapterVerses(langCode, versionSlug, book.id, chapterNum)
 
-  // Compute prev/next navigation
+  // Compute prev/next navigation using book.slug for URL consistency
   let prevChapter: ChapterData['prevChapter'] = null
   let nextChapter: ChapterData['nextChapter'] = null
 
@@ -86,6 +89,7 @@ export function getAllChapterStaticParams(): StaticChapterParam[] {
         params.push({
           lang: version.langCode,
           version: version.slug,
+          // Use book.slug (localized) — this is what appears in the URL
           book: book.slug,
           chapter: String(ch),
         })
