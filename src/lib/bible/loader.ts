@@ -6,7 +6,7 @@ import path from 'path'
 import type { BibleIndex, BookInfo, ChapterData, StaticChapterParam, Verse } from './types'
 import { BIBLE_VERSIONS } from './config'
 
-const BIBLE_DATA_ROOT = path.join(process.cwd(), 'material', 'bible-versions')
+const BIBLE_DATA_ROOT = path.join(process.cwd(), 'public', 'bible-data')
 
 export function loadBibleIndex(langCode: string, versionSlug: string): BibleIndex {
   const filePath = path.join(BIBLE_DATA_ROOT, langCode, versionSlug, 'index.json')
