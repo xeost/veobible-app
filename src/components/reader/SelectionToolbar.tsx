@@ -6,7 +6,13 @@ import { useI18n } from '@/lib/i18n/client'
 
 interface SelectionToolbarProps {
   selection: TextSelection | null
-  onBookmark: () => void
+  /**
+   * Fired when the user taps "Bookmark".
+   * The parent should capture the selection and open the title modal.
+   * Called with a synthetic MouseEvent so we can prevent default and stop
+   * the browser from collapsing the selection before the parent reads it.
+   */
+  onBookmark: (e: React.MouseEvent) => void
   onDismiss: () => void
 }
 
@@ -29,8 +35,6 @@ export function SelectionToolbar({ selection, onBookmark, onDismiss }: Selection
   const { t } = useI18n()
   const [copied, setCopied] = useState(false)
   const toolbarRef = useRef<HTMLDivElement>(null)
-
-  // Compute position above selection
   const [pos, setPos] = useState({ top: 0, left: 0 })
 
   useEffect(() => {
@@ -41,7 +45,10 @@ export function SelectionToolbar({ selection, onBookmark, onDismiss }: Selection
 
     setPos({
       top: rect.top + window.scrollY - TOOLBAR_H - 8,
-      left: Math.max(8, rect.left + rect.width / 2 - TOOLBAR_W / 2),
+      left: Math.max(8, Math.min(
+        rect.left + rect.width / 2 - TOOLBAR_W / 2,
+        window.innerWidth - TOOLBAR_W - 8,
+      )),
     })
   }, [selection])
 
@@ -61,9 +68,16 @@ export function SelectionToolbar({ selection, onBookmark, onDismiss }: Selection
       className="selection-toolbar"
       style={{ top: pos.top, left: pos.left, pointerEvents: 'all' }}
     >
-      {/* Bookmark button */}
+      {/* Bookmark button — mousedown to fire before selectionchange clears state */}
       <button
-        onClick={() => { onBookmark(); onDismiss() }}
+        onMouseDown={(e) => {
+          e.preventDefault() // prevent blur / selection collapse
+          onBookmark(e)
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault()
+          onBookmark(e as unknown as React.MouseEvent)
+        }}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-100"
         style={{ color: 'var(--brand)', background: 'var(--brand-light)' }}
         id="selection-bookmark-btn"
@@ -74,6 +88,7 @@ export function SelectionToolbar({ selection, onBookmark, onDismiss }: Selection
 
       {/* Copy button */}
       <button
+        onMouseDown={(e) => e.preventDefault()}
         onClick={handleCopy}
         className="btn-icon p-2"
         aria-label={t.reader.copyText}

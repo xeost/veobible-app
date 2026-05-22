@@ -11,6 +11,7 @@ export interface Bookmark {
   verseStart: number
   verseEnd: number
   selectedText: string
+  title?: string          // Optional user-defined label for identification
   createdAt: string       // ISO 8601
   // Future sync fields (optional now, required when remote sync is added)
   syncStatus?: 'local' | 'synced' | 'pending' | 'conflict'
@@ -39,6 +40,7 @@ export interface StorageRepository {
   getBookmarksByVersion(versionSlug: string): Promise<Bookmark[]>
   getBookmark(id: string): Promise<Bookmark | null>
   addBookmark(data: Omit<Bookmark, 'id' | 'createdAt' | 'syncStatus'>): Promise<Bookmark>
+  updateBookmark(id: string, patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>): Promise<Bookmark>
   removeBookmark(id: string): Promise<void>
   clearBookmarks(): Promise<void>
 

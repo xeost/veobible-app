@@ -28,6 +28,10 @@ export const es: Translations = {
     selectText: 'Selecciona texto para marcarlo',
     copyText: 'Copiar',
     shareText: 'Compartir',
+    bookmarkTitleLabel: 'Agregar un título (opcional)',
+    bookmarkTitlePlaceholder: 'ej. Versículo favorito, para reflexionar…',
+    bookmarkSave: 'Guardar',
+    bookmarkCancel: 'Cancelar',
   },
 
   // Books & Testaments
@@ -41,6 +45,9 @@ export const es: Translations = {
     title: 'Marcadores',
     empty: 'Aún no hay marcadores',
     emptyDescription: 'Selecciona cualquier texto mientras lees para guardarlo como marcador.',
+    addTitle: 'Guardar marcador',
+    editTitle: 'Editar título',
+    titleHint: 'Dale una nota personal a este pasaje',
     goTo: 'Ir al pasaje',
     delete: 'Eliminar marcador',
     deleteConfirm: '¿Eliminar este marcador?',

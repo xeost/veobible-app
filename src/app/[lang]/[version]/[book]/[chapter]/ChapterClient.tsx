@@ -23,7 +23,7 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
   const [bookmarksOpen, setBookmarksOpen] = useState(false)
 
   // Single source of truth for bookmarks — shared between reader and sidebar
-  const { bookmarks, loading: bookmarksLoading, addBookmark, removeBookmark, isBookmarked } = useBookmarks(version)
+  const { bookmarks, loading: bookmarksLoading, addBookmark, updateBookmark, removeBookmark, isBookmarked } = useBookmarks(version)
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
@@ -100,6 +100,7 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
           bookmarks={bookmarks}
           loading={bookmarksLoading}
           removeBookmark={removeBookmark}
+          updateBookmark={updateBookmark}
         />
       </Sheet>
     </div>

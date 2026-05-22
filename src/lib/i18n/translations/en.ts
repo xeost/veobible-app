@@ -26,6 +26,10 @@ export const en = {
     selectText: 'Select text to bookmark',
     copyText: 'Copy',
     shareText: 'Share',
+    bookmarkTitleLabel: 'Add a title (optional)',
+    bookmarkTitlePlaceholder: 'e.g. Comfort verse, favorite…',
+    bookmarkSave: 'Save',
+    bookmarkCancel: 'Cancel',
   },
 
   // Books & Testaments
@@ -39,6 +43,9 @@ export const en = {
     title: 'Bookmarks',
     empty: 'No bookmarks yet',
     emptyDescription: 'Select any text while reading to save it as a bookmark.',
+    addTitle: 'Save bookmark',
+    editTitle: 'Edit title',
+    titleHint: 'Give this passage a personal note',
     goTo: 'Go to passage',
     delete: 'Delete bookmark',
     deleteConfirm: 'Delete this bookmark?',
@@ -104,9 +111,9 @@ export interface Translations {
   appName: string
   appTagline: string
   nav: { home: string; bookmarks: string; settings: string; search: string; tableOfContents: string }
-  reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string }
+  reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string }
   testament: { old: string; new: string }
-  bookmarks: { title: string; empty: string; emptyDescription: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string }
+  bookmarks: { title: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string }
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
   version: { label: string; switch: string }

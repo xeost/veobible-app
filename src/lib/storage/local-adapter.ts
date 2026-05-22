@@ -74,6 +74,24 @@ export class LocalStorageAdapter implements StorageRepository {
     return bookmark
   }
 
+  async updateBookmark(
+    id: string,
+    patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>,
+  ): Promise<Bookmark> {
+    const all = await this.getBookmarks()
+    const idx = all.findIndex((b) => b.id === id)
+    if (idx === -1) throw new Error(`Bookmark ${id} not found`)
+    const updated: Bookmark = {
+      ...all[idx],
+      ...patch,
+      id,
+      updatedAt: new Date().toISOString(),
+    }
+    all[idx] = updated
+    safePut(KEYS.bookmarks, all)
+    return updated
+  }
+
   async removeBookmark(id: string): Promise<void> {
     const all = await this.getBookmarks()
     safePut(

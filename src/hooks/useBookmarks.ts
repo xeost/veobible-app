@@ -64,6 +64,26 @@ export function useBookmarks(versionSlug?: string) {
     }
   }, [])
 
+  const updateBookmark = useCallback(
+    async (id: string, patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>) => {
+      // Optimistic update
+      setBookmarks((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+      )
+      try {
+        const updated = await storage.updateBookmark(id, patch)
+        setBookmarks((prev) => prev.map((b) => (b.id === id ? updated : b)))
+        return updated
+      } catch (err) {
+        // Rollback: reload from storage
+        const data = await storage.getBookmarks()
+        setBookmarks(data)
+        throw err
+      }
+    },
+    [],
+  )
+
   const isBookmarked = useCallback(
     (vSlug: string, bookSlug: string, chapter: number, verseStart: number) =>
       bookmarks.some(
@@ -76,5 +96,5 @@ export function useBookmarks(versionSlug?: string) {
     [bookmarks],
   )
 
-  return { bookmarks, loading, addBookmark, removeBookmark, isBookmarked }
+  return { bookmarks, loading, addBookmark, updateBookmark, removeBookmark, isBookmarked }
 }

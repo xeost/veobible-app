@@ -1,14 +1,16 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { VerseItem } from './VerseItem'
 import { SelectionToolbar } from './SelectionToolbar'
+import { BookmarkTitleModal } from '@/components/bookmarks/BookmarkTitleModal'
 import { useTextSelection } from '@/hooks/useTextSelection'
 import { useReadingPosition } from '@/hooks/useReadingPosition'
 import { toast } from '@/components/ui/Toast'
 import type { ChapterData } from '@/lib/bible/types'
 import type { Bookmark } from '@/lib/storage'
+import type { TextSelection } from '@/hooks/useTextSelection'
 import { useI18n } from '@/lib/i18n/client'
 
 const ChevronLeftIcon = () => (
@@ -34,6 +36,10 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
   const { t } = useI18n()
   const { selection, containerRef, clearSelection } = useTextSelection()
   const { savePosition } = useReadingPosition(version)
+
+  // Snapshot the selection at the moment the user taps "Bookmark" (before it clears)
+  const pendingSelectionRef = useRef<TextSelection | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
   const { verses, book, chapterNum, prevChapter, nextChapter } = data
 
@@ -64,16 +70,33 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
     return () => observer.disconnect()
   }, [book.slug, chapterNum, savePosition])
 
-  const handleBookmark = async () => {
+  /**
+   * Called via onMouseDown on the toolbar bookmark button.
+   * At this point the selection is still alive; we snapshot it and open
+   * the modal. The selection will collapse when the input gets focus — that's fine.
+   */
+  const handleOpenBookmarkModal = (e: React.MouseEvent) => {
+    e.preventDefault()
     if (!selection) return
+    pendingSelectionRef.current = selection
+    clearSelection() // dismiss the floating toolbar
+    setModalOpen(true)
+  }
+
+  const handleModalSave = async (title: string) => {
+    const sel = pendingSelectionRef.current
+    if (!sel) return
+    setModalOpen(false)
+    pendingSelectionRef.current = null
     try {
       await addBookmark({
         versionSlug: version,
         bookSlug: book.slug,
         chapter: chapterNum,
-        verseStart: selection.verseStart,
-        verseEnd: selection.verseEnd,
-        selectedText: selection.text,
+        verseStart: sel.verseStart,
+        verseEnd: sel.verseEnd,
+        selectedText: sel.text,
+        title: title || undefined,
       })
       toast(t.reader.bookmarkAdded)
     } catch {
@@ -81,16 +104,28 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
     }
   }
 
+  const handleModalCancel = () => {
+    setModalOpen(false)
+    pendingSelectionRef.current = null
+  }
+
   const buildNavUrl = (nav: { bookSlug: string; chapter: number }) =>
     `/${lang}/${version}/${nav.bookSlug}/${nav.chapter}`
 
   return (
     <div className="relative">
-      {/* Selection toolbar — rendered globally in position */}
+      {/* Floating selection toolbar */}
       <SelectionToolbar
         selection={selection}
-        onBookmark={handleBookmark}
+        onBookmark={handleOpenBookmarkModal}
         onDismiss={clearSelection}
+      />
+
+      {/* Bookmark title modal — opened when user clicks bookmark in toolbar */}
+      <BookmarkTitleModal
+        initialTitle={modalOpen ? '' : null}
+        onSave={handleModalSave}
+        onCancel={handleModalCancel}
       />
 
       {/* Chapter header */}

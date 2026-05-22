@@ -16,9 +16,10 @@ interface BookmarksListProps {
   bookmarks: Bookmark[]
   loading: boolean
   removeBookmark: (id: string) => Promise<void>
+  updateBookmark: (id: string, patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>) => Promise<Bookmark>
 }
 
-export function BookmarksList({ lang, bookmarks, loading, removeBookmark }: BookmarksListProps) {
+export function BookmarksList({ lang, bookmarks, loading, removeBookmark, updateBookmark }: BookmarksListProps) {
   const { t } = useI18n()
 
   if (loading) {
@@ -54,6 +55,9 @@ export function BookmarksList({ lang, bookmarks, loading, removeBookmark }: Book
           bookmark={bookmark}
           lang={lang}
           onRemove={removeBookmark}
+          onUpdateTitle={async (id, title) => {
+            await updateBookmark(id, { title: title || undefined })
+          }}
         />
       ))}
     </div>
