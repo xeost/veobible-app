@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
@@ -95,7 +96,7 @@ export function Header({ currentLang, currentVersion, onOpenSidebar, onOpenBookm
           className="flex items-center gap-2 mr-auto font-semibold text-base"
           style={{ color: 'var(--text-primary)' }}
         >
-          <span className="text-lg" style={{ color: 'var(--brand)' }}>✦</span>
+          <Image src="/logo.png" alt="VeoBible" width={28} height={28} priority />
           <span className="hidden sm:inline">VeoBible</span>
         </Link>
 

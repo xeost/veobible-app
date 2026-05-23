@@ -45,13 +45,6 @@ export const metadata: Metadata = {
     title: 'VeoBible',
     description: 'A modern Bible reading app with multiple versions.',
   },
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
-    ],
-    apple: '/apple-icon.png',
-  },
 }
 
 export const viewport: Viewport = {
