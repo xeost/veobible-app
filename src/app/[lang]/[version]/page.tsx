@@ -14,7 +14,7 @@ interface VersionPageProps {
 export async function generateStaticParams() {
   return [
     { lang: 'en', version: 'kjv' },
-    { lang: 'es', version: 'rv-1909' },
+    { lang: 'es', version: 'rv1909' },
   ]
 }
 

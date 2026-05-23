@@ -19,6 +19,9 @@ const lora = Lora({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://veobible.app'),
+  alternates: {
+    canonical: '/',
+  },
   title: {
     default: 'VeoBible — Read the Bible',
     template: '%s | VeoBible',

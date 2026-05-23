@@ -93,12 +93,12 @@ pnpm start
 /en                             → English homepage
 /es                             → Spanish homepage
 /en/kjv                         → KJV book list
-/es/rv-1909                     → Reina Valera 1909 book list
+/es/rv1909                     → Reina Valera 1909 book list
 /en/kjv/genesis/1               → Genesis chapter 1 (KJV)
-/es/rv-1909/genesis/1           → Génesis capítulo 1 (RV-1909)
+/es/rv1909/genesis/1           → Génesis capítulo 1 (rv1909)
 ```
 
-> Note: Spanish book slugs follow the RV-1909 index (e.g. `exodo`, `levitico`, `1-reyes`).
+> Note: Spanish book slugs follow the rv1909 index (e.g. `exodo`, `levitico`, `1-reyes`).
 
 ---
 
@@ -127,7 +127,7 @@ material/bible-versions/
 │   └── genesis/
 │       ├── 1.json              # Array of { verse, text }
 │       └── ...
-└── es/rv-1909/
+└── es/rv1909/
     ├── index.json
     └── genesis/
         └── 1.json
@@ -191,7 +191,7 @@ Every chapter page generates:
 | Version | Language | Copyright |
 |---------|----------|-----------|
 | King James Version (KJV) | English | Public Domain (Crown Copyright in the UK) |
-| Reina Valera 1909 (RV-1909) | Spanish | Public Domain |
+| Reina Valera 1909 (rv1909) | Spanish | Public Domain |
 
 ---
 

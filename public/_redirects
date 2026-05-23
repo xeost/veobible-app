@@ -1,0 +1,4 @@
+# Redirect /es/rv-1909 and all its subpaths to /es/rv1909
+/es/rv-1909/* /es/rv1909/:splat 301
+/es/rv-1909 /es/rv1909 301
+/es/rv-1909/ /es/rv1909/ 301

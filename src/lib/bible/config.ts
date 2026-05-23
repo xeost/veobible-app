@@ -21,11 +21,11 @@ export const BIBLE_VERSIONS: BibleVersion[] = [
   },
   {
     langCode: 'es',
-    slug: 'rv-1909',
-    dataPath: 'es/rv-1909',
-    publicPath: 'es/rv-1909',
+    slug: 'rv1909',
+    dataPath: 'es/rv1909',
+    publicPath: 'es/rv1909',
     name: 'Reina Valera 1909',
-    shortName: 'RV-1909',
+    shortName: 'rv1909',
   },
 ]
 
