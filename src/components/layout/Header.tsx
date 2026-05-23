@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
@@ -96,7 +95,8 @@ export function Header({ currentLang, currentVersion, onOpenSidebar, onOpenBookm
           className="flex items-center gap-2 mr-auto font-semibold text-base"
           style={{ color: 'var(--text-primary)' }}
         >
-          <Image src="/logo.png" alt="VeoBible" width={28} height={28} priority />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="VeoBible" width={28} height={28} />
           <span className="hidden sm:inline">VeoBible</span>
         </Link>
 
