@@ -20,7 +20,7 @@ export const config = {
    */
   workingDir:
     process.env.AUDIOBIBLES_WORKING_DIR ??
-    path.join(projectRoot, "material", "audiobibles"),
+    "/Users/fabian/Documents/audiobibles",
 
   /**
    * Path to the bible-data directory inside the web project.
@@ -57,13 +57,13 @@ export const config = {
      * Anchor date for book scheduling (YYYY-MM-DD).
      * Book 1 of any version is scheduled on this date.
      */
-    baseDate: "2026-06-01",
+    baseDate: "2026-05-20",
 
     /**
      * Number of days to add for each subsequent book.
      * For example: 7 = one book per week.
      */
-    daysPerBook: 7,
+    daysPerBook: 2,
 
     /**
      * Fixed upload time shown in the YouTube info file.
