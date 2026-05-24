@@ -99,3 +99,21 @@ export function getAllChapterStaticParams(): StaticChapterParam[] {
 
   return params
 }
+
+// Generate static params for all versions × books (for the book root which redirects to chapter 1)
+export function getAllBookStaticParams(): { lang: string; version: string; book: string }[] {
+  const params: { lang: string; version: string; book: string }[] = []
+
+  for (const version of BIBLE_VERSIONS) {
+    const index = loadBibleIndex(version.langCode, version.slug)
+    for (const book of index.books) {
+      params.push({
+        lang: version.langCode,
+        version: version.slug,
+        book: book.slug,
+      })
+    }
+  }
+
+  return params
+}
