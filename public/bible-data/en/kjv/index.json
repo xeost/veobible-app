@@ -5,7 +5,8 @@
     "slug": "kjv",
     "year": "1611 / 1769",
     "language": "English",
-    "copyright": "This Bible is in the Public Domain in most parts of the world.  However, in the United Kingdom, it is under perpetual Crown copyright."
+    "copyright": "This Bible is in the Public Domain in most parts of the world.  However, in the United Kingdom, it is under perpetual Crown copyright.",
+    "description": "The King James Version (KJV) is an English translation of the Christian Bible for the Church of England, commissioned in 1604 and completed as well as published in 1611. It is renowned for its majestic style and has profoundly influenced the English language."
   },
   "books": [
     {
@@ -66,7 +67,8 @@
         22,
         33,
         26
-      ]
+      ],
+      "description": "The book of beginnings, narrating the creation of the world, the fall of man, and the origins of the nation of Israel through the patriarchs."
     },
     {
       "id": "exodus",
@@ -116,7 +118,8 @@
         31,
         43,
         38
-      ]
+      ],
+      "description": "Recounts the deliverance of the Israelites from slavery in Egypt under Moses' leadership and the giving of the Law at Mount Sinai."
     },
     {
       "id": "leviticus",
@@ -153,7 +156,8 @@
         55,
         46,
         34
-      ]
+      ],
+      "description": "A manual of laws and regulations for the priesthood and the people of Israel, emphasizing the holiness of God and the need for purity."
     },
     {
       "id": "numbers",
@@ -199,7 +203,8 @@
         29,
         34,
         13
-      ]
+      ],
+      "description": "Narrates the Israelites' forty-year journey through the wilderness, highlighting their rebellions and God's faithfulness."
     },
     {
       "id": "deuteronomy",
@@ -243,7 +248,8 @@
         52,
         29,
         12
-      ]
+      ],
+      "description": "Moses' repetition of the Law before Israel enters the Promised Land, calling for obedience and love for God."
     },
     {
       "id": "joshua",
@@ -277,7 +283,8 @@
         34,
         16,
         33
-      ]
+      ],
+      "description": "Describes the conquest and division of the Promised Land under Joshua's leadership, demonstrating God's faithfulness to His promises."
     },
     {
       "id": "judges",
@@ -308,7 +315,8 @@
         30,
         48,
         25
-      ]
+      ],
+      "description": "Records the cycle of apostasy, oppression, repentance, and deliverance of Israel during the era of the judges."
     },
     {
       "id": "ruth",
@@ -322,7 +330,8 @@
         23,
         18,
         22
-      ]
+      ],
+      "description": "A story of love, loyalty, and redemption, showing God's providence through the life of a Moabite woman who becomes an ancestor of David."
     },
     {
       "id": "1-samuel",
@@ -363,7 +372,8 @@
         11,
         31,
         13
-      ]
+      ],
+      "description": "Narrates Israel's transition from the period of the judges to the monarchy, including the lives of Samuel, Saul, and young David."
     },
     {
       "id": "2-samuel",
@@ -397,7 +407,8 @@
         51,
         39,
         25
-      ]
+      ],
+      "description": "Focuses on the reign of King David, his victories, failures, and the establishment of Jerusalem as the capital of Israel."
     },
     {
       "id": "1-kings",
@@ -429,7 +440,8 @@
         43,
         29,
         53
-      ]
+      ],
+      "description": "Recounts the splendor of Solomon's reign, the building of the temple, and the subsequent division of the kingdom into Israel and Judah."
     },
     {
       "id": "2-kings",
@@ -464,7 +476,8 @@
         37,
         20,
         30
-      ]
+      ],
+      "description": "Continues the history of the divided kingdoms of Israel and Judah, marked by the idolatry of kings and the ministry of prophets, culminating in exiles."
     },
     {
       "id": "1-chronicles",
@@ -503,7 +516,8 @@
         34,
         21,
         30
-      ]
+      ],
+      "description": "A review of Israel's history from Adam to David, with an emphasis on genealogy, temple worship, and God's covenant."
     },
     {
       "id": "2-chronicles",
@@ -549,7 +563,8 @@
         33,
         27,
         23
-      ]
+      ],
+      "description": "Follows the history of the kingdom of Judah from Solomon to the Babylonian exile, highlighting the religious reforms of some kings."
     },
     {
       "id": "ezra",
@@ -569,7 +584,8 @@
         36,
         15,
         44
-      ]
+      ],
+      "description": "Narrates the return of the Jews from exile in Babylon and the rebuilding of the temple in Jerusalem under the leadership of Zerubbabel and Ezra."
     },
     {
       "id": "nehemiah",
@@ -592,7 +608,8 @@
         36,
         47,
         31
-      ]
+      ],
+      "description": "Describes the rebuilding of the walls of Jerusalem under Nehemiah's direction and the spiritual renewal of the people."
     },
     {
       "id": "esther",
@@ -612,7 +629,8 @@
         17,
         32,
         3
-      ]
+      ],
+      "description": "The story of a young Jewish woman who becomes queen of Persia and is used by God to save her people from extermination."
     },
     {
       "id": "job",
@@ -664,7 +682,8 @@
         24,
         34,
         17
-      ]
+      ],
+      "description": "A poetic drama exploring the problem of the suffering of the righteous and the inscrutable sovereignty of God."
     },
     {
       "id": "psalms",
@@ -824,7 +843,8 @@
         14,
         9,
         6
-      ]
+      ],
+      "description": "A collection of songs, prayers, and poems expressing the full range of human emotions in relation to God."
     },
     {
       "id": "proverbs",
@@ -865,7 +885,8 @@
         27,
         33,
         31
-      ]
+      ],
+      "description": "A book of practical wisdom offering advice on how to live a righteous, prudent, and God-fearing life."
     },
     {
       "id": "ecclesiastes",
@@ -887,7 +908,8 @@
         20,
         10,
         14
-      ]
+      ],
+      "description": "A philosophical reflection on the vanity of earthly life and the conclusion that true meaning is found in fearing God."
     },
     {
       "id": "song-of-solomon",
@@ -905,7 +927,8 @@
         13,
         13,
         14
-      ]
+      ],
+      "description": "A lyric poem celebrating romantic and marital love, often interpreted as an allegory of God's love for His people."
     },
     {
       "id": "isaiah",
@@ -981,7 +1004,8 @@
         12,
         25,
         24
-      ]
+      ],
+      "description": "Prophecies of judgment and comfort, with profound revelations about the coming of the Messiah, the suffering Servant, and the glorious future."
     },
     {
       "id": "jeremiah",
@@ -1043,7 +1067,8 @@
         46,
         64,
         34
-      ]
+      ],
+      "description": "The ministry of the weeping prophet, warning Judah of imminent judgment for its sin and prophesying the New Covenant."
     },
     {
       "id": "lamentations",
@@ -1058,7 +1083,8 @@
         66,
         22,
         22
-      ]
+      ],
+      "description": "Funeral poems expressing sorrow and grief over the destruction of Jerusalem, while acknowledging God's faithfulness."
     },
     {
       "id": "ezekiel",
@@ -1116,7 +1142,8 @@
         24,
         23,
         35
-      ]
+      ],
+      "description": "Prophetic visions given during the Babylonian exile, announcing judgment on Jerusalem and promising spiritual restoration."
     },
     {
       "id": "daniel",
@@ -1138,7 +1165,8 @@
         21,
         45,
         13
-      ]
+      ],
+      "description": "Stories of faithfulness to God in the Babylonian exile and apocalyptic visions about world empires and the final triumph of God's kingdom."
     },
     {
       "id": "hosea",
@@ -1162,7 +1190,8 @@
         14,
         16,
         9
-      ]
+      ],
+      "description": "God's unwavering love illustrated through the prophet's marriage to an unfaithful wife, representing God's relationship with Israel."
     },
     {
       "id": "joel",
@@ -1175,7 +1204,8 @@
         20,
         32,
         21
-      ]
+      ],
+      "description": "A prophecy about the day of the Lord, illustrated by a devastating locust plague and the promise of the outpouring of the Holy Spirit."
     },
     {
       "id": "amos",
@@ -1194,7 +1224,8 @@
         17,
         14,
         15
-      ]
+      ],
+      "description": "A call for social justice and warnings of judgment against the nations and the northern kingdom for their oppression of the poor."
     },
     {
       "id": "obadiah",
@@ -1205,7 +1236,8 @@
       "chapters": 1,
       "verses_per_chapter": [
         21
-      ]
+      ],
+      "description": "A prophecy of judgment against the nation of Edom for its pride and hostility toward Judah."
     },
     {
       "id": "jonah",
@@ -1219,7 +1251,8 @@
         10,
         10,
         11
-      ]
+      ],
+      "description": "The story of a reluctant prophet sent to preach repentance to Nineveh, showing God's grace and compassion toward the Gentiles."
     },
     {
       "id": "micah",
@@ -1236,7 +1269,8 @@
         15,
         16,
         20
-      ]
+      ],
+      "description": "Messages of judgment and hope, prophesying the Messiah's birthplace and summarizing what God requires of man."
     },
     {
       "id": "nahum",
@@ -1249,7 +1283,8 @@
         15,
         13,
         19
-      ]
+      ],
+      "description": "A prophecy announcing the imminent and deserved destruction of the Assyrian city of Nineveh."
     },
     {
       "id": "habakkuk",
@@ -1262,7 +1297,8 @@
         17,
         20,
         19
-      ]
+      ],
+      "description": "A dialogue between the prophet and God about divine justice, concluding with an affirmation of faith despite circumstances."
     },
     {
       "id": "zephaniah",
@@ -1275,7 +1311,8 @@
         18,
         15,
         20
-      ]
+      ],
+      "description": "Warnings about the great day of the Lord's wrath and promises of salvation for a humble remnant."
     },
     {
       "id": "haggai",
@@ -1287,7 +1324,8 @@
       "verses_per_chapter": [
         15,
         23
-      ]
+      ],
+      "description": "A call to the Jewish people to prioritize the rebuilding of the temple in Jerusalem after their return from exile."
     },
     {
       "id": "zechariah",
@@ -1311,7 +1349,8 @@
         14,
         9,
         21
-      ]
+      ],
+      "description": "Prophetic visions encouraging the rebuilding of the temple and detailing the coming of the Messiah and His future reign."
     },
     {
       "id": "malachi",
@@ -1325,7 +1364,8 @@
         17,
         18,
         6
-      ]
+      ],
+      "description": "A confrontation of the spiritual apathy of the priests and the people, with the promise of the Messiah's forerunner."
     },
     {
       "id": "matthew",
@@ -1363,7 +1403,8 @@
         75,
         66,
         20
-      ]
+      ],
+      "description": "Presents Jesus as the King and Messiah promised in the Old Testament, focusing on His teachings and the kingdom of heaven."
     },
     {
       "id": "mark",
@@ -1389,7 +1430,8 @@
         72,
         47,
         20
-      ]
+      ],
+      "description": "A fast-paced, action-oriented account of Jesus' life, presenting Him as the Servant of God who came to suffer and serve."
     },
     {
       "id": "luke",
@@ -1423,7 +1465,8 @@
         71,
         56,
         53
-      ]
+      ],
+      "description": "A detailed and compassionate narrative emphasizing Jesus' humanity and His love for the marginalized, the poor, and sinners."
     },
     {
       "id": "john",
@@ -1454,7 +1497,8 @@
         42,
         31,
         25
-      ]
+      ],
+      "description": "Focuses on the deity of Christ, structured around His miracles and teachings so that readers may believe He is the Son of God."
     },
     {
       "id": "acts",
@@ -1492,7 +1536,8 @@
         32,
         44,
         31
-      ]
+      ],
+      "description": "Narrates the history of the early church, the descent of the Holy Spirit, and the spread of the gospel from Jerusalem to the ends of the earth."
     },
     {
       "id": "romans",
@@ -1518,7 +1563,8 @@
         23,
         33,
         27
-      ]
+      ],
+      "description": "A systematic and profound exposition of the gospel, explaining justification by faith, grace, and life in the Spirit."
     },
     {
       "id": "1-corinthians",
@@ -1544,7 +1590,8 @@
         40,
         58,
         24
-      ]
+      ],
+      "description": "A letter addressed to a divided church, tackling practical issues, discipline, spiritual gifts, and the resurrection."
     },
     {
       "id": "2-corinthians",
@@ -1567,7 +1614,8 @@
         33,
         21,
         14
-      ]
+      ],
+      "description": "A deeply personal letter in which Paul defends his apostolic ministry and urges repentance and generosity."
     },
     {
       "id": "galatians",
@@ -1583,7 +1631,8 @@
         31,
         26,
         18
-      ]
+      ],
+      "description": "A passionate defense of freedom in Christ and justification by faith, against the teaching that keeping the law was necessary."
     },
     {
       "id": "ephesians",
@@ -1599,7 +1648,8 @@
         32,
         33,
         24
-      ]
+      ],
+      "description": "Explores the spiritual blessings in Christ, the unity of the church, and the armor of God for spiritual warfare."
     },
     {
       "id": "philippians",
@@ -1613,7 +1663,8 @@
         30,
         21,
         23
-      ]
+      ],
+      "description": "A letter full of joy and gratitude, encouraging believers to live with humility, unity, and confidence in Christ despite trials."
     },
     {
       "id": "colossians",
@@ -1627,7 +1678,8 @@
         23,
         25,
         18
-      ]
+      ],
+      "description": "Highlights the supremacy and sufficiency of Christ over all things, warning against false philosophies and human traditions."
     },
     {
       "id": "1-thessalonians",
@@ -1642,7 +1694,8 @@
         13,
         18,
         28
-      ]
+      ],
+      "description": "Instructions on how to live a holy life and answers to questions about the second coming of Christ and deceased believers."
     },
     {
       "id": "2-thessalonians",
@@ -1655,7 +1708,8 @@
         12,
         17,
         18
-      ]
+      ],
+      "description": "Further clarifications about the events preceding Christ's return and exhortations to work and stand firm."
     },
     {
       "id": "1-timothy",
@@ -1671,7 +1725,8 @@
         16,
         25,
         21
-      ]
+      ],
+      "description": "Pastoral instructions to a young leader regarding church order, the role of leaders, and the defense of sound doctrine."
     },
     {
       "id": "2-timothy",
@@ -1685,7 +1740,8 @@
         26,
         17,
         22
-      ]
+      ],
+      "description": "Paul's final words before his death, encouraging Timothy to persevere in faith, preach the word, and endure suffering."
     },
     {
       "id": "titus",
@@ -1698,7 +1754,8 @@
         16,
         15,
         15
-      ]
+      ],
+      "description": "Practical advice for organizing the churches in Crete, emphasizing sound doctrine and good works in the lives of believers."
     },
     {
       "id": "philemon",
@@ -1709,7 +1766,8 @@
       "chapters": 1,
       "verses_per_chapter": [
         25
-      ]
+      ],
+      "description": "A brief personal plea to a wealthy Christian to receive his runaway slave, Onesimus, now as a brother in Christ."
     },
     {
       "id": "hebrews",
@@ -1732,7 +1790,8 @@
         40,
         29,
         25
-      ]
+      ],
+      "description": "Demonstrates the superiority of Jesus Christ and His new covenant over the priesthood and sacrifices of the Old Testament."
     },
     {
       "id": "james",
@@ -1747,7 +1806,8 @@
         18,
         17,
         20
-      ]
+      ],
+      "description": "Highly practical exhortations on how genuine faith should manifest in works, control of the tongue, and perseverance in trials."
     },
     {
       "id": "1-peter",
@@ -1762,7 +1822,8 @@
         22,
         19,
         14
-      ]
+      ],
+      "description": "Words of encouragement and hope for Christians suffering persecution, calling them to live holy lives as pilgrims in the world."
     },
     {
       "id": "2-peter",
@@ -1775,7 +1836,8 @@
         21,
         22,
         18
-      ]
+      ],
+      "description": "Warnings against false teachers and a reminder of the certainty of Christ's return and the coming judgment."
     },
     {
       "id": "1-john",
@@ -1790,7 +1852,8 @@
         24,
         21,
         21
-      ]
+      ],
+      "description": "An epistle emphasizing love, obedience, truth, and the assurance of eternal life for those who believe in the Son of God."
     },
     {
       "id": "2-john",
@@ -1801,7 +1864,8 @@
       "chapters": 1,
       "verses_per_chapter": [
         13
-      ]
+      ],
+      "description": "A brief warning against supporting false teachers who deny the incarnation of Jesus Christ."
     },
     {
       "id": "3-john",
@@ -1812,7 +1876,8 @@
       "chapters": 1,
       "verses_per_chapter": [
         14
-      ]
+      ],
+      "description": "A letter commending Gaius for his hospitality toward gospel messengers and condemning the dictatorial attitude of Diotrephes."
     },
     {
       "id": "jude",
@@ -1823,7 +1888,8 @@
       "chapters": 1,
       "verses_per_chapter": [
         25
-      ]
+      ],
+      "description": "An urgent call to contend earnestly for the faith against those who infiltrate the church to corrupt the grace of God."
     },
     {
       "id": "revelation",
@@ -1855,7 +1921,8 @@
         15,
         27,
         21
-      ]
+      ],
+      "description": "Apocalyptic visions revealing the final triumph of Jesus Christ over evil, the judgment of the world, and the establishment of the new heavens and new earth."
     }
   ]
 }
