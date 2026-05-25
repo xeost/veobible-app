@@ -101,7 +101,7 @@ export async function runStep4(session: SessionState): Promise<void> {
     const outputInfo = getOutputInfoPath(target.bookNumber, target.bookId, session.version.id);
 
     divider();
-    info(`Processing: ${C.primary.bold(`${padBookNumber(target.bookNumber)}-${target.bookId}-${session.version.id}`)}`);
+    info(`Processing: ${C.primary.bold(`${session.version.id}-${padBookNumber(target.bookNumber)}-${target.bookId}`)}`);
     info(`  Book: ${C.white(target.bookName)} (${bookData.chapters} chapters)`);
 
     // Skip if both video and info file already exist (successful previous run)

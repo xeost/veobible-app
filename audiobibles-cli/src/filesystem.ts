@@ -6,7 +6,7 @@
  *     sources/
  *       audios/
  *         <versionId>/          ← chapter MP3 files: <NN>-<bookId>-<chapter>.mp3
- *       images/                 ← book thumbnails:   <NN>-<bookId>-<versionId>.<ext>
+ *       images/                 ← book thumbnails:   <versionId>-<NN>-<bookId>.<ext>
  *     outputs/                  ← generated video + thumbnail + upload txt
  *     logs/                     ← daily log files
  */
@@ -20,13 +20,13 @@ import type { BibleVersion, BookMetadata } from "./types.js";
 // ─── Directory paths ─────────────────────────────────────────────────────────
 
 export const sourcesJsonDir = (versionId: string) =>
-  path.join(config.workingDir, "sources", versionId);
+  path.join(config.workingDir, "sources", "metadata", versionId);
 
 export const sourcesAudiosDir = (versionId: string) =>
   path.join(config.workingDir, "sources", "audios", versionId);
 
-export const sourcesImagesDir = () =>
-  path.join(config.workingDir, "sources", "images");
+export const sourcesImagesDir = (versionId: string) =>
+  path.join(config.workingDir, "sources", "images", versionId);
 
 export const outputsDir = () =>
   path.join(config.workingDir, "outputs");
@@ -40,7 +40,7 @@ export function ensureWorkingDirs(versionId: string): void {
   for (const dir of [
     sourcesJsonDir(versionId),
     sourcesAudiosDir(versionId),
-    sourcesImagesDir(),
+    sourcesImagesDir(versionId),
     outputsDir(),
     logsDir(),
   ]) {
@@ -51,16 +51,16 @@ export function ensureWorkingDirs(versionId: string): void {
 // ─── Output file name helpers ─────────────────────────────────────────────────
 
 /**
- * Returns the base name (without extension) for all output files of a book.
- * Pattern: <NN>-<bookId>-<versionId>
- * Example: "01-genesis-rv1909"
+ * Returns the base name (without extension) for a book's output files.
+ * Pattern: <versionId>-<NN>-<bookId>
+ * Example: "rv1909-01-genesis"
  */
 export function getOutputBaseName(
   bookNumber: number,
   bookId: string,
   versionId: string
 ): string {
-  return `${padBookNumber(bookNumber)}-${bookId}-${versionId}`;
+  return `${versionId}-${padBookNumber(bookNumber)}-${bookId}`;
 }
 
 export function getOutputVideoPath(
@@ -68,7 +68,7 @@ export function getOutputVideoPath(
   bookId: string,
   versionId: string
 ): string {
-  return path.join(outputsDir(), `${getOutputBaseName(bookNumber, bookId, versionId)}.mp4`);
+  return path.join(outputsDir(), `${getOutputBaseName(bookNumber, bookId, versionId)}-1.mp4`);
 }
 
 export function getOutputInfoPath(
@@ -76,7 +76,7 @@ export function getOutputInfoPath(
   bookId: string,
   versionId: string
 ): string {
-  return path.join(outputsDir(), `${getOutputBaseName(bookNumber, bookId, versionId)}-upload.txt`);
+  return path.join(outputsDir(), `${getOutputBaseName(bookNumber, bookId, versionId)}-3-upload.txt`);
 }
 
 export function getOutputThumbnailPath(
@@ -85,7 +85,7 @@ export function getOutputThumbnailPath(
   versionId: string,
   ext: string
 ): string {
-  return path.join(outputsDir(), `${getOutputBaseName(bookNumber, bookId, versionId)}-thumb${ext}`);
+  return path.join(outputsDir(), `${getOutputBaseName(bookNumber, bookId, versionId)}-2-thumb${ext}`);
 }
 
 // ─── Source audio files ───────────────────────────────────────────────────────
@@ -131,8 +131,8 @@ export function getExistingChapterAudioFiles(
 // ─── Source image file ────────────────────────────────────────────────────────
 
 /**
- * Finds the book thumbnail image in sources/images/.
- * Pattern: <NN>-<bookId>-<versionId>.<ext>
+ * Finds the book thumbnail image in sources/images/<versionId>/.
+ * Pattern: <NN>-<bookId>.<ext>
  * Returns the full path if found, or null.
  */
 export function findImageFile(
@@ -140,8 +140,8 @@ export function findImageFile(
   bookId: string,
   versionId: string
 ): string | null {
-  const dir = sourcesImagesDir();
-  const base = `${padBookNumber(bookNumber)}-${bookId}-${versionId}`;
+  const dir = sourcesImagesDir(versionId);
+  const base = `${padBookNumber(bookNumber)}-${bookId}`;
 
   for (const ext of ["jpeg", "jpg", "png", "webp"]) {
     const candidate = path.join(dir, `${base}.${ext}`);
@@ -196,16 +196,16 @@ export function checkReadiness(
 // ─── Source JSON metadata files ──────────────────────────────────────────
 
 /**
- * Returns the path for a book's JSON metadata file in sources/<versionId>/.
- * Pattern: <NN>-<bookId>-<versionId>.json
- * Example: sources/rv1909/01-genesis-rv1909.json
+ * Returns the path for a book's JSON metadata file in sources/metadata/<versionId>/.
+ * Pattern: <NN>-<bookId>.json
+ * Example: sources/metadata/rv1909/01-genesis.json
  */
 export function getJsonSourcePath(
   bookNumber: number,
   bookId: string,
   versionId: string
 ): string {
-  const base = `${padBookNumber(bookNumber)}-${bookId}-${versionId}.json`;
+  const base = `${padBookNumber(bookNumber)}-${bookId}.json`;
   return path.join(sourcesJsonDir(versionId), base);
 }
 

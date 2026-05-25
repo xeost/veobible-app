@@ -40,7 +40,7 @@ export interface BibleIndex {
   books: BibleBook[];
 }
 
-// ─── Book metadata (written to sources/<versionId>/<NN>-<bookId>-<versionId>.json) ──
+// ─── Book metadata (written to sources/metadata/<versionId>/<NN>-<bookId>.json) ──
 
 export interface BookMetadata {
   bookNumber: number;

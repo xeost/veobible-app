@@ -2,7 +2,7 @@
  * Step 1 — Create Book JSON metadata files.
  *
  * Writes one JSON file per targeted book to:
- *   sources/<versionId>/<NN>-<bookId>-<versionId>.json
+ *   sources/metadata/<versionId>/<NN>-<bookId>.json
  *
  * These files serve as a filter mechanism: after running Step 1, the user
  * can manually delete the JSON files of books they do NOT want to process.
@@ -52,7 +52,7 @@ export async function runStep1(session: SessionState): Promise<void> {
 
     try {
       fs.writeFileSync(outPath, JSON.stringify(metadata, null, 2), "utf-8");
-      ok(`Written → ${padBookNumber(target.bookNumber)}-${target.bookId}-${session.version.id}.json`);
+      ok(`Written → ${padBookNumber(target.bookNumber)}-${target.bookId}.json`);
       info(`  ${target.bookName} — ${bookData.chapters} chapters`);
       info(`  URL: ${bookUrl}`);
       log("INFO", `[${target.bookId}] JSON written: ${outPath}`);

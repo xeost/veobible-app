@@ -1,7 +1,7 @@
 /**
  * Step 2 — Copy Image Prompt and open Gemini chat.
  *
- * Only acts on books that have their JSON metadata file in sources/<versionId>/
+ * Only acts on books that have their JSON metadata file in sources/metadata/<versionId>/
  * (i.e., those not deleted after Step 1).
  *
  * For each filtered book:
@@ -11,7 +11,7 @@
  *   4. Waits for confirmation before moving to the next book.
  *
  * The generated thumbnail should then be saved to:
- *   sources/images/<NN>-<bookId>-<versionId>.<ext>
+ *   sources/images/<versionId>/<NN>-<bookId>.<ext>
  */
 import clipboard from "clipboardy";
 import open from "open";
@@ -71,7 +71,7 @@ export async function runStep2(session: SessionState): Promise<void> {
   printStep(2, "Copy Image Prompts + Open Gemini");
   info("An image prompt will be copied to your clipboard and Gemini will");
   info("open in the browser. Paste the prompt to generate the thumbnail.");
-  info(`Save the result to: ${C.primary("sources/images/<NN>-<bookId>-<versionId>.<ext>")}`);
+  info(`Save the result to: ${C.primary("sources/images/<versionId>/<NN>-<bookId>.<ext>")}`);
   divider();
 
   // Only process books that have a JSON metadata file (not deleted after Step 1)
@@ -107,13 +107,13 @@ export async function runStep2(session: SessionState): Promise<void> {
 
     await clipboard.write(prompt);
     clipboardNotice(
-      `${padBookNumber(target.bookNumber)}-${target.bookId}-${session.version.id}`,
+      `${padBookNumber(target.bookNumber)}-${target.bookId}`,
       `${target.bookName} — ${session.version.label}`
     );
 
     info(
       `Save the image as: ${C.primary.bold(
-        `sources/images/${padBookNumber(target.bookNumber)}-${target.bookId}-${session.version.id}.<ext>`
+        `sources/images/${session.version.id}/${padBookNumber(target.bookNumber)}-${target.bookId}.<ext>`
       )}`
     );
 

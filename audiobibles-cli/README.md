@@ -39,15 +39,17 @@ The **working directory** must follow this structure:
 ```
 <workingDir>/
   sources/
-    <versionId>/             ← JSON metadata files (created by Step 1)
-      01-genesis-rv1909.json
+    metadata/
+      <versionId>/           ← JSON metadata files (created by Step 1)
+        01-genesis.json
     audios/
       <versionId>/           ← Chapter MP3 files
         01-genesis-1.mp3
         01-genesis-2.mp3
         …
-    images/                  ← Book thumbnail images
-      01-genesis-rv1909.jpeg
+    images/
+      <versionId>/           ← Book thumbnail images
+        01-genesis.jpeg
   outputs/                   ← Generated videos + thumbnails + upload txt
   logs/                      ← Daily log files
 ```
@@ -104,16 +106,16 @@ geminiChatUrl: "https://gemini.google.com/app",
 
 ## File Naming Conventions
 
-All files use the same base name pattern: `<NN>-<bookId>-<versionId>`
+Source and output files follow these patterns:
 
 | File type | Pattern | Example |
 |---|---|---|
 | Chapter audio | `sources/audios/<versionId>/<NN>-<bookId>-<chapter>.mp3` | `01-genesis-1.mp3` |
-| Book image | `sources/images/<NN>-<bookId>-<versionId>.<ext>` | `01-genesis-rv1909.jpeg` |
-| JSON metadata | `sources/<versionId>/<NN>-<bookId>-<versionId>.json` | `01-genesis-rv1909.json` |
-| Output video | `outputs/<NN>-<bookId>-<versionId>.mp4` | `01-genesis-rv1909.mp4` |
-| Thumbnail copy | `outputs/<NN>-<bookId>-<versionId>-thumb.<ext>` | `01-genesis-rv1909-thumb.jpeg` |
-| Upload info | `outputs/<NN>-<bookId>-<versionId>-upload.txt` | `01-genesis-rv1909-upload.txt` |
+| Book image | `sources/images/<versionId>/<NN>-<bookId>.<ext>` | `01-genesis.jpeg` |
+| JSON metadata | `sources/metadata/<versionId>/<NN>-<bookId>.json` | `01-genesis.json` |
+| Output video | `outputs/<versionId>-<NN>-<bookId>-1.mp4` | `rv1909-01-genesis-1.mp4` |
+| Thumbnail copy | `outputs/<versionId>-<NN>-<bookId>-2-thumb.<ext>` | `rv1909-01-genesis-2-thumb.jpeg` |
+| Upload info | `outputs/<versionId>-<NN>-<bookId>-3-upload.txt` | `rv1909-01-genesis-3-upload.txt` |
 
 The `<bookId>` is the English lowercase book identifier as found in the Bible index (e.g. `genesis`, `1-samuel`, `song-of-solomon`).
 
@@ -137,7 +139,7 @@ pnpm audiobibles --book 3
 Runs automatically on launch. Select the Bible version, enter the default book number (the last processed book number is suggested from `last-book-<versionId>.log`), and choose whether to use the same book number for all books or assign numbers individually.
 
 ### Step 1 — Create Book JSON Files
-Writes one `.json` metadata file per targeted book to `sources/<versionId>/`. Each file contains the book name, description, version info, chapter count, and veobible.com URL.
+Writes one `.json` metadata file per targeted book to `sources/metadata/<versionId>/`. Each file contains the book name, description, version info, chapter count, and veobible.com URL.
 
 **Filtering trick:** After Step 1, you can manually delete the `.json` files of books you do _not_ want to process that day. Steps 2–4 will automatically skip books without a `.json` file.
 
@@ -147,7 +149,7 @@ For each book with a `.json` file (and no image yet):
 2. Opens the configured Gemini URL in the browser.
 3. Waits for you to generate and save the thumbnail before moving to the next book.
 
-Save thumbnails to: `sources/images/<NN>-<bookId>-<versionId>.<ext>`
+Save thumbnails to: `sources/images/<versionId>/<NN>-<bookId>.<ext>`
 
 ### Step 3 — Verify Source Files
 Checks that all chapter MP3 files and the thumbnail image are present for each targeted book. Displays a readiness table and shows which chapters are missing. Loops until all files are present or you cancel.

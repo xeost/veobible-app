@@ -1,7 +1,7 @@
 /**
  * Step 3 — Verify that all source files are ready.
  *
- * Only checks books that have their JSON metadata file in sources/<versionId>/
+ * Only checks books that have their JSON metadata file in sources/metadata/<versionId>/
  * (i.e., those not deleted after Step 1).
  *
  * For each filtered book, checks:
@@ -75,9 +75,9 @@ export async function runStep3(session: SessionState): Promise<void> {
     console.log(C.muted("    Example: 01-genesis-1.mp3 … 01-genesis-50.mp3"));
     console.log();
     console.log(C.white("  Image files must be placed in:"));
-    console.log(C.muted("    sources/images/"));
-    console.log(C.muted("    Pattern: <NN>-<bookId>-<versionId>.<ext>"));
-    console.log(C.muted(`    Example: 01-genesis-${session.version.id}.jpeg`));
+    console.log(C.muted(`    sources/images/${session.version.id}/`));
+    console.log(C.muted("    Pattern: <NN>-<bookId>.<ext>"));
+    console.log(C.muted("    Example: 01-genesis.jpeg"));
 
     const retry = await confirm({
       message: C.white("Press Enter to re-check the directory"),
