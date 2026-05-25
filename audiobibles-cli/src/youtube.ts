@@ -4,15 +4,85 @@ import { config } from "./config.js";
 import { log } from "./logger.js";
 import type { BibleVersion, BibleBook, BibleVersionMetadata } from "./types.js";
 
+const DAY_MAP: Record<string, number> = {
+  // English names
+  sunday: 0, sun: 0,
+  monday: 1, mon: 1,
+  tuesday: 2, tue: 2,
+  wednesday: 3, wed: 3,
+  thursday: 4, thu: 4,
+  friday: 5, fri: 5,
+  saturday: 6, sat: 6,
+  // Spanish names
+  domingo: 0, dom: 0,
+  lunes: 1, lun: 1,
+  martes: 2, mar: 2,
+  miércoles: 3, miercoles: 3, mie: 3,
+  jueves: 4, jue: 4,
+  viernes: 5, vie: 5,
+  sábado: 6, sabado: 6, sab: 6,
+};
+
+function parsePublishDays(publishDays: readonly (string | number)[] | string): Set<number> {
+  const result = new Set<number>();
+
+  const processItem = (item: unknown) => {
+    if (typeof item === "number") {
+      if (item >= 0 && item <= 6) {
+        result.add(item);
+      }
+    } else if (typeof item === "string") {
+      const clean = item.trim().toLowerCase();
+      const num = parseInt(clean, 10);
+      if (!isNaN(num) && num >= 0 && num <= 6) {
+        result.add(num);
+      } else if (clean in DAY_MAP) {
+        result.add(DAY_MAP[clean]);
+      }
+    }
+  };
+
+  if (Array.isArray(publishDays)) {
+    publishDays.forEach(processItem);
+  } else if (typeof publishDays === "string") {
+    publishDays.split(",").forEach(processItem);
+  }
+
+  // Fallback to all days if empty or invalid to prevent infinite loops
+  if (result.size === 0) {
+    for (let i = 0; i < 7; i++) {
+      result.add(i);
+    }
+  }
+
+  return result;
+}
+
 /**
  * Calculates the scheduled date for a given book number within a version.
- * Book 1 is scheduled on config.schedule.baseDate;
- * each subsequent book adds daysPerBook days.
+ * Book 1 is scheduled on the first available publish day on or after config.schedule.baseDate;
+ * each subsequent book is scheduled on the next available publish day.
  */
 function getScheduledDate(bookNumber: number): string {
   const base = new Date(`${config.schedule.baseDate}T00:00:00`);
-  base.setDate(base.getDate() + (bookNumber - 1) * config.schedule.daysPerBook);
-  return base.toLocaleDateString("en-US", {
+  const publishDayNums = parsePublishDays(config.schedule.publishDays);
+
+  let currentDate = new Date(base.getTime());
+
+  // Find first publish day on or after baseDate
+  while (!publishDayNums.has(currentDate.getDay())) {
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  // Advance for subsequent books
+  for (let i = 1; i < bookNumber; i++) {
+    currentDate.setDate(currentDate.getDate() + 1);
+    while (!publishDayNums.has(currentDate.getDay())) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  }
+
+  return currentDate.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",

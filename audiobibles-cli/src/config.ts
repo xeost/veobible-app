@@ -50,26 +50,32 @@ export const config = {
   /**
    * Scheduling settings for YouTube uploads.
    * Each version has its own independent schedule starting from baseDate.
-   * Book 1 is scheduled on baseDate; each subsequent book adds daysPerBook days.
+   * Book 1 is scheduled on the first available publish day on or after baseDate;
+   * each subsequent book is scheduled on the next available publish day.
    */
   schedule: {
     /**
      * Anchor date for book scheduling (YYYY-MM-DD).
-     * Book 1 of any version is scheduled on this date.
+     * Book 1 of any version is scheduled starting from this date.
      */
-    baseDate: "2026-05-20",
+    baseDate: "2026-05-24",
 
     /**
-     * Number of days to add for each subsequent book.
-     * For example: 7 = one book per week.
+     * Weekdays on which videos are scheduled for publication.
+     * Can be specified as a string of comma-separated day names
+     * or an array of day names/numbers.
+     * Supported formats:
+     * - English: "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+     * - Spanish: "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"
+     * - Numbers: 0 (Sunday) to 6 (Saturday)
      */
-    daysPerBook: 2,
+    publishDays: ["Wednesday", "Friday", "Sunday"],
 
     /**
      * Fixed upload time shown in the YouTube info file.
      * Format: 12-hour clock with AM/PM, e.g. "3:30 PM".
      */
-    scheduledTime: "3:30 PM",
+    scheduledTime: "3:00 PM",
   },
 
   /**

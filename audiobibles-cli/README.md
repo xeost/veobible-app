@@ -76,13 +76,13 @@ Configure the upload schedule in `src/config.ts`:
 
 ```typescript
 schedule: {
-  baseDate: "2026-06-01",   // Book 1 of any version is scheduled on this date
-  daysPerBook: 7,           // Days between consecutive book uploads
+  baseDate: "2026-06-01",   // Book 1 of any version is scheduled starting from this date
+  publishDays: ["Wednesday", "Friday", "Sunday"], // Weekdays to publish videos (array or comma-separated string)
   scheduledTime: "3:30 PM", // Time shown in the upload info file
 },
 ```
 
-The schedule is independent per version. Book 1 maps to `baseDate`, book 2 to `baseDate + daysPerBook`, etc.
+The schedule is independent per version. Book 1 maps to the first available publish day on or after `baseDate`, book 2 to the next publish day, etc.
 
 ### 4. Video Generation
 
