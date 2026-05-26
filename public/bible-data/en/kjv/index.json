@@ -16,7 +16,7 @@
       "abbr": "Gn",
       "testament": "old",
       "chapters": 50,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         31,
         25,
         24,
@@ -77,7 +77,7 @@
       "abbr": "Ex",
       "testament": "old",
       "chapters": 40,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         22,
         25,
         22,
@@ -128,7 +128,7 @@
       "abbr": "Lv",
       "testament": "old",
       "chapters": 27,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         17,
         16,
         17,
@@ -166,7 +166,7 @@
       "abbr": "Nm",
       "testament": "old",
       "chapters": 36,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         54,
         34,
         51,
@@ -213,7 +213,7 @@
       "abbr": "Dt",
       "testament": "old",
       "chapters": 34,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         46,
         37,
         29,
@@ -258,7 +258,7 @@
       "abbr": "Jos",
       "testament": "old",
       "chapters": 24,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         18,
         24,
         17,
@@ -293,7 +293,7 @@
       "abbr": "Jdg",
       "testament": "old",
       "chapters": 21,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         36,
         23,
         31,
@@ -325,7 +325,7 @@
       "abbr": "Ru",
       "testament": "old",
       "chapters": 4,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         22,
         23,
         18,
@@ -340,7 +340,7 @@
       "abbr": "1Sa",
       "testament": "old",
       "chapters": 31,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         28,
         36,
         21,
@@ -382,7 +382,7 @@
       "abbr": "2Sa",
       "testament": "old",
       "chapters": 24,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         27,
         32,
         39,
@@ -417,7 +417,7 @@
       "abbr": "1Ki",
       "testament": "old",
       "chapters": 22,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         53,
         46,
         28,
@@ -450,7 +450,7 @@
       "abbr": "2Ki",
       "testament": "old",
       "chapters": 25,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         18,
         25,
         27,
@@ -486,7 +486,7 @@
       "abbr": "1Ch",
       "testament": "old",
       "chapters": 29,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         54,
         55,
         24,
@@ -526,7 +526,7 @@
       "abbr": "2Ch",
       "testament": "old",
       "chapters": 36,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         17,
         18,
         17,
@@ -573,7 +573,7 @@
       "abbr": "Ezr",
       "testament": "old",
       "chapters": 10,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         11,
         70,
         13,
@@ -594,7 +594,7 @@
       "abbr": "Ne",
       "testament": "old",
       "chapters": 13,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         11,
         20,
         32,
@@ -618,7 +618,7 @@
       "abbr": "Est",
       "testament": "old",
       "chapters": 10,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         22,
         23,
         15,
@@ -639,7 +639,7 @@
       "abbr": "Job",
       "testament": "old",
       "chapters": 42,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         22,
         13,
         26,
@@ -692,7 +692,7 @@
       "abbr": "Ps",
       "testament": "old",
       "chapters": 150,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         6,
         12,
         8,
@@ -853,7 +853,7 @@
       "abbr": "Pr",
       "testament": "old",
       "chapters": 31,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         33,
         22,
         35,
@@ -895,7 +895,7 @@
       "abbr": "Ec",
       "testament": "old",
       "chapters": 12,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         18,
         26,
         22,
@@ -918,7 +918,7 @@
       "abbr": "Sn",
       "testament": "old",
       "chapters": 8,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         17,
         17,
         11,
@@ -937,7 +937,7 @@
       "abbr": "Is",
       "testament": "old",
       "chapters": 66,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         31,
         22,
         26,
@@ -1014,7 +1014,7 @@
       "abbr": "Je",
       "testament": "old",
       "chapters": 52,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         19,
         37,
         25,
@@ -1077,7 +1077,7 @@
       "abbr": "La",
       "testament": "old",
       "chapters": 5,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         22,
         22,
         66,
@@ -1093,7 +1093,7 @@
       "abbr": "Ek",
       "testament": "old",
       "chapters": 48,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         28,
         10,
         27,
@@ -1152,7 +1152,7 @@
       "abbr": "Da",
       "testament": "old",
       "chapters": 12,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         21,
         49,
         30,
@@ -1175,7 +1175,7 @@
       "abbr": "Ho",
       "testament": "old",
       "chapters": 14,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         11,
         23,
         5,
@@ -1200,7 +1200,7 @@
       "abbr": "Jl",
       "testament": "old",
       "chapters": 3,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         20,
         32,
         21
@@ -1214,7 +1214,7 @@
       "abbr": "Am",
       "testament": "old",
       "chapters": 9,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         15,
         16,
         15,
@@ -1234,7 +1234,7 @@
       "abbr": "Ob",
       "testament": "old",
       "chapters": 1,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         21
       ],
       "description": "A prophecy of judgment against the nation of Edom for its pride and hostility toward Judah."
@@ -1246,7 +1246,7 @@
       "abbr": "Jon",
       "testament": "old",
       "chapters": 4,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         17,
         10,
         10,
@@ -1261,7 +1261,7 @@
       "abbr": "Mi",
       "testament": "old",
       "chapters": 7,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         16,
         13,
         12,
@@ -1279,7 +1279,7 @@
       "abbr": "Na",
       "testament": "old",
       "chapters": 3,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         15,
         13,
         19
@@ -1293,7 +1293,7 @@
       "abbr": "Hb",
       "testament": "old",
       "chapters": 3,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         17,
         20,
         19
@@ -1307,7 +1307,7 @@
       "abbr": "Zp",
       "testament": "old",
       "chapters": 3,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         18,
         15,
         20
@@ -1321,7 +1321,7 @@
       "abbr": "Hg",
       "testament": "old",
       "chapters": 2,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         15,
         23
       ],
@@ -1334,7 +1334,7 @@
       "abbr": "Zc",
       "testament": "old",
       "chapters": 14,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         21,
         13,
         10,
@@ -1359,7 +1359,7 @@
       "abbr": "Ml",
       "testament": "old",
       "chapters": 4,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         14,
         17,
         18,
@@ -1374,7 +1374,7 @@
       "abbr": "Mt",
       "testament": "new",
       "chapters": 28,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         25,
         23,
         17,
@@ -1413,7 +1413,7 @@
       "abbr": "Mk",
       "testament": "new",
       "chapters": 16,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         45,
         28,
         35,
@@ -1440,7 +1440,7 @@
       "abbr": "Lk",
       "testament": "new",
       "chapters": 24,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         80,
         52,
         38,
@@ -1475,7 +1475,7 @@
       "abbr": "Jn",
       "testament": "new",
       "chapters": 21,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         51,
         25,
         36,
@@ -1507,7 +1507,7 @@
       "abbr": "Ac",
       "testament": "new",
       "chapters": 28,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         26,
         47,
         26,
@@ -1546,7 +1546,7 @@
       "abbr": "Ro",
       "testament": "new",
       "chapters": 16,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         32,
         29,
         31,
@@ -1573,7 +1573,7 @@
       "abbr": "1Co",
       "testament": "new",
       "chapters": 16,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         31,
         16,
         23,
@@ -1600,7 +1600,7 @@
       "abbr": "2Co",
       "testament": "new",
       "chapters": 13,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         24,
         17,
         18,
@@ -1624,7 +1624,7 @@
       "abbr": "Ga",
       "testament": "new",
       "chapters": 6,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         24,
         21,
         29,
@@ -1641,7 +1641,7 @@
       "abbr": "Ep",
       "testament": "new",
       "chapters": 6,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         23,
         22,
         21,
@@ -1658,7 +1658,7 @@
       "abbr": "Ph",
       "testament": "new",
       "chapters": 4,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         30,
         30,
         21,
@@ -1673,7 +1673,7 @@
       "abbr": "Col",
       "testament": "new",
       "chapters": 4,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         29,
         23,
         25,
@@ -1688,7 +1688,7 @@
       "abbr": "1Th",
       "testament": "new",
       "chapters": 5,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         10,
         20,
         13,
@@ -1704,7 +1704,7 @@
       "abbr": "2Th",
       "testament": "new",
       "chapters": 3,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         12,
         17,
         18
@@ -1718,7 +1718,7 @@
       "abbr": "1Ti",
       "testament": "new",
       "chapters": 6,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         20,
         15,
         16,
@@ -1735,7 +1735,7 @@
       "abbr": "2Ti",
       "testament": "new",
       "chapters": 4,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         18,
         26,
         17,
@@ -1750,7 +1750,7 @@
       "abbr": "Tt",
       "testament": "new",
       "chapters": 3,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         16,
         15,
         15
@@ -1764,7 +1764,7 @@
       "abbr": "Pm",
       "testament": "new",
       "chapters": 1,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         25
       ],
       "description": "A brief personal plea to a wealthy Christian to receive his runaway slave, Onesimus, now as a brother in Christ."
@@ -1776,7 +1776,7 @@
       "abbr": "He",
       "testament": "new",
       "chapters": 13,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         14,
         18,
         19,
@@ -1800,7 +1800,7 @@
       "abbr": "Jm",
       "testament": "new",
       "chapters": 5,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         27,
         26,
         18,
@@ -1816,7 +1816,7 @@
       "abbr": "1Pe",
       "testament": "new",
       "chapters": 5,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         25,
         25,
         22,
@@ -1832,7 +1832,7 @@
       "abbr": "2Pe",
       "testament": "new",
       "chapters": 3,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         21,
         22,
         18
@@ -1846,7 +1846,7 @@
       "abbr": "1Jn",
       "testament": "new",
       "chapters": 5,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         10,
         29,
         24,
@@ -1862,7 +1862,7 @@
       "abbr": "2Jn",
       "testament": "new",
       "chapters": 1,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         13
       ],
       "description": "A brief warning against supporting false teachers who deny the incarnation of Jesus Christ."
@@ -1874,7 +1874,7 @@
       "abbr": "3Jn",
       "testament": "new",
       "chapters": 1,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         14
       ],
       "description": "A letter commending Gaius for his hospitality toward gospel messengers and condemning the dictatorial attitude of Diotrephes."
@@ -1886,7 +1886,7 @@
       "abbr": "Jd",
       "testament": "new",
       "chapters": 1,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         25
       ],
       "description": "An urgent call to contend earnestly for the faith against those who infiltrate the church to corrupt the grace of God."
@@ -1898,7 +1898,7 @@
       "abbr": "Re",
       "testament": "new",
       "chapters": 22,
-      "verses_per_chapter": [
+      "versesPerChapter": [
         20,
         29,
         22,

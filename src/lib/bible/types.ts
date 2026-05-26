@@ -18,7 +18,7 @@ export interface BookInfo {
   abbr: string
   testament: 'old' | 'new'
   chapters: number
-  verses_per_chapter: number[]
+  versesPerChapter: number[]
 }
 
 export interface BibleIndex {

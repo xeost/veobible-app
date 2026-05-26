@@ -30,7 +30,7 @@ export interface BibleBook {
   testament: "old" | "new";
   /** Total number of chapters in this book */
   chapters: number;
-  verses_per_chapter: number[];
+  versesPerChapter: number[];
   /** Short description of the book's contents */
   description: string;
 }
