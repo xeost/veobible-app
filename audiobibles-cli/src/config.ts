@@ -58,7 +58,7 @@ export const config = {
      * Anchor date for book scheduling (YYYY-MM-DD).
      * Book 1 of any version is scheduled starting from this date.
      */
-    baseDate: "2026-05-24",
+    baseDate: "2026-05-26",
 
     /**
      * Weekdays on which videos are scheduled for publication.
@@ -88,7 +88,7 @@ export const config = {
      * file. Useful for regenerating upload metadata for books that have
      * already been rendered without waiting hours for re-encoding.
      */
-    skipRendering: true,
+    skipRendering: false,
 
     visualizer: {
       /** Multiplier for the visualizer's reactivity (e.g. 0.5 to 1.5). Only applies to some styles. */
