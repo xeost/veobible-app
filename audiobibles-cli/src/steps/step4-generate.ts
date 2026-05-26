@@ -15,7 +15,7 @@
 import fs from "fs";
 import path from "path";
 import { confirm } from "@inquirer/prompts";
-import { readBibleIndex, buildBookUrl, padBookNumber } from "../bible.js";
+import { readBibleIndex, buildBookUrl, padBookNumber, saveChapterOffsets } from "../bible.js";
 import { printStep, ok, err, info, warn, C, divider, formatDuration } from "../ui.js";
 import { logStep, log } from "../logger.js";
 import type { SessionState } from "../types.js";
@@ -152,6 +152,22 @@ export async function runStep4(session: SessionState): Promise<void> {
         chapterDurations.push(dur);
         totalAudioDur += dur;
       }
+
+      // Build cumulative chapter offsets (start second of each chapter).
+      // Chapter 1 always starts at 0; each subsequent chapter starts after
+      // the sum of all previous chapters' durations.
+      const chapterOffsets: number[] = [];
+      let runningOffset = 0;
+      for (const dur of chapterDurations) {
+        chapterOffsets.push(Math.floor(runningOffset));
+        runningOffset += dur;
+      }
+
+      // Persist the chapter offsets into the version's index.json so the
+      // web app can build YouTube deep-link URLs like:
+      //   https://www.youtube.com/watch?v=VIDEO_ID&t=351s
+      saveChapterOffsets(session.version, target.bookId, chapterOffsets);
+      info(`  Chapter offsets saved to index.json (${chapterOffsets.length} chapters).`);
 
       const renderStartTime = Date.now();
 

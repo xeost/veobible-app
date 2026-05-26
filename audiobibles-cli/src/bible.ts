@@ -64,3 +64,41 @@ export function buildBookUrl(version: BibleVersion, book: BibleBook): string {
 export function padBookNumber(n: number): string {
   return String(n).padStart(2, "0");
 }
+
+/**
+ * Writes the chapterOffsets array for a single book back into the
+ * version's index.json on disk.
+ *
+ * The offsets are the cumulative start time (in whole seconds) of each
+ * chapter within the full video. Chapter 1 is always 0.
+ *
+ * @param version       - The Bible version (used to locate the index file).
+ * @param bookId        - The book id to update (e.g. "genesis").
+ * @param chapterOffsets - Array of start seconds, one per chapter.
+ */
+export function saveChapterOffsets(
+  version: BibleVersion,
+  bookId: string,
+  chapterOffsets: number[]
+): void {
+  const indexPath = path.join(
+    config.bibleDataDir,
+    version.locale,
+    version.id,
+    "index.json"
+  );
+
+  const raw = fs.readFileSync(indexPath, "utf-8");
+  const data = JSON.parse(raw) as BibleIndex;
+
+  const book = data.books.find((b) => b.id === bookId);
+  if (!book) {
+    throw new Error(
+      `saveChapterOffsets: book "${bookId}" not found in ${indexPath}`
+    );
+  }
+
+  book.chapterOffsets = chapterOffsets;
+
+  fs.writeFileSync(indexPath, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}

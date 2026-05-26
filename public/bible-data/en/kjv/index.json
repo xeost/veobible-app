@@ -68,7 +68,9 @@
         33,
         26
       ],
-      "description": "The book of beginnings, narrating the creation of the world, the fall of man, and the origins of the nation of Israel through the patriarchs."
+      "description": "The book of beginnings, narrating the creation of the world, the fall of man, and the origins of the nation of Israel through the patriarchs.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "exodus",
@@ -119,7 +121,9 @@
         43,
         38
       ],
-      "description": "Recounts the deliverance of the Israelites from slavery in Egypt under Moses' leadership and the giving of the Law at Mount Sinai."
+      "description": "Recounts the deliverance of the Israelites from slavery in Egypt under Moses' leadership and the giving of the Law at Mount Sinai.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "leviticus",
@@ -157,7 +161,9 @@
         46,
         34
       ],
-      "description": "A manual of laws and regulations for the priesthood and the people of Israel, emphasizing the holiness of God and the need for purity."
+      "description": "A manual of laws and regulations for the priesthood and the people of Israel, emphasizing the holiness of God and the need for purity.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "numbers",
@@ -204,7 +210,9 @@
         34,
         13
       ],
-      "description": "Narrates the Israelites' forty-year journey through the wilderness, highlighting their rebellions and God's faithfulness."
+      "description": "Narrates the Israelites' forty-year journey through the wilderness, highlighting their rebellions and God's faithfulness.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "deuteronomy",
@@ -249,7 +257,9 @@
         29,
         12
       ],
-      "description": "Moses' repetition of the Law before Israel enters the Promised Land, calling for obedience and love for God."
+      "description": "Moses' repetition of the Law before Israel enters the Promised Land, calling for obedience and love for God.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "joshua",
@@ -284,7 +294,9 @@
         16,
         33
       ],
-      "description": "Describes the conquest and division of the Promised Land under Joshua's leadership, demonstrating God's faithfulness to His promises."
+      "description": "Describes the conquest and division of the Promised Land under Joshua's leadership, demonstrating God's faithfulness to His promises.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "judges",
@@ -316,7 +328,9 @@
         48,
         25
       ],
-      "description": "Records the cycle of apostasy, oppression, repentance, and deliverance of Israel during the era of the judges."
+      "description": "Records the cycle of apostasy, oppression, repentance, and deliverance of Israel during the era of the judges.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "ruth",
@@ -331,7 +345,9 @@
         18,
         22
       ],
-      "description": "A story of love, loyalty, and redemption, showing God's providence through the life of a Moabite woman who becomes an ancestor of David."
+      "description": "A story of love, loyalty, and redemption, showing God's providence through the life of a Moabite woman who becomes an ancestor of David.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "1-samuel",
@@ -373,7 +389,9 @@
         31,
         13
       ],
-      "description": "Narrates Israel's transition from the period of the judges to the monarchy, including the lives of Samuel, Saul, and young David."
+      "description": "Narrates Israel's transition from the period of the judges to the monarchy, including the lives of Samuel, Saul, and young David.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "2-samuel",
@@ -408,7 +426,9 @@
         39,
         25
       ],
-      "description": "Focuses on the reign of King David, his victories, failures, and the establishment of Jerusalem as the capital of Israel."
+      "description": "Focuses on the reign of King David, his victories, failures, and the establishment of Jerusalem as the capital of Israel.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "1-kings",
@@ -441,7 +461,9 @@
         29,
         53
       ],
-      "description": "Recounts the splendor of Solomon's reign, the building of the temple, and the subsequent division of the kingdom into Israel and Judah."
+      "description": "Recounts the splendor of Solomon's reign, the building of the temple, and the subsequent division of the kingdom into Israel and Judah.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "2-kings",
@@ -477,7 +499,9 @@
         20,
         30
       ],
-      "description": "Continues the history of the divided kingdoms of Israel and Judah, marked by the idolatry of kings and the ministry of prophets, culminating in exiles."
+      "description": "Continues the history of the divided kingdoms of Israel and Judah, marked by the idolatry of kings and the ministry of prophets, culminating in exiles.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "1-chronicles",
@@ -517,7 +541,9 @@
         21,
         30
       ],
-      "description": "A review of Israel's history from Adam to David, with an emphasis on genealogy, temple worship, and God's covenant."
+      "description": "A review of Israel's history from Adam to David, with an emphasis on genealogy, temple worship, and God's covenant.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "2-chronicles",
@@ -564,7 +590,9 @@
         27,
         23
       ],
-      "description": "Follows the history of the kingdom of Judah from Solomon to the Babylonian exile, highlighting the religious reforms of some kings."
+      "description": "Follows the history of the kingdom of Judah from Solomon to the Babylonian exile, highlighting the religious reforms of some kings.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "ezra",
@@ -585,7 +613,9 @@
         15,
         44
       ],
-      "description": "Narrates the return of the Jews from exile in Babylon and the rebuilding of the temple in Jerusalem under the leadership of Zerubbabel and Ezra."
+      "description": "Narrates the return of the Jews from exile in Babylon and the rebuilding of the temple in Jerusalem under the leadership of Zerubbabel and Ezra.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "nehemiah",
@@ -609,7 +639,9 @@
         47,
         31
       ],
-      "description": "Describes the rebuilding of the walls of Jerusalem under Nehemiah's direction and the spiritual renewal of the people."
+      "description": "Describes the rebuilding of the walls of Jerusalem under Nehemiah's direction and the spiritual renewal of the people.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "esther",
@@ -630,7 +662,9 @@
         32,
         3
       ],
-      "description": "The story of a young Jewish woman who becomes queen of Persia and is used by God to save her people from extermination."
+      "description": "The story of a young Jewish woman who becomes queen of Persia and is used by God to save her people from extermination.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "job",
@@ -683,7 +717,9 @@
         34,
         17
       ],
-      "description": "A poetic drama exploring the problem of the suffering of the righteous and the inscrutable sovereignty of God."
+      "description": "A poetic drama exploring the problem of the suffering of the righteous and the inscrutable sovereignty of God.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "psalms",
@@ -844,7 +880,9 @@
         9,
         6
       ],
-      "description": "A collection of songs, prayers, and poems expressing the full range of human emotions in relation to God."
+      "description": "A collection of songs, prayers, and poems expressing the full range of human emotions in relation to God.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "proverbs",
@@ -886,7 +924,9 @@
         33,
         31
       ],
-      "description": "A book of practical wisdom offering advice on how to live a righteous, prudent, and God-fearing life."
+      "description": "A book of practical wisdom offering advice on how to live a righteous, prudent, and God-fearing life.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "ecclesiastes",
@@ -909,7 +949,9 @@
         10,
         14
       ],
-      "description": "A philosophical reflection on the vanity of earthly life and the conclusion that true meaning is found in fearing God."
+      "description": "A philosophical reflection on the vanity of earthly life and the conclusion that true meaning is found in fearing God.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "song-of-solomon",
@@ -928,7 +970,9 @@
         13,
         14
       ],
-      "description": "A lyric poem celebrating romantic and marital love, often interpreted as an allegory of God's love for His people."
+      "description": "A lyric poem celebrating romantic and marital love, often interpreted as an allegory of God's love for His people.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "isaiah",
@@ -1005,7 +1049,9 @@
         25,
         24
       ],
-      "description": "Prophecies of judgment and comfort, with profound revelations about the coming of the Messiah, the suffering Servant, and the glorious future."
+      "description": "Prophecies of judgment and comfort, with profound revelations about the coming of the Messiah, the suffering Servant, and the glorious future.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "jeremiah",
@@ -1068,7 +1114,9 @@
         64,
         34
       ],
-      "description": "The ministry of the weeping prophet, warning Judah of imminent judgment for its sin and prophesying the New Covenant."
+      "description": "The ministry of the weeping prophet, warning Judah of imminent judgment for its sin and prophesying the New Covenant.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "lamentations",
@@ -1084,7 +1132,9 @@
         22,
         22
       ],
-      "description": "Funeral poems expressing sorrow and grief over the destruction of Jerusalem, while acknowledging God's faithfulness."
+      "description": "Funeral poems expressing sorrow and grief over the destruction of Jerusalem, while acknowledging God's faithfulness.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "ezekiel",
@@ -1143,7 +1193,9 @@
         23,
         35
       ],
-      "description": "Prophetic visions given during the Babylonian exile, announcing judgment on Jerusalem and promising spiritual restoration."
+      "description": "Prophetic visions given during the Babylonian exile, announcing judgment on Jerusalem and promising spiritual restoration.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "daniel",
@@ -1166,7 +1218,9 @@
         45,
         13
       ],
-      "description": "Stories of faithfulness to God in the Babylonian exile and apocalyptic visions about world empires and the final triumph of God's kingdom."
+      "description": "Stories of faithfulness to God in the Babylonian exile and apocalyptic visions about world empires and the final triumph of God's kingdom.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "hosea",
@@ -1191,7 +1245,9 @@
         16,
         9
       ],
-      "description": "God's unwavering love illustrated through the prophet's marriage to an unfaithful wife, representing God's relationship with Israel."
+      "description": "God's unwavering love illustrated through the prophet's marriage to an unfaithful wife, representing God's relationship with Israel.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "joel",
@@ -1205,7 +1261,9 @@
         32,
         21
       ],
-      "description": "A prophecy about the day of the Lord, illustrated by a devastating locust plague and the promise of the outpouring of the Holy Spirit."
+      "description": "A prophecy about the day of the Lord, illustrated by a devastating locust plague and the promise of the outpouring of the Holy Spirit.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "amos",
@@ -1225,7 +1283,9 @@
         14,
         15
       ],
-      "description": "A call for social justice and warnings of judgment against the nations and the northern kingdom for their oppression of the poor."
+      "description": "A call for social justice and warnings of judgment against the nations and the northern kingdom for their oppression of the poor.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "obadiah",
@@ -1237,7 +1297,9 @@
       "versesPerChapter": [
         21
       ],
-      "description": "A prophecy of judgment against the nation of Edom for its pride and hostility toward Judah."
+      "description": "A prophecy of judgment against the nation of Edom for its pride and hostility toward Judah.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "jonah",
@@ -1252,7 +1314,9 @@
         10,
         11
       ],
-      "description": "The story of a reluctant prophet sent to preach repentance to Nineveh, showing God's grace and compassion toward the Gentiles."
+      "description": "The story of a reluctant prophet sent to preach repentance to Nineveh, showing God's grace and compassion toward the Gentiles.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "micah",
@@ -1270,7 +1334,9 @@
         16,
         20
       ],
-      "description": "Messages of judgment and hope, prophesying the Messiah's birthplace and summarizing what God requires of man."
+      "description": "Messages of judgment and hope, prophesying the Messiah's birthplace and summarizing what God requires of man.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "nahum",
@@ -1284,7 +1350,9 @@
         13,
         19
       ],
-      "description": "A prophecy announcing the imminent and deserved destruction of the Assyrian city of Nineveh."
+      "description": "A prophecy announcing the imminent and deserved destruction of the Assyrian city of Nineveh.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "habakkuk",
@@ -1298,7 +1366,9 @@
         20,
         19
       ],
-      "description": "A dialogue between the prophet and God about divine justice, concluding with an affirmation of faith despite circumstances."
+      "description": "A dialogue between the prophet and God about divine justice, concluding with an affirmation of faith despite circumstances.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "zephaniah",
@@ -1312,7 +1382,9 @@
         15,
         20
       ],
-      "description": "Warnings about the great day of the Lord's wrath and promises of salvation for a humble remnant."
+      "description": "Warnings about the great day of the Lord's wrath and promises of salvation for a humble remnant.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "haggai",
@@ -1325,7 +1397,9 @@
         15,
         23
       ],
-      "description": "A call to the Jewish people to prioritize the rebuilding of the temple in Jerusalem after their return from exile."
+      "description": "A call to the Jewish people to prioritize the rebuilding of the temple in Jerusalem after their return from exile.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "zechariah",
@@ -1350,7 +1424,9 @@
         9,
         21
       ],
-      "description": "Prophetic visions encouraging the rebuilding of the temple and detailing the coming of the Messiah and His future reign."
+      "description": "Prophetic visions encouraging the rebuilding of the temple and detailing the coming of the Messiah and His future reign.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "malachi",
@@ -1365,7 +1441,9 @@
         18,
         6
       ],
-      "description": "A confrontation of the spiritual apathy of the priests and the people, with the promise of the Messiah's forerunner."
+      "description": "A confrontation of the spiritual apathy of the priests and the people, with the promise of the Messiah's forerunner.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "matthew",
@@ -1404,7 +1482,9 @@
         66,
         20
       ],
-      "description": "Presents Jesus as the King and Messiah promised in the Old Testament, focusing on His teachings and the kingdom of heaven."
+      "description": "Presents Jesus as the King and Messiah promised in the Old Testament, focusing on His teachings and the kingdom of heaven.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "mark",
@@ -1431,7 +1511,9 @@
         47,
         20
       ],
-      "description": "A fast-paced, action-oriented account of Jesus' life, presenting Him as the Servant of God who came to suffer and serve."
+      "description": "A fast-paced, action-oriented account of Jesus' life, presenting Him as the Servant of God who came to suffer and serve.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "luke",
@@ -1466,7 +1548,9 @@
         56,
         53
       ],
-      "description": "A detailed and compassionate narrative emphasizing Jesus' humanity and His love for the marginalized, the poor, and sinners."
+      "description": "A detailed and compassionate narrative emphasizing Jesus' humanity and His love for the marginalized, the poor, and sinners.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "john",
@@ -1498,7 +1582,9 @@
         31,
         25
       ],
-      "description": "Focuses on the deity of Christ, structured around His miracles and teachings so that readers may believe He is the Son of God."
+      "description": "Focuses on the deity of Christ, structured around His miracles and teachings so that readers may believe He is the Son of God.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "acts",
@@ -1537,7 +1623,9 @@
         44,
         31
       ],
-      "description": "Narrates the history of the early church, the descent of the Holy Spirit, and the spread of the gospel from Jerusalem to the ends of the earth."
+      "description": "Narrates the history of the early church, the descent of the Holy Spirit, and the spread of the gospel from Jerusalem to the ends of the earth.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "romans",
@@ -1564,7 +1652,9 @@
         33,
         27
       ],
-      "description": "A systematic and profound exposition of the gospel, explaining justification by faith, grace, and life in the Spirit."
+      "description": "A systematic and profound exposition of the gospel, explaining justification by faith, grace, and life in the Spirit.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "1-corinthians",
@@ -1591,7 +1681,9 @@
         58,
         24
       ],
-      "description": "A letter addressed to a divided church, tackling practical issues, discipline, spiritual gifts, and the resurrection."
+      "description": "A letter addressed to a divided church, tackling practical issues, discipline, spiritual gifts, and the resurrection.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "2-corinthians",
@@ -1615,7 +1707,9 @@
         21,
         14
       ],
-      "description": "A deeply personal letter in which Paul defends his apostolic ministry and urges repentance and generosity."
+      "description": "A deeply personal letter in which Paul defends his apostolic ministry and urges repentance and generosity.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "galatians",
@@ -1632,7 +1726,9 @@
         26,
         18
       ],
-      "description": "A passionate defense of freedom in Christ and justification by faith, against the teaching that keeping the law was necessary."
+      "description": "A passionate defense of freedom in Christ and justification by faith, against the teaching that keeping the law was necessary.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "ephesians",
@@ -1649,7 +1745,9 @@
         33,
         24
       ],
-      "description": "Explores the spiritual blessings in Christ, the unity of the church, and the armor of God for spiritual warfare."
+      "description": "Explores the spiritual blessings in Christ, the unity of the church, and the armor of God for spiritual warfare.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "philippians",
@@ -1664,7 +1762,9 @@
         21,
         23
       ],
-      "description": "A letter full of joy and gratitude, encouraging believers to live with humility, unity, and confidence in Christ despite trials."
+      "description": "A letter full of joy and gratitude, encouraging believers to live with humility, unity, and confidence in Christ despite trials.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "colossians",
@@ -1679,7 +1779,9 @@
         25,
         18
       ],
-      "description": "Highlights the supremacy and sufficiency of Christ over all things, warning against false philosophies and human traditions."
+      "description": "Highlights the supremacy and sufficiency of Christ over all things, warning against false philosophies and human traditions.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "1-thessalonians",
@@ -1695,7 +1797,9 @@
         18,
         28
       ],
-      "description": "Instructions on how to live a holy life and answers to questions about the second coming of Christ and deceased believers."
+      "description": "Instructions on how to live a holy life and answers to questions about the second coming of Christ and deceased believers.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "2-thessalonians",
@@ -1709,7 +1813,9 @@
         17,
         18
       ],
-      "description": "Further clarifications about the events preceding Christ's return and exhortations to work and stand firm."
+      "description": "Further clarifications about the events preceding Christ's return and exhortations to work and stand firm.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "1-timothy",
@@ -1726,7 +1832,9 @@
         25,
         21
       ],
-      "description": "Pastoral instructions to a young leader regarding church order, the role of leaders, and the defense of sound doctrine."
+      "description": "Pastoral instructions to a young leader regarding church order, the role of leaders, and the defense of sound doctrine.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "2-timothy",
@@ -1741,7 +1849,9 @@
         17,
         22
       ],
-      "description": "Paul's final words before his death, encouraging Timothy to persevere in faith, preach the word, and endure suffering."
+      "description": "Paul's final words before his death, encouraging Timothy to persevere in faith, preach the word, and endure suffering.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "titus",
@@ -1755,7 +1865,9 @@
         15,
         15
       ],
-      "description": "Practical advice for organizing the churches in Crete, emphasizing sound doctrine and good works in the lives of believers."
+      "description": "Practical advice for organizing the churches in Crete, emphasizing sound doctrine and good works in the lives of believers.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "philemon",
@@ -1767,7 +1879,9 @@
       "versesPerChapter": [
         25
       ],
-      "description": "A brief personal plea to a wealthy Christian to receive his runaway slave, Onesimus, now as a brother in Christ."
+      "description": "A brief personal plea to a wealthy Christian to receive his runaway slave, Onesimus, now as a brother in Christ.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "hebrews",
@@ -1791,7 +1905,9 @@
         29,
         25
       ],
-      "description": "Demonstrates the superiority of Jesus Christ and His new covenant over the priesthood and sacrifices of the Old Testament."
+      "description": "Demonstrates the superiority of Jesus Christ and His new covenant over the priesthood and sacrifices of the Old Testament.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "james",
@@ -1807,7 +1923,9 @@
         17,
         20
       ],
-      "description": "Highly practical exhortations on how genuine faith should manifest in works, control of the tongue, and perseverance in trials."
+      "description": "Highly practical exhortations on how genuine faith should manifest in works, control of the tongue, and perseverance in trials.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "1-peter",
@@ -1823,7 +1941,9 @@
         19,
         14
       ],
-      "description": "Words of encouragement and hope for Christians suffering persecution, calling them to live holy lives as pilgrims in the world."
+      "description": "Words of encouragement and hope for Christians suffering persecution, calling them to live holy lives as pilgrims in the world.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "2-peter",
@@ -1837,7 +1957,9 @@
         22,
         18
       ],
-      "description": "Warnings against false teachers and a reminder of the certainty of Christ's return and the coming judgment."
+      "description": "Warnings against false teachers and a reminder of the certainty of Christ's return and the coming judgment.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "1-john",
@@ -1853,7 +1975,9 @@
         21,
         21
       ],
-      "description": "An epistle emphasizing love, obedience, truth, and the assurance of eternal life for those who believe in the Son of God."
+      "description": "An epistle emphasizing love, obedience, truth, and the assurance of eternal life for those who believe in the Son of God.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "2-john",
@@ -1865,7 +1989,9 @@
       "versesPerChapter": [
         13
       ],
-      "description": "A brief warning against supporting false teachers who deny the incarnation of Jesus Christ."
+      "description": "A brief warning against supporting false teachers who deny the incarnation of Jesus Christ.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "3-john",
@@ -1877,7 +2003,9 @@
       "versesPerChapter": [
         14
       ],
-      "description": "A letter commending Gaius for his hospitality toward gospel messengers and condemning the dictatorial attitude of Diotrephes."
+      "description": "A letter commending Gaius for his hospitality toward gospel messengers and condemning the dictatorial attitude of Diotrephes.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "jude",
@@ -1889,7 +2017,9 @@
       "versesPerChapter": [
         25
       ],
-      "description": "An urgent call to contend earnestly for the faith against those who infiltrate the church to corrupt the grace of God."
+      "description": "An urgent call to contend earnestly for the faith against those who infiltrate the church to corrupt the grace of God.",
+      "video": "",
+      "chapterOffsets": []
     },
     {
       "id": "revelation",
@@ -1922,7 +2052,9 @@
         27,
         21
       ],
-      "description": "Apocalyptic visions revealing the final triumph of Jesus Christ over evil, the judgment of the world, and the establishment of the new heavens and new earth."
+      "description": "Apocalyptic visions revealing the final triumph of Jesus Christ over evil, the judgment of the world, and the establishment of the new heavens and new earth.",
+      "video": "",
+      "chapterOffsets": []
     }
   ]
 }

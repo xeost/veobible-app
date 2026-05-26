@@ -33,6 +33,20 @@ export interface BibleBook {
   versesPerChapter: number[];
   /** Short description of the book's contents */
   description: string;
+  /**
+   * YouTube video URL for the full audio-bible of this book.
+   * e.g. "https://www.youtube.com/watch?v=zBwWW2mVMNs"
+   * Empty string until the video is published.
+   */
+  video: string;
+  /**
+   * Start time (in whole seconds) of each chapter within the YouTube video.
+   * Element index 0 = Chapter 1 (always 0), index 1 = Chapter 2, etc.
+   * Use to build deep-link URLs like:
+   *   `${video}&t=${chapterOffsets[chapterIndex]}s`
+   * Populated automatically by the audiobibles-cli Step 4.
+   */
+  chapterOffsets: number[];
 }
 
 export interface BibleIndex {
