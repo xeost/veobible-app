@@ -82,6 +82,14 @@ export const config = {
    * Video generation settings.
    */
   video: {
+    /**
+     * When true, Step 4 will skip the actual FFmpeg rendering and thumbnail
+     * copy, but will still probe chapter durations and write the *-upload.txt
+     * file. Useful for regenerating upload metadata for books that have
+     * already been rendered without waiting hours for re-encoding.
+     */
+    skipRendering: true,
+
     visualizer: {
       /** Multiplier for the visualizer's reactivity (e.g. 0.5 to 1.5). Only applies to some styles. */
       sensitivity: 0.8,

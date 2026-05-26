@@ -7,9 +7,9 @@ import { printBanner, ok, divider, C, info, clearScreen } from "./ui.js";
 import { purgeOldLogs, log } from "./logger.js";
 import { runStep0 } from "./steps/step0-setup.js";
 import { runStep1 } from "./steps/step1-json.js";
-import { runStep2 } from "./steps/step1-image-prompt.js";
-import { runStep3 } from "./steps/step2-verify.js";
-import { runStep4 } from "./steps/step3-generate.js";
+import { runStep2 } from "./steps/step2-image-prompt.js";
+import { runStep3 } from "./steps/step3-verify.js";
+import { runStep4 } from "./steps/step4-generate.js";
 
 // ── Menu items ────────────────────────────────────────────────────────────────
 

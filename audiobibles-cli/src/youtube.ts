@@ -114,11 +114,52 @@ SCHEDULED TIME
 
 /**
  * Builds the video title for a Bible book.
- * Pattern: "<BookName> | <VersionLabel>"
- * Example: "Génesis | Reina Valera 1909"
+ * Pattern: "<BookName> | Santa Biblia / Holy Bible | <VersionLabel>"
+ * Example: "Génesis | Santa Biblia | Reina Valera 1909"
  */
-function buildTitle(bookName: string, versionLabel: string): string {
-  return `${bookName} | ${versionLabel}`;
+function buildTitle(bookName: string, versionLabel: string, locale: string): string {
+  const bibleTerm = locale === "es" ? "Santa Biblia" : "Holy Bible";
+  return `${bookName} | ${bibleTerm} | ${versionLabel}`;
+}
+
+/**
+ * Formats a duration in total seconds to a YouTube chapter timestamp string.
+ * YouTube requires at least H:MM:SS or MM:SS format. We always use H:MM:SS.
+ * Examples: 0 → "0:00:00", 75 → "0:01:15", 3661 → "1:01:01"
+ */
+function formatTimestamp(totalSeconds: number): string {
+  const s = Math.floor(totalSeconds);
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+  return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+/**
+ * Builds the chapters section for the YouTube description.
+ * YouTube automatically creates chapter markers when the description contains
+ * lines in the format: "H:MM:SS Label" — the first entry must start at 0:00:00.
+ *
+ * @param chapterDurations - Array of per-chapter durations in seconds (in order).
+ * @param locale           - Used to localise the label ("Capítulo" vs "Chapter").
+ */
+function buildChaptersSection(
+  chapterDurations: number[],
+  locale: string
+): string {
+  const isSpanish = locale === "es";
+  const label = isSpanish ? "Capítulo" : "Chapter";
+  const heading = isSpanish ? "📌 Capítulos" : "📌 Chapters";
+
+  let offset = 0;
+  const lines: string[] = [heading, ""];
+
+  for (let i = 0; i < chapterDurations.length; i++) {
+    lines.push(`${formatTimestamp(offset)} ${label} ${i + 1}`);
+    offset += chapterDurations[i];
+  }
+
+  return lines.join("\n");
 }
 
 /**
@@ -127,14 +168,16 @@ function buildTitle(bookName: string, versionLabel: string): string {
  *   1. Book description
  *   2. Separator + version section
  *   3. Separator + link to book on veobible.com
+ *   4. Separator + YouTube chapters (when chapterDurations are provided)
  */
 function buildDescription(
   book: BibleBook,
   versionMeta: BibleVersionMetadata,
   version: BibleVersion,
-  bookUrl: string
+  bookUrl: string,
+  chapterDurations: number[]
 ): string {
-  const separator = "\n\n─────────────────────────────────\n\n";
+  const separator = "\n\n";
 
   const isSpanish = version.locale === "es";
 
@@ -143,14 +186,23 @@ function buildDescription(
     : `📖 About this version — ${versionMeta.name}\n\n${versionMeta.description}`;
 
   const linkSection = isSpanish
-    ? `🔗 Leer en línea\n\nSigue el libro de ${book.name} en ${versionMeta.name} en:\n${bookUrl}`
-    : `🔗 Read online\n\nFollow the book of ${book.name} in ${versionMeta.name} at:\n${bookUrl}`;
+    ? `🔗 Leer en línea\n\nEncuentra el libro de ${book.name} en ${versionMeta.name} en:\n${bookUrl}`
+    : `🔗 Read online\n\nFind the book of ${book.name} in ${versionMeta.name} at:\n${bookUrl}`;
 
-  return `${book.description}${separator}${versionSection}${separator}${linkSection}`;
+  const chaptersSection =
+    chapterDurations.length > 0
+      ? `${separator}${buildChaptersSection(chapterDurations, version.locale)}`
+      : "";
+
+  return `${book.description}${separator}${versionSection}${separator}${linkSection}${chaptersSection}`;
 }
 
 /**
  * Generates the YouTube upload info .txt file for a Bible book video.
+ *
+ * @param chapterDurations - Per-chapter audio durations in seconds (in order).
+ *   When provided, a YouTube chapter markers section is appended to the
+ *   description so YouTube auto-generates chapter navigation on the video.
  */
 export function generateUploadInfo(params: {
   infoPath: string;
@@ -159,11 +211,12 @@ export function generateUploadInfo(params: {
   book: BibleBook;
   bookNumber: number;
   bookUrl: string;
+  chapterDurations?: number[];
 }): void {
-  const { infoPath, version, versionMeta, book, bookNumber, bookUrl } = params;
+  const { infoPath, version, versionMeta, book, bookNumber, bookUrl, chapterDurations = [] } = params;
 
-  const title = buildTitle(book.name, versionMeta.name);
-  const description = buildDescription(book, versionMeta, version, bookUrl);
+  const title = buildTitle(book.name, versionMeta.name, version.locale);
+  const description = buildDescription(book, versionMeta, version, bookUrl, chapterDurations);
 
   const content = UPLOAD_INFO_TEMPLATE
     .replaceAll("{versionLabel}", versionMeta.shortname)

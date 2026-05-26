@@ -30,8 +30,9 @@ import {
   checkReadiness,
   filterTargetsByJson,
 } from "../filesystem.js";
-import { runFFmpegAudiobible } from "../ffmpeg.js";
+import { runFFmpegAudiobible, getMediaDuration } from "../ffmpeg.js";
 import { generateUploadInfo } from "../youtube.js";
+import { config } from "../config.js";
 
 export async function runStep4(session: SessionState): Promise<void> {
   printStep(4, "Generate Videos");
@@ -82,6 +83,14 @@ export async function runStep4(session: SessionState): Promise<void> {
   }
 
   logStep(4, `Starting generation of ${readyTargets.length} video(s)...`);
+
+  const skipRendering = config.video.skipRendering;
+  if (skipRendering) {
+    warn("⚠ skipRendering is enabled — FFmpeg encoding and thumbnail copy will be skipped.");
+    warn("  Only the *-upload.txt metadata file will be (re)generated for each book.");
+    divider();
+  }
+
   fs.mkdirSync(outputsDir(), { recursive: true });
 
   const stepStartTime = Date.now();
@@ -104,15 +113,17 @@ export async function runStep4(session: SessionState): Promise<void> {
     info(`Processing: ${C.primary.bold(`${session.version.id}-${padBookNumber(target.bookNumber)}-${target.bookId}`)}`);
     info(`  Book: ${C.white(target.bookName)} (${bookData.chapters} chapters)`);
 
-    // Skip if both video and info file already exist (successful previous run)
-    if (fs.existsSync(outputVideo) && fs.existsSync(outputInfo)) {
+    // In skipRendering mode we regenerate the upload info even if the video exists.
+    // In normal mode, skip only when BOTH the video and info file already exist.
+    if (!skipRendering && fs.existsSync(outputVideo) && fs.existsSync(outputInfo)) {
       info(`⏭ Skipping — already processed.`);
       skippedCount++;
       continue;
     }
 
-    // If video exists but info is missing, it was interrupted — restart
-    if (fs.existsSync(outputVideo)) {
+    // In skipRendering mode we don't touch the video at all.
+    // In normal mode, if the video exists but info is missing it was interrupted — restart.
+    if (!skipRendering && fs.existsSync(outputVideo)) {
       info(`🔄 Was interrupted. Restarting render...`);
       fs.unlinkSync(outputVideo);
     }
@@ -130,27 +141,43 @@ export async function runStep4(session: SessionState): Promise<void> {
       info(`  Chapters: ${C.accent(String(chapterAudioFiles.length))}/${bookData.chapters} audio files`);
       info(`  Image: ${C.muted(path.basename(imageFile))}`);
 
+      // Probe per-chapter durations (needed for the YouTube chapters list in the
+      // upload info file and, in normal mode, for FFmpeg progress reporting).
+      info(`  Probing chapter durations...`);
+      const chapterDurations: number[] = [];
+      let totalAudioDur = 0;
+      for (const f of chapterAudioFiles) {
+        const d = await getMediaDuration(f);
+        const dur = d ?? 0;
+        chapterDurations.push(dur);
+        totalAudioDur += dur;
+      }
+
       const renderStartTime = Date.now();
 
-      await runFFmpegAudiobible({
-        chapterAudioFiles,
-        backgroundImageFile: imageFile,
-        outputFile: outputVideo,
-        onProgress: (p) => {
-          const ratio = p.seconds / p.totalSeconds;
-          const percent = (ratio * 100).toFixed(1);
-          const barWidth = 30;
-          const filledWidth = Math.floor(ratio * barWidth);
-          const bar =
-            C.accent("━".repeat(filledWidth)) +
-            C.muted("━".repeat(barWidth - filledWidth));
+      if (skipRendering) {
+        info(`  ⏩ Rendering skipped (skipRendering = true).`);
+      } else {
+        await runFFmpegAudiobible({
+          chapterAudioFiles,
+          backgroundImageFile: imageFile,
+          outputFile: outputVideo,
+          onProgress: (p) => {
+            const ratio = p.seconds / p.totalSeconds;
+            const percent = (ratio * 100).toFixed(1);
+            const barWidth = 30;
+            const filledWidth = Math.floor(ratio * barWidth);
+            const bar =
+              C.accent("━".repeat(filledWidth)) +
+              C.muted("━".repeat(barWidth - filledWidth));
 
-          process.stdout.write(
-            `\r  🎬 Rendering: ${C.white("[")}${bar}${C.white("]")} ${C.accent(percent + "%")} [${p.seconds.toFixed(0)}s/${p.totalSeconds.toFixed(0)}s]   `
-          );
-        },
-      });
-      process.stdout.write("\n");
+            process.stdout.write(
+              `\r  🎬 Rendering: ${C.white("[")}${bar}${C.white("]")} ${C.accent(percent + "%")} [${p.seconds.toFixed(0)}s/${p.totalSeconds.toFixed(0)}s]   `
+            );
+          },
+        });
+        process.stdout.write("\n");
+      }
 
       const renderDuration = Date.now() - renderStartTime;
       totalRenderTimeMs += renderDuration;
@@ -164,18 +191,21 @@ export async function runStep4(session: SessionState): Promise<void> {
         book: bookData,
         bookNumber: target.bookNumber,
         bookUrl,
+        chapterDurations,
       });
       info(`Upload info: ${C.muted(path.basename(outputInfo))}`);
 
-      // Copy thumbnail image to outputs/
-      const outputThumbnail = getOutputThumbnailPath(
-        target.bookNumber,
-        target.bookId,
-        session.version.id,
-        imageExt
-      );
-      fs.copyFileSync(imageFile, outputThumbnail);
-      info(`Thumbnail: ${C.muted(path.basename(outputThumbnail))}`);
+      // Copy thumbnail image to outputs/ (skipped when skipRendering is active)
+      if (!skipRendering) {
+        const outputThumbnail = getOutputThumbnailPath(
+          target.bookNumber,
+          target.bookId,
+          session.version.id,
+          imageExt
+        );
+        fs.copyFileSync(imageFile, outputThumbnail);
+        info(`Thumbnail: ${C.muted(path.basename(outputThumbnail))}`);
+      }
 
       const elapsedSoFar = Date.now() - stepStartTime;
       ok(
