@@ -88,6 +88,36 @@ export const en = {
     startReading: 'Start Reading',
     chooseVersion: 'Choose a Version',
     availableVersions: 'Available Versions',
+    verseOfTheDay: 'Verse of the Day',
+    verseOfTheDaySubtitle: 'A new verse every day to inspire and encourage you',
+    readInContext: 'Read in context',
+    installTitle: 'Install VeoBible on your device',
+    installSubtitle: 'Add VeoBible to your home screen for a native app experience — offline access, no browser UI, full screen.',
+    installIos: 'iPhone & iPad (Safari)',
+    installIosStep1: 'Open VeoBible in Safari.',
+    installIosStep2: 'Tap the Share button (rectangle with arrow up) in the toolbar.',
+    installIosStep3: 'Scroll down and tap «Add to Home Screen».',
+    installIosStep4: 'Tap «Add» in the top-right corner.',
+    installAndroid: 'Android (Chrome)',
+    installAndroidStep1: 'Open VeoBible in Chrome.',
+    installAndroidStep2: 'Tap the ⋮ menu (top-right corner).',
+    installAndroidStep3: 'Tap «Add to Home screen» or «Install app».',
+    installAndroidStep4: 'Confirm by tapping «Install».',
+    installDesktopChrome: 'Desktop — Chrome / Edge',
+    installDesktopChromeStep1: 'Open VeoBible in Chrome or Edge.',
+    installDesktopChromeStep2: 'Click the install icon (⊕) in the address bar.',
+    installDesktopChromeStep3: 'Click «Install» in the dialog.',
+    installDesktopSafari: 'Desktop — Safari (macOS)',
+    installDesktopSafariStep1: 'Open VeoBible in Safari.',
+    installDesktopSafariStep2: 'Click «File» in the menu bar.',
+    installDesktopSafariStep3: 'Select «Add to Dock» or use the Share menu → «Add to Dock».',
+    youtubeTitle: 'Also on YouTube',
+    youtubeSubtitle: 'Every book of the Bible narrated in full — one video per book, free to watch.',
+    youtubeChannelEs: 'VeoBible ES',
+    youtubeChannelEsDesc: 'All books narrated in Spanish (Reina Valera 1909).',
+    youtubeChannelEn: 'VeoBible',
+    youtubeChannelEnDesc: 'All books narrated in English (King James Version).',
+    youtubeSubscribe: 'Watch on YouTube',
   },
 
   // Errors
@@ -125,7 +155,7 @@ export interface Translations {
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
   version: { label: string; switch: string }
-  home: { continueReading: string; startReading: string; chooseVersion: string; availableVersions: string }
+  home: { continueReading: string; startReading: string; chooseVersion: string; availableVersions: string; verseOfTheDay: string; verseOfTheDaySubtitle: string; readInContext: string; installTitle: string; installSubtitle: string; installIos: string; installIosStep1: string; installIosStep2: string; installIosStep3: string; installIosStep4: string; installAndroid: string; installAndroidStep1: string; installAndroidStep2: string; installAndroidStep3: string; installAndroidStep4: string; installDesktopChrome: string; installDesktopChromeStep1: string; installDesktopChromeStep2: string; installDesktopChromeStep3: string; installDesktopSafari: string; installDesktopSafariStep1: string; installDesktopSafariStep2: string; installDesktopSafariStep3: string; youtubeTitle: string; youtubeSubtitle: string; youtubeChannelEs: string; youtubeChannelEsDesc: string; youtubeChannelEn: string; youtubeChannelEnDesc: string; youtubeSubscribe: string }
   error: { notFound: string; chapterNotFound: string; goHome: string }
   meta: MetaFns
 }

@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import { Dropdown } from '@/components/ui/Dropdown'
 import { useI18n } from '@/lib/i18n/client'
 import { BIBLE_VERSIONS } from '@/lib/bible/config'
-import { SUPPORTED_LOCALES } from '@/lib/i18n/config'
 import { storage } from '@/lib/storage'
 
 // Icons
@@ -62,17 +61,13 @@ export function Header({ currentLang, currentVersion, onOpenSidebar, onOpenBookm
     { label: t.theme.system, value: 'system', icon: <MonitorIcon />, active: theme === 'system' },
   ]
 
-  const langItems = SUPPORTED_LOCALES.map((l) => ({
-    label: t.language[l],
-    value: l,
-    active: l === locale,
-  }))
-
   const handleLangChange = async (lang: string) => {
     await storage.setPreference('locale', lang as any)
-    // Navigate to same path but with new lang
     router.push(`/${lang}`)
   }
+
+  // The language the button will switch TO (the one that is not active)
+  const otherLang = locale === 'es' ? 'en' : 'es'
 
   return (
     <header className="app-header app-header-height sticky top-0 z-30">
@@ -110,18 +105,16 @@ export function Header({ currentLang, currentVersion, onOpenSidebar, onOpenBookm
           </span>
         )}
 
-        {/* Language switcher */}
-        <Dropdown
-          label={t.language.label}
-          trigger={
-            <button className="btn-icon" aria-label={t.language.label} id="lang-switcher-btn">
-              <GlobeIcon />
-            </button>
-          }
-          items={langItems}
-          onSelect={handleLangChange}
-          align="right"
-        />
+        {/* Language toggle — one click switches to the other language */}
+        <button
+          onClick={() => handleLangChange(otherLang)}
+          className="btn-icon px-2.5 text-xs font-bold tracking-wide rounded-lg"
+          aria-label={t.language.label}
+          id="lang-switcher-btn"
+          title={t.language[otherLang]}
+        >
+          {otherLang.toUpperCase()}
+        </button>
 
         {/* Theme switcher */}
         <Dropdown
