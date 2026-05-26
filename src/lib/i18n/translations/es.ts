@@ -12,6 +12,8 @@ export const es: Translations = {
     settings: 'Ajustes',
     search: 'Buscar',
     tableOfContents: 'Tabla de contenido',
+    readingMode: 'Modo de lectura',
+    exitReadingMode: 'Salir del modo de lectura',
   },
 
   // Reader
