@@ -158,8 +158,8 @@ export function ReaderLayoutClient({
               transition: sidebarTransition,
               background: 'var(--bg-sidebar)',
               borderRight: readingMode ? 'none' : '1px solid var(--border)',
-              top: 'calc(3.5rem + var(--sat))',
-              height: 'calc(100vh - 3.5rem - var(--sat))',
+              top: 'calc(4rem + var(--sat))',
+              height: 'calc(100vh - 4rem - var(--sat))',
             }}
             aria-hidden={readingMode}
           >
@@ -184,8 +184,8 @@ export function ReaderLayoutClient({
               transition: sidebarTransition,
               background: 'var(--bg-sidebar)',
               borderLeft: readingMode ? 'none' : '1px solid var(--border)',
-              top: 'calc(3.5rem + var(--sat))',
-              height: 'calc(100vh - 3.5rem - var(--sat))',
+              top: 'calc(4rem + var(--sat))',
+              height: 'calc(100vh - 4rem - var(--sat))',
             }}
             aria-hidden={readingMode}
           >

@@ -191,7 +191,7 @@
 
   /* Header height accounting for safe area */
   .app-header-height {
-    height: calc(3.5rem + var(--sat));
+    height: calc(4rem + var(--sat));
   }
 
   /* Book group header */

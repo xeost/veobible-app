@@ -249,7 +249,7 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        top: coords ? `${coords.top}px` : 'calc(3.5rem + var(--sat) + 8px)',
+        top: coords ? `${coords.top}px` : 'calc(4rem + var(--sat) + 8px)',
         left: coords ? `${coords.left}px` : 'auto',
         right: coords ? 'auto' : '16px',
         width: '17rem',

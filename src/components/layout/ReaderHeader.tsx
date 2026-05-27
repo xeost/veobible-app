@@ -4,7 +4,7 @@ import React from 'react'
 import { useI18n } from '@/lib/i18n/client'
 import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
-import { ThemeSwitcher } from './ThemeSwitcher'
+import { ThemeToggle } from './ThemeToggle'
 
 // Icons
 const BookmarkIcon = () => (
@@ -93,7 +93,7 @@ export function ReaderHeader({
 
   return (
     <header className="app-header app-header-height sticky top-0 z-30">
-      <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center justify-between gap-2 relative">
+      <div className="max-w-[1600px] mx-auto px-4 h-16 flex items-center justify-between gap-2 relative">
         {/* Left side: Logo, Version, and ToC menu on mobile */}
         <div className="flex items-center gap-2 md:gap-3 justify-start min-w-0 z-10">
           <Logo currentLang={currentLang} />
@@ -148,7 +148,7 @@ export function ReaderHeader({
         {/* Right side: Language, Theme, and Bookmarks menu on mobile */}
         <div className="flex items-center gap-1.5 md:gap-2 justify-end z-10">
           <LanguageToggle />
-          <ThemeSwitcher />
+          <ThemeToggle />
 
           {/* Mobile: Bookmarks button — always visible when handler provided */}
           <button

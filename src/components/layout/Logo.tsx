@@ -9,7 +9,7 @@ export function Logo({ currentLang }: LogoProps) {
   return (
     <Link
       href={`/${currentLang}`}
-      className="flex items-center gap-2 mr-auto font-semibold text-base"
+      className="flex items-center gap-3 mr-auto font-semibold text-lg"
       style={{ color: 'var(--text-primary)' }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
