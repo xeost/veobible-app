@@ -107,4 +107,5 @@ export interface StorageRepository {
     key: K,
     value: UserPreferences[K],
   ): Promise<void>
+  setPreferences(patch: Partial<UserPreferences>): Promise<void>
 }

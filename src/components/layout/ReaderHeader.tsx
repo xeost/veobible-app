@@ -5,6 +5,8 @@ import { useI18n } from '@/lib/i18n/client'
 import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
 import { ThemeToggle } from './ThemeToggle'
+import { Tooltip } from '@/components/ui/Tooltip'
+
 
 // Icons
 const BookmarkIcon = () => (
@@ -42,32 +44,6 @@ const TypographyIcon = () => (
   </svg>
 )
 
-interface TooltipProps {
-  children: React.ReactNode
-  content: string
-  className?: string
-}
-
-function Tooltip({ children, content, className = '' }: TooltipProps) {
-  return (
-    <div className={`relative group flex items-center justify-center ${className}`}>
-      {children}
-      <div
-        className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 scale-95 opacity-0 pointer-events-none group-hover:scale-100 group-hover:opacity-100 transition-all duration-150 z-50 px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap shadow-md border"
-        style={{
-          background: 'var(--bg-card)',
-          color: 'var(--text-primary)',
-          borderColor: 'var(--border)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      >
-        {content}
-      </div>
-    </div>
-  )
-}
 
 interface ReaderHeaderProps {
   currentLang: string

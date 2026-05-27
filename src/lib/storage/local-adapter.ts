@@ -182,4 +182,12 @@ export class LocalStorageAdapter implements StorageRepository {
     prefs[key] = value
     safePut(KEYS.preferences, prefs)
   }
+
+  async setPreferences(
+    patch: Partial<UserPreferences>,
+  ): Promise<void> {
+    const prefs = await this.getPreferences()
+    Object.assign(prefs, patch)
+    safePut(KEYS.preferences, prefs)
+  }
 }

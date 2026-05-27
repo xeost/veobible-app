@@ -36,6 +36,7 @@ export const es: Translations = {
     bookmarkCancel: 'Cancelar',
     // Typography settings
     typography: 'Tipografía',
+    resetTypography: 'Restablecer tipografía',
     fontFamily: 'Fuente',
     lineHeight: 'Interlineado',
     lineHeight_tight: 'Compacto',

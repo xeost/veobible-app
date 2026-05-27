@@ -6,6 +6,7 @@ import type { Bookmark } from '@/lib/storage'
 import { useI18n } from '@/lib/i18n/client'
 import { toast } from '@/components/ui/Toast'
 import { BookmarkTitleModal } from './BookmarkTitleModal'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 // ── Icons ─────────────────────────────────────────────────────────────
 
@@ -151,16 +152,17 @@ export function BookmarkCard({
           </span>
 
           {/* Go-to link (always visible) */}
-          <Link
-            href={href}
-            className="btn-icon p-0.5 flex-shrink-0"
-            title={t.bookmarks.goTo}
-            aria-label={t.bookmarks.goTo}
-            style={{ color: 'var(--text-muted)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ExternalLinkIcon />
-          </Link>
+          <Tooltip content={t.bookmarks.goTo}>
+            <Link
+              href={href}
+              className="btn-icon p-0.5 flex-shrink-0"
+              aria-label={t.bookmarks.goTo}
+              style={{ color: 'var(--text-muted)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLinkIcon />
+            </Link>
+          </Tooltip>
 
           {/* Expand / collapse toggle */}
           <button
@@ -174,16 +176,17 @@ export function BookmarkCard({
         </div>
 
         {/* Line 2: title or first words — always one line, truncated */}
-        <div
-          className="text-xs truncate mt-0.5"
-          style={{ color: bookmark.title ? 'var(--text-primary)' : 'var(--text-muted)' }}
-          title={summaryLabel}
-        >
-          {bookmark.title
-            ? bookmark.title
-            : <span className="italic">{summaryLabel}</span>
-          }
-        </div>
+        <Tooltip content={summaryLabel} className="block w-full">
+          <div
+            className="text-xs truncate mt-0.5 w-full text-left"
+            style={{ color: bookmark.title ? 'var(--text-primary)' : 'var(--text-muted)' }}
+          >
+            {bookmark.title
+              ? bookmark.title
+              : <span className="italic">{summaryLabel}</span>
+            }
+          </div>
+        </Tooltip>
 
         {/* ── EXPANDED DETAILS (shown only when expanded) ───────────── */}
         {isExpanded && (
@@ -200,16 +203,17 @@ export function BookmarkCard({
                   {t.bookmarks.titleHint}…
                 </p>
               )}
-              <button
-                onClick={() => setEditingTitle(true)}
-                className="btn-icon p-1 flex-shrink-0"
-                aria-label={t.bookmarks.editTitle}
-                title={t.bookmarks.editTitle}
-                style={{ color: 'var(--text-muted)' }}
-                id={`bookmark-edit-title-${bookmark.id}`}
-              >
-                <PencilIcon />
-              </button>
+              <Tooltip content={t.bookmarks.editTitle}>
+                <button
+                  onClick={() => setEditingTitle(true)}
+                  className="btn-icon p-1 flex-shrink-0"
+                  aria-label={t.bookmarks.editTitle}
+                  style={{ color: 'var(--text-muted)' }}
+                  id={`bookmark-edit-title-${bookmark.id}`}
+                >
+                  <PencilIcon />
+                </button>
+              </Tooltip>
             </div>
 
             {/* Selected text */}

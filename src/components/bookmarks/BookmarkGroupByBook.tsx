@@ -5,6 +5,7 @@ import type { Bookmark, BookmarkFolder } from '@/lib/storage'
 import type { BookInfo } from '@/lib/bible/types'
 import { BookmarkCard } from './BookmarkCard'
 import { useI18n } from '@/lib/i18n/client'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 // ── Icons ────────────────────────────────────────────────────────────
 
@@ -266,24 +267,26 @@ function FolderRow({ folder, bookmarks, lang, bookName, onDrop, removeBookmark, 
           {/* Folder actions */}
           {!renaming && !confirmDelete && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={(e) => { e.stopPropagation(); setRenaming(true) }}
-                className="p-1 rounded"
-                title={t.bookmarks.renameFolder}
-                style={{ color: 'var(--text-muted)' }}
-                aria-label={t.bookmarks.renameFolder}
-              >
-                <PencilSmIcon />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
-                className="p-1 rounded"
-                title={t.bookmarks.deleteFolder}
-                style={{ color: 'var(--text-muted)' }}
-                aria-label={t.bookmarks.deleteFolder}
-              >
-                <TrashSmIcon />
-              </button>
+              <Tooltip content={t.bookmarks.renameFolder} placement="top">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setRenaming(true) }}
+                  className="p-1 rounded"
+                  style={{ color: 'var(--text-muted)' }}
+                  aria-label={t.bookmarks.renameFolder}
+                >
+                  <PencilSmIcon />
+                </button>
+              </Tooltip>
+              <Tooltip content={t.bookmarks.deleteFolder} placement="top">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+                  className="p-1 rounded"
+                  style={{ color: 'var(--text-muted)' }}
+                  aria-label={t.bookmarks.deleteFolder}
+                >
+                  <TrashSmIcon />
+                </button>
+              </Tooltip>
             </div>
           )}
 
@@ -534,33 +537,35 @@ export function BookmarkGroupByBook({
               </span>
 
               {/* Add-folder icon button — always visible, never overflows header */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setAddingFolderFor(bookSlug) }}
-                className="btn-icon p-1 flex-shrink-0"
-                title={t.bookmarks.newFolder}
-                aria-label={t.bookmarks.newFolder}
-                id={`add-folder-${bookSlug}`}
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <FolderPlusIcon />
-              </button>
+              <Tooltip content={t.bookmarks.newFolder} placement="top">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setAddingFolderFor(bookSlug) }}
+                  className="btn-icon p-1 flex-shrink-0"
+                  aria-label={t.bookmarks.newFolder}
+                  id={`add-folder-${bookSlug}`}
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <FolderPlusIcon />
+                </button>
+              </Tooltip>
 
               {/* Expand / collapse all cards in this book group */}
-              <button
-                onClick={() => toggleAllInBook(bookBookmarks)}
-                className="btn-icon p-1 flex-shrink-0"
-                title={allExpanded ? 'Collapse all' : 'Expand all'}
-                aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <svg
-                  width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ transform: allExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 180ms ease' }}
+              <Tooltip content={allExpanded ? 'Collapse all' : 'Expand all'} placement="top">
+                <button
+                  onClick={() => toggleAllInBook(bookBookmarks)}
+                  className="btn-icon p-1 flex-shrink-0"
+                  aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
+                  style={{ color: 'var(--text-muted)' }}
                 >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
+                  <svg
+                    width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ transform: allExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 180ms ease' }}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </Tooltip>
             </div>
 
             {/* Group content */}

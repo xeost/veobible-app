@@ -4,6 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import type { BookInfo } from '@/lib/bible/types'
 import { useI18n } from '@/lib/i18n/client'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface SidebarProps {
   lang: string
@@ -88,13 +89,14 @@ export function Sidebar({ lang, version, versionName, books, currentBookSlug, cu
               } ${isExpanded ? 'is-expanded' : ''}`}
             >
               <span className="truncate">{book.name}</span>
-              <span
-                className="flex-shrink-0 ml-2"
-                style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}
-                title={t.version.chaptersTooltip(book.chapters)}
-              >
-                {book.chapters}
-              </span>
+              <Tooltip content={t.version.chaptersTooltip(book.chapters)}>
+                <span
+                  className="flex-shrink-0 ml-2 animate-fade-in"
+                  style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}
+                >
+                  {book.chapters}
+                </span>
+              </Tooltip>
             </button>
 
             {/* Chapter grid */}

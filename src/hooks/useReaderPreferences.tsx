@@ -290,6 +290,7 @@ interface ReaderPreferencesContext extends ReaderPreferences {
   setFontSize: (v: ReaderFontSize) => void
   setLineHeight: (v: ReaderLineHeight) => void
   setContentWidth: (v: ReaderContentWidth) => void
+  resetPreferences: () => void
 }
 
 const Context = React.createContext<ReaderPreferencesContext>({
@@ -301,6 +302,7 @@ const Context = React.createContext<ReaderPreferencesContext>({
   setFontSize: () => {},
   setLineHeight: () => {},
   setContentWidth: () => {},
+  resetPreferences: () => {},
 })
 
 // ── Provider ───────────────────────────────────────────────────────────────────
@@ -389,8 +391,28 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
     storage.setPreference('readerContentWidth', v)
   }, [])
 
+  const resetPreferences = React.useCallback(() => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+    const fallbackLh = isMobile ? 'normal' : 'relaxed'
+
+    const defaults: ReaderPreferences = {
+      fontFamily: DEFAULT_FONT_FAMILY,
+      fontSize: DEFAULT_FONT_SIZE,
+      lineHeight: fallbackLh,
+      contentWidth: DEFAULT_CONTENT_WIDTH,
+    }
+
+    setPrefs(defaults)
+    storage.setPreferences({
+      readerFontFamily: defaults.fontFamily,
+      readerFontSize: defaults.fontSize,
+      readerLineHeight: defaults.lineHeight,
+      readerContentWidth: defaults.contentWidth,
+    })
+  }, [])
+
   return (
-    <Context.Provider value={{ ...prefs, setFontFamily, setFontSize, setLineHeight, setContentWidth }}>
+    <Context.Provider value={{ ...prefs, setFontFamily, setFontSize, setLineHeight, setContentWidth, resetPreferences }}>
       {children}
     </Context.Provider>
   )

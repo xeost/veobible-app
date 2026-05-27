@@ -15,14 +15,24 @@ import {
   FONTS,
   FONT_SIZE_CSS,
   getFontFamilyCSS,
+  DEFAULT_FONT_FAMILY,
+  DEFAULT_FONT_SIZE,
+  DEFAULT_CONTENT_WIDTH,
 } from '@/hooks/useReaderPreferences'
 import type { ReaderFontFamily, ReaderFontSize, ReaderLineHeight } from '@/lib/storage/types'
 import { useI18n } from '@/lib/i18n/client'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 // ── Icons ───────────────────────────────────────────────────────────────────
 const CloseIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+)
+const ResetIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <polyline points="3 3 3 8 8 8" />
   </svg>
 )
 const ChevronDown = ({ open }: { open: boolean }) => (
@@ -103,10 +113,29 @@ interface ReaderSettingsPanelProps {
 
 export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettingsPanelProps) {
   const { t } = useI18n()
-  const { fontFamily, fontSize, lineHeight, contentWidth, setFontFamily, setFontSize, setLineHeight, setContentWidth } = useReaderPreferences()
+  const {
+    fontFamily,
+    fontSize,
+    lineHeight,
+    contentWidth,
+    setFontFamily,
+    setFontSize,
+    setLineHeight,
+    setContentWidth,
+    resetPreferences,
+  } = useReaderPreferences()
   const panelRef = useRef<HTMLDivElement>(null)
   const [fontListOpen, setFontListOpen] = useState(false)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+  const [isResetHovered, setIsResetHovered] = useState(false)
+
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const defaultLineHeight = isMobile ? 'normal' : 'relaxed'
+  const isDefault =
+    fontFamily === DEFAULT_FONT_FAMILY &&
+    fontSize === DEFAULT_FONT_SIZE &&
+    lineHeight === defaultLineHeight &&
+    contentWidth === DEFAULT_CONTENT_WIDTH
 
   useLayoutEffect(() => {
     if (!open || !anchorRef.current) return
@@ -263,9 +292,36 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           {t.reader.typography}
         </p>
-        <button onClick={onClose} className="btn-icon p-1" aria-label="Close">
-          <CloseIcon />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <Tooltip content={t.reader.resetTypography}>
+            <button
+              onClick={resetPreferences}
+              disabled={isDefault}
+              onMouseEnter={() => setIsResetHovered(true)}
+              onMouseLeave={() => setIsResetHovered(false)}
+              className="btn-icon p-1 relative flex items-center justify-center transition-all duration-200"
+              style={{
+                opacity: isDefault ? 0.35 : 1,
+                cursor: isDefault ? 'default' : 'pointer',
+                color: 'var(--text-secondary)',
+              }}
+              aria-label={t.reader.resetTypography}
+            >
+              <span
+                style={{
+                  display: 'inline-flex',
+                  transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transform: !isDefault && isResetHovered ? 'rotate(-180deg)' : 'none',
+                }}
+              >
+                <ResetIcon />
+              </span>
+            </button>
+          </Tooltip>
+          <button onClick={onClose} className="btn-icon p-1" aria-label="Close">
+            <CloseIcon />
+          </button>
+        </div>
       </div>
 
       <div className="px-4 py-4 space-y-5">
@@ -277,22 +333,24 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
               {t.reader.fontFamily}
             </label>
             <div className="flex items-center gap-1">
-              <button
-                onClick={handlePrevFont}
-                className="btn-icon p-1"
-                title={t.reader.prevFont}
-                aria-label={t.reader.prevFont}
-              >
-                <ArrowUpIcon />
-              </button>
-              <button
-                onClick={handleNextFont}
-                className="btn-icon p-1"
-                title={t.reader.nextFont}
-                aria-label={t.reader.nextFont}
-              >
-                <ArrowDownIcon />
-              </button>
+              <Tooltip content={t.reader.prevFont}>
+                <button
+                  onClick={handlePrevFont}
+                  className="btn-icon p-1"
+                  aria-label={t.reader.prevFont}
+                >
+                  <ArrowUpIcon />
+                </button>
+              </Tooltip>
+              <Tooltip content={t.reader.nextFont}>
+                <button
+                  onClick={handleNextFont}
+                  className="btn-icon p-1"
+                  aria-label={t.reader.nextFont}
+                >
+                  <ArrowDownIcon />
+                </button>
+              </Tooltip>
             </div>
           </div>
 
@@ -437,21 +495,26 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
               if (w === 'thin') Icon = WidthThinIcon
               if (w === 'very-thin') Icon = WidthVeryThinIcon
               return (
-                <button
+                <Tooltip
                   key={w}
-                  onClick={() => setContentWidth(w)}
-                  className="flex-1 flex items-center justify-center p-2 rounded-lg transition-all duration-150"
-                  style={{
-                    background: isActive ? 'var(--bg-card)' : 'transparent',
-                    color: isActive ? 'var(--brand)' : 'var(--text-secondary)',
-                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
-                    border: isActive ? '1px solid var(--border)' : '1px solid transparent',
-                  }}
-                  title={t.reader[`contentWidth_${w === 'very-thin' ? 'veryThin' : w}` as keyof typeof t.reader]}
-                  aria-label={t.reader[`contentWidth_${w === 'very-thin' ? 'veryThin' : w}` as keyof typeof t.reader]}
+                  content={t.reader[`contentWidth_${w === 'very-thin' ? 'veryThin' : w}` as keyof typeof t.reader]}
+                  placement="top"
+                  className="flex-1"
                 >
-                  <Icon />
-                </button>
+                  <button
+                    onClick={() => setContentWidth(w)}
+                    className="w-full flex items-center justify-center p-2 rounded-lg transition-all duration-150"
+                    style={{
+                      background: isActive ? 'var(--bg-card)' : 'transparent',
+                      color: isActive ? 'var(--brand)' : 'var(--text-secondary)',
+                      boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                      border: isActive ? '1px solid var(--border)' : '1px solid transparent',
+                    }}
+                    aria-label={t.reader[`contentWidth_${w === 'very-thin' ? 'veryThin' : w}` as keyof typeof t.reader]}
+                  >
+                    <Icon />
+                  </button>
+                </Tooltip>
               )
             })}
           </div>
