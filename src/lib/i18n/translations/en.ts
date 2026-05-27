@@ -106,6 +106,7 @@ export const en = {
 
   // Homepage
   home: {
+    welcome: 'Welcome to VeoBible',
     continueReading: 'Continue reading',
     startReading: 'Start reading',
     chooseVersion: 'Choose version',
@@ -177,7 +178,7 @@ export interface Translations {
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
   version: { label: string; switch: string; chaptersTooltip: (count: number) => string }
-  home: { continueReading: string; startReading: string; chooseVersion: string; availableVersions: string; verseOfTheDay: string; verseOfTheDaySubtitle: string; readInContext: string; installTitle: string; installSubtitle: string; installIos: string; installIosStep1: string; installIosStep2: string; installIosStep3: string; installIosStep4: string; installAndroid: string; installAndroidStep1: string; installAndroidStep2: string; installAndroidStep3: string; installAndroidStep4: string; installDesktopChrome: string; installDesktopChromeStep1: string; installDesktopChromeStep2: string; installDesktopChromeStep3: string; installDesktopSafari: string; installDesktopSafariStep1: string; installDesktopSafariStep2: string; installDesktopSafariStep3: string; youtubeTitle: string; youtubeSubtitle: string; youtubeChannelEs: string; youtubeChannelEsDesc: string; youtubeChannelEn: string; youtubeChannelEnDesc: string; youtubeSubscribe: string }
+  home: { welcome: string; continueReading: string; startReading: string; chooseVersion: string; availableVersions: string; verseOfTheDay: string; verseOfTheDaySubtitle: string; readInContext: string; installTitle: string; installSubtitle: string; installIos: string; installIosStep1: string; installIosStep2: string; installIosStep3: string; installIosStep4: string; installAndroid: string; installAndroidStep1: string; installAndroidStep2: string; installAndroidStep3: string; installAndroidStep4: string; installDesktopChrome: string; installDesktopChromeStep1: string; installDesktopChromeStep2: string; installDesktopChromeStep3: string; installDesktopSafari: string; installDesktopSafariStep1: string; installDesktopSafariStep2: string; installDesktopSafariStep3: string; youtubeTitle: string; youtubeSubtitle: string; youtubeChannelEs: string; youtubeChannelEsDesc: string; youtubeChannelEn: string; youtubeChannelEnDesc: string; youtubeSubscribe: string }
   error: { notFound: string; chapterNotFound: string; goHome: string }
   meta: MetaFns
 }

@@ -108,6 +108,7 @@ export const es: Translations = {
 
   // Homepage
   home: {
+    welcome: 'Bienvenido a VeoBible',
     continueReading: 'Continuar leyendo',
     startReading: 'Comenzar a leer',
     chooseVersion: 'Elegir versión',

@@ -25,6 +25,7 @@
     --brand: theme('colors.brand.500');
     --brand-light: theme('colors.brand.100');
     --brand-dark: theme('colors.brand.700');
+    --verse-card-bg: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 
     /* Borders */
     --border: theme('colors.surface.200');
@@ -76,6 +77,7 @@
     --brand: theme('colors.brand.400');
     --brand-light: theme('colors.brand.950');
     --brand-dark: theme('colors.brand.300');
+    --verse-card-bg: linear-gradient(135deg, theme('colors.brand.800') 0%, theme('colors.brand.950') 100%);
 
     --border: #231f36;
     --border-strong: #332e4a;
