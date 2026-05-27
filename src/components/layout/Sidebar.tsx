@@ -20,16 +20,28 @@ export function Sidebar({ lang, version, versionName, books, currentBookSlug, cu
   const { t } = useI18n()
   const [expandedBook, setExpandedBook] = React.useState<string | null>(currentBookSlug ?? null)
   const navRef = React.useRef<HTMLElement>(null)
+  // Ref attached to the active book's button so we can scroll it into view
+  const activeBookRef = React.useRef<HTMLButtonElement>(null)
 
-  // Restore scroll position on mount (before paint to avoid flash)
+  // On mount: scroll the active book/chapter into view (preferred),
+  // falling back to the saved scroll position when there is no active item.
   React.useLayoutEffect(() => {
     const nav = navRef.current
     if (!nav) return
-    const saved = sessionStorage.getItem(SCROLL_KEY)
-    if (saved !== null) {
-      nav.scrollTop = parseInt(saved, 10)
+
+    if (activeBookRef.current) {
+      // Small delay so the chapter grid has already been rendered (it's
+      // conditionally rendered in the same pass, but layout hasn't settled yet)
+      requestAnimationFrame(() => {
+        activeBookRef.current?.scrollIntoView({ block: 'center' })
+      })
+    } else {
+      const saved = sessionStorage.getItem(SCROLL_KEY)
+      if (saved !== null) {
+        nav.scrollTop = parseInt(saved, 10)
+      }
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save scroll position on every scroll event
   const handleScroll = React.useCallback(() => {
@@ -53,6 +65,7 @@ export function Sidebar({ lang, version, versionName, books, currentBookSlug, cu
           <div key={book.slug}>
             {/* Book row */}
             <button
+              ref={isActive ? activeBookRef : undefined}
               onClick={() => setExpandedBook(isExpanded ? null : book.slug)}
               className="w-full flex items-center justify-between px-4 py-2 text-sm transition-colors duration-100 rounded-lg mx-1"
               style={{

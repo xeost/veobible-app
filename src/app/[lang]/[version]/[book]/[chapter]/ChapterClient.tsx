@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChapterReader } from '@/components/reader/ChapterReader'
@@ -20,10 +20,28 @@ interface ChapterClientProps {
 export function ChapterClient({ data, books, lang, version }: ChapterClientProps) {
   const { t } = useI18n()
 
-  // Reading mode: sidebars collapse into sheets, content takes full width
+  // Reading mode: sidebars collapse to width 0, content stays centered
   const [readingMode, setReadingMode] = useState(false)
 
-  // Sheet open states — used in reading mode OR on mobile
+  // Preserve scroll position across reading mode toggles so the
+  // content column does not jump vertically when sidebars appear/disappear.
+  const savedScrollY = useRef(0)
+
+  const handleToggleReadingMode = () => {
+    savedScrollY.current = window.scrollY
+    setReadingMode((m) => !m)
+  }
+
+  // Restore scroll after every reading-mode change (runs after paint)
+  useEffect(() => {
+    // requestAnimationFrame ensures the new layout has been applied
+    const raf = requestAnimationFrame(() => {
+      window.scrollTo({ top: savedScrollY.current, behavior: 'instant' })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [readingMode])
+
+  // Sheet open states — used on mobile always, on desktop only in reading mode
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [bookmarksOpen, setBookmarksOpen] = useState(false)
 
@@ -67,6 +85,14 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
     currentChapter: data.chapterNum,
   }
 
+  // Sidebar widths (CSS variables / fixed values)
+  const SIDEBAR_LEFT = '15rem'   // 240 px — matches w-60
+  const SIDEBAR_RIGHT = '18rem'  // 288 px — matches xl:w-72
+
+  // Sidebar transition: width collapses to 0 so the reading column stays
+  // in place without any horizontal shift.
+  const sidebarTransition = 'width 0.25s ease, opacity 0.25s ease'
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -76,86 +102,76 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
         onOpenSidebar={() => setSidebarOpen(true)}
         onOpenBookmarks={() => setBookmarksOpen(true)}
         isReadingMode={readingMode}
-        onToggleReadingMode={() => setReadingMode((m) => !m)}
+        onToggleReadingMode={handleToggleReadingMode}
       />
 
-      {/* ── Desktop: 3-column layout (normal mode) ─────────────────────── */}
-      {!readingMode && (
-        <div
-          className="hidden md:flex mx-auto w-full"
-          style={{ maxWidth: '1600px' }}
+      {/* ── Desktop: unified single-DOM 3-column layout ─────────────────
+          Sidebars stay mounted and animate their width to 0 in reading
+          mode so the central column never shifts horizontally.           */}
+      <div
+        className="hidden md:flex mx-auto w-full"
+        style={{ maxWidth: '1600px' }}
+      >
+        {/* Left sidebar — Table of Contents */}
+        <aside
+          className="flex-shrink-0 sticky overflow-hidden sidebar"
+          style={{
+            width: readingMode ? 0 : SIDEBAR_LEFT,
+            opacity: readingMode ? 0 : 1,
+            transition: sidebarTransition,
+            background: 'var(--bg-sidebar)',
+            borderRight: readingMode ? 'none' : '1px solid var(--border)',
+            top: 'calc(3.5rem + var(--sat))',
+            height: 'calc(100vh - 3.5rem - var(--sat))',
+          }}
+          aria-hidden={readingMode}
         >
-          {/* Left sidebar — Table of Contents */}
-          <aside
-            className="w-60 xl:w-64 flex-shrink-0 sticky overflow-hidden sidebar"
-            style={{
-              background: 'var(--bg-sidebar)',
-              top: 'calc(3.5rem + var(--sat))',
-              height: 'calc(100vh - 3.5rem - var(--sat))',
-            }}
-          >
-            <Sidebar {...sidebarProps} />
-          </aside>
+          <Sidebar {...sidebarProps} />
+        </aside>
 
-          {/* Reading column */}
-          <main
-            className="flex-1 min-w-0 px-6 xl:px-10 py-10"
-            id="main-content"
-            style={{ paddingBottom: 'calc(2.5rem + var(--sab))' }}
-          >
-            <ChapterReader
-              data={data}
-              lang={lang}
-              version={version}
-              addBookmark={addBookmark}
-              isBookmarked={isBookmarked}
-            />
-          </main>
+        {/* Reading column — always flex-1, never changes position */}
+        <main
+          className="flex-1 min-w-0 px-6 xl:px-10 py-10"
+          id="main-content"
+          style={{ paddingBottom: 'calc(2.5rem + var(--sab))' }}
+        >
+          <ChapterReader
+            data={data}
+            lang={lang}
+            version={version}
+            addBookmark={addBookmark}
+            isBookmarked={isBookmarked}
+          />
+        </main>
 
-          {/* Right sidebar — Bookmarks */}
-          <aside
-            className="w-60 xl:w-72 flex-shrink-0 sticky overflow-hidden"
-            style={{
-              background: 'var(--bg-sidebar)',
-              borderLeft: '1px solid var(--border)',
-              top: 'calc(3.5rem + var(--sat))',
-              height: 'calc(100vh - 3.5rem - var(--sat))',
-            }}
+        {/* Right sidebar — Bookmarks */}
+        <aside
+          className="flex-shrink-0 sticky overflow-hidden"
+          style={{
+            width: readingMode ? 0 : SIDEBAR_RIGHT,
+            opacity: readingMode ? 0 : 1,
+            transition: sidebarTransition,
+            background: 'var(--bg-sidebar)',
+            borderLeft: readingMode ? 'none' : '1px solid var(--border)',
+            top: 'calc(3.5rem + var(--sat))',
+            height: 'calc(100vh - 3.5rem - var(--sat))',
+          }}
+          aria-hidden={readingMode}
+        >
+          {/* Sidebar header */}
+          <div
+            className="px-4 py-3 border-b"
+            style={{ borderColor: 'var(--border)' }}
           >
-            {/* Sidebar header */}
-            <div
-              className="px-4 py-3 border-b"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                {t.nav.bookmarks}
-              </p>
-            </div>
-            <div className="h-[calc(100%-3rem)] overflow-y-auto">
-              <BookmarksList {...bookmarksListProps} />
-            </div>
-          </aside>
-        </div>
-      )}
-
-      {/* ── Desktop: reading mode — full-width centred column ─────────── */}
-      {readingMode && (
-        <div className="hidden md:flex justify-center px-4">
-          <main
-            className="w-full max-w-2xl py-10"
-            id="main-content"
-            style={{ paddingBottom: 'calc(2.5rem + var(--sab))' }}
-          >
-            <ChapterReader
-              data={data}
-              lang={lang}
-              version={version}
-              addBookmark={addBookmark}
-              isBookmarked={isBookmarked}
-            />
-          </main>
-        </div>
-      )}
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              {t.nav.bookmarks}
+            </p>
+          </div>
+          <div className="h-[calc(100%-3rem)] overflow-y-auto">
+            <BookmarksList {...bookmarksListProps} />
+          </div>
+        </aside>
+      </div>
 
       {/* ── Mobile: always full-width ──────────────────────────────────── */}
       <div className="md:hidden">
@@ -174,7 +190,7 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
         </main>
       </div>
 
-      {/* ── Sheet: ToC — always available on mobile; reading mode on desktop */}
+      {/* ── Sheet: ToC — mobile always; desktop only in reading mode ───── */}
       <Sheet
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -184,7 +200,7 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
         <Sidebar {...sidebarProps} />
       </Sheet>
 
-      {/* ── Sheet: Bookmarks — reading mode (both), mobile always */}
+      {/* ── Sheet: Bookmarks — mobile always; desktop only in reading mode */}
       <Sheet
         open={bookmarksOpen}
         onClose={() => setBookmarksOpen(false)}
