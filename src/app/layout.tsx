@@ -27,6 +27,7 @@ import Script from 'next/script'
 import { ThemeProvider } from 'next-themes'
 import { ToastContainer } from '@/components/ui/Toast'
 import { ReaderPreferencesProvider } from '@/hooks/useReaderPreferences'
+import { ThemeColorUpdater } from '@/components/layout/ThemeColorUpdater'
 import '@/styles/globals.css'
 
 const inter = Inter({
@@ -279,6 +280,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <ReaderPreferencesProvider>
             {children}
+            <ThemeColorUpdater />
             <ToastContainer />
           </ReaderPreferencesProvider>
         </ThemeProvider>
