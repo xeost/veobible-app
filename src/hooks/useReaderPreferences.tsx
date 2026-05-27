@@ -320,10 +320,13 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
       const validFont: ReaderFontFamily =
         savedFont && FONTS[savedFont] ? savedFont : DEFAULT_FONT_FAMILY
 
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+      const fallbackLh = isMobile ? 'normal' : 'relaxed'
+
       setPrefs({
         fontFamily: validFont,
         fontSize:   saved.readerFontSize   ?? DEFAULT_FONT_SIZE,
-        lineHeight: saved.readerLineHeight ?? DEFAULT_LINE_HEIGHT,
+        lineHeight: saved.readerLineHeight ?? fallbackLh,
         contentWidth: saved.readerContentWidth ?? DEFAULT_CONTENT_WIDTH,
       })
     })

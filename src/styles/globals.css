@@ -55,6 +55,12 @@
     --sal: env(safe-area-inset-left, 0px);
   }
 
+  @media (max-width: 767px) {
+    :root {
+      --reader-line-height: 1.632;
+    }
+  }
+
   .dark {
     --bg-page: #0f0e17;
     --bg-card: #1a1828;
