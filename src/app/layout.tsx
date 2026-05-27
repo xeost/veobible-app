@@ -11,17 +11,13 @@ import {
   Nunito,
   Open_Sans,
   Dancing_Script,
-  Tangerine,
-  Great_Vibes,
   Noto_Sans,
   Roboto,
   Almendra,
   Eagle_Lake,
   IM_Fell_English,
-  Caveat,
   Satisfy,
   Courgette,
-  Yellowtail,
   Allura,
   Kaushan_Script,
   Sacramento,
@@ -117,20 +113,6 @@ const dancingScript = Dancing_Script({
   display: 'swap',
 })
 
-const tangerine = Tangerine({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-tangerine',
-  display: 'swap',
-})
-
-const greatVibes = Great_Vibes({
-  subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-great-vibes',
-  display: 'swap',
-})
-
 const almendra = Almendra({
   subsets: ['latin'],
   weight: ['400', '700'],
@@ -152,13 +134,6 @@ const imFellEnglish = IM_Fell_English({
   display: 'swap',
 })
 
-const caveat = Caveat({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-caveat',
-  display: 'swap',
-})
-
 const satisfy = Satisfy({
   subsets: ['latin'],
   weight: ['400'],
@@ -170,13 +145,6 @@ const courgette = Courgette({
   subsets: ['latin'],
   weight: ['400'],
   variable: '--font-courgette',
-  display: 'swap',
-})
-
-const yellowtail = Yellowtail({
-  subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-yellowtail',
   display: 'swap',
 })
 
@@ -276,15 +244,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         notoSans.variable,
         roboto.variable,
         dancingScript.variable,
-        tangerine.variable,
-        greatVibes.variable,
         almendra.variable,
         eagleLake.variable,
         imFellEnglish.variable,
-        caveat.variable,
         satisfy.variable,
         courgette.variable,
-        yellowtail.variable,
         allura.variable,
         kaushanScript.variable,
         sacramento.variable,

@@ -112,20 +112,6 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     description: 'Cursive, friendly and readable',
     sizeAdjust: 1.25,
   },
-  'tangerine': {
-    label: 'Tangerine',
-    cssVar: '--font-tangerine',
-    category: 'script',
-    description: 'Elegant calligraphy, manuscript style',
-    sizeAdjust: 1.55,
-  },
-  'great-vibes': {
-    label: 'Great Vibes',
-    cssVar: '--font-great-vibes',
-    category: 'script',
-    description: 'Flowing cursive, classical elegance',
-    sizeAdjust: 1.35,
-  },
   'playwrite-england': {
     label: 'Playwrite England Joined',
     cssVar: '--font-playwrite-england',
@@ -154,13 +140,6 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     description: 'Ancient printed script style',
     sizeAdjust: 1.15,
   },
-  'caveat': {
-    label: 'Caveat',
-    cssVar: '--font-caveat',
-    category: 'script',
-    description: 'Modern natural handwriting',
-    sizeAdjust: 1.25,
-  },
   'satisfy': {
     label: 'Satisfy',
     cssVar: '--font-satisfy',
@@ -174,13 +153,6 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     category: 'script',
     description: 'Medium-contrast elegant script',
     sizeAdjust: 1.15,
-  },
-  'yellowtail': {
-    label: 'Yellowtail',
-    cssVar: '--font-yellowtail',
-    category: 'script',
-    description: 'Retro flat-brush script',
-    sizeAdjust: 1.25,
   },
   'allura': {
     label: 'Allura',
