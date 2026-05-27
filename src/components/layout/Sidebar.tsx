@@ -14,41 +14,57 @@ interface SidebarProps {
   currentChapter?: number
 }
 
-const SCROLL_KEY = 'sidebar-scroll'
+function isReaderPath(path: string): boolean {
+  const segments = path.split('/').filter(Boolean)
+  if (segments.length !== 4) return false
+  const chapter = parseInt(segments[3], 10)
+  return !isNaN(chapter)
+}
 
 export function Sidebar({ lang, version, versionName, books, currentBookSlug, currentChapter }: SidebarProps) {
   const { t } = useI18n()
   const [expandedBook, setExpandedBook] = React.useState<string | null>(currentBookSlug ?? null)
   const navRef = React.useRef<HTMLElement>(null)
-  // Ref attached to the active book's button so we can scroll it into view
+  // Ref attached to the active book's button so we can scroll it into view on first load
   const activeBookRef = React.useRef<HTMLButtonElement>(null)
 
-  // On mount: scroll the active book/chapter into view (preferred),
-  // falling back to the saved scroll position when there is no active item.
-  React.useLayoutEffect(() => {
-    const nav = navRef.current
-    if (!nav) return
+  // Expand active book when slug changes
+  React.useEffect(() => {
+    if (currentBookSlug) {
+      setExpandedBook(currentBookSlug)
+    }
+  }, [currentBookSlug])
 
-    if (activeBookRef.current) {
-      // Small delay so the chapter grid has already been rendered (it's
-      // conditionally rendered in the same pass, but layout hasn't settled yet)
-      requestAnimationFrame(() => {
-        activeBookRef.current?.scrollIntoView({ block: 'center' })
-      })
-    } else {
-      const saved = sessionStorage.getItem(SCROLL_KEY)
-      if (saved !== null) {
-        nav.scrollTop = parseInt(saved, 10)
+  // Save manual scroll position on scroll
+  const handleScroll = React.useCallback(() => {
+    if (navRef.current && typeof window !== 'undefined') {
+      (window as any).__sidebar_scroll = navRef.current.scrollTop
+    }
+  }, [])
+
+  // On mount decide how to position the sidebar:
+  //   • First time entering the reading page -> scroll active book to the top of the sidebar.
+  //   • Navigating within the reading page -> preserve the exact manual scroll position.
+  React.useLayoutEffect(() => {
+    if (typeof window !== 'undefined') {
+      const win = window as any
+      const currentPath = window.location.pathname
+      const lastPath = win.__prev_pathname || ''
+
+      const isNavigatingWithinReader = isReaderPath(currentPath) && isReaderPath(lastPath)
+
+      if (!isNavigatingWithinReader && activeBookRef.current) {
+        requestAnimationFrame(() => {
+          activeBookRef.current?.scrollIntoView({ block: 'start' })
+        })
+      } else {
+        const savedScroll = win.__sidebar_scroll
+        if (savedScroll !== undefined && navRef.current) {
+          navRef.current.scrollTop = savedScroll
+        }
       }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Save scroll position on every scroll event
-  const handleScroll = React.useCallback(() => {
-    if (navRef.current) {
-      sessionStorage.setItem(SCROLL_KEY, String(navRef.current.scrollTop))
-    }
-  }, [])
 
   const oldTestament = books.filter((b) => b.testament === 'old')
   const newTestament = books.filter((b) => b.testament === 'new')
@@ -83,7 +99,7 @@ export function Sidebar({ lang, version, versionName, books, currentBookSlug, cu
 
             {/* Chapter grid */}
             {isExpanded && (
-              <div className="px-3 pb-2 grid grid-cols-6 gap-1 animate-fade-in">
+              <div className="px-3 pb-2 grid grid-cols-7 gap-1 animate-fade-in">
                 {Array.from({ length: book.chapters }, (_, i) => i + 1).map((ch) => {
                   const isCurrentCh = isActive && currentChapter === ch
                   return (

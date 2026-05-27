@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { getAllChapterStaticParams, loadBibleIndex, loadChapterData } from '@/lib/bible/loader'
+import { getAllChapterStaticParams, loadChapterData } from '@/lib/bible/loader'
 import { findVersion } from '@/lib/bible/config'
 import { isValidLocale } from '@/lib/i18n/config'
 import { getTranslations } from '@/lib/i18n/server'
@@ -97,12 +97,11 @@ export default async function ChapterPage({ params }: PageProps) {
     notFound()
   }
 
-  const index = loadBibleIndex(lang, version)
-
+  // books are no longer needed here — the persistent ReaderLayoutClient
+  // (in the (reader)/layout.tsx) already has them and won't remount.
   return (
     <ChapterClient
       data={data}
-      books={index.books}
       lang={lang}
       version={version}
     />
