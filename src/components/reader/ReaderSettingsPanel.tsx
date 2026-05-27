@@ -39,6 +39,16 @@ const CheckIcon = () => (
     <polyline points="20 6 9 17 4 12" />
   </svg>
 )
+const ArrowUpIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <polyline points="18 15 12 9 6 15" />
+  </svg>
+)
+const ArrowDownIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+)
 
 // ── Option data ──────────────────────────────────────────────────────────────
 const FONT_SIZE_STEPS: ReaderFontSize[] = ['xs', 'sm', 'md', 'lg', 'xl', '2xl']
@@ -46,7 +56,25 @@ const LINE_HEIGHT_STEPS: ReaderLineHeight[] = ['tight', 'normal', 'relaxed', 'lo
 
 // Ordered display list
 const SERIF_FONTS: ReaderFontFamily[] = ['lora', 'merriweather', 'eb-garamond', 'libre-baskerville', 'crimson-pro', 'spectral']
-const SANS_FONTS: ReaderFontFamily[]  = ['inter', 'source-sans', 'nunito', 'open-sans']
+const SANS_FONTS: ReaderFontFamily[]  = ['inter', 'source-sans', 'nunito', 'open-sans', 'noto-sans', 'roboto']
+const SCRIPT_FONTS: ReaderFontFamily[] = [
+  'dancing-script',
+  'tangerine',
+  'great-vibes',
+  'playwrite-england',
+  'almendra',
+  'eagle-lake',
+  'im-fell-english',
+  'caveat',
+  'satisfy',
+  'courgette',
+  'yellowtail',
+  'allura',
+  'kaushan-script',
+  'sacramento',
+  'fondamento'
+]
+const ALL_FONTS: ReaderFontFamily[]   = [...SERIF_FONTS, ...SANS_FONTS, ...SCRIPT_FONTS]
 
 interface ReaderSettingsPanelProps {
   open: boolean
@@ -59,6 +87,26 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
   const { fontFamily, fontSize, lineHeight, setFontFamily, setFontSize, setLineHeight } = useReaderPreferences()
   const panelRef = useRef<HTMLDivElement>(null)
   const [fontListOpen, setFontListOpen] = useState(false)
+
+  const handlePrevFont = () => {
+    const idx = ALL_FONTS.indexOf(fontFamily)
+    if (idx === -1) {
+      setFontFamily(ALL_FONTS[0])
+    } else {
+      const prevIdx = (idx - 1 + ALL_FONTS.length) % ALL_FONTS.length
+      setFontFamily(ALL_FONTS[prevIdx])
+    }
+  }
+
+  const handleNextFont = () => {
+    const idx = ALL_FONTS.indexOf(fontFamily)
+    if (idx === -1) {
+      setFontFamily(ALL_FONTS[0])
+    } else {
+      const nextIdx = (idx + 1) % ALL_FONTS.length
+      setFontFamily(ALL_FONTS[nextIdx])
+    }
+  }
 
   // Close on click outside
   useEffect(() => {
@@ -98,6 +146,12 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
   const fontSizeIdx   = FONT_SIZE_STEPS.indexOf(fontSize)
   const lineHeightIdx = LINE_HEIGHT_STEPS.indexOf(lineHeight)
   const currentMeta   = FONTS[fontFamily]
+
+  const baseSize = FONT_SIZE_CSS[fontSize]
+  const num = parseFloat(baseSize)
+  const unit = baseSize.replace(/[0-9.]/g, '')
+  const adjust = currentMeta?.sizeAdjust || 1
+  const previewSize = `${num * adjust}${unit}`
 
   const handleSelectFont = (key: ReaderFontFamily) => {
     setFontFamily(key)
@@ -165,9 +219,29 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
 
         {/* ── Font family ────────────────────────────────────────────────── */}
         <section>
-          <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
-            {t.reader.fontFamily}
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              {t.reader.fontFamily}
+            </label>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePrevFont}
+                className="btn-icon p-1"
+                title={t.reader.prevFont}
+                aria-label={t.reader.prevFont}
+              >
+                <ArrowUpIcon />
+              </button>
+              <button
+                onClick={handleNextFont}
+                className="btn-icon p-1"
+                title={t.reader.nextFont}
+                aria-label={t.reader.nextFont}
+              >
+                <ArrowDownIcon />
+              </button>
+            </div>
+          </div>
 
           {/* Trigger button — shows selected font */}
           <button
@@ -188,7 +262,7 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-medium leading-tight">{currentMeta?.label}</span>
               <span className="block text-[11px] leading-tight" style={{ color: 'var(--text-muted)' }}>
-                {currentMeta?.category === 'serif' ? 'Serif' : 'Sans-serif'}
+                {t.reader[`fontCategory_${currentMeta?.category}` as keyof typeof t.reader] || currentMeta?.category}
               </span>
             </span>
             <ChevronDown open={fontListOpen} />
@@ -197,12 +271,16 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
           {/* Collapsible font list */}
           {fontListOpen && (
             <div
-              className="mt-1.5 rounded-xl overflow-hidden"
-              style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}
+              className="mt-1.5 rounded-xl overflow-y-auto"
+              style={{
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                maxHeight: '240px',
+              }}
             >
               {/* Serif group */}
               <div className="px-3 pt-2 pb-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Serif</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{t.reader.fontCategory_serif}</p>
               </div>
               {SERIF_FONTS.map(renderFontOption)}
 
@@ -211,9 +289,18 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
 
               {/* Sans group */}
               <div className="px-3 pt-1 pb-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Sans-serif</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{t.reader.fontCategory_sans}</p>
               </div>
               {SANS_FONTS.map(renderFontOption)}
+
+              {/* Divider */}
+              <div className="mx-3 my-1" style={{ height: 1, background: 'var(--border)' }} />
+
+              {/* Script group */}
+              <div className="px-3 pt-1 pb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{t.reader.fontCategory_script}</p>
+              </div>
+              {SCRIPT_FONTS.map(renderFontOption)}
               <div className="h-1.5" />
             </div>
           )}
@@ -234,7 +321,7 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
             className="text-center mb-3 truncate"
             style={{
               fontFamily: getFontFamilyCSS(fontFamily),
-              fontSize: FONT_SIZE_CSS[fontSize],
+              fontSize: previewSize,
               lineHeight: 1.4,
               color: 'var(--reader-text)',
             }}

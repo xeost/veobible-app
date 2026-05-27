@@ -37,6 +37,7 @@
     --reader-selection: theme('colors.brand.100');
 
     /* Reader typography — defaults (overridden by ReaderPreferencesProvider) */
+    --font-playwrite-england: 'Playwrite GB J', cursive;
     --reader-font-family: var(--font-lora), Georgia, "Times New Roman", serif;
     --reader-font-size: 1rem;
     --reader-line-height: 1.9;

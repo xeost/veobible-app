@@ -43,6 +43,11 @@ export const es: Translations = {
     lineHeight_relaxed: 'Amplio',
     lineHeight_loose: 'Extra amplio',
     typographyPreview: 'En el principio era el Verbo.',
+    prevFont: 'Fuente anterior',
+    nextFont: 'Fuente siguiente',
+    fontCategory_serif: 'Serif',
+    fontCategory_sans: 'Sans-serif',
+    fontCategory_script: 'Caligráficas o Manuscritas',
   },
 
   // Books & Testaments

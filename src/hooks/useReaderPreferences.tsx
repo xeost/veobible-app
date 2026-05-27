@@ -24,8 +24,9 @@ export const DEFAULT_LINE_HEIGHT: ReaderLineHeight = 'relaxed'
 export interface FontMeta {
   label: string
   cssVar: string   // the CSS variable name injected by next/font
-  category: 'serif' | 'sans'
+  category: 'serif' | 'sans' | 'script'
   description: string
+  sizeAdjust?: number
 }
 
 export const FONTS: Record<ReaderFontFamily, FontMeta> = {
@@ -91,6 +92,124 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     category: 'sans',
     description: 'Humanist, universally loved',
   },
+  'noto-sans': {
+    label: 'Noto Sans',
+    cssVar: '--font-noto-sans',
+    category: 'sans',
+    description: 'Clean, universal and balanced',
+  },
+  'roboto': {
+    label: 'Roboto',
+    cssVar: '--font-roboto',
+    category: 'sans',
+    description: 'Modern, geometric and readable',
+  },
+  // ── Script ────────────────────────────────────────────────────────────────
+  'dancing-script': {
+    label: 'Dancing Script',
+    cssVar: '--font-dancing-script',
+    category: 'script',
+    description: 'Cursive, friendly and readable',
+    sizeAdjust: 1.25,
+  },
+  'tangerine': {
+    label: 'Tangerine',
+    cssVar: '--font-tangerine',
+    category: 'script',
+    description: 'Elegant calligraphy, manuscript style',
+    sizeAdjust: 1.55,
+  },
+  'great-vibes': {
+    label: 'Great Vibes',
+    cssVar: '--font-great-vibes',
+    category: 'script',
+    description: 'Flowing cursive, classical elegance',
+    sizeAdjust: 1.35,
+  },
+  'playwrite-england': {
+    label: 'Playwrite England Joined',
+    cssVar: '--font-playwrite-england',
+    category: 'script',
+    description: 'Connected handwriting style',
+    sizeAdjust: 1.25,
+  },
+  'almendra': {
+    label: 'Almendra',
+    cssVar: '--font-almendra',
+    category: 'script',
+    description: 'Blackletter fantasy style',
+    sizeAdjust: 1.15,
+  },
+  'eagle-lake': {
+    label: 'Eagle Lake',
+    cssVar: '--font-eagle-lake',
+    category: 'script',
+    description: 'Elegant, artistic script',
+    sizeAdjust: 1.2,
+  },
+  'im-fell-english': {
+    label: 'IM Fell English',
+    cssVar: '--font-im-fell-english',
+    category: 'script',
+    description: 'Ancient printed script style',
+    sizeAdjust: 1.15,
+  },
+  'caveat': {
+    label: 'Caveat',
+    cssVar: '--font-caveat',
+    category: 'script',
+    description: 'Modern natural handwriting',
+    sizeAdjust: 1.25,
+  },
+  'satisfy': {
+    label: 'Satisfy',
+    cssVar: '--font-satisfy',
+    category: 'script',
+    description: 'Timeless brush script',
+    sizeAdjust: 1.25,
+  },
+  'courgette': {
+    label: 'Courgette',
+    cssVar: '--font-courgette',
+    category: 'script',
+    description: 'Medium-contrast elegant script',
+    sizeAdjust: 1.15,
+  },
+  'yellowtail': {
+    label: 'Yellowtail',
+    cssVar: '--font-yellowtail',
+    category: 'script',
+    description: 'Retro flat-brush script',
+    sizeAdjust: 1.25,
+  },
+  'allura': {
+    label: 'Allura',
+    cssVar: '--font-allura',
+    category: 'script',
+    description: 'Soft, clean handwritten look',
+    sizeAdjust: 1.3,
+  },
+  'kaushan-script': {
+    label: 'Kaushan Script',
+    cssVar: '--font-kaushan-script',
+    category: 'script',
+    description: 'Artistic brush calligraphy',
+    sizeAdjust: 1.2,
+  },
+  'sacramento': {
+    label: 'Sacramento',
+    cssVar: '--font-sacramento',
+    category: 'script',
+    description: 'Thin, elegant handwriting',
+    sizeAdjust: 1.35,
+  },
+  'fondamento': {
+    label: 'Fondamento',
+    cssVar: '--font-fondamento',
+    category: 'script',
+    description: 'Calligraphic study style',
+    sizeAdjust: 1.15,
+  },
 }
 
 // Helper: return a static CSS font-family string (used for previews before DOM is ready)
@@ -99,6 +218,8 @@ export function getFontFamilyCSS(font: ReaderFontFamily): string {
   if (!meta) return getFontFamilyCSS(DEFAULT_FONT_FAMILY)
   const fallback = meta.category === 'serif'
     ? 'Georgia, "Times New Roman", serif'
+    : meta.category === 'script'
+    ? 'cursive, sans-serif'
     : 'system-ui, sans-serif'
   return `var(${meta.cssVar}), ${fallback}`
 }
@@ -111,6 +232,8 @@ function resolveFont(font: ReaderFontFamily): string {
   if (!meta) return resolveFont(DEFAULT_FONT_FAMILY)
   const fallback = meta.category === 'serif'
     ? 'Georgia, "Times New Roman", serif'
+    : meta.category === 'script'
+    ? 'cursive, sans-serif'
     : 'system-ui, sans-serif'
   if (typeof document === 'undefined') return fallback
   const computed = getComputedStyle(document.body).getPropertyValue(meta.cssVar).trim()
@@ -187,8 +310,17 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
   // (where next/font defines its CSS vars) instead of nesting var() calls.
   React.useEffect(() => {
     const root = document.documentElement
+    const meta = FONTS[prefs.fontFamily]
+    const baseSize = FONT_SIZE_CSS[prefs.fontSize]
+    
+    // Parse the size value to adjust script fonts
+    const num = parseFloat(baseSize)
+    const unit = baseSize.replace(/[0-9.]/g, '')
+    const adjust = meta?.sizeAdjust || 1
+    const adjustedSize = `${num * adjust}${unit}`
+
     root.style.setProperty('--reader-font-family', resolveFont(prefs.fontFamily))
-    root.style.setProperty('--reader-font-size',   FONT_SIZE_CSS[prefs.fontSize])
+    root.style.setProperty('--reader-font-size',   adjustedSize)
     root.style.setProperty('--reader-line-height', LINE_HEIGHT_CSS[prefs.lineHeight])
   }, [prefs])
 

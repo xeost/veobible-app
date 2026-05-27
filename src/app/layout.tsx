@@ -10,6 +10,22 @@ import {
   Source_Sans_3,
   Nunito,
   Open_Sans,
+  Dancing_Script,
+  Tangerine,
+  Great_Vibes,
+  Noto_Sans,
+  Roboto,
+  Almendra,
+  Eagle_Lake,
+  IM_Fell_English,
+  Caveat,
+  Satisfy,
+  Courgette,
+  Yellowtail,
+  Allura,
+  Kaushan_Script,
+  Sacramento,
+  Fondamento,
 } from 'next/font/google'
 import Script from 'next/script'
 import { ThemeProvider } from 'next-themes'
@@ -80,6 +96,118 @@ const openSans = Open_Sans({
   display: 'swap',
 })
 
+const notoSans = Noto_Sans({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-noto-sans',
+  display: 'swap',
+})
+
+const roboto = Roboto({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '700'],
+  variable: '--font-roboto',
+  display: 'swap',
+})
+
+const dancingScript = Dancing_Script({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-dancing-script',
+  display: 'swap',
+})
+
+const tangerine = Tangerine({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-tangerine',
+  display: 'swap',
+})
+
+const greatVibes = Great_Vibes({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-great-vibes',
+  display: 'swap',
+})
+
+const almendra = Almendra({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-almendra',
+  display: 'swap',
+})
+
+const eagleLake = Eagle_Lake({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-eagle-lake',
+  display: 'swap',
+})
+
+const imFellEnglish = IM_Fell_English({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-im-fell-english',
+  display: 'swap',
+})
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-caveat',
+  display: 'swap',
+})
+
+const satisfy = Satisfy({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-satisfy',
+  display: 'swap',
+})
+
+const courgette = Courgette({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-courgette',
+  display: 'swap',
+})
+
+const yellowtail = Yellowtail({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-yellowtail',
+  display: 'swap',
+})
+
+const allura = Allura({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-allura',
+  display: 'swap',
+})
+
+const kaushanScript = Kaushan_Script({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-kaushan-script',
+  display: 'swap',
+})
+
+const sacramento = Sacramento({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-sacramento',
+  display: 'swap',
+})
+
+const fondamento = Fondamento({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-fondamento',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://veobible.app'),
   alternates: {
@@ -129,6 +257,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Playwrite+GB+J:ital,wght@0,100..400;1,100..400&display=swap" rel="stylesheet" />
+      </head>
       <body className={[
         inter.variable,
         lora.variable,
@@ -140,6 +273,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         sourceSans3.variable,
         nunito.variable,
         openSans.variable,
+        notoSans.variable,
+        roboto.variable,
+        dancingScript.variable,
+        tangerine.variable,
+        greatVibes.variable,
+        almendra.variable,
+        eagleLake.variable,
+        imFellEnglish.variable,
+        caveat.variable,
+        satisfy.variable,
+        courgette.variable,
+        yellowtail.variable,
+        allura.variable,
+        kaushanScript.variable,
+        sacramento.variable,
+        fondamento.variable,
       ].join(' ')}>
         {/* Google Analytics — production only */}
         {isProduction && (
