@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { Header } from '@/components/layout/Header'
+import { ReaderHeader } from '@/components/layout/ReaderHeader'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ReaderSettingsPanel } from '@/components/reader/ReaderSettingsPanel'
 import { BookmarksList } from '@/components/bookmarks/BookmarksList'
@@ -130,7 +130,7 @@ export function ReaderLayoutClient({
     <ReaderContext.Provider value={{ addBookmark, isBookmarked }}>
       <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
         {/* ── Header ────────────────────────────────────────────────────────── */}
-        <Header
+        <ReaderHeader
           currentLang={lang}
           currentVersion={version}
           onOpenSidebar={() => setSidebarOpen(true)}

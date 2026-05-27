@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Header } from '@/components/layout/Header'
+import { HomeHeader } from '@/components/layout/HomeHeader'
 import { useI18n } from '@/lib/i18n/client'
 import { getVersionsForLang } from '@/lib/bible/config'
 import { storage } from '@/lib/storage'
@@ -563,7 +563,7 @@ export default function LangHomePage({ params: _params }: LangHomePageProps) {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
-      <Header currentLang={locale} />
+      <HomeHeader currentLang={locale} />
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden py-20 md:py-28 px-4">
