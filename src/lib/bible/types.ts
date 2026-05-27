@@ -9,6 +9,7 @@ export interface VersionMetadata {
   year: string
   language: string
   copyright: string
+  description?: string
 }
 
 export interface BookInfo {

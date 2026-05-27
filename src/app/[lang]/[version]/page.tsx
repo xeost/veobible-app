@@ -82,11 +82,16 @@ export default async function VersionPage({ params }: VersionPageProps) {
           {t.nav.home}
         </Link>
 
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>
+        <div className="mb-10 max-w-2xl">
+          <h1 className="text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>
             {index.metadata.name}
           </h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          {index.metadata.description && (
+            <p className="text-base mb-4 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              {index.metadata.description}
+            </p>
+          )}
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {index.metadata.year} · {index.metadata.copyright}
           </p>
         </div>

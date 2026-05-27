@@ -42,6 +42,33 @@ const TypographyIcon = () => (
   </svg>
 )
 
+interface TooltipProps {
+  children: React.ReactNode
+  content: string
+  className?: string
+}
+
+function Tooltip({ children, content, className = '' }: TooltipProps) {
+  return (
+    <div className={`relative group flex items-center justify-center ${className}`}>
+      {children}
+      <div
+        className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 scale-95 opacity-0 pointer-events-none group-hover:scale-100 group-hover:opacity-100 transition-all duration-150 z-50 px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap shadow-md border"
+        style={{
+          background: 'var(--bg-card)',
+          color: 'var(--text-primary)',
+          borderColor: 'var(--border)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      >
+        {content}
+      </div>
+    </div>
+  )
+}
+
 interface ReaderHeaderProps {
   currentLang: string
   currentVersion: string
@@ -66,64 +93,73 @@ export function ReaderHeader({
 
   return (
     <header className="app-header app-header-height sticky top-0 z-30">
-      <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-2">
-        {/* Mobile: ToC button — always visible when handler provided */}
-        <button
-          onClick={onOpenSidebar}
-          className="btn-icon md:hidden"
-          aria-label={t.nav.tableOfContents}
-          id="open-sidebar-btn"
-        >
-          <MenuIcon />
-        </button>
+      <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center justify-between gap-2 relative">
+        {/* Left side: Logo, Version, and ToC menu on mobile */}
+        <div className="flex items-center gap-2 md:gap-3 justify-start min-w-0 z-10">
+          <Logo currentLang={currentLang} />
 
-        <Logo currentLang={currentLang} />
+          {/* Mobile: ToC button — always visible when handler provided */}
+          <button
+            onClick={onOpenSidebar}
+            className="btn-icon md:hidden flex-shrink-0"
+            aria-label={t.nav.tableOfContents}
+            id="open-sidebar-btn"
+          >
+            <MenuIcon />
+          </button>
+        </div>
 
-        {/* Version badge */}
-        <span
-          className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-          style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}
-        >
-          {currentVersion.toUpperCase()}
-        </span>
+        {/* Center: Reading Mode & Typography Icon Buttons with Custom Tooltips */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center">
+          <div
+            className="flex items-center gap-0.5 p-0.5 rounded-xl border shadow-sm"
+            style={{
+              borderColor: 'var(--border)',
+              background: 'var(--bg-card)',
+            }}
+          >
+            {/* Reading mode toggle — only in the reader, only desktop */}
+            <Tooltip content={readingModeLabel} className="hidden md:flex">
+              <button
+                onClick={onToggleReadingMode}
+                className="btn-icon flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200"
+                aria-label={readingModeLabel}
+                id="reading-mode-btn"
+                style={isReadingMode ? { background: 'var(--brand-light)', color: 'var(--brand)' } : {}}
+              >
+                {isReadingMode ? <ExitFocusIcon /> : <FocusIcon />}
+              </button>
+            </Tooltip>
 
-        {/* Reading mode toggle — only in the reader, only desktop */}
-        <button
-          onClick={onToggleReadingMode}
-          className="hidden md:inline-flex btn-icon items-center gap-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-200"
-          aria-label={readingModeLabel}
-          id="reading-mode-btn"
-          title={readingModeLabel}
-          style={isReadingMode ? { background: 'var(--brand-light)', color: 'var(--brand)' } : {}}
-        >
-          {isReadingMode ? <ExitFocusIcon /> : <FocusIcon />}
-          <span className="hidden lg:inline">{readingModeLabel}</span>
-        </button>
+            {/* Typography settings — only in the reader */}
+            <Tooltip content={t.reader.typography}>
+              <button
+                onClick={(e) => onOpenTypography(e.currentTarget as HTMLButtonElement)}
+                className="btn-icon flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200"
+                aria-label={t.reader.typography}
+                id="typography-settings-btn"
+              >
+                <TypographyIcon />
+              </button>
+            </Tooltip>
+          </div>
+        </div>
 
-        {/* Typography settings — only in the reader */}
-        <button
-          onClick={(e) => onOpenTypography(e.currentTarget as HTMLButtonElement)}
-          className="btn-icon flex items-center gap-1.5 px-2 md:px-3 text-xs font-semibold rounded-lg transition-all duration-200"
-          aria-label={t.reader.typography}
-          id="typography-settings-btn"
-          title={t.reader.typography}
-        >
-          <TypographyIcon />
-          <span className="hidden md:inline">{t.reader.typography}</span>
-        </button>
+        {/* Right side: Language, Theme, and Bookmarks menu on mobile */}
+        <div className="flex items-center gap-1.5 md:gap-2 justify-end z-10">
+          <LanguageToggle />
+          <ThemeSwitcher />
 
-        <LanguageToggle />
-        <ThemeSwitcher />
-
-        {/* Mobile: Bookmarks button — always visible when handler provided */}
-        <button
-          onClick={onOpenBookmarks}
-          className="btn-icon md:hidden"
-          aria-label={t.nav.bookmarks}
-          id="open-bookmarks-btn"
-        >
-          <BookmarkIcon />
-        </button>
+          {/* Mobile: Bookmarks button — always visible when handler provided */}
+          <button
+            onClick={onOpenBookmarks}
+            className="btn-icon md:hidden flex-shrink-0"
+            aria-label={t.nav.bookmarks}
+            id="open-bookmarks-btn"
+          >
+            <MenuIcon />
+          </button>
+        </div>
       </div>
     </header>
   )

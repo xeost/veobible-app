@@ -9,7 +9,7 @@
  *  - Line height  — 4-step slider (Tight → Loose)
  */
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   useReaderPreferences,
   FONTS,
@@ -106,6 +106,37 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
   const { fontFamily, fontSize, lineHeight, contentWidth, setFontFamily, setFontSize, setLineHeight, setContentWidth } = useReaderPreferences()
   const panelRef = useRef<HTMLDivElement>(null)
   const [fontListOpen, setFontListOpen] = useState(false)
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (!open || !anchorRef.current) return
+
+    const updatePosition = () => {
+      const rect = anchorRef.current!.getBoundingClientRect()
+      const panelWidth = 272 // 17rem
+      const buttonCenter = rect.left + rect.width / 2
+      let left = buttonCenter - panelWidth / 2
+
+      const margin = 16
+      const minLeft = margin
+      const maxLeft = window.innerWidth - panelWidth - margin
+      left = Math.max(minLeft, Math.min(left, maxLeft))
+
+      setCoords({
+        top: rect.bottom + 8,
+        left,
+      })
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition)
+
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition)
+    }
+  }, [open, anchorRef])
 
   const handlePrevFont = () => {
     const idx = ALL_FONTS.indexOf(fontFamily)
@@ -214,12 +245,13 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
       ref={panelRef}
       role="dialog"
       aria-label={t.reader.typography}
-      className="fixed z-50 w-68 rounded-2xl shadow-2xl"
+      className="fixed z-50 rounded-2xl shadow-2xl"
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        top: 'calc(3.5rem + var(--sat) + 8px)',
-        right: '16px',
+        top: coords ? `${coords.top}px` : 'calc(3.5rem + var(--sat) + 8px)',
+        left: coords ? `${coords.left}px` : 'auto',
+        right: coords ? 'auto' : '16px',
         width: '17rem',
       }}
     >
