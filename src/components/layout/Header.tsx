@@ -51,6 +51,13 @@ const ExitFocusIcon = () => (
     <rect x="17" y="3" width="5" height="18" rx="1" />
   </svg>
 )
+const TypographyIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="4 7 4 4 20 4 20 7" />
+    <line x1="9" y1="20" x2="15" y2="20" />
+    <line x1="12" y1="4" x2="12" y2="20" />
+  </svg>
+)
 
 interface HeaderProps {
   currentLang: string
@@ -60,6 +67,8 @@ interface HeaderProps {
   /** Only provided in the reader; when set the reading-mode button is shown */
   isReadingMode?: boolean
   onToggleReadingMode?: () => void
+  /** Only provided in the reader; opens the typography settings panel */
+  onOpenTypography?: (anchor: HTMLButtonElement) => void
 }
 
 export function Header({
@@ -69,6 +78,7 @@ export function Header({
   onOpenBookmarks,
   isReadingMode,
   onToggleReadingMode,
+  onOpenTypography,
 }: HeaderProps) {
   const { t, locale } = useI18n()
   const { theme, setTheme } = useTheme()
@@ -141,6 +151,20 @@ export function Header({
           >
             {isReadingMode ? <ExitFocusIcon /> : <FocusIcon />}
             <span className="hidden lg:inline">{readingModeLabel}</span>
+          </button>
+        )}
+
+        {/* Typography settings — only in the reader */}
+        {onOpenTypography && (
+          <button
+            onClick={(e) => onOpenTypography(e.currentTarget as HTMLButtonElement)}
+            className="hidden md:inline-flex btn-icon items-center gap-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-200"
+            aria-label={t.reader.typography}
+            id="typography-settings-btn"
+            title={t.reader.typography}
+          >
+            <TypographyIcon />
+            <span className="hidden lg:inline">{t.reader.typography}</span>
           </button>
         )}
 

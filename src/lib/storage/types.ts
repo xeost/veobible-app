@@ -38,11 +38,31 @@ export interface ReadingPosition {
   updatedAt: string       // ISO 8601
 }
 
+export type ReaderFontFamily =
+  // Serif — classic book reading
+  | 'lora'
+  | 'merriweather'
+  | 'eb-garamond'
+  | 'libre-baskerville'
+  | 'crimson-pro'
+  | 'spectral'
+  // Sans-serif — modern clean reading
+  | 'inter'
+  | 'source-sans'
+  | 'nunito'
+  | 'open-sans'
+
+export type ReaderFontSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
+export type ReaderLineHeight = 'tight' | 'normal' | 'relaxed' | 'loose'
+
 export interface UserPreferences {
   locale?: string
   theme?: 'light' | 'dark' | 'system'
-  fontSize?: 'sm' | 'md' | 'lg' | 'xl'
   lastVersionSlug?: string
+  // Reader typography
+  readerFontFamily?: ReaderFontFamily
+  readerFontSize?: ReaderFontSize
+  readerLineHeight?: ReaderLineHeight
 }
 
 export interface StorageRepository {

@@ -1,0 +1,285 @@
+'use client'
+
+/**
+ * ReaderSettingsPanel
+ *
+ * Compact floating panel for reader typography customization:
+ *  - Font family  — collapsible dropdown list of 10 curated reading fonts
+ *  - Font size    — 6-step slider (XS → 2XL)
+ *  - Line height  — 4-step slider (Tight → Loose)
+ */
+
+import React, { useEffect, useRef, useState } from 'react'
+import {
+  useReaderPreferences,
+  FONTS,
+  FONT_SIZE_CSS,
+  getFontFamilyCSS,
+} from '@/hooks/useReaderPreferences'
+import type { ReaderFontFamily, ReaderFontSize, ReaderLineHeight } from '@/lib/storage/types'
+import { useI18n } from '@/lib/i18n/client'
+
+// ── Icons ───────────────────────────────────────────────────────────────────
+const CloseIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+)
+const ChevronDown = ({ open }: { open: boolean }) => (
+  <svg
+    width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0 }}
+  >
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+)
+const CheckIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+
+// ── Option data ──────────────────────────────────────────────────────────────
+const FONT_SIZE_STEPS: ReaderFontSize[] = ['xs', 'sm', 'md', 'lg', 'xl', '2xl']
+const LINE_HEIGHT_STEPS: ReaderLineHeight[] = ['tight', 'normal', 'relaxed', 'loose']
+
+// Ordered display list
+const SERIF_FONTS: ReaderFontFamily[] = ['lora', 'merriweather', 'eb-garamond', 'libre-baskerville', 'crimson-pro', 'spectral']
+const SANS_FONTS: ReaderFontFamily[]  = ['inter', 'source-sans', 'nunito', 'open-sans']
+
+interface ReaderSettingsPanelProps {
+  open: boolean
+  onClose: () => void
+  anchorRef: React.RefObject<HTMLButtonElement>
+}
+
+export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettingsPanelProps) {
+  const { t } = useI18n()
+  const { fontFamily, fontSize, lineHeight, setFontFamily, setFontSize, setLineHeight } = useReaderPreferences()
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [fontListOpen, setFontListOpen] = useState(false)
+
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        anchorRef.current && !anchorRef.current.contains(e.target as Node)
+      ) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open, onClose, anchorRef])
+
+  // Close on Escape; collapse font list first if open
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (fontListOpen) setFontListOpen(false)
+        else onClose()
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onClose, fontListOpen])
+
+  // Reset font list state when panel closes
+  useEffect(() => {
+    if (!open) setFontListOpen(false)
+  }, [open])
+
+  if (!open) return null
+
+  const fontSizeIdx   = FONT_SIZE_STEPS.indexOf(fontSize)
+  const lineHeightIdx = LINE_HEIGHT_STEPS.indexOf(lineHeight)
+  const currentMeta   = FONTS[fontFamily]
+
+  const handleSelectFont = (key: ReaderFontFamily) => {
+    setFontFamily(key)
+    setFontListOpen(false)
+  }
+
+  const renderFontOption = (key: ReaderFontFamily) => {
+    const meta = FONTS[key]
+    const isActive = fontFamily === key
+    return (
+      <button
+        key={key}
+        onClick={() => handleSelectFont(key)}
+        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all duration-100"
+        style={{
+          background: isActive ? 'var(--brand-light)' : 'transparent',
+          color: isActive ? 'var(--brand)' : 'var(--text-primary)',
+        }}
+      >
+        <span
+          className="text-lg leading-none w-7 text-center flex-shrink-0"
+          style={{ fontFamily: getFontFamilyCSS(key) }}
+        >
+          Aa
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-medium leading-tight">{meta.label}</span>
+          <span className="block text-[11px] leading-tight" style={{ color: isActive ? 'var(--brand)' : 'var(--text-muted)' }}>
+            {meta.description}
+          </span>
+        </span>
+        {isActive && <CheckIcon />}
+      </button>
+    )
+  }
+
+  return (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label={t.reader.typography}
+      className="fixed z-50 w-68 rounded-2xl shadow-2xl"
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        top: 'calc(3.5rem + var(--sat) + 8px)',
+        right: '16px',
+        width: '17rem',
+      }}
+    >
+      {/* ── Panel header ───────────────────────────────────────────────── */}
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {t.reader.typography}
+        </p>
+        <button onClick={onClose} className="btn-icon p-1" aria-label="Close">
+          <CloseIcon />
+        </button>
+      </div>
+
+      <div className="px-4 py-4 space-y-5">
+
+        {/* ── Font family ────────────────────────────────────────────────── */}
+        <section>
+          <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+            {t.reader.fontFamily}
+          </label>
+
+          {/* Trigger button — shows selected font */}
+          <button
+            onClick={() => setFontListOpen((o) => !o)}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-150"
+            style={{
+              background: 'var(--bg-page)',
+              border: `1.5px solid ${fontListOpen ? 'var(--brand)' : 'var(--border)'}`,
+              color: 'var(--text-primary)',
+            }}
+          >
+            <span
+              className="text-lg leading-none w-7 text-center flex-shrink-0"
+              style={{ fontFamily: getFontFamilyCSS(fontFamily) }}
+            >
+              Aa
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-medium leading-tight">{currentMeta?.label}</span>
+              <span className="block text-[11px] leading-tight" style={{ color: 'var(--text-muted)' }}>
+                {currentMeta?.category === 'serif' ? 'Serif' : 'Sans-serif'}
+              </span>
+            </span>
+            <ChevronDown open={fontListOpen} />
+          </button>
+
+          {/* Collapsible font list */}
+          {fontListOpen && (
+            <div
+              className="mt-1.5 rounded-xl overflow-hidden"
+              style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}
+            >
+              {/* Serif group */}
+              <div className="px-3 pt-2 pb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Serif</p>
+              </div>
+              {SERIF_FONTS.map(renderFontOption)}
+
+              {/* Divider */}
+              <div className="mx-3 my-1" style={{ height: 1, background: 'var(--border)' }} />
+
+              {/* Sans group */}
+              <div className="px-3 pt-1 pb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Sans-serif</p>
+              </div>
+              {SANS_FONTS.map(renderFontOption)}
+              <div className="h-1.5" />
+            </div>
+          )}
+        </section>
+
+        {/* ── Font size ──────────────────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-2.5">
+            <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              {t.reader.fontSize}
+            </label>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}>
+              {fontSize.toUpperCase()}
+            </span>
+          </div>
+          {/* Live preview */}
+          <p
+            className="text-center mb-3 truncate"
+            style={{
+              fontFamily: getFontFamilyCSS(fontFamily),
+              fontSize: FONT_SIZE_CSS[fontSize],
+              lineHeight: 1.4,
+              color: 'var(--reader-text)',
+            }}
+          >
+            {t.reader.typographyPreview}
+          </p>
+          <input
+            type="range" min={0} max={FONT_SIZE_STEPS.length - 1} step={1}
+            value={fontSizeIdx}
+            onChange={(e) => setFontSize(FONT_SIZE_STEPS[parseInt(e.target.value)])}
+            className="w-full reader-slider"
+            aria-label={t.reader.fontSize}
+          />
+          <div className="flex justify-between mt-1.5">
+            {FONT_SIZE_STEPS.map((s, i) => (
+              <span key={s} className="w-1.5 h-1.5 rounded-full" style={{ background: i <= fontSizeIdx ? 'var(--brand)' : 'var(--border-strong)' }} />
+            ))}
+          </div>
+        </section>
+
+        {/* ── Line height ────────────────────────────────────────────────── */}
+        <section className="pb-1">
+          <div className="flex items-center justify-between mb-2.5">
+            <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              {t.reader.lineHeight}
+            </label>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}>
+              {t.reader[`lineHeight_${lineHeight}` as keyof typeof t.reader]}
+            </span>
+          </div>
+          <input
+            type="range" min={0} max={LINE_HEIGHT_STEPS.length - 1} step={1}
+            value={lineHeightIdx}
+            onChange={(e) => setLineHeight(LINE_HEIGHT_STEPS[parseInt(e.target.value)])}
+            className="w-full reader-slider"
+            aria-label={t.reader.lineHeight}
+          />
+          <div className="flex justify-between mt-1.5">
+            {LINE_HEIGHT_STEPS.map((s, i) => (
+              <span key={s} className="w-1.5 h-1.5 rounded-full" style={{ background: i <= lineHeightIdx ? 'var(--brand)' : 'var(--border-strong)' }} />
+            ))}
+          </div>
+        </section>
+
+      </div>
+    </div>
+  )
+}

@@ -14,7 +14,7 @@ export function VerseItem({ verseNum, text, isBookmarked }: VerseItemProps) {
 
   return (
     <p
-      className="reader-text mb-1 leading-[1.9] relative"
+      className="reader-text mb-1 relative"
       data-verse={verseNum}
       id={`verse-${verseNum}`}
     >

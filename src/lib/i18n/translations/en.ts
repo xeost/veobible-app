@@ -32,6 +32,15 @@ export const en = {
     bookmarkTitlePlaceholder: 'e.g. Comfort verse, favorite…',
     bookmarkSave: 'Save',
     bookmarkCancel: 'Cancel',
+    // Typography settings
+    typography: 'Typography',
+    fontFamily: 'Font',
+    lineHeight: 'Line spacing',
+    lineHeight_tight: 'Tight',
+    lineHeight_normal: 'Normal',
+    lineHeight_relaxed: 'Relaxed',
+    lineHeight_loose: 'Loose',
+    typographyPreview: 'In the beginning was the Word.',
   },
 
   // Books & Testaments
@@ -151,7 +160,7 @@ export interface Translations {
   appName: string
   appTagline: string
   nav: { home: string; bookmarks: string; settings: string; search: string; tableOfContents: string; readingMode: string; exitReadingMode: string }
-  reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string }
+  reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string; typography: string; fontFamily: string; lineHeight: string; lineHeight_tight: string; lineHeight_normal: string; lineHeight_relaxed: string; lineHeight_loose: string; typographyPreview: string }
   testament: { old: string; new: string }
   bookmarks: { title: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
   theme: { label: string; light: string; dark: string; system: string }

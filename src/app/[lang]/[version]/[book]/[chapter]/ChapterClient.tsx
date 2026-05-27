@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChapterReader } from '@/components/reader/ChapterReader'
+import { ReaderSettingsPanel } from '@/components/reader/ReaderSettingsPanel'
 import { BookmarksList } from '@/components/bookmarks/BookmarksList'
 import { Sheet } from '@/components/ui/Sheet'
 import { useI18n } from '@/lib/i18n/client'
@@ -22,6 +23,16 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
 
   // Reading mode: sidebars collapse to width 0, content stays centered
   const [readingMode, setReadingMode] = useState(false)
+
+  // Typography settings panel
+  const [typographyOpen, setTypographyOpen] = useState(false)
+  const typographyAnchorRef = useRef<HTMLButtonElement>(null)
+
+  const handleOpenTypography = (anchor: HTMLButtonElement) => {
+    // Store anchor reference for panel positioning (not used directly but good practice)
+    ;(typographyAnchorRef as React.MutableRefObject<HTMLButtonElement>).current = anchor
+    setTypographyOpen((o) => !o)
+  }
 
   // Preserve scroll position across reading mode toggles so the
   // content column does not jump vertically when sidebars appear/disappear.
@@ -103,6 +114,14 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
         onOpenBookmarks={() => setBookmarksOpen(true)}
         isReadingMode={readingMode}
         onToggleReadingMode={handleToggleReadingMode}
+        onOpenTypography={handleOpenTypography}
+      />
+
+      {/* Typography settings panel */}
+      <ReaderSettingsPanel
+        open={typographyOpen}
+        onClose={() => setTypographyOpen(false)}
+        anchorRef={typographyAnchorRef}
       />
 
       {/* ── Desktop: unified single-DOM 3-column layout ─────────────────

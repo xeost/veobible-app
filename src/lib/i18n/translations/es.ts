@@ -34,6 +34,15 @@ export const es: Translations = {
     bookmarkTitlePlaceholder: 'ej. Versículo favorito, para reflexionar…',
     bookmarkSave: 'Guardar',
     bookmarkCancel: 'Cancelar',
+    // Typography settings
+    typography: 'Tipografía',
+    fontFamily: 'Fuente',
+    lineHeight: 'Interlineado',
+    lineHeight_tight: 'Compacto',
+    lineHeight_normal: 'Normal',
+    lineHeight_relaxed: 'Amplio',
+    lineHeight_loose: 'Extra amplio',
+    typographyPreview: 'En el principio era el Verbo.',
   },
 
   // Books & Testaments
