@@ -158,13 +158,13 @@ export function Header({
         {onOpenTypography && (
           <button
             onClick={(e) => onOpenTypography(e.currentTarget as HTMLButtonElement)}
-            className="hidden md:inline-flex btn-icon items-center gap-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-200"
+            className="btn-icon flex items-center gap-1.5 px-2 md:px-3 text-xs font-semibold rounded-lg transition-all duration-200"
             aria-label={t.reader.typography}
             id="typography-settings-btn"
             title={t.reader.typography}
           >
             <TypographyIcon />
-            <span className="hidden lg:inline">{t.reader.typography}</span>
+            <span className="hidden md:inline">{t.reader.typography}</span>
           </button>
         )}
 

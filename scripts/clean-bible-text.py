@@ -5,10 +5,10 @@ clean-bible-text.py
 Recursively traverses a directory containing Bible chapter JSON files and applies corrections to verse texts:
 1. Removes square brackets enclosing words, leaving only the inner word(s).
    Example: "[was]" -> "was", "[it was]" -> "it was"
-2. Capitalizes the first word of a verse if it is currently in all-caps, 
+2. Capitalizes any word if it is currently in all-caps, 
    changing it to title-case (first letter uppercase, rest lowercase).
    Example: "EN el principio" -> "En el principio"
-            "¶ THEN the Lord" -> "¶ Then the Lord"
+            "¶ THEN the LORD" -> "¶ Then the Lord"
 
 Usage:
     python3 clean-bible-text.py <directory_path> [--dry-run]
@@ -31,17 +31,16 @@ def clean_verse_text(text: str) -> tuple[str, bool]:
     # Pattern explanation: \[ matches '[', ([^\]]+) captures any char except ']', and \] matches ']'
     text = re.sub(r'\[([^\]]+)\]', r'\1', text)
     
-    # Rule 2: Find the first word (sequence of Unicode letters) and if it is all uppercase,
-    # convert it to title-case (first letter uppercase, subsequent letters lowercase).
+    # Rule 2: Find all words (sequences of Unicode letters) and if they are all uppercase,
+    # convert them to title-case (first letter uppercase, subsequent letters lowercase).
     # [^\W\d_] matches any Unicode letter.
-    first_word_match = re.search(r'([^\W\d_]+)', text)
-    if first_word_match:
-        word = first_word_match.group(1)
+    def replace_all_caps(match):
+        word = match.group(1)
         if word.isupper():
-            new_word = word[0].upper() + word[1:].lower()
-            if new_word != word:
-                start, end = first_word_match.span(1)
-                text = text[:start] + new_word + text[end:]
+            return word[0].upper() + word[1:].lower()
+        return word
+
+    text = re.sub(r'([^\W\d_]+)', replace_all_caps, text)
                 
     return text, text != original
 
@@ -141,7 +140,7 @@ def process_directory(root_path: str, dry_run: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Clean up Bible texts by removing square brackets and title-casing all-caps first words.",
+        description="Clean up Bible texts by removing square brackets and title-casing all-caps words.",
     )
     parser.add_argument(
         "path",
