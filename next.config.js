@@ -4,6 +4,12 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  buildExcludes: [
+    /app-build-manifest.json$/,
+    /pages-manifest.json$/,
+    /build-manifest.json$/,
+    /react-loadable-manifest.json$/,
+  ],
 })
 
 const nextConfig = {

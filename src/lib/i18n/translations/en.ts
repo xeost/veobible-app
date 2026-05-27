@@ -46,6 +46,11 @@ export const en = {
     fontCategory_serif: 'Serif',
     fontCategory_sans: 'Sans-serif',
     fontCategory_script: 'Script',
+    contentWidth: 'Column width',
+    contentWidth_full: 'Full',
+    contentWidth_normal: 'Normal',
+    contentWidth_thin: 'Thin',
+    contentWidth_veryThin: 'Very thin',
   },
 
   // Books & Testaments
@@ -72,8 +77,8 @@ export const en = {
     folderNamePlaceholder: 'Folder name…',
     renameFolder: 'Rename folder',
     deleteFolder: 'Delete folder',
-    deleteFolderConfirm: 'Delete this folder? Bookmarks inside will become unfiled.',
-    noFolder: 'Unfiled',
+    deleteFolderConfirm: 'Delete this folder? Bookmarks inside will remain folderless.',
+    noFolder: 'No folder',
     dragToUnfolder: 'Drag here to remove from folder',
   },
 
@@ -94,41 +99,41 @@ export const en = {
 
   // Version
   version: {
-    label: 'Bible Version',
+    label: 'Bible version',
     switch: 'Switch version',
   },
 
   // Homepage
   home: {
-    continueReading: 'Continue Reading',
-    startReading: 'Start Reading',
-    chooseVersion: 'Choose a Version',
-    availableVersions: 'Available Versions',
-    verseOfTheDay: 'Verse of the Day',
-    verseOfTheDaySubtitle: 'A new verse every day to inspire and encourage you',
+    continueReading: 'Continue reading',
+    startReading: 'Start reading',
+    chooseVersion: 'Choose version',
+    availableVersions: 'Available versions',
+    verseOfTheDay: 'Verse of the day',
+    verseOfTheDaySubtitle: 'A new verse everyday to inspire and encourage you',
     readInContext: 'Read in context',
     installTitle: 'Install VeoBible on your device',
-    installSubtitle: 'Add VeoBible to your home screen for a native app experience — offline access, no browser UI, full screen.',
+    installSubtitle: 'Add VeoBible to your home screen for a native app experience — offline access, no browser chrome, full screen.',
     installIos: 'iPhone & iPad (Safari)',
     installIosStep1: 'Open VeoBible in Safari.',
-    installIosStep2: 'Tap the Share button (rectangle with arrow up) in the toolbar.',
-    installIosStep3: 'Scroll down and tap «Add to Home Screen».',
-    installIosStep4: 'Tap «Add» in the top-right corner.',
+    installIosStep2: 'Tap the Share button (rectangle with up arrow) in the toolbar.',
+    installIosStep3: 'Scroll down and tap "Add to Home Screen".',
+    installIosStep4: 'Tap "Add" in the top right corner.',
     installAndroid: 'Android (Chrome)',
     installAndroidStep1: 'Open VeoBible in Chrome.',
-    installAndroidStep2: 'Tap the ⋮ menu (top-right corner).',
-    installAndroidStep3: 'Tap «Add to Home screen» or «Install app».',
-    installAndroidStep4: 'Confirm by tapping «Install».',
+    installAndroidStep2: 'Tap the menu ⋮ (top right corner).',
+    installAndroidStep3: 'Tap "Add to Home screen" or "Install app".',
+    installAndroidStep4: 'Confirm by tapping "Install".',
     installDesktopChrome: 'Desktop — Chrome / Edge',
     installDesktopChromeStep1: 'Open VeoBible in Chrome or Edge.',
     installDesktopChromeStep2: 'Click the install icon (⊕) in the address bar.',
-    installDesktopChromeStep3: 'Click «Install» in the dialog.',
+    installDesktopChromeStep3: 'Click "Install" in the dialog.',
     installDesktopSafari: 'Desktop — Safari (macOS)',
     installDesktopSafariStep1: 'Open VeoBible in Safari.',
-    installDesktopSafariStep2: 'Click «File» in the menu bar.',
-    installDesktopSafariStep3: 'Select «Add to Dock» or use the Share menu → «Add to Dock».',
+    installDesktopSafariStep2: 'Click "File" in the menu bar.',
+    installDesktopSafariStep3: 'Select "Add to Dock" or use the Share menu → "Add to Dock".',
     youtubeTitle: 'Also on YouTube',
-    youtubeSubtitle: 'Every book of the Bible narrated in full — one video per book, free to watch.',
+    youtubeSubtitle: 'All books of the Bible narrated in full — one video per book, free.',
     youtubeChannelEs: 'VeoBible ES',
     youtubeChannelEsDesc: 'All books narrated in Spanish (Reina Valera 1909).',
     youtubeChannelEn: 'VeoBible',
@@ -140,7 +145,7 @@ export const en = {
   error: {
     notFound: 'Not found',
     chapterNotFound: 'Chapter not found',
-    goHome: 'Go Home',
+    goHome: 'Go home',
   },
 
   // Metadata
@@ -165,7 +170,7 @@ export interface Translations {
   appName: string
   appTagline: string
   nav: { home: string; bookmarks: string; settings: string; search: string; tableOfContents: string; readingMode: string; exitReadingMode: string }
-  reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string; typography: string; fontFamily: string; lineHeight: string; lineHeight_tight: string; lineHeight_normal: string; lineHeight_relaxed: string; lineHeight_loose: string; typographyPreview: string; prevFont: string; nextFont: string; fontCategory_serif: string; fontCategory_sans: string; fontCategory_script: string }
+  reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string; typography: string; fontFamily: string; lineHeight: string; lineHeight_tight: string; lineHeight_normal: string; lineHeight_relaxed: string; lineHeight_loose: string; typographyPreview: string; prevFont: string; nextFont: string; fontCategory_serif: string; fontCategory_sans: string; fontCategory_script: string; contentWidth: string; contentWidth_full: string; contentWidth_normal: string; contentWidth_thin: string; contentWidth_veryThin: string }
   testament: { old: string; new: string }
   bookmarks: { title: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
   theme: { label: string; light: string; dark: string; system: string }

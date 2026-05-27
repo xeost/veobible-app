@@ -13,12 +13,14 @@ import type {
   ReaderFontFamily,
   ReaderFontSize,
   ReaderLineHeight,
+  ReaderContentWidth,
 } from '@/lib/storage/types'
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 export const DEFAULT_FONT_FAMILY: ReaderFontFamily = 'im-fell-english'
 export const DEFAULT_FONT_SIZE: ReaderFontSize = 'lg'
 export const DEFAULT_LINE_HEIGHT: ReaderLineHeight = 'relaxed'
+export const DEFAULT_CONTENT_WIDTH: ReaderContentWidth = 'normal'
 
 // ── Font metadata (label + CSS stack) ─────────────────────────────────────────
 export interface FontMeta {
@@ -266,26 +268,38 @@ export const LINE_HEIGHT_CSS: Record<ReaderLineHeight, string> = {
   loose:   '2.2',
 }
 
+// ── Content width scale ────────────────────────────────────────────────────────
+export const CONTENT_WIDTH_CSS: Record<ReaderContentWidth, string> = {
+  'full': '100%',
+  'normal': '42rem',
+  'thin': '32rem',
+  'very-thin': '24rem',
+}
+
 // ── Context ────────────────────────────────────────────────────────────────────
 export interface ReaderPreferences {
   fontFamily: ReaderFontFamily
   fontSize: ReaderFontSize
   lineHeight: ReaderLineHeight
+  contentWidth: ReaderContentWidth
 }
 
 interface ReaderPreferencesContext extends ReaderPreferences {
   setFontFamily: (v: ReaderFontFamily) => void
   setFontSize: (v: ReaderFontSize) => void
   setLineHeight: (v: ReaderLineHeight) => void
+  setContentWidth: (v: ReaderContentWidth) => void
 }
 
 const Context = React.createContext<ReaderPreferencesContext>({
   fontFamily: DEFAULT_FONT_FAMILY,
   fontSize: DEFAULT_FONT_SIZE,
   lineHeight: DEFAULT_LINE_HEIGHT,
+  contentWidth: DEFAULT_CONTENT_WIDTH,
   setFontFamily: () => {},
   setFontSize: () => {},
   setLineHeight: () => {},
+  setContentWidth: () => {},
 })
 
 // ── Provider ───────────────────────────────────────────────────────────────────
@@ -294,6 +308,7 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
     fontFamily: DEFAULT_FONT_FAMILY,
     fontSize: DEFAULT_FONT_SIZE,
     lineHeight: DEFAULT_LINE_HEIGHT,
+    contentWidth: DEFAULT_CONTENT_WIDTH,
   })
 
   // Load saved preferences on mount
@@ -309,6 +324,7 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
         fontFamily: validFont,
         fontSize:   saved.readerFontSize   ?? DEFAULT_FONT_SIZE,
         lineHeight: saved.readerLineHeight ?? DEFAULT_LINE_HEIGHT,
+        contentWidth: saved.readerContentWidth ?? DEFAULT_CONTENT_WIDTH,
       })
     })
   }, [])
@@ -335,6 +351,7 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
     root.style.setProperty('--reader-font-family', resolveFont(prefs.fontFamily))
     root.style.setProperty('--reader-font-size',   adjustedSize)
     root.style.setProperty('--reader-line-height', adjustedLineHeight)
+    root.style.setProperty('--reader-max-width',   CONTENT_WIDTH_CSS[prefs.contentWidth])
   }, [prefs])
 
   const setFontFamily = React.useCallback((v: ReaderFontFamily) => {
@@ -352,8 +369,13 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
     storage.setPreference('readerLineHeight', v)
   }, [])
 
+  const setContentWidth = React.useCallback((v: ReaderContentWidth) => {
+    setPrefs((p) => ({ ...p, contentWidth: v }))
+    storage.setPreference('readerContentWidth', v)
+  }, [])
+
   return (
-    <Context.Provider value={{ ...prefs, setFontFamily, setFontSize, setLineHeight }}>
+    <Context.Provider value={{ ...prefs, setFontFamily, setFontSize, setLineHeight, setContentWidth }}>
       {children}
     </Context.Provider>
   )

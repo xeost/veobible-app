@@ -68,6 +68,7 @@ export type ReaderFontFamily =
 
 export type ReaderFontSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 export type ReaderLineHeight = 'tight' | 'normal' | 'relaxed' | 'loose'
+export type ReaderContentWidth = 'full' | 'normal' | 'thin' | 'very-thin'
 
 export interface UserPreferences {
   locale?: string
@@ -77,6 +78,7 @@ export interface UserPreferences {
   readerFontFamily?: ReaderFontFamily
   readerFontSize?: ReaderFontSize
   readerLineHeight?: ReaderLineHeight
+  readerContentWidth?: ReaderContentWidth
 }
 
 export interface StorageRepository {

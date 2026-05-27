@@ -49,6 +49,29 @@ const ArrowDownIcon = () => (
     <polyline points="6 9 12 15 18 9" />
   </svg>
 )
+const WidthFullIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <path d="M6 12h12M6 12l3-3M6 12l3 3M18 12l-3-3M18 12l-3 3" />
+  </svg>
+)
+const WidthNormalIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="5" width="16" height="14" rx="2" />
+    <path d="M8 12h8M8 12l2-2M8 12l2 2M16 12l-2-2M16 12l-2 2" />
+  </svg>
+)
+const WidthThinIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="7" y="5" width="10" height="14" rx="1.5" />
+    <path d="M10 12h4" />
+  </svg>
+)
+const WidthVeryThinIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9.5" y="5" width="5" height="14" rx="1" />
+  </svg>
+)
 
 // ── Option data ──────────────────────────────────────────────────────────────
 const FONT_SIZE_STEPS: ReaderFontSize[] = ['xs', 'sm', 'md', 'lg', 'xl', '2xl']
@@ -80,7 +103,7 @@ interface ReaderSettingsPanelProps {
 
 export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettingsPanelProps) {
   const { t } = useI18n()
-  const { fontFamily, fontSize, lineHeight, setFontFamily, setFontSize, setLineHeight } = useReaderPreferences()
+  const { fontFamily, fontSize, lineHeight, contentWidth, setFontFamily, setFontSize, setLineHeight, setContentWidth } = useReaderPreferences()
   const panelRef = useRef<HTMLDivElement>(null)
   const [fontListOpen, setFontListOpen] = useState(false)
 
@@ -361,6 +384,44 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
             {LINE_HEIGHT_STEPS.map((s, i) => (
               <span key={s} className="w-1.5 h-1.5 rounded-full" style={{ background: i <= lineHeightIdx ? 'var(--brand)' : 'var(--border-strong)' }} />
             ))}
+          </div>
+        </section>
+
+        {/* ── Content width ────────────────────────────────────────────────── */}
+        <section className="hidden md:block pb-1">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              {t.reader.contentWidth}
+            </label>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}>
+              {t.reader[`contentWidth_${contentWidth === 'very-thin' ? 'veryThin' : contentWidth}` as keyof typeof t.reader]}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-1 p-0.5 rounded-xl" style={{ background: 'var(--bg-page)', border: '1px solid var(--border)' }}>
+            {(['full', 'normal', 'thin', 'very-thin'] as const).map((w) => {
+              const isActive = contentWidth === w
+              let Icon = WidthNormalIcon
+              if (w === 'full') Icon = WidthFullIcon
+              if (w === 'thin') Icon = WidthThinIcon
+              if (w === 'very-thin') Icon = WidthVeryThinIcon
+              return (
+                <button
+                  key={w}
+                  onClick={() => setContentWidth(w)}
+                  className="flex-1 flex items-center justify-center p-2 rounded-lg transition-all duration-150"
+                  style={{
+                    background: isActive ? 'var(--bg-card)' : 'transparent',
+                    color: isActive ? 'var(--brand)' : 'var(--text-secondary)',
+                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                    border: isActive ? '1px solid var(--border)' : '1px solid transparent',
+                  }}
+                  title={t.reader[`contentWidth_${w === 'very-thin' ? 'veryThin' : w}` as keyof typeof t.reader]}
+                  aria-label={t.reader[`contentWidth_${w === 'very-thin' ? 'veryThin' : w}` as keyof typeof t.reader]}
+                >
+                  <Icon />
+                </button>
+              )
+            })}
           </div>
         </section>
 

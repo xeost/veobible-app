@@ -48,6 +48,11 @@ export const es: Translations = {
     fontCategory_serif: 'Serif',
     fontCategory_sans: 'Sans-serif',
     fontCategory_script: 'Caligráficas o Manuscritas',
+    contentWidth: 'Ancho de columna',
+    contentWidth_full: 'Completo',
+    contentWidth_normal: 'Normal',
+    contentWidth_thin: 'Fino',
+    contentWidth_veryThin: 'Muy fino',
   },
 
   // Books & Testaments

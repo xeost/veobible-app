@@ -150,7 +150,7 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
 
         {/* Reading column — always flex-1, never changes position */}
         <main
-          className="flex-1 min-w-0 px-6 xl:px-10 py-10"
+          className="flex-1 min-w-0 px-8 xl:px-14 py-10"
           id="main-content"
           style={{ paddingBottom: 'calc(2.5rem + var(--sab))' }}
         >
@@ -195,7 +195,7 @@ export function ChapterClient({ data, books, lang, version }: ChapterClientProps
       {/* ── Mobile: always full-width ──────────────────────────────────── */}
       <div className="md:hidden">
         <main
-          className="px-4 py-8"
+          className="px-6 py-8"
           id="main-content-mobile"
           style={{ paddingBottom: 'calc(2.5rem + var(--sab))' }}
         >

@@ -129,7 +129,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
       />
 
       {/* Chapter header */}
-      <div className="mb-10 text-center">
+      <div className="mb-10 text-center mx-auto" style={{ maxWidth: 'var(--reader-max-width)' }}>
         <p className="text-sm font-medium mb-1" style={{ color: 'var(--brand)' }}>
           {data.version.shortname}
         </p>
@@ -144,8 +144,8 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
       {/* Verses */}
       <div
         ref={containerRef}
-        className="max-w-2xl mx-auto px-2"
-        style={{ background: 'var(--reader-bg)', borderRadius: '12px', padding: '2rem 1.5rem' }}
+        className="mx-auto"
+        style={{ background: 'transparent', borderRadius: '12px', padding: '2rem 0', maxWidth: 'var(--reader-max-width)' }}
       >
         {verses.map((verse) => (
           <VerseItem
@@ -158,7 +158,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
       </div>
 
       {/* Chapter navigation */}
-      <div className="flex gap-4 mt-12 max-w-2xl mx-auto">
+      <div className="flex gap-4 mt-12 mx-auto" style={{ maxWidth: 'var(--reader-max-width)' }}>
         {prevChapter ? (
           <Link href={buildNavUrl(prevChapter)} className="chapter-nav-btn group" id="prev-chapter-btn">
             <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
