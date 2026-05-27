@@ -101,6 +101,7 @@ export const en = {
   version: {
     label: 'Bible version',
     switch: 'Switch version',
+    chaptersTooltip: (count: number) => `${count} ${count === 1 ? 'chapter' : 'chapters'}`,
   },
 
   // Homepage
@@ -175,7 +176,7 @@ export interface Translations {
   bookmarks: { title: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
-  version: { label: string; switch: string }
+  version: { label: string; switch: string; chaptersTooltip: (count: number) => string }
   home: { continueReading: string; startReading: string; chooseVersion: string; availableVersions: string; verseOfTheDay: string; verseOfTheDaySubtitle: string; readInContext: string; installTitle: string; installSubtitle: string; installIos: string; installIosStep1: string; installIosStep2: string; installIosStep3: string; installIosStep4: string; installAndroid: string; installAndroidStep1: string; installAndroidStep2: string; installAndroidStep3: string; installAndroidStep4: string; installDesktopChrome: string; installDesktopChromeStep1: string; installDesktopChromeStep2: string; installDesktopChromeStep3: string; installDesktopSafari: string; installDesktopSafariStep1: string; installDesktopSafariStep2: string; installDesktopSafariStep3: string; youtubeTitle: string; youtubeSubtitle: string; youtubeChannelEs: string; youtubeChannelEsDesc: string; youtubeChannelEn: string; youtubeChannelEnDesc: string; youtubeSubscribe: string }
   error: { notFound: string; chapterNotFound: string; goHome: string }
   meta: MetaFns

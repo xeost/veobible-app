@@ -17,8 +17,8 @@
 
     /* Text */
     --text-primary: theme('colors.surface.900');
-    --text-secondary: theme('colors.surface.600');
-    --text-muted: theme('colors.surface.400');
+    --text-secondary: theme('colors.surface.700');
+    --text-muted: theme('colors.surface.600');
     --text-inverse: #ffffff;
 
     /* Brand */
@@ -266,6 +266,62 @@
   .book-link-card:hover {
     border-color: var(--brand) !important;
     color: var(--brand) !important;
+  }
+
+  /* Version link in Sidebar */
+  .version-link {
+    color: var(--text-primary);
+  }
+  .version-link:hover {
+    color: var(--brand);
+  }
+
+  /* Sidebar book row button */
+  .sidebar-book-btn {
+    width: calc(100% - 0.5rem);
+    color: var(--text-primary);
+    background: transparent;
+    font-weight: 400;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebar-book-btn:hover {
+    background: var(--brand-light);
+    color: var(--brand);
+    transform: translateX(4px);
+  }
+  .sidebar-book-btn:active {
+    transform: translateX(2px);
+  }
+  .sidebar-book-btn.is-active {
+    color: var(--brand);
+    font-weight: 600;
+  }
+  .sidebar-book-btn.is-active:not(.is-expanded) {
+    background: var(--brand-light);
+  }
+
+  /* Sidebar chapter button */
+  .sidebar-chapter-btn {
+    background: var(--brand-light);
+    color: var(--brand);
+    font-weight: 400;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+  .sidebar-chapter-btn.is-current {
+    background: var(--brand);
+    color: white;
+    font-weight: 700;
+  }
+  .sidebar-chapter-btn:hover {
+    background: var(--brand);
+    color: white;
+    transform: scale(1.12) translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
+    z-index: 10;
+  }
+  .sidebar-chapter-btn:active {
+    transform: scale(0.95);
   }
 
   /* Utility: pad content above the bottom home indicator / navigation bar */

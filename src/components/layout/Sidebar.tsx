@@ -83,17 +83,17 @@ export function Sidebar({ lang, version, versionName, books, currentBookSlug, cu
             <button
               ref={isActive ? activeBookRef : undefined}
               onClick={() => setExpandedBook(isExpanded ? null : book.slug)}
-              className="w-full flex items-center justify-between px-4 py-2 text-sm transition-colors duration-100 rounded-lg mx-1"
-              style={{
-                color: isActive ? 'var(--brand)' : 'var(--text-primary)',
-                background: isActive && !isExpanded ? 'var(--brand-light)' : 'transparent',
-                fontWeight: isActive ? 600 : 400,
-                width: 'calc(100% - 0.5rem)',
-              }}
+              className={`w-full flex items-center justify-between px-4 py-2 text-sm rounded-lg mx-1 sidebar-book-btn ${
+                isActive ? 'is-active' : ''
+              } ${isExpanded ? 'is-expanded' : ''}`}
             >
               <span className="truncate">{book.name}</span>
-              <span className="flex-shrink-0 ml-2" style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
-                {book.chapters}ch
+              <span
+                className="flex-shrink-0 ml-2"
+                style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}
+                title={t.version.chaptersTooltip(book.chapters)}
+              >
+                {book.chapters}
               </span>
             </button>
 
@@ -106,12 +106,9 @@ export function Sidebar({ lang, version, versionName, books, currentBookSlug, cu
                     <Link
                       key={ch}
                       href={`/${lang}/${version}/${book.slug}/${ch}`}
-                      className="flex items-center justify-center text-xs rounded-md py-1.5 transition-all duration-100"
-                      style={{
-                        background: isCurrentCh ? 'var(--brand)' : 'var(--brand-light)',
-                        color: isCurrentCh ? 'white' : 'var(--brand)',
-                        fontWeight: isCurrentCh ? 700 : 400,
-                      }}
+                      className={`flex items-center justify-center text-xs rounded-md py-1.5 sidebar-chapter-btn ${
+                        isCurrentCh ? 'is-current' : ''
+                      }`}
                     >
                       {ch}
                     </Link>
@@ -133,9 +130,12 @@ export function Sidebar({ lang, version, versionName, books, currentBookSlug, cu
         style={{ borderColor: 'var(--border)' }}
       >
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.version.label}</p>
-        <p className="font-semibold text-sm mt-0.5" style={{ color: 'var(--text-primary)' }}>
+        <Link
+          href={`/${lang}/${version}`}
+          className="font-semibold text-sm mt-0.5 block transition-colors duration-100 version-link"
+        >
           {versionName ?? version.toUpperCase()}
-        </p>
+        </Link>
       </div>
 
       {renderBookGroup(oldTestament, t.testament.old)}

@@ -103,6 +103,7 @@ export const es: Translations = {
   version: {
     label: 'Versión de la Biblia',
     switch: 'Cambiar versión',
+    chaptersTooltip: (count: number) => `${count} ${count === 1 ? 'capítulo' : 'capítulos'}`,
   },
 
   // Homepage
