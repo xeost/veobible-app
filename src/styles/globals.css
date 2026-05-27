@@ -38,9 +38,9 @@
 
     /* Reader typography — defaults (overridden by ReaderPreferencesProvider) */
     --font-playwrite-england: 'Playwrite GB J', cursive;
-    --reader-font-family: var(--font-lora), Georgia, "Times New Roman", serif;
-    --reader-font-size: 1rem;
-    --reader-line-height: 1.9;
+    --reader-font-family: var(--font-im-fell-english), Georgia, "Times New Roman", serif;
+    --reader-font-size: 1.29375rem;
+    --reader-line-height: 1.824;
 
     /* Shadows */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);

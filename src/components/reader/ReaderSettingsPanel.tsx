@@ -149,6 +149,8 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
   const adjust = currentMeta?.sizeAdjust || 1
   const previewSize = `${num * adjust}${unit}`
 
+  const previewLineHeight = (1.4 * (currentMeta?.lineHeightAdjust || 1)).toFixed(2)
+
   const handleSelectFont = (key: ReaderFontFamily) => {
     setFontFamily(key)
     setFontListOpen(false)
@@ -318,7 +320,7 @@ export function ReaderSettingsPanel({ open, onClose, anchorRef }: ReaderSettings
             style={{
               fontFamily: getFontFamilyCSS(fontFamily),
               fontSize: previewSize,
-              lineHeight: 1.4,
+              lineHeight: previewLineHeight,
               color: 'var(--reader-text)',
             }}
           >

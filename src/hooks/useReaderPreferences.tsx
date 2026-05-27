@@ -16,8 +16,8 @@ import type {
 } from '@/lib/storage/types'
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
-export const DEFAULT_FONT_FAMILY: ReaderFontFamily = 'lora'
-export const DEFAULT_FONT_SIZE: ReaderFontSize = 'md'
+export const DEFAULT_FONT_FAMILY: ReaderFontFamily = 'im-fell-english'
+export const DEFAULT_FONT_SIZE: ReaderFontSize = 'lg'
 export const DEFAULT_LINE_HEIGHT: ReaderLineHeight = 'relaxed'
 
 // ── Font metadata (label + CSS stack) ─────────────────────────────────────────
@@ -27,6 +27,7 @@ export interface FontMeta {
   category: 'serif' | 'sans' | 'script'
   description: string
   sizeAdjust?: number
+  lineHeightAdjust?: number
 }
 
 export const FONTS: Record<ReaderFontFamily, FontMeta> = {
@@ -36,36 +37,48 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     cssVar: '--font-lora',
     category: 'serif',
     description: 'Elegant balanced serif',
+    sizeAdjust: 1.0,
+    lineHeightAdjust: 1.0,
   },
   'merriweather': {
     label: 'Merriweather',
     cssVar: '--font-merriweather',
     category: 'serif',
     description: 'Designed for screen readability',
+    sizeAdjust: 0.90,
+    lineHeightAdjust: 1.08,
   },
   'eb-garamond': {
     label: 'EB Garamond',
     cssVar: '--font-eb-garamond',
     category: 'serif',
     description: 'Classic old-style, timeless',
+    sizeAdjust: 1.12,
+    lineHeightAdjust: 0.88,
   },
   'libre-baskerville': {
     label: 'Libre Baskerville',
     cssVar: '--font-libre-baskerville',
     category: 'serif',
     description: 'Traditional book typography',
+    sizeAdjust: 0.88,
+    lineHeightAdjust: 1.08,
   },
   'crimson-pro': {
     label: 'Crimson Pro',
     cssVar: '--font-crimson-pro',
     category: 'serif',
     description: 'Humanist old-style, warm',
+    sizeAdjust: 1.05,
+    lineHeightAdjust: 0.96,
   },
   'spectral': {
     label: 'Spectral',
     cssVar: '--font-spectral',
     category: 'serif',
     description: 'Optimized for digital reading',
+    sizeAdjust: 1.08,
+    lineHeightAdjust: 0.92,
   },
   // ── Sans-serif ────────────────────────────────────────────────────────────
   'inter': {
@@ -73,36 +86,48 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     cssVar: '--font-inter',
     category: 'sans',
     description: 'Modern, highly legible',
+    sizeAdjust: 0.96,
+    lineHeightAdjust: 1.02,
   },
   'source-sans': {
     label: 'Source Sans 3',
     cssVar: '--font-source-sans',
     category: 'sans',
     description: 'Adobe — designed for reading',
+    sizeAdjust: 0.96,
+    lineHeightAdjust: 1.02,
   },
   'nunito': {
     label: 'Nunito',
     cssVar: '--font-nunito',
     category: 'sans',
     description: 'Rounded, friendly & clear',
+    sizeAdjust: 1.0,
+    lineHeightAdjust: 1.0,
   },
   'open-sans': {
     label: 'Open Sans',
     cssVar: '--font-open-sans',
     category: 'sans',
     description: 'Humanist, universally loved',
+    sizeAdjust: 0.95,
+    lineHeightAdjust: 1.02,
   },
   'noto-sans': {
     label: 'Noto Sans',
     cssVar: '--font-noto-sans',
     category: 'sans',
     description: 'Clean, universal and balanced',
+    sizeAdjust: 0.94,
+    lineHeightAdjust: 1.04,
   },
   'roboto': {
     label: 'Roboto',
     cssVar: '--font-roboto',
     category: 'sans',
     description: 'Modern, geometric and readable',
+    sizeAdjust: 0.96,
+    lineHeightAdjust: 1.02,
   },
   // ── Script ────────────────────────────────────────────────────────────────
   'dancing-script': {
@@ -110,7 +135,8 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     cssVar: '--font-dancing-script',
     category: 'script',
     description: 'Cursive, friendly and readable',
-    sizeAdjust: 1.25,
+    sizeAdjust: 1.30,
+    lineHeightAdjust: 0.85,
   },
   'playwrite-england': {
     label: 'Playwrite England Joined',
@@ -118,6 +144,7 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     category: 'script',
     description: 'Connected handwriting style',
     sizeAdjust: 1.25,
+    lineHeightAdjust: 0.95,
   },
   'almendra': {
     label: 'Almendra',
@@ -125,13 +152,15 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     category: 'script',
     description: 'Blackletter fantasy style',
     sizeAdjust: 1.15,
+    lineHeightAdjust: 0.96,
   },
   'eagle-lake': {
     label: 'Eagle Lake',
     cssVar: '--font-eagle-lake',
     category: 'script',
     description: 'Elegant, artistic script',
-    sizeAdjust: 1.2,
+    sizeAdjust: 1.22,
+    lineHeightAdjust: 0.92,
   },
   'im-fell-english': {
     label: 'IM Fell English',
@@ -139,48 +168,55 @@ export const FONTS: Record<ReaderFontFamily, FontMeta> = {
     category: 'script',
     description: 'Ancient printed script style',
     sizeAdjust: 1.15,
+    lineHeightAdjust: 0.96,
   },
   'satisfy': {
     label: 'Satisfy',
     cssVar: '--font-satisfy',
     category: 'script',
     description: 'Timeless brush script',
-    sizeAdjust: 1.25,
+    sizeAdjust: 1.32,
+    lineHeightAdjust: 0.82,
   },
   'courgette': {
     label: 'Courgette',
     cssVar: '--font-courgette',
     category: 'script',
     description: 'Medium-contrast elegant script',
-    sizeAdjust: 1.15,
+    sizeAdjust: 1.20,
+    lineHeightAdjust: 0.92,
   },
   'allura': {
     label: 'Allura',
     cssVar: '--font-allura',
     category: 'script',
     description: 'Soft, clean handwritten look',
-    sizeAdjust: 1.3,
+    sizeAdjust: 1.36,
+    lineHeightAdjust: 0.80,
   },
   'kaushan-script': {
     label: 'Kaushan Script',
     cssVar: '--font-kaushan-script',
     category: 'script',
     description: 'Artistic brush calligraphy',
-    sizeAdjust: 1.2,
+    sizeAdjust: 1.22,
+    lineHeightAdjust: 0.92,
   },
   'sacramento': {
     label: 'Sacramento',
     cssVar: '--font-sacramento',
     category: 'script',
     description: 'Thin, elegant handwriting',
-    sizeAdjust: 1.35,
+    sizeAdjust: 1.42,
+    lineHeightAdjust: 0.78,
   },
   'fondamento': {
     label: 'Fondamento',
     cssVar: '--font-fondamento',
     category: 'script',
     description: 'Calligraphic study style',
-    sizeAdjust: 1.15,
+    sizeAdjust: 1.18,
+    lineHeightAdjust: 0.94,
   },
 }
 
@@ -284,16 +320,21 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
     const root = document.documentElement
     const meta = FONTS[prefs.fontFamily]
     const baseSize = FONT_SIZE_CSS[prefs.fontSize]
+    const baseLineHeight = parseFloat(LINE_HEIGHT_CSS[prefs.lineHeight])
     
-    // Parse the size value to adjust script fonts
+    // Parse the size value to adjust fonts
     const num = parseFloat(baseSize)
     const unit = baseSize.replace(/[0-9.]/g, '')
-    const adjust = meta?.sizeAdjust || 1
-    const adjustedSize = `${num * adjust}${unit}`
+    const sizeAdjust = meta?.sizeAdjust || 1
+    const adjustedSize = `${num * sizeAdjust}${unit}`
+
+    // Parse the line height to adjust fonts
+    const lhAdjust = meta?.lineHeightAdjust || 1
+    const adjustedLineHeight = (baseLineHeight * lhAdjust).toFixed(2)
 
     root.style.setProperty('--reader-font-family', resolveFont(prefs.fontFamily))
     root.style.setProperty('--reader-font-size',   adjustedSize)
-    root.style.setProperty('--reader-line-height', LINE_HEIGHT_CSS[prefs.lineHeight])
+    root.style.setProperty('--reader-line-height', adjustedLineHeight)
   }, [prefs])
 
   const setFontFamily = React.useCallback((v: ReaderFontFamily) => {
