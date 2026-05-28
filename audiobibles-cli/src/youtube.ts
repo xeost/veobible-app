@@ -114,12 +114,13 @@ SCHEDULED TIME
 
 /**
  * Builds the video title for a Bible book.
- * Pattern: "<BookName> | Santa Biblia / Holy Bible | <VersionLabel>"
- * Example: "Génesis | Santa Biblia | Reina Valera 1909"
+ * Pattern: "<BookName> | Santa Biblia / Holy Bible | <VersionLabel> | Audio Biblia / Audio Bible"
+ * Example: "Génesis | Santa Biblia | Reina Valera 1909 | Audio Biblia"
  */
 function buildTitle(bookName: string, versionLabel: string, locale: string): string {
   const bibleTerm = locale === "es" ? "Santa Biblia" : "Holy Bible";
-  return `${bookName} | ${bibleTerm} | ${versionLabel}`;
+  const suffix = locale === "es" ? "Audio Biblia" : "Audio Bible";
+  return `${bookName} | ${bibleTerm} | ${versionLabel} | ${suffix}`;
 }
 
 /**
