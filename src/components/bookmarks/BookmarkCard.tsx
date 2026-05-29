@@ -110,7 +110,11 @@ function InlineEditField({ id, type, value: initialValue, placeholder, maxLength
   }
 
   return (
-    <div className="flex flex-col gap-1 w-full">
+    <div
+      className="flex flex-col gap-1 w-full"
+      // Prevent clicks inside the field from bubbling up to the card (which would toggle expand)
+      onClick={(e) => e.stopPropagation()}
+    >
       {type === 'input' ? (
         <input
           ref={inputRef as React.RefObject<HTMLInputElement>}
@@ -144,6 +148,7 @@ function InlineEditField({ id, type, value: initialValue, placeholder, maxLength
           {/* Cancel */}
           <button
             onMouseDown={(e) => { e.preventDefault(); onCancel() }}
+            onTouchEnd={(e) => { e.preventDefault(); onCancel() }}
             className="btn-icon p-1 rounded-md"
             aria-label="Cancel"
             style={{ color: 'var(--text-muted)' }}
@@ -153,6 +158,7 @@ function InlineEditField({ id, type, value: initialValue, placeholder, maxLength
           {/* Confirm */}
           <button
             onMouseDown={(e) => { e.preventDefault(); onConfirm(value.trim()) }}
+            onTouchEnd={(e) => { e.preventDefault(); onConfirm(value.trim()) }}
             className="btn-icon p-1 rounded-md"
             aria-label="Save"
             style={{ color: 'var(--brand)' }}
@@ -178,6 +184,16 @@ interface BookmarkCardProps {
   onToggleExpand: () => void
   /** When true, shows a drag handle and sets the card as draggable */
   draggable?: boolean
+  /**
+   * Called on touchstart on the grip — enables touch drag-and-drop on mobile.
+   * Signature mirrors useTouchDrag's onGripTouchStart.
+   */
+  onTouchDrop?: (
+    e: React.TouchEvent,
+    bookmarkId: string,
+    bookSlug: string,
+    cardEl: HTMLElement,
+  ) => void
 }
 
 // ── Component ──────────────────────────────────────────────────────────
@@ -191,12 +207,14 @@ export function BookmarkCard({
   isExpanded,
   onToggleExpand,
   draggable,
+  onTouchDrop,
 }: BookmarkCardProps) {
   const { t } = useI18n()
   const [confirming, setConfirming] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
 
   const href = `/${lang}/${bookmark.versionSlug}/${bookmark.bookSlug}/${bookmark.chapter}#verse-${bookmark.verseStart}`
   const date = new Date(bookmark.createdAt).toLocaleDateString()
@@ -245,8 +263,25 @@ export function BookmarkCard({
     }
   }
 
+  // Clicking/tapping anywhere on the card that is not an interactive element toggles expand
+  const handleCardClick = (e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.target as HTMLElement
+    // Don't toggle if click was on a button, link, input, textarea, or their children
+    if (target.closest('button, a, input, textarea, [role="button"]')) return
+    onToggleExpand()
+  }
+
+  // Grip touch start — delegates to useTouchDrag (passed in as onTouchDrop)
+  const handleGripTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation() // don't trigger card toggle
+    if (onTouchDrop && cardRef.current) {
+      onTouchDrop(e, bookmark.id, bookmark.bookSlug, cardRef.current)
+    }
+  }
+
   return (
     <div
+      ref={cardRef}
       className="bookmark-card"
       draggable={draggable}
       onDragStart={draggable ? (e) => {
@@ -257,13 +292,19 @@ export function BookmarkCard({
         setIsDragging(true)
       } : undefined}
       onDragEnd={draggable ? () => setIsDragging(false) : undefined}
-      style={{ opacity: isDragging ? 0.45 : 1, transition: 'opacity 150ms' }}
+      style={{ opacity: isDragging ? 0.45 : 1, transition: 'opacity 150ms', cursor: 'pointer' }}
+      // Tap/click anywhere on the card to toggle expand
+      onClick={handleCardClick}
     >
-      {/* Grip handle (shown only when draggable) */}
+      {/* Grip handle (shown only when draggable) — handles both mouse and touch drag */}
       {draggable && (
         <div
-          className="absolute left-0 top-0 bottom-0 flex items-center px-1.5 cursor-grab active:cursor-grabbing"
+          className="absolute left-0 top-0 bottom-0 flex items-center px-1.5 cursor-grab active:cursor-grabbing touch-none"
           style={{ color: 'var(--border-strong)' }}
+          // Mouse drag is handled by the native draggable on the card div
+          onMouseDown={(e) => e.stopPropagation()} // don't bubble to card click
+          // Touch drag — custom implementation via useTouchDrag
+          onTouchStart={handleGripTouchStart}
         >
           <GripIcon />
         </div>
@@ -280,7 +321,7 @@ export function BookmarkCard({
           {verseRef}
         </span>
 
-        {/* Go-to link (always visible) */}
+        {/* Go-to link — stopPropagation so it doesn't toggle expand */}
         <Tooltip content={t.bookmarks.goTo}>
           <Link
             href={href}
@@ -293,15 +334,14 @@ export function BookmarkCard({
           </Link>
         </Tooltip>
 
-        {/* Expand / collapse toggle */}
-        <button
-          onClick={onToggleExpand}
-          className="btn-icon p-0.5 flex-shrink-0"
-          aria-label={isExpanded ? 'Collapse' : 'Expand'}
-          style={{ color: 'var(--text-muted)' }}
+        {/* Chevron — visual cue only (card itself is the click target) */}
+        <span
+          className="flex items-center justify-center p-0.5 flex-shrink-0"
+          style={{ color: 'var(--text-muted)', pointerEvents: 'none' }}
+          aria-hidden
         >
           <ChevronDownIcon open={isExpanded} />
-        </button>
+        </span>
       </div>
 
       {/* Line 2: title or first words — always one line, truncated */}
@@ -342,7 +382,7 @@ export function BookmarkCard({
               {!editingTitle && (
                 <Tooltip content={t.bookmarks.editTitle}>
                   <button
-                    onClick={() => { setEditingNote(false); setEditingTitle(true) }}
+                    onClick={(e) => { e.stopPropagation(); setEditingNote(false); setEditingTitle(true) }}
                     className="btn-icon p-0.5 flex-shrink-0"
                     aria-label={t.bookmarks.editTitle}
                     id={`bookmark-edit-title-${bookmark.id}`}
@@ -366,14 +406,18 @@ export function BookmarkCard({
               />
             ) : (
               bookmark.title ? (
-                <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                <p
+                  className="text-sm font-semibold leading-snug"
+                  style={{ color: 'var(--text-primary)' }}
+                  onClick={(e) => { e.stopPropagation(); setEditingNote(false); setEditingTitle(true) }}
+                >
                   {bookmark.title}
                 </p>
               ) : (
                 <p
                   className="text-xs italic cursor-pointer"
                   style={{ color: 'var(--text-muted)' }}
-                  onClick={() => { setEditingNote(false); setEditingTitle(true) }}
+                  onClick={(e) => { e.stopPropagation(); setEditingNote(false); setEditingTitle(true) }}
                 >
                   {t.bookmarks.titleHint}…
                 </p>
@@ -404,7 +448,7 @@ export function BookmarkCard({
               {!editingNote && (
                 <Tooltip content={t.bookmarks.editTitle}>
                   <button
-                    onClick={() => { setEditingTitle(false); setEditingNote(true) }}
+                    onClick={(e) => { e.stopPropagation(); setEditingTitle(false); setEditingNote(true) }}
                     className="btn-icon p-0.5 flex-shrink-0"
                     aria-label={t.bookmarks.noteLabel}
                     id={`bookmark-edit-note-${bookmark.id}`}
@@ -431,7 +475,7 @@ export function BookmarkCard({
                 <p
                   className="text-xs leading-relaxed whitespace-pre-wrap cursor-pointer"
                   style={{ color: 'var(--text-primary)' }}
-                  onClick={() => { setEditingTitle(false); setEditingNote(true) }}
+                  onClick={(e) => { e.stopPropagation(); setEditingTitle(false); setEditingNote(true) }}
                 >
                   {bookmark.note}
                 </p>
@@ -439,7 +483,7 @@ export function BookmarkCard({
                 <p
                   className="text-xs italic cursor-pointer"
                   style={{ color: 'var(--text-muted)' }}
-                  onClick={() => { setEditingTitle(false); setEditingNote(true) }}
+                  onClick={(e) => { e.stopPropagation(); setEditingTitle(false); setEditingNote(true) }}
                 >
                   {t.bookmarks.notePlaceholder}
                 </p>
@@ -452,7 +496,7 @@ export function BookmarkCard({
             <div className="flex items-center gap-2">
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{date}</span>
               <button
-                onClick={() => setConfirming(true)}
+                onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
                 className="ml-auto btn-icon p-1"
                 aria-label={t.bookmarks.delete}
                 style={{ color: 'var(--text-muted)' }}
@@ -461,19 +505,19 @@ export function BookmarkCard({
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 animate-fade-in">
+            <div className="flex items-center gap-2 animate-fade-in" onClick={(e) => e.stopPropagation()}>
               <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {t.bookmarks.deleteConfirm}
               </span>
               <button
-                onClick={handleRemove}
+                onClick={(e) => { e.stopPropagation(); handleRemove() }}
                 className="text-xs font-semibold px-2 py-0.5 rounded-md"
                 style={{ background: '#ef4444', color: 'white' }}
               >
                 {t.bookmarks.deleteConfirmYes}
               </button>
               <button
-                onClick={() => setConfirming(false)}
+                onClick={(e) => { e.stopPropagation(); setConfirming(false) }}
                 className="text-xs font-medium"
                 style={{ color: 'var(--text-muted)' }}
               >

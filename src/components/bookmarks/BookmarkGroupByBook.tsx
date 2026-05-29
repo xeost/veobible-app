@@ -6,6 +6,7 @@ import type { BookInfo } from '@/lib/bible/types'
 import { BookmarkCard } from './BookmarkCard'
 import { useI18n } from '@/lib/i18n/client'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { useTouchDrag, TOUCH_DROP_ATTR, TOUCH_FOLDER_ATTR, TOUCH_BOOK_ATTR, TOUCH_DROP_ACTIVE_CLASS } from '@/hooks/useTouchDrag'
 
 // ── Icons ────────────────────────────────────────────────────────────
 
@@ -134,9 +135,14 @@ function FolderDropZone({ folderId, bookSlug, onDrop, children, className, style
         borderRadius: '10px',
         transition: 'outline 100ms',
       }}
+      // HTML5 drag events
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      // Touch drag attributes — read by useTouchDrag via elementFromPoint
+      {...{ [TOUCH_DROP_ATTR]: 'true' }}
+      {...{ [TOUCH_FOLDER_ATTR]: folderId ?? 'unfiled' }}
+      {...{ [TOUCH_BOOK_ATTR]: bookSlug }}
     >
       {children}
     </div>
@@ -198,6 +204,7 @@ interface FolderRowProps {
   lang: string
   bookName: string
   onDrop: (bookmarkId: string, folderId: string | undefined) => void
+  onTouchDrop: (e: React.TouchEvent, bookmarkId: string, bookSlug: string, cardEl: HTMLElement) => void
   removeBookmark: (id: string) => Promise<void>
   updateBookmark: (id: string, patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>) => Promise<Bookmark>
   onRename: (id: string, name: string) => void
@@ -206,7 +213,7 @@ interface FolderRowProps {
   onToggleCard: (id: string) => void
 }
 
-function FolderRow({ folder, bookmarks, lang, bookName, onDrop, removeBookmark, updateBookmark, onRename, onDelete, expandedIds, onToggleCard }: FolderRowProps) {
+function FolderRow({ folder, bookmarks, lang, bookName, onDrop, onTouchDrop, removeBookmark, updateBookmark, onRename, onDelete, expandedIds, onToggleCard }: FolderRowProps) {
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -339,6 +346,7 @@ function FolderRow({ folder, bookmarks, lang, bookName, onDrop, removeBookmark, 
                 isExpanded={expandedIds.has(bm.id)}
                 onToggleExpand={() => onToggleCard(bm.id)}
                 draggable
+                onTouchDrop={onTouchDrop}
               />
             ))
           )}
@@ -364,6 +372,11 @@ export function BookmarkGroupByBook({
   moveBookmarkToFolder,
 }: BookmarkGroupByBookProps) {
   const { t } = useI18n()
+
+  // Touch drag — mirrors HTML5 drag for folder drop on mobile
+  const { onGripTouchStart, isTouchDragging, touchDraggingBookSlug } = useTouchDrag({ onDrop: async (bookmarkId, folderId) => {
+    await moveBookmarkToFolder(bookmarkId, folderId)
+  }})
 
   // Set of expanded bookmark ids (default: all collapsed)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
@@ -513,6 +526,7 @@ export function BookmarkGroupByBook({
             isExpanded={expandedIds.has(bm.id)}
             onToggleExpand={() => toggleCard(bm.id)}
             draggable
+            onTouchDrop={onGripTouchStart}
           />
         )
 
@@ -579,6 +593,7 @@ export function BookmarkGroupByBook({
                   lang={lang}
                   bookName={bookName(bookSlug)}
                   onDrop={handleDrop}
+                  onTouchDrop={onGripTouchStart}
                   removeBookmark={removeBookmark}
                   updateBookmark={updateBookmark}
                   onRename={handleRenameFolder}
@@ -618,7 +633,12 @@ export function BookmarkGroupByBook({
               >
                 {unfiledBookmarks.map(renderCard)}
                 {/* Drop hint: only while dragging a card from THIS book group, and all its bookmarks are in folders */}
-                {isDragging && draggingBookSlug === bookSlug && unfiledBookmarks.length === 0 && bookFolders.length > 0 && (
+                {/* Drop hint: visible while dragging a card from THIS book group when all bookmarks are in folders.
+                   Shown for both mouse drag (isDragging) and touch drag (isTouchDragging). */}
+                {(isDragging || isTouchDragging) &&
+                  (draggingBookSlug === bookSlug || touchDraggingBookSlug === bookSlug) &&
+                  unfiledBookmarks.length === 0 &&
+                  bookFolders.length > 0 && (
                   <div
                     className="text-xs italic text-center py-1.5 px-2 rounded-lg"
                     style={{

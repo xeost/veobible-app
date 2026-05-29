@@ -264,6 +264,12 @@
     box-shadow: var(--shadow-sm);
   }
 
+  /* Touch drag-and-drop: drop zone highlight (applied by useTouchDrag) */
+  .touch-drop-active {
+    outline: 2px solid var(--brand) !important;
+    outline-offset: -2px;
+  }
+
   /* Book link card (version overview) */
   .book-link-card:hover {
     border-color: var(--brand) !important;
