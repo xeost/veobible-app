@@ -81,9 +81,10 @@ export const es: Translations = {
     // Notes
     noteLabel: 'Nota',
     hasNote: 'Contiene una nota',
+    editNote: 'Editar nota',
     notePlaceholder: 'Escribe una nota sobre este pasaje…',
     // Search
-    searchPlaceholder: 'Buscar marcadores…',
+    searchPlaceholder: 'Buscar marcadores o carpetas…',
     noResults: 'Ningún marcador coincide con tu búsqueda',
     // Folder management
     newFolder: 'Nueva carpeta',

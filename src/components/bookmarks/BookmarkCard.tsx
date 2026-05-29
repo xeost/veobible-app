@@ -446,11 +446,11 @@ export function BookmarkCard({
                 {t.bookmarks.noteLabel}
               </span>
               {!editingNote && (
-                <Tooltip content={t.bookmarks.editTitle}>
+                <Tooltip content={t.bookmarks.editNote}>
                   <button
                     onClick={(e) => { e.stopPropagation(); setEditingTitle(false); setEditingNote(true) }}
                     className="btn-icon p-0.5 flex-shrink-0"
-                    aria-label={t.bookmarks.noteLabel}
+                    aria-label={t.bookmarks.editNote}
                     id={`bookmark-edit-note-${bookmark.id}`}
                     style={{ color: 'var(--text-muted)' }}
                   >
