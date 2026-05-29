@@ -6,7 +6,9 @@ import { useI18n } from '@/lib/i18n/client'
 interface BookmarkTitleModalProps {
   /** null = closed; string = initial title value ('' for new) */
   initialTitle: string | null
-  onSave: (title: string) => void
+  /** null = closed; string = initial note value ('' for new) */
+  initialNote: string | null
+  onSave: (title: string, note: string) => void
   onCancel: () => void
 }
 
@@ -23,16 +25,18 @@ const PencilIcon = () => (
   </svg>
 )
 
-export function BookmarkTitleModal({ initialTitle, onSave, onCancel }: BookmarkTitleModalProps) {
+export function BookmarkTitleModal({ initialTitle, initialNote, onSave, onCancel }: BookmarkTitleModalProps) {
   const { t } = useI18n()
   const [title, setTitle] = useState(initialTitle ?? '')
+  const [note, setNote] = useState(initialNote ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
   const isEditing = (initialTitle ?? '').length > 0
 
-  // Sync title when modal re-opens for a different bookmark
+  // Sync values when modal re-opens for a different bookmark
   useEffect(() => {
     setTitle(initialTitle ?? '')
-  }, [initialTitle])
+    setNote(initialNote ?? '')
+  }, [initialTitle, initialNote])
 
   // Focus input on mount
   useEffect(() => {
@@ -49,7 +53,7 @@ export function BookmarkTitleModal({ initialTitle, onSave, onCancel }: BookmarkT
     return () => document.removeEventListener('keydown', handler)
   }, [onCancel])
 
-  const handleSave = () => onSave(title.trim())
+  const handleSave = () => onSave(title.trim(), note.trim())
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') handleSave()
@@ -95,7 +99,7 @@ export function BookmarkTitleModal({ initialTitle, onSave, onCancel }: BookmarkT
           </div>
         </div>
 
-        {/* Input */}
+        {/* Title input */}
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="bookmark-title-modal-input"
@@ -124,6 +128,37 @@ export function BookmarkTitleModal({ initialTitle, onSave, onCancel }: BookmarkT
           />
           <span className="text-right text-xs" style={{ color: 'var(--text-muted)' }}>
             {title.length}/80
+          </span>
+        </div>
+
+        {/* Note textarea */}
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="bookmark-note-modal-input"
+            className="text-xs font-medium"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            {t.bookmarks.noteLabel}
+          </label>
+          <textarea
+            id="bookmark-note-modal-input"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={t.bookmarks.notePlaceholder}
+            maxLength={1000}
+            rows={4}
+            className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none transition-all duration-150"
+            style={{
+              background: 'var(--bg-page)',
+              border: '1.5px solid var(--border-strong)',
+              color: 'var(--text-primary)',
+              lineHeight: '1.6',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+          />
+          <span className="text-right text-xs" style={{ color: 'var(--text-muted)' }}>
+            {note.length}/1000
           </span>
         </div>
 

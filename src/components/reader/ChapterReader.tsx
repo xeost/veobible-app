@@ -83,7 +83,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
     setModalOpen(true)
   }
 
-  const handleModalSave = async (title: string) => {
+  const handleModalSave = async (title: string, note: string) => {
     const sel = pendingSelectionRef.current
     if (!sel) return
     setModalOpen(false)
@@ -97,6 +97,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
         verseEnd: sel.verseEnd,
         selectedText: sel.text,
         title: title || undefined,
+        note: note || undefined,
       })
       toast(t.reader.bookmarkAdded)
     } catch {
@@ -124,6 +125,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
       {/* Bookmark title modal — opened when user clicks bookmark in toolbar */}
       <BookmarkTitleModal
         initialTitle={modalOpen ? '' : null}
+        initialNote={modalOpen ? '' : null}
         onSave={handleModalSave}
         onCancel={handleModalCancel}
       />

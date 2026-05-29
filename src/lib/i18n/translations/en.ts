@@ -63,6 +63,9 @@ export const en = {
   // Bookmarks
   bookmarks: {
     title: 'Bookmarks',
+    titleWithNotes: 'Bookmarks with Notes',
+    openModal: 'Open in full view',
+    closeModal: 'Close full view',
     empty: 'No bookmarks yet',
     emptyDescription: 'Select any text while reading to save it as a bookmark.',
     addTitle: 'Save bookmark',
@@ -73,6 +76,13 @@ export const en = {
     deleteConfirm: 'Delete this bookmark?',
     deleteConfirmYes: 'Delete',
     deleteConfirmNo: 'Cancel',
+    // Notes
+    noteLabel: 'Note',
+    hasNote: 'Contains a note',
+    notePlaceholder: 'Write a note about this passage…',
+    // Search
+    searchPlaceholder: 'Search bookmarks…',
+    noResults: 'No bookmarks match your search',
     // Folder management
     newFolder: 'New folder',
     folderNamePlaceholder: 'Folder name…',
@@ -175,7 +185,7 @@ export interface Translations {
   nav: { home: string; bookmarks: string; settings: string; search: string; tableOfContents: string; readingMode: string; exitReadingMode: string }
   reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string; typography: string; resetTypography: string; fontFamily: string; lineHeight: string; lineHeight_tight: string; lineHeight_normal: string; lineHeight_relaxed: string; lineHeight_loose: string; typographyPreview: string; prevFont: string; nextFont: string; fontCategory_serif: string; fontCategory_sans: string; fontCategory_script: string; contentWidth: string; contentWidth_full: string; contentWidth_normal: string; contentWidth_thin: string; contentWidth_veryThin: string }
   testament: { old: string; new: string }
-  bookmarks: { title: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
+  bookmarks: { title: string; titleWithNotes: string; openModal: string; closeModal: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; noteLabel: string; hasNote: string; notePlaceholder: string; searchPlaceholder: string; noResults: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
   version: { label: string; switch: string; chaptersTooltip: (count: number) => string }

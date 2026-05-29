@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation'
 import { ReaderHeader } from '@/components/layout/ReaderHeader'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ReaderSettingsPanel } from '@/components/reader/ReaderSettingsPanel'
-import { BookmarksList } from '@/components/bookmarks/BookmarksList'
+import { BookmarksPanel } from '@/components/bookmarks/BookmarksPanel'
+import { BookmarksModal } from '@/components/bookmarks/BookmarksModal'
 import { Sheet } from '@/components/ui/Sheet'
 import { useI18n } from '@/lib/i18n/client'
 import { useBookmarks } from '@/hooks/useBookmarks'
@@ -45,7 +46,7 @@ export function ReaderLayoutClient({
   const typographyAnchorRef = useRef<HTMLButtonElement>(null)
 
   const handleOpenTypography = (anchor: HTMLButtonElement) => {
-    ; (typographyAnchorRef as React.MutableRefObject<HTMLButtonElement>).current = anchor
+    ;(typographyAnchorRef as React.MutableRefObject<HTMLButtonElement>).current = anchor
     setTypographyOpen((o) => !o)
   }
 
@@ -73,15 +74,16 @@ export function ReaderLayoutClient({
     return () => {
       setTimeout(() => {
         if (typeof window !== 'undefined') {
-          ; (window as any).__is_reader_active = false
+          ;(window as any).__is_reader_active = false
         }
       }, 0)
     }
   }, [])
 
-  // ── Sheet open states ───────────────────────────────────────────────────────
+  // ── Sheet / Modal open states ───────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [bookmarksOpen, setBookmarksOpen] = useState(false)
+  const [bookmarksModalOpen, setBookmarksModalOpen] = useState(false)
 
   // ── Bookmarks ───────────────────────────────────────────────────────────────
   const {
@@ -98,7 +100,7 @@ export function ReaderLayoutClient({
     moveBookmarkToFolder,
   } = useBookmarks(version)
 
-  const bookmarksListProps = {
+  const bookmarksPanelProps = {
     lang,
     versionSlug: version,
     bookmarks,
@@ -175,9 +177,9 @@ export function ReaderLayoutClient({
             {children}
           </main>
 
-          {/* Right sidebar — Bookmarks */}
+          {/* Right sidebar — Bookmarks with Notes */}
           <aside
-            className="flex-shrink-0 sticky overflow-hidden"
+            className="flex-shrink-0 sticky overflow-hidden flex flex-col"
             style={{
               width: readingMode ? 0 : SIDEBAR_RIGHT,
               opacity: readingMode ? 0 : 1,
@@ -189,20 +191,11 @@ export function ReaderLayoutClient({
             }}
             aria-hidden={readingMode}
           >
-            <div
-              className="px-4 py-3 border-b"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <p
-                className="text-xs font-semibold uppercase tracking-widest"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                {t.nav.bookmarks}
-              </p>
-            </div>
-            <div className="h-[calc(100%-3rem)] overflow-y-auto">
-              <BookmarksList {...bookmarksListProps} />
-            </div>
+            <BookmarksPanel
+              {...bookmarksPanelProps}
+              variant="compact"
+              onOpenModal={() => setBookmarksModalOpen(true)}
+            />
           </aside>
         </div>
 
@@ -231,11 +224,19 @@ export function ReaderLayoutClient({
         <Sheet
           open={bookmarksOpen}
           onClose={() => setBookmarksOpen(false)}
-          title={t.nav.bookmarks}
+          title={t.bookmarks.titleWithNotes}
           side="right"
         >
-          <BookmarksList {...bookmarksListProps} />
+          {/* Use BookmarksPanel in full mode inside the Sheet for better UX */}
+          <BookmarksPanel {...bookmarksPanelProps} variant="full" />
         </Sheet>
+
+        {/* ── Modal dialog: Bookmarks with Notes ────────────────────────────── */}
+        <BookmarksModal
+          open={bookmarksModalOpen}
+          onClose={() => setBookmarksModalOpen(false)}
+          {...bookmarksPanelProps}
+        />
       </div>
     </ReaderContext.Provider>
   )

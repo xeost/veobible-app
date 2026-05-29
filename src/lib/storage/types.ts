@@ -12,6 +12,7 @@ export interface Bookmark {
   verseEnd: number
   selectedText: string
   title?: string          // Optional user-defined label for identification
+  note?: string           // Optional multi-line personal note
   folderId?: string       // Optional reference to a BookmarkFolder id
   createdAt: string       // ISO 8601
   // Future sync fields (optional now, required when remote sync is added)

@@ -26,17 +26,25 @@ export function Tooltip({ children, content, className = '', placement = 'bottom
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    
-    const left = rect.left + rect.width / 2
-    let top = 0
 
+    // Estimate tooltip width at ~200px max (whitespace-nowrap, so usually less)
+    const estimatedHalfWidth = 100
+    const viewportW = window.innerWidth
+    const rawLeft = rect.left + rect.width / 2
+    // Clamp so tooltip box never overflows left or right edge (8px margin)
+    const clampedLeft = Math.min(
+      Math.max(rawLeft, estimatedHalfWidth + 8),
+      viewportW - estimatedHalfWidth - 8,
+    )
+
+    let top = 0
     if (placement === 'top') {
       top = rect.top - 8
     } else {
       top = rect.bottom + 8
     }
 
-    setCoords({ top, left })
+    setCoords({ top, left: clampedLeft })
   }, [placement])
 
   useEffect(() => {

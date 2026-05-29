@@ -65,6 +65,9 @@ export const es: Translations = {
   // Bookmarks
   bookmarks: {
     title: 'Marcadores',
+    titleWithNotes: 'Marcadores con Notas',
+    openModal: 'Abrir en vista completa',
+    closeModal: 'Cerrar vista completa',
     empty: 'Aún no hay marcadores',
     emptyDescription: 'Selecciona cualquier texto mientras lees para guardarlo como marcador.',
     addTitle: 'Guardar marcador',
@@ -75,6 +78,13 @@ export const es: Translations = {
     deleteConfirm: '¿Eliminar este marcador?',
     deleteConfirmYes: 'Eliminar',
     deleteConfirmNo: 'Cancelar',
+    // Notes
+    noteLabel: 'Nota',
+    hasNote: 'Contiene una nota',
+    notePlaceholder: 'Escribe una nota sobre este pasaje…',
+    // Search
+    searchPlaceholder: 'Buscar marcadores…',
+    noResults: 'Ningún marcador coincide con tu búsqueda',
     // Folder management
     newFolder: 'Nueva carpeta',
     folderNamePlaceholder: 'Nombre de carpeta…',

@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import type { Bookmark } from '@/lib/storage'
 import { useI18n } from '@/lib/i18n/client'
 import { toast } from '@/components/ui/Toast'
-import { BookmarkTitleModal } from './BookmarkTitleModal'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 // ── Icons ─────────────────────────────────────────────────────────────
@@ -23,9 +22,20 @@ const ExternalLinkIcon = () => (
   </svg>
 )
 const PencilIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
     <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+)
+const CheckIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+const XIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 )
 const ChevronDownIcon = ({ open }: { open: boolean }) => (
@@ -45,6 +55,115 @@ const GripIcon = () => (
     <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
   </svg>
 )
+// Small note indicator icon for collapsed view
+const NoteIndicatorIcon = () => (
+  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.55 }}>
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="8" y1="13" x2="16" y2="13" />
+    <line x1="8" y1="17" x2="12" y2="17" />
+  </svg>
+)
+
+// ── Inline edit field — shared for title (input) and note (textarea) ──
+
+interface InlineEditFieldProps {
+  id: string
+  type: 'input' | 'textarea'
+  value: string
+  placeholder: string
+  maxLength: number
+  onConfirm: (value: string) => void
+  onCancel: () => void
+}
+
+function InlineEditField({ id, type, value: initialValue, placeholder, maxLength, onConfirm, onCancel }: InlineEditFieldProps) {
+  const [value, setValue] = useState(initialValue)
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    // Focus and place cursor at end
+    const el = inputRef.current
+    if (el) {
+      el.focus()
+      const len = el.value.length
+      el.setSelectionRange(len, len)
+    }
+  }, [])
+
+  const sharedStyle: React.CSSProperties = {
+    background: 'var(--bg-page)',
+    border: '1.5px solid var(--brand)',
+    color: 'var(--text-primary)',
+    borderRadius: '8px',
+    outline: 'none',
+    fontSize: '0.75rem',
+    lineHeight: '1.5',
+    padding: '4px 8px',
+    width: '100%',
+    boxSizing: 'border-box',
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && type === 'input') { e.preventDefault(); onConfirm(value.trim()) }
+    if (e.key === 'Escape') onCancel()
+  }
+
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      {type === 'input' ? (
+        <input
+          ref={inputRef as React.RefObject<HTMLInputElement>}
+          id={id}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          style={sharedStyle}
+        />
+      ) : (
+        <textarea
+          ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+          id={id}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          rows={3}
+          style={{ ...sharedStyle, resize: 'none' }}
+        />
+      )}
+      <div className="flex items-center justify-between">
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }}>
+          {value.length}/{maxLength}
+        </span>
+        <div className="flex items-center gap-1">
+          {/* Cancel */}
+          <button
+            onMouseDown={(e) => { e.preventDefault(); onCancel() }}
+            className="btn-icon p-1 rounded-md"
+            aria-label="Cancel"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <XIcon />
+          </button>
+          {/* Confirm */}
+          <button
+            onMouseDown={(e) => { e.preventDefault(); onConfirm(value.trim()) }}
+            className="btn-icon p-1 rounded-md"
+            aria-label="Save"
+            style={{ color: 'var(--brand)' }}
+          >
+            <CheckIcon />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Props ──────────────────────────────────────────────────────────────
 
@@ -53,7 +172,7 @@ interface BookmarkCardProps {
   lang: string
   bookName?: string         // Display name of the book (e.g. "Genesis")
   onRemove: (id: string) => Promise<void>
-  onUpdateTitle: (id: string, title: string) => Promise<void>
+  onUpdate: (id: string, patch: { title?: string; note?: string }) => Promise<void>
   /** Whether the card is currently expanded (controlled externally) */
   isExpanded: boolean
   onToggleExpand: () => void
@@ -68,7 +187,7 @@ export function BookmarkCard({
   lang,
   bookName,
   onRemove,
-  onUpdateTitle,
+  onUpdate,
   isExpanded,
   onToggleExpand,
   draggable,
@@ -76,6 +195,7 @@ export function BookmarkCard({
   const { t } = useI18n()
   const [confirming, setConfirming] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
+  const [editingNote, setEditingNote] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
   const href = `/${lang}/${bookmark.versionSlug}/${bookmark.bookSlug}/${bookmark.chapter}#verse-${bookmark.verseStart}`
@@ -90,6 +210,14 @@ export function BookmarkCard({
     ? bookmark.title
     : bookmark.selectedText.replace(/\s+/g, ' ').trim()
 
+  // Close inline editors when card collapses
+  useEffect(() => {
+    if (!isExpanded) {
+      setEditingTitle(false)
+      setEditingNote(false)
+    }
+  }, [isExpanded])
+
   const handleRemove = async () => {
     try {
       await onRemove(bookmark.id)
@@ -102,171 +230,259 @@ export function BookmarkCard({
   const handleSaveTitle = async (newTitle: string) => {
     setEditingTitle(false)
     try {
-      await onUpdateTitle(bookmark.id, newTitle)
+      await onUpdate(bookmark.id, { title: newTitle || undefined })
     } catch {
       toast('Failed to update title', 'error')
     }
   }
 
+  const handleSaveNote = async (newNote: string) => {
+    setEditingNote(false)
+    try {
+      await onUpdate(bookmark.id, { note: newNote || undefined })
+    } catch {
+      toast('Failed to save note', 'error')
+    }
+  }
+
   return (
-    <>
-      {/* Edit-title modal */}
-      <BookmarkTitleModal
-        initialTitle={editingTitle ? (bookmark.title ?? '') : null}
-        onSave={handleSaveTitle}
-        onCancel={() => setEditingTitle(false)}
-      />
-
-      <div
-        className="bookmark-card"
-        draggable={draggable}
-        onDragStart={draggable ? (e) => {
-          e.dataTransfer.setData('bookmarkId', bookmark.id)
-          // Also encode the book as a custom type — readable via types[] during dragover
-          e.dataTransfer.setData(`application/x-bookmark-book-${bookmark.bookSlug.toLowerCase()}`, '1')
-          e.dataTransfer.effectAllowed = 'move'
-          setIsDragging(true)
-        } : undefined}
-        onDragEnd={draggable ? () => setIsDragging(false) : undefined}
-        style={{ opacity: isDragging ? 0.45 : 1, transition: 'opacity 150ms' }}
-      >
-        {/* Grip handle (shown only when draggable) */}
-        {draggable && (
-          <div
-            className="absolute left-0 top-0 bottom-0 flex items-center px-1.5 cursor-grab active:cursor-grabbing"
-            style={{ color: 'var(--border-strong)' }}
-          >
-            <GripIcon />
-          </div>
-        )}
-
-        {/* ── COLLAPSED VIEW — 2 lines ─────────────────────────────── */}
-
-        {/* Line 1: verse ref · go-to link · expand toggle */}
-        <div className="flex items-center gap-1.5">
-          <span
-            className="flex-1 text-xs font-semibold tabular-nums"
-            style={{ color: 'var(--brand)' }}
-          >
-            {verseRef}
-          </span>
-
-          {/* Go-to link (always visible) */}
-          <Tooltip content={t.bookmarks.goTo}>
-            <Link
-              href={href}
-              className="btn-icon p-0.5 flex-shrink-0"
-              aria-label={t.bookmarks.goTo}
-              style={{ color: 'var(--text-muted)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLinkIcon />
-            </Link>
-          </Tooltip>
-
-          {/* Expand / collapse toggle */}
-          <button
-            onClick={onToggleExpand}
-            className="btn-icon p-0.5 flex-shrink-0"
-            aria-label={isExpanded ? 'Collapse' : 'Expand'}
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <ChevronDownIcon open={isExpanded} />
-          </button>
+    <div
+      className="bookmark-card"
+      draggable={draggable}
+      onDragStart={draggable ? (e) => {
+        e.dataTransfer.setData('bookmarkId', bookmark.id)
+        // Also encode the book as a custom type — readable via types[] during dragover
+        e.dataTransfer.setData(`application/x-bookmark-book-${bookmark.bookSlug.toLowerCase()}`, '1')
+        e.dataTransfer.effectAllowed = 'move'
+        setIsDragging(true)
+      } : undefined}
+      onDragEnd={draggable ? () => setIsDragging(false) : undefined}
+      style={{ opacity: isDragging ? 0.45 : 1, transition: 'opacity 150ms' }}
+    >
+      {/* Grip handle (shown only when draggable) */}
+      {draggable && (
+        <div
+          className="absolute left-0 top-0 bottom-0 flex items-center px-1.5 cursor-grab active:cursor-grabbing"
+          style={{ color: 'var(--border-strong)' }}
+        >
+          <GripIcon />
         </div>
+      )}
 
-        {/* Line 2: title or first words — always one line, truncated */}
-        <Tooltip content={summaryLabel} className="block w-full">
-          <div
-            className="text-xs truncate mt-0.5 w-full text-left"
-            style={{ color: bookmark.title ? 'var(--text-primary)' : 'var(--text-muted)' }}
+      {/* ── COLLAPSED VIEW ───────────────────────────────────────── */}
+
+      {/* Line 1: verse ref · go-to link · expand toggle */}
+      <div className="flex items-center gap-1.5">
+        <span
+          className="flex-1 text-xs font-semibold tabular-nums"
+          style={{ color: 'var(--brand)' }}
+        >
+          {verseRef}
+        </span>
+
+        {/* Go-to link (always visible) */}
+        <Tooltip content={t.bookmarks.goTo}>
+          <Link
+            href={href}
+            className="btn-icon p-0.5 flex-shrink-0"
+            aria-label={t.bookmarks.goTo}
+            style={{ color: 'var(--text-muted)' }}
+            onClick={(e) => e.stopPropagation()}
           >
-            {bookmark.title
-              ? bookmark.title
-              : <span className="italic">{summaryLabel}</span>
-            }
-          </div>
+            <ExternalLinkIcon />
+          </Link>
         </Tooltip>
 
-        {/* ── EXPANDED DETAILS (shown only when expanded) ───────────── */}
-        {isExpanded && (
-          <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+        {/* Expand / collapse toggle */}
+        <button
+          onClick={onToggleExpand}
+          className="btn-icon p-0.5 flex-shrink-0"
+          aria-label={isExpanded ? 'Collapse' : 'Expand'}
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <ChevronDownIcon open={isExpanded} />
+        </button>
+      </div>
 
-            {/* User-defined title with edit button */}
-            <div className="flex items-start gap-1 mb-2">
-              {bookmark.title ? (
-                <p className="flex-1 text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+      {/* Line 2: title or first words — always one line, truncated */}
+      <div
+        className="text-xs truncate mt-0.5 w-full text-left"
+        style={{ color: bookmark.title ? 'var(--text-primary)' : 'var(--text-muted)' }}
+      >
+        {bookmark.title
+          ? bookmark.title
+          : <span className="italic">{summaryLabel}</span>
+        }
+      </div>
+
+      {/* Note indicator — icon + label when a note exists, collapsed view only */}
+      {!isExpanded && bookmark.note && (
+        <div
+          className="flex items-center gap-1 mt-1 self-start"
+          style={{ color: 'var(--brand)', opacity: 0.65 }}
+          aria-label={t.bookmarks.hasNote}
+        >
+          <NoteIndicatorIcon />
+          <span className="text-xs" style={{ fontSize: '0.65rem' }}>
+            {t.bookmarks.hasNote}
+          </span>
+        </div>
+      )}
+
+      {/* ── EXPANDED DETAILS ─────────────────────────────────────── */}
+      {isExpanded && (
+        <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+
+          {/* ── Title field ──────────────────────────────────────── */}
+          <div className="mb-3">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-medium flex-1" style={{ color: 'var(--text-secondary)' }}>
+                {t.reader.bookmarkTitleLabel}
+              </span>
+              {!editingTitle && (
+                <Tooltip content={t.bookmarks.editTitle}>
+                  <button
+                    onClick={() => { setEditingNote(false); setEditingTitle(true) }}
+                    className="btn-icon p-0.5 flex-shrink-0"
+                    aria-label={t.bookmarks.editTitle}
+                    id={`bookmark-edit-title-${bookmark.id}`}
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <PencilIcon />
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+
+            {editingTitle ? (
+              <InlineEditField
+                id={`bookmark-title-inline-${bookmark.id}`}
+                type="input"
+                value={bookmark.title ?? ''}
+                placeholder={t.reader.bookmarkTitlePlaceholder}
+                maxLength={80}
+                onConfirm={handleSaveTitle}
+                onCancel={() => setEditingTitle(false)}
+              />
+            ) : (
+              bookmark.title ? (
+                <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
                   {bookmark.title}
                 </p>
               ) : (
-                <p className="flex-1 text-xs italic" style={{ color: 'var(--text-muted)' }}>
+                <p
+                  className="text-xs italic cursor-pointer"
+                  style={{ color: 'var(--text-muted)' }}
+                  onClick={() => { setEditingNote(false); setEditingTitle(true) }}
+                >
                   {t.bookmarks.titleHint}…
                 </p>
-              )}
-              <Tooltip content={t.bookmarks.editTitle}>
-                <button
-                  onClick={() => setEditingTitle(true)}
-                  className="btn-icon p-1 flex-shrink-0"
-                  aria-label={t.bookmarks.editTitle}
-                  style={{ color: 'var(--text-muted)' }}
-                  id={`bookmark-edit-title-${bookmark.id}`}
-                >
-                  <PencilIcon />
-                </button>
-              </Tooltip>
-            </div>
-
-            {/* Selected text */}
-            <blockquote
-              className="text-sm italic leading-relaxed mb-3 border-l-2 pl-3"
-              style={{
-                color: 'var(--text-primary)',
-                borderColor: 'var(--brand)',
-                fontFamily: 'var(--font-lora), Georgia, serif',
-              }}
-            >
-              &ldquo;{bookmark.selectedText.length > 180
-                ? bookmark.selectedText.slice(0, 180) + '…'
-                : bookmark.selectedText}&rdquo;
-            </blockquote>
-
-            {/* Date + actions row */}
-            {!confirming ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{date}</span>
-                <button
-                  onClick={() => setConfirming(true)}
-                  className="ml-auto btn-icon p-1"
-                  aria-label={t.bookmarks.delete}
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  <TrashIcon />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 animate-fade-in">
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {t.bookmarks.deleteConfirm}
-                </span>
-                <button
-                  onClick={handleRemove}
-                  className="text-xs font-semibold px-2 py-0.5 rounded-md"
-                  style={{ background: '#ef4444', color: 'white' }}
-                >
-                  {t.bookmarks.deleteConfirmYes}
-                </button>
-                <button
-                  onClick={() => setConfirming(false)}
-                  className="text-xs font-medium"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {t.bookmarks.deleteConfirmNo}
-                </button>
-              </div>
+              )
             )}
           </div>
-        )}
-      </div>
-    </>
+
+          {/* Selected text */}
+          <blockquote
+            className="text-sm italic leading-relaxed mb-3 border-l-2 pl-3"
+            style={{
+              color: 'var(--text-primary)',
+              borderColor: 'var(--brand)',
+              fontFamily: 'var(--font-lora), Georgia, serif',
+            }}
+          >
+            &ldquo;{bookmark.selectedText.length > 180
+              ? bookmark.selectedText.slice(0, 180) + '…'
+              : bookmark.selectedText}&rdquo;
+          </blockquote>
+
+          {/* ── Note field ───────────────────────────────────────── */}
+          <div className="mb-3">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-medium flex-1" style={{ color: 'var(--text-secondary)' }}>
+                {t.bookmarks.noteLabel}
+              </span>
+              {!editingNote && (
+                <Tooltip content={t.bookmarks.editTitle}>
+                  <button
+                    onClick={() => { setEditingTitle(false); setEditingNote(true) }}
+                    className="btn-icon p-0.5 flex-shrink-0"
+                    aria-label={t.bookmarks.noteLabel}
+                    id={`bookmark-edit-note-${bookmark.id}`}
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <PencilIcon />
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+
+            {editingNote ? (
+              <InlineEditField
+                id={`bookmark-note-inline-${bookmark.id}`}
+                type="textarea"
+                value={bookmark.note ?? ''}
+                placeholder={t.bookmarks.notePlaceholder}
+                maxLength={1000}
+                onConfirm={handleSaveNote}
+                onCancel={() => setEditingNote(false)}
+              />
+            ) : (
+              bookmark.note ? (
+                <p
+                  className="text-xs leading-relaxed whitespace-pre-wrap cursor-pointer"
+                  style={{ color: 'var(--text-primary)' }}
+                  onClick={() => { setEditingTitle(false); setEditingNote(true) }}
+                >
+                  {bookmark.note}
+                </p>
+              ) : (
+                <p
+                  className="text-xs italic cursor-pointer"
+                  style={{ color: 'var(--text-muted)' }}
+                  onClick={() => { setEditingTitle(false); setEditingNote(true) }}
+                >
+                  {t.bookmarks.notePlaceholder}
+                </p>
+              )
+            )}
+          </div>
+
+          {/* Date + actions row */}
+          {!confirming ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{date}</span>
+              <button
+                onClick={() => setConfirming(true)}
+                className="ml-auto btn-icon p-1"
+                aria-label={t.bookmarks.delete}
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <TrashIcon />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 animate-fade-in">
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {t.bookmarks.deleteConfirm}
+              </span>
+              <button
+                onClick={handleRemove}
+                className="text-xs font-semibold px-2 py-0.5 rounded-md"
+                style={{ background: '#ef4444', color: 'white' }}
+              >
+                {t.bookmarks.deleteConfirmYes}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="text-xs font-medium"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                {t.bookmarks.deleteConfirmNo}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

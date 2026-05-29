@@ -335,7 +335,7 @@ function FolderRow({ folder, bookmarks, lang, bookName, onDrop, removeBookmark, 
                 lang={lang}
                 bookName={bookName}
                 onRemove={removeBookmark}
-                onUpdateTitle={async (id, title) => { await updateBookmark(id, { title: title || undefined }) }}
+                onUpdate={async (id, patch) => { await updateBookmark(id, patch) }}
                 isExpanded={expandedIds.has(bm.id)}
                 onToggleExpand={() => onToggleCard(bm.id)}
                 draggable
@@ -509,7 +509,7 @@ export function BookmarkGroupByBook({
             lang={lang}
             bookName={bookName(bookSlug)}
             onRemove={removeBookmark}
-            onUpdateTitle={async (id, title) => { await updateBookmark(id, { title: title || undefined }) }}
+            onUpdate={async (id, patch) => { await updateBookmark(id, patch) }}
             isExpanded={expandedIds.has(bm.id)}
             onToggleExpand={() => toggleCard(bm.id)}
             draggable
