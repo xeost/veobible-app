@@ -202,9 +202,31 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
               background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)',
               backdropFilter: 'blur(12px)',
               boxShadow: 'var(--shadow-sm)',
+              containerType: 'inline-size',
             }}
           >
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-5 sm:gap-6">
+            <style>{`
+              .youtube-card-layout {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1.25rem;
+                width: 100%;
+              }
+              .youtube-card-btn {
+                width: 100%;
+              }
+              @container (min-width: 480px) {
+                .youtube-card-layout {
+                  flex-direction: row;
+                  justify-content: space-between;
+                }
+                .youtube-card-btn {
+                  width: auto !important;
+                }
+              }
+            `}</style>
+            <div className="youtube-card-layout">
               <div className="flex items-center gap-4 flex-1 w-full">
                 {/* YouTube red-to-rose glowing icon container */}
                 <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-red-500/10 dark:bg-red-500/15 flex items-center justify-center border border-red-500/20 dark:border-red-500/30 text-red-600 dark:text-red-500 shadow-inner group-hover:scale-105 group-hover:border-red-500/40 transition-all duration-300">
@@ -225,7 +247,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
                 href={videoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold text-xs shadow-md shadow-red-500/10 hover:shadow-red-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                className="youtube-card-btn inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold text-xs shadow-md shadow-red-500/10 hover:shadow-red-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
               >
                 {t.reader.watchYoutube}
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5">
