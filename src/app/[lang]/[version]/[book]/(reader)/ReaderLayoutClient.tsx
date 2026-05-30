@@ -112,6 +112,10 @@ export function ReaderLayoutClient({
     updateFolder,
     removeFolder,
     moveBookmarkToFolder,
+    // Current reading position — used by the ribbon bar
+    currentBookSlug,
+    currentChapter,
+    currentBookName: books.find((b) => b.slug === currentBookSlug)?.name,
   }
 
   const sidebarProps = {

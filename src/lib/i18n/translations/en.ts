@@ -94,6 +94,19 @@ export const en = {
     dragToUnfolder: 'Drag here to remove from folder',
   },
 
+  // Reading ribbon (manual separator)
+  ribbon: {
+    label: 'Reading ribbon',
+    set: 'Place ribbon here',
+    update: 'Update ribbon',
+    go: 'Go to ribbon',
+    clear: 'Remove ribbon',
+    at: 'Chapter',
+    none: 'No ribbon set',
+    setConfirm: 'Ribbon placed',
+    clearConfirm: 'Ribbon removed',
+  },
+
   // Theme
   theme: {
     label: 'Theme',
@@ -187,6 +200,7 @@ export interface Translations {
   reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string; typography: string; resetTypography: string; fontFamily: string; lineHeight: string; lineHeight_tight: string; lineHeight_normal: string; lineHeight_relaxed: string; lineHeight_loose: string; typographyPreview: string; prevFont: string; nextFont: string; fontCategory_serif: string; fontCategory_sans: string; fontCategory_script: string; contentWidth: string; contentWidth_full: string; contentWidth_normal: string; contentWidth_thin: string; contentWidth_veryThin: string }
   testament: { old: string; new: string }
   bookmarks: { title: string; titleWithNotes: string; openModal: string; closeModal: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; noteLabel: string; hasNote: string; editNote: string; notePlaceholder: string; searchPlaceholder: string; noResults: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
+  ribbon: { label: string; set: string; update: string; go: string; clear: string; at: string; none: string; setConfirm: string; clearConfirm: string }
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
   version: { label: string; switch: string; chaptersTooltip: (count: number) => string }

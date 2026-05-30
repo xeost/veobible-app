@@ -3,6 +3,7 @@ import type {
   Bookmark,
   BookmarkFolder,
   ReadingPosition,
+  RibbonPosition,
   StorageRepository,
   UserPreferences,
 } from './types'
@@ -13,6 +14,7 @@ const KEYS = {
   bookmarks: `${PREFIX}bookmarks`,
   bookmarkFolders: `${PREFIX}bookmark_folders`,
   readingPositions: `${PREFIX}reading_positions`,
+  readingRibbons: `${PREFIX}reading_ribbons`,
   preferences: `${PREFIX}preferences`,
 } as const
 
@@ -166,6 +168,28 @@ export class LocalStorageAdapter implements StorageRepository {
       updatedAt: new Date().toISOString(),
     }
     safePut(KEYS.readingPositions, all)
+  }
+
+  // ── Reading Ribbon ───────────────────────────────────────
+
+  async getRibbonPosition(versionSlug: string): Promise<RibbonPosition | null> {
+    const all = safeGet<Record<string, RibbonPosition>>(KEYS.readingRibbons, {})
+    return all[versionSlug] ?? null
+  }
+
+  async setRibbonPosition(position: RibbonPosition): Promise<void> {
+    const all = safeGet<Record<string, RibbonPosition>>(KEYS.readingRibbons, {})
+    all[position.versionSlug] = {
+      ...position,
+      updatedAt: new Date().toISOString(),
+    }
+    safePut(KEYS.readingRibbons, all)
+  }
+
+  async clearRibbonPosition(versionSlug: string): Promise<void> {
+    const all = safeGet<Record<string, RibbonPosition>>(KEYS.readingRibbons, {})
+    delete all[versionSlug]
+    safePut(KEYS.readingRibbons, all)
   }
 
   // ── Preferences ──────────────────────────────────────────────────

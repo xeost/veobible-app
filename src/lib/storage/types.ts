@@ -39,6 +39,18 @@ export interface ReadingPosition {
   updatedAt: string       // ISO 8601
 }
 
+/**
+ * Manual reading ribbon — one per Bible version.
+ * Identical shape to ReadingPosition but semantically distinct:
+ * this is a user-set separator, not the auto-saved scroll position.
+ */
+export interface RibbonPosition {
+  versionSlug: string
+  bookSlug: string
+  chapter: number
+  updatedAt: string       // ISO 8601
+}
+
 export type ReaderFontFamily =
   // Serif — classic book reading
   | 'lora'
@@ -101,6 +113,11 @@ export interface StorageRepository {
   // ── Reading Position (per version) ────────────────────────
   getReadingPosition(versionSlug: string): Promise<ReadingPosition | null>
   setReadingPosition(position: ReadingPosition): Promise<void>
+
+  // ── Reading Ribbon (manual separator, per version) ────────
+  getRibbonPosition(versionSlug: string): Promise<RibbonPosition | null>
+  setRibbonPosition(position: RibbonPosition): Promise<void>
+  clearRibbonPosition(versionSlug: string): Promise<void>
 
   // ── User Preferences ──────────────────────────────────────
   getPreferences(): Promise<UserPreferences>

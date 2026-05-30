@@ -5,6 +5,7 @@ import type { Bookmark, BookmarkFolder } from '@/lib/storage'
 import { BookmarksList } from './BookmarksList'
 import { useI18n } from '@/lib/i18n/client'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { ReadingRibbonBar } from './ReadingRibbonBar'
 
 // ── Icons ─────────────────────────────────────────────────────────────
 
@@ -58,6 +59,12 @@ export interface BookmarksPanelProps {
   variant?: 'compact' | 'full'
   /** Callback to open the modal dialog — shown as an icon button in the header */
   onOpenModal?: () => void
+  /** Current book slug visible in the reader (for the ribbon bar) */
+  currentBookSlug?: string
+  /** Current chapter visible in the reader (for the ribbon bar) */
+  currentChapter?: number
+  /** Display name of the current book (for the ribbon bar) */
+  currentBookName?: string
 }
 
 // ── Helpers — search matching ──────────────────────────────────────────
@@ -100,6 +107,9 @@ export function BookmarksPanel({
   moveBookmarkToFolder,
   variant = 'compact',
   onOpenModal,
+  currentBookSlug,
+  currentChapter,
+  currentBookName,
 }: BookmarksPanelProps) {
   const { t } = useI18n()
   const [query, setQuery] = useState('')
@@ -222,6 +232,15 @@ export function BookmarksPanel({
           <BookmarksList {...listProps} />
         )}
       </div>
+
+      {/* ── Reading ribbon ────────────────────────────────────── */}
+      <ReadingRibbonBar
+        versionSlug={versionSlug}
+        lang={lang}
+        currentBookSlug={currentBookSlug}
+        currentChapter={currentChapter}
+        currentBookName={currentBookName}
+      />
     </div>
   )
 }

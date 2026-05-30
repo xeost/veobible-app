@@ -96,6 +96,19 @@ export const es: Translations = {
     dragToUnfolder: 'Arrastra aquí para sacar de la carpeta',
   },
 
+  // Separador de lectura
+  ribbon: {
+    label: 'Separador de lectura',
+    set: 'Poner separador aquí',
+    update: 'Actualizar separador',
+    go: 'Ir al separador',
+    clear: 'Quitar separador',
+    at: 'Capítulo',
+    none: 'Sin separador establecido',
+    setConfirm: 'Separador establecido',
+    clearConfirm: 'Separador quitado',
+  },
+
   // Theme
   theme: {
     label: 'Tema',
