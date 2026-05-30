@@ -70,6 +70,8 @@ export interface ReadingRibbonBarProps {
   currentChapter?: number
   /** Display name of the current book (e.g. "Genesis") */
   currentBookName?: string
+  /** 'compact' = sidebar, 'full' = modal — controls single-row vs stacked layout */
+  variant?: 'compact' | 'full'
 }
 
 // ── Component ─────────────────────────────────────────────────────────
@@ -80,6 +82,7 @@ export function ReadingRibbonBar({
   currentBookSlug,
   currentChapter,
   currentBookName,
+  variant = 'compact',
 }: ReadingRibbonBarProps) {
   const { t } = useI18n()
   const { ribbon, loading, setRibbon, clearRibbon } = useReadingRibbon(versionSlug)
@@ -145,67 +148,112 @@ export function ReadingRibbonBar({
               border: '1.5px solid var(--brand)',
             }}
           >
-            {/* Location row */}
-            <div className="flex items-center gap-2 mb-2">
-              <span style={{ color: 'var(--brand)', flexShrink: 0 }}>
-                <RibbonIcon />
-              </span>
-              <span
-                className="flex-1 text-xs font-semibold truncate"
-                style={{ color: 'var(--brand)' }}
-              >
-                {currentBookName && ribbon.bookSlug === currentBookSlug
-                  ? `${currentBookName} ${ribbon.chapter}`
-                  : `${ribbon.bookSlug.replace(/-/g, ' ')} ${ribbon.chapter}`}
-              </span>
-            </div>
-
-            {/* Actions row */}
             {!confirmingClear ? (
-              <div className="flex items-center gap-1.5">
-                {/* Go to ribbon */}
-                {ribbonHref && (
-                  <Tooltip content={t.ribbon.go} placement="top">
-                    <Link
-                      href={ribbonHref}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold flex-1 justify-center transition-all duration-150"
-                      style={{
-                        background: 'var(--brand)',
-                        color: 'white',
-                      }}
-                    >
-                      <GoIcon />
-                      {t.ribbon.go}
-                    </Link>
-                  </Tooltip>
-                )}
-
-                {/* Update ribbon — only when we know the current position */}
-                {canSet && (
-                  <Tooltip content={t.ribbon.update} placement="top">
+              // Single row in full mode; stacked in compact mode
+              variant === 'full' ? (
+                // ── Full (modal): everything in one row ──────────────
+                <div className="flex items-center gap-2">
+                  <span style={{ color: 'var(--brand)', flexShrink: 0 }}>
+                    <RibbonIcon />
+                  </span>
+                  <span
+                    className="flex-1 text-xs font-semibold truncate"
+                    style={{ color: 'var(--brand)' }}
+                  >
+                    {currentBookName && ribbon.bookSlug === currentBookSlug
+                      ? `${currentBookName} ${ribbon.chapter}`
+                      : `${ribbon.bookSlug.replace(/-/g, ' ')} ${ribbon.chapter}`}
+                  </span>
+                  {/* Actions inline */}
+                  {ribbonHref && (
+                    <Tooltip content={t.ribbon.go} placement="top">
+                      <Link
+                        href={ribbonHref}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold flex-shrink-0 transition-all duration-150"
+                        style={{ background: 'var(--brand)', color: 'white' }}
+                      >
+                        <GoIcon />
+                        {t.ribbon.go}
+                      </Link>
+                    </Tooltip>
+                  )}
+                  {canSet && (
+                    <Tooltip content={t.ribbon.update} placement="top">
+                      <button
+                        onClick={handleSet}
+                        className="btn-icon p-1.5 flex-shrink-0"
+                        aria-label={t.ribbon.update}
+                        style={{ color: 'var(--brand)' }}
+                      >
+                        <RefreshIcon />
+                      </button>
+                    </Tooltip>
+                  )}
+                  <Tooltip content={t.ribbon.clear} placement="top">
                     <button
-                      onClick={handleSet}
+                      onClick={() => setConfirmingClear(true)}
                       className="btn-icon p-1.5 flex-shrink-0"
-                      aria-label={t.ribbon.update}
-                      style={{ color: 'var(--brand)' }}
+                      aria-label={t.ribbon.clear}
+                      style={{ color: 'var(--text-muted)' }}
                     >
-                      <RefreshIcon />
+                      <TrashIcon />
                     </button>
                   </Tooltip>
-                )}
-
-                {/* Remove ribbon */}
-                <Tooltip content={t.ribbon.clear} placement="top">
-                  <button
-                    onClick={() => setConfirmingClear(true)}
-                    className="btn-icon p-1.5 flex-shrink-0"
-                    aria-label={t.ribbon.clear}
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    <TrashIcon />
-                  </button>
-                </Tooltip>
-              </div>
+                </div>
+              ) : (
+                // ── Compact (sidebar): location row + actions row ────
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span style={{ color: 'var(--brand)', flexShrink: 0 }}>
+                      <RibbonIcon />
+                    </span>
+                    <span
+                      className="flex-1 text-xs font-semibold truncate"
+                      style={{ color: 'var(--brand)' }}
+                    >
+                      {currentBookName && ribbon.bookSlug === currentBookSlug
+                        ? `${currentBookName} ${ribbon.chapter}`
+                        : `${ribbon.bookSlug.replace(/-/g, ' ')} ${ribbon.chapter}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {ribbonHref && (
+                      <Tooltip content={t.ribbon.go} placement="top">
+                        <Link
+                          href={ribbonHref}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold flex-1 justify-center transition-all duration-150"
+                          style={{ background: 'var(--brand)', color: 'white' }}
+                        >
+                          <GoIcon />
+                          {t.ribbon.go}
+                        </Link>
+                      </Tooltip>
+                    )}
+                    {canSet && (
+                      <Tooltip content={t.ribbon.update} placement="top">
+                        <button
+                          onClick={handleSet}
+                          className="btn-icon p-1.5 flex-shrink-0"
+                          aria-label={t.ribbon.update}
+                          style={{ color: 'var(--brand)' }}
+                        >
+                          <RefreshIcon />
+                        </button>
+                      </Tooltip>
+                    )}
+                    <Tooltip content={t.ribbon.clear} placement="top">
+                      <button
+                        onClick={() => setConfirmingClear(true)}
+                        className="btn-icon p-1.5 flex-shrink-0"
+                        aria-label={t.ribbon.clear}
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </Tooltip>
+                  </div>
+                </>
+              )
             ) : (
               // Confirm clear
               <div className="flex items-center gap-2 animate-fade-in">

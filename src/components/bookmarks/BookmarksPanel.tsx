@@ -240,6 +240,7 @@ export function BookmarksPanel({
         currentBookSlug={currentBookSlug}
         currentChapter={currentChapter}
         currentBookName={currentBookName}
+        variant={variant}
       />
     </div>
   )
