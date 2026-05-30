@@ -141,6 +141,27 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
         <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
           {t.reader.chapter} {chapterNum}
         </p>
+        {book.video && (
+          <div className="mt-4 flex justify-center">
+            <a
+              href={(() => {
+                const offset = book.chapterOffsets?.[chapterNum - 1] ?? 0;
+                return book.video.includes('?') 
+                  ? `${book.video}&t=${offset}s` 
+                  : `${book.video}?t=${offset}s`;
+              })()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 border bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-sm hover:shadow-red-500/15 hover:scale-[1.03] active:scale-[0.97]"
+              style={{ borderColor: 'transparent' }}
+            >
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.388.511a3.002 3.002 0 0 0-2.11 2.107C0 8.047 0 12 0 12s0 3.953.502 5.837a3.002 3.002 0 0 0 2.11 2.107C4.495 20.455 12 20.455 12 20.455s7.505 0 9.388-.511a3.002 3.002 0 0 0 2.11-2.107C24 15.953 24 12 24 12s0-3.953-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              <span>{t.reader.listen}</span>
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Verses */}

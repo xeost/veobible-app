@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useReadingRibbon } from '@/hooks/useReadingRibbon'
+import { useBibleIndex } from '@/hooks/useBibleIndex'
 import { useI18n } from '@/lib/i18n/client'
 import { toast } from '@/components/ui/Toast'
 import { Tooltip } from '@/components/ui/Tooltip'
@@ -86,6 +87,18 @@ export function ReadingRibbonBar({
 }: ReadingRibbonBarProps) {
   const { t } = useI18n()
   const { ribbon, loading, setRibbon, clearRibbon } = useReadingRibbon(versionSlug)
+  const { books } = useBibleIndex(versionSlug)
+
+  const getBookName = (bookSlug: string) => {
+    if (bookSlug === currentBookSlug && currentBookName) {
+      return currentBookName
+    }
+    const foundBook = books.find((b) => b.slug === bookSlug)
+    if (foundBook) return foundBook.name
+    // Capitalize slug fallback
+    const formatted = bookSlug.replace(/-/g, ' ')
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1)
+  }
   const [confirmingClear, setConfirmingClear] = useState(false)
 
   const canSet = Boolean(currentBookSlug && currentChapter)
@@ -160,9 +173,7 @@ export function ReadingRibbonBar({
                     className="flex-1 text-xs font-semibold truncate"
                     style={{ color: 'var(--brand)' }}
                   >
-                    {currentBookName && ribbon.bookSlug === currentBookSlug
-                      ? `${currentBookName} ${ribbon.chapter}`
-                      : `${ribbon.bookSlug.replace(/-/g, ' ')} ${ribbon.chapter}`}
+                    {`${getBookName(ribbon.bookSlug)} ${ribbon.chapter}`}
                   </span>
                   {/* Actions inline */}
                   {ribbonHref && (
@@ -211,9 +222,7 @@ export function ReadingRibbonBar({
                       className="flex-1 text-xs font-semibold truncate"
                       style={{ color: 'var(--brand)' }}
                     >
-                      {currentBookName && ribbon.bookSlug === currentBookSlug
-                        ? `${currentBookName} ${ribbon.chapter}`
-                        : `${ribbon.bookSlug.replace(/-/g, ' ')} ${ribbon.chapter}`}
+                      {`${getBookName(ribbon.bookSlug)} ${ribbon.chapter}`}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
