@@ -57,6 +57,7 @@ export const es: Translations = {
     listenChapter: 'Escucha este capítulo',
     watchYoutube: 'Escuchar en YouTube',
     listen: 'Escuchar',
+    recommendedTitle: 'Contenido recomendado',
   },
 
   // Books & Testaments

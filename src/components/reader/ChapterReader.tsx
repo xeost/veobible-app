@@ -12,6 +12,9 @@ import type { ChapterData } from '@/lib/bible/types'
 import type { Bookmark } from '@/lib/storage'
 import type { TextSelection } from '@/hooks/useTextSelection'
 import { useI18n } from '@/lib/i18n/client'
+import ExportedImage from 'next-image-export-optimizer'
+import laBibliaEnContexto from '@/data/la-biblia-en-contexto.json'
+import theBibleInContext from '@/data/the-bible-in-context.json'
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -268,6 +271,111 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
           <div className="flex-1" />
         )}
       </div>
+
+      {/* Elegant divider */}
+      <div className="my-16 flex items-center justify-center gap-4 mx-auto animate-fade-in" style={{ maxWidth: 'var(--reader-max-width)' }}>
+        <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-surface-200 dark:via-brand-950/40 to-transparent" />
+        <div className="w-1.5 h-1.5 rounded-full bg-brand/30" />
+        <div className="w-2 h-2 rounded-full bg-brand/40" />
+        <div className="w-1.5 h-1.5 rounded-full bg-brand/30" />
+        <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-surface-200 dark:via-brand-950/40 to-transparent" />
+      </div>
+
+      {/* Recommended content section */}
+      {(() => {
+        const data = lang === 'es' ? laBibliaEnContexto : theBibleInContext;
+        const videos = data.videos;
+        if (!videos || videos.length === 0) return null;
+
+
+        // Deterministic pseudo-random selection of 2 unique videos
+        // (to ensure consistent SSR & CSR rendering, preventing CLS and hydration mismatch)
+        const getDeterministicIndex = (offset = 0) => {
+          let hash = 0;
+          const combinedKey = `${book.slug}-${chapterNum}`;
+          for (let i = 0; i < combinedKey.length; i++) {
+            hash = combinedKey.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          return (Math.abs(hash) + offset) % videos.length;
+        };
+
+        const selectedVideos = [];
+        const index1 = getDeterministicIndex(0);
+        selectedVideos.push(videos[index1]);
+
+        if (videos.length > 1) {
+          const index2 = getDeterministicIndex(1);
+          if (index1 !== index2) {
+            selectedVideos.push(videos[index2]);
+          }
+        }
+
+        if (selectedVideos.length === 0) return null;
+
+        return (
+          <div className="mx-auto mb-16 animate-fade-in w-full max-w-4xl">
+            <h2 className="text-xl font-bold mb-6 font-serif text-center sm:text-left" style={{ color: 'var(--text-primary)' }}>
+              {t.reader.recommendedTitle}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {selectedVideos.map((selectedVideo, idx) => (
+                <a
+                  key={idx}
+                  href={selectedVideo.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-2xl border overflow-hidden transition-all duration-300 group flex flex-col hover:shadow-md h-full cursor-pointer hover:border-brand/40"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)',
+                    backdropFilter: 'blur(12px)',
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  {/* Image thumbnail (strictly 16:9 aspect-video) */}
+                  <div className="relative w-full aspect-video overflow-hidden flex-shrink-0">
+                    <ExportedImage
+                      src={`/images/${data.slug}/${selectedVideo.imageFilename}`}
+                      alt={selectedVideo.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, 384px"
+                      className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                    />
+                    {/* Subtle dark overlay on hover */}
+                    <div className="absolute inset-0 bg-black/0 dark:bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-black/20 transition-colors duration-300" />
+                  </div>
+
+                  {/* Content area below the image */}
+                  <div className="p-5 flex-1 flex flex-col justify-between gap-4">
+                    <div>
+                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-brand-light text-brand dark:bg-brand-950/40 dark:text-brand-300 mb-2">
+                        {data.name}
+                      </span>
+                      <h3 className="text-base font-bold leading-snug group-hover:text-brand transition-colors duration-200 line-clamp-2" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>
+                        {selectedVideo.title}
+                      </h3>
+                      <p className="text-xs mt-2 line-clamp-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                        {selectedVideo.description}
+                      </p>
+                    </div>
+                    <div
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold"
+                      style={{ color: 'var(--brand)' }}
+                    >
+                      <span className="group-hover:underline">{t.reader.watchYoutube}</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5">
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   )
 }
