@@ -64,3 +64,51 @@ Done (dry run):
   Skipped (no match): 1
   Errors            : 0
 ```
+
+---
+
+## `import-youtube-videos.py`
+
+Automatically fetches the latest video uploads from configured YouTube channels via RSS feeds and associates their watch URLs with the corresponding Bible books in their respective `index.json` files.
+
+### Configuration
+
+At the top of the script, you can configure the mapping between local Bible version directories and YouTube channel URLs, as well as the release date threshold and the delay between requests to avoid rate limiting:
+
+```python
+# List of configurations mapping a Bible version directory to its corresponding YouTube channel URL.
+CONFIG = [
+    {
+        "bible_data_path": "public/bible-data/es/rv1909",
+        "youtube_channel": "https://www.youtube.com/@veobible-es"
+    },
+    ...
+]
+
+# Only consider videos published on or after this date (YYYY-MM-DD)
+MIN_PUBLISH_DATE = "2026-05-26"
+
+# Time delay (in seconds) between requests to respect YouTube rate limits
+REQUEST_DELAY_SECONDS = 2
+```
+
+### Requirements
+
+- Python 3 (uses only standard library modules: `urllib`, `xml.etree.ElementTree`, `unicodedata`, etc.)
+- Active internet connection (to fetch channel pages and RSS feeds)
+
+### Usage
+
+Run from the project root (`veobible-app/`):
+
+```bash
+python3 scripts/import-youtube-videos.py
+```
+
+### How it works
+
+1. **Resolves Channel IDs:** Dynamically parses the configured YouTube channel URLs (including handles like `@veobible`) to retrieve their corresponding channel ID (`UC...`).
+2. **Retrieves RSS Feeds:** Requests the official YouTube XML feed for the resolved channel IDs.
+3. **Filters by Date:** Excludes any video published prior to the configured `MIN_PUBLISH_DATE`.
+4. **Matches Book Names:** Extracts the first segment of the video title (splitting by `|`) and performs a normalized comparison (case-insensitive and accent-insensitive) against the book names in the Bible version's `index.json`.
+5. **Updates Metadata:** If a matching book has an empty `"video"` field, it is updated with the video's watch URL. Existing non-empty video URLs are preserved, and any updates are saved back to `index.json`.
