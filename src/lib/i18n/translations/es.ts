@@ -54,6 +54,8 @@ export const es: Translations = {
     contentWidth_normal: 'Normal',
     contentWidth_thin: 'Fino',
     contentWidth_veryThin: 'Muy fino',
+    listenChapter: 'Escucha este capítulo',
+    watchYoutube: 'Escuchar en YouTube',
   },
 
   // Books & Testaments

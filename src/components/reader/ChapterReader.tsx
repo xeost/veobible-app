@@ -159,6 +159,62 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
         ))}
       </div>
 
+      {/* YouTube Video invitation card */}
+      {(() => {
+        const hasVideo = !!book.video;
+        const offset = book.chapterOffsets?.[chapterNum - 1] ?? 0;
+        const videoUrl = book.video
+          ? (book.video.includes('?') ? `${book.video}&t=${offset}s` : `${book.video}?t=${offset}s`)
+          : '';
+
+        if (!hasVideo) return null;
+
+        return (
+          <div
+            className="mx-auto mb-10 p-5 sm:p-6 rounded-2xl border transition-all duration-300 group"
+            style={{
+              maxWidth: 'var(--reader-max-width)',
+              borderColor: 'var(--border)',
+              background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)',
+              backdropFilter: 'blur(12px)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-5 sm:gap-6">
+              <div className="flex items-center gap-4 flex-1 w-full">
+                {/* YouTube red-to-rose glowing icon container */}
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-red-500/10 dark:bg-red-500/15 flex items-center justify-center border border-red-500/20 dark:border-red-500/30 text-red-600 dark:text-red-500 shadow-inner group-hover:scale-105 group-hover:border-red-500/40 transition-all duration-300">
+                  <svg className="w-6 h-6 fill-current transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24">
+                    <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.388.511a3.002 3.002 0 0 0-2.11 2.107C0 8.047 0 12 0 12s0 3.953.502 5.837a3.002 3.002 0 0 0 2.11 2.107C4.495 20.455 12 20.455 12 20.455s7.505 0 9.388-.511a3.002 3.002 0 0 0 2.11-2.107C24 15.953 24 12 24 12s0-3.953-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold tracking-tight" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>
+                    {t.reader.listenChapter}
+                  </h3>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {book.name} {chapterNum} · YouTube Audio Bible
+                  </p>
+                </div>
+              </div>
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold text-xs shadow-md shadow-red-500/10 hover:shadow-red-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+              >
+                {t.reader.watchYoutube}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Chapter navigation */}
       <div className="flex gap-4 mt-12 mx-auto" style={{ maxWidth: 'var(--reader-max-width)' }}>
         {prevChapter ? (

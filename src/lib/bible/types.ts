@@ -20,6 +20,8 @@ export interface BookInfo {
   testament: 'old' | 'new'
   chapters: number
   versesPerChapter: number[]
+  video?: string
+  chapterOffsets?: number[]
 }
 
 export interface BibleIndex {
