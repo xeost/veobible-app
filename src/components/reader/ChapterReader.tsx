@@ -335,11 +335,23 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
         if (selectedVideos.length === 0) return null;
 
         return (
-          <div className="mx-auto mb-16 animate-fade-in w-full max-w-4xl">
+          <div className="mx-auto mb-16 animate-fade-in w-full max-w-4xl" style={{ containerType: 'inline-size' }}>
             <h2 className="text-xl font-bold mb-6 font-serif text-center sm:text-left" style={{ color: 'var(--text-primary)' }}>
               {t.reader.recommendedTitle}
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <style>{`
+              .recommended-grid {
+                display: grid;
+                grid-template-columns: repeat(1, minmax(0, 1fr));
+                gap: 1.5rem;
+              }
+              @container (min-width: 600px) {
+                .recommended-grid {
+                  grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+              }
+            `}</style>
+            <div className="recommended-grid">
               {selectedVideos.map((selectedVideo, idx) => (
                 <a
                   key={idx}
