@@ -216,7 +216,8 @@ export function generateUploadInfo(params: {
 }): void {
   const { infoPath, version, versionMeta, book, bookNumber, bookUrl, chapterDurations = [] } = params;
 
-  const title = buildTitle(book.name, versionMeta.name, version.locale);
+  const versionLabel = version.youtubeLabel || versionMeta.name;
+  const title = buildTitle(book.name, versionLabel, version.locale);
   const description = buildDescription(book, versionMeta, version, bookUrl, chapterDurations);
 
   const content = UPLOAD_INFO_TEMPLATE

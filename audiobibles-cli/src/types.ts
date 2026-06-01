@@ -5,6 +5,8 @@ export interface BibleVersion {
   locale: string;
   label: string;
   shortLabel: string;
+  /** Optional custom label to be used in the generated YouTube video title instead of the index version name */
+  youtubeLabel?: string;
 }
 
 // ─── Bible index (mirrors public/bible-data/<locale>/<id>/index.json) ─────────

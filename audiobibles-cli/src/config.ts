@@ -124,6 +124,9 @@ export const config = {
    * Bible versions managed by this CLI.
    * Each entry maps to a directory under bibleDataDir/<locale>/<id>/index.json
    * and an audio source directory under sources/audios/<id>/.
+   *
+   * Optional properties:
+   * - youtubeLabel: custom version label used in generated YouTube video titles.
    */
   versions: [
     {
@@ -131,12 +134,14 @@ export const config = {
       locale: "es",
       label: "Reina Valera 1909",
       shortLabel: "RV 1909",
+      // youtubeLabel: "RV1909",
     },
     {
       id: "kjv",
       locale: "en",
       label: "King James Version",
       shortLabel: "KJV",
+      youtubeLabel: "KJV",
     },
   ],
 } as const;

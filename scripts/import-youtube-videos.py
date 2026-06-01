@@ -16,6 +16,7 @@ import time
 import urllib.request
 import xml.etree.ElementTree as ET
 import unicodedata
+import datetime
 
 # ==============================================================================
 # Configuration
@@ -116,6 +117,113 @@ def fetch_rss_videos(channel_id):
         print(f"Error fetching/parsing RSS feed for channel ID {channel_id}: {e}", file=sys.stderr)
     return videos
 
+def extract_pub_text(seg):
+    """
+    Extracts the relative publication time text from the segment.
+    """
+    matches = re.findall(r'\"content\"\s*:\s*\"([^\"]+)\"', seg)
+    time_keywords = [
+        'hace', 'ago', 'hour', 'hora', 'day', 'dia', 'día', 'week', 'semana', 'sem',
+        'month', 'mes', 'year', 'año', 'ano', 'yesterday', 'ayer', 'today', 'hoy',
+        'transmitido', 'streamed'
+    ]
+    for m in matches:
+        m_lower = m.lower()
+        if any(kw in m_lower for kw in time_keywords):
+            return m
+    return ""
+
+def parse_relative_date(text):
+    """
+    Parses a relative date string (e.g., 'hace 12 h', '2 days ago') and returns YYYY-MM-DD.
+    """
+    today = datetime.date.today()
+    text = text.lower().strip()
+    text = text.replace("hace", "").replace("ago", "").strip()
+    
+    if text in ("today", "hoy", "just now", "ahora mismo"):
+        return today.isoformat()
+    if text in ("yesterday", "ayer"):
+        return (today - datetime.timedelta(days=1)).isoformat()
+        
+    # Find number in the string
+    match = re.search(r'(\d+)', text)
+    if not match:
+        if any(w in text for w in ["un", "una", "a ", "an "]):
+            val = 1
+        else:
+            return today.isoformat()
+    else:
+        val = int(match.group(1))
+        
+    # Determine unit
+    days = 0
+    if re.search(r'\b(h|hora|horas|hour|hours|hr|hrs)\b', text):
+        days = 0
+    elif re.search(r'\b(d|dia|días|dias|day|days)\b', text):
+        days = val
+    elif re.search(r'\b(sem|semana|semanas|wk|wks|week|weeks)\b', text):
+        days = val * 7
+    elif re.search(r'\b(mes|meses|month|months)\b', text):
+        days = val * 30
+    elif re.search(r'\b(ano|año|años|anos|year|years|yr|yrs)\b', text):
+        days = val * 365
+        
+    calc_date = today - datetime.timedelta(days=days)
+    return calc_date.isoformat()
+
+def fetch_videos_from_channel(channel_url, channel_id=None):
+    """
+    Fetches videos from the YouTube channel HTML page (Videos tab),
+    falling back to RSS feed if that fails.
+    """
+    videos = []
+    
+    # 1. Try HTML videos tab parsing
+    try:
+        videos_url = channel_url.rstrip('/') + '/videos'
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+        }
+        req = urllib.request.Request(videos_url, headers=headers)
+        with urllib.request.urlopen(req) as response:
+            html = response.read().decode('utf-8', errors='ignore')
+            
+        segments = html.split('lockupViewModel')
+        for seg in segments[1:]:
+            vid_match = re.search(r'\"videoId\"\s*:\s*\"([^\"]+)\"', seg)
+            if not vid_match:
+                vid_match = re.search(r'\"contentId\"\s*:\s*\"([^\"]+)\"', seg)
+            title_match = re.search(r'\"title\"\s*:\s*{\s*\"content\"\s*:\s*\"([^\"]+)\"', seg)
+            
+            vid = vid_match.group(1) if vid_match else None
+            title = title_match.group(1) if title_match else None
+            
+            if vid and title:
+                pub_text = extract_pub_text(seg)
+                pub_date = parse_relative_date(pub_text)
+                
+                videos.append({
+                    'title': title,
+                    'url': f"https://www.youtube.com/watch?v={vid}",
+                    'published': pub_date
+                })
+                
+        if videos:
+            print(f"Successfully scraped {len(videos)} videos from channel HTML page.")
+            return videos
+            
+    except Exception as e:
+        print(f"Warning: Failed to fetch/parse videos from HTML page: {e}. Falling back to RSS.", file=sys.stderr)
+        
+    # 2. Fallback to RSS feed if we have channel ID
+    if channel_id:
+        print("Attempting to fetch videos via YouTube RSS feed fallback...")
+        return fetch_rss_videos(channel_id)
+        
+    return []
+
 def match_video_to_book(video_title, book_name):
     """
     Matches a video title to a Bible book name.
@@ -161,18 +269,17 @@ def main():
         print("Resolving channel ID...")
         channel_id = get_channel_id(channel_url)
         if not channel_id:
-            print(f"Error: Could not resolve channel ID for {channel_url}. Skipping version.", file=sys.stderr)
-            print("-" * 60)
-            continue
-        print(f"Resolved Channel ID: {channel_id}")
+            print(f"Warning: Could not resolve channel ID for {channel_url}. Will attempt direct HTML fetching.")
+        else:
+            print(f"Resolved Channel ID: {channel_id}")
         
         # Delay before next request
         time.sleep(REQUEST_DELAY_SECONDS)
         
-        # 2. Fetch latest videos from RSS
-        print("Fetching latest videos from YouTube RSS feed...")
-        videos = fetch_rss_videos(channel_id)
-        print(f"Found {len(videos)} videos in the RSS feed.")
+        # 2. Fetch latest videos from channel (HTML scraper with RSS fallback)
+        print("Fetching latest videos from YouTube...")
+        videos = fetch_videos_from_channel(channel_url, channel_id)
+        print(f"Retrieved {len(videos)} videos.")
         
         if not videos:
             print("No videos retrieved. Skipping version.")
