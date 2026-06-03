@@ -5,11 +5,14 @@ import { useParams } from 'next/navigation'
 import { ReaderHeader } from '@/components/layout/ReaderHeader'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ReaderSettingsPanel } from '@/components/reader/ReaderSettingsPanel'
+import { BibleSearchModal } from '@/components/reader/BibleSearchModal'
 import { BookmarksPanel } from '@/components/bookmarks/BookmarksPanel'
 import { BookmarksModal } from '@/components/bookmarks/BookmarksModal'
 import { Sheet } from '@/components/ui/Sheet'
 import { useI18n } from '@/lib/i18n/client'
 import { useBookmarks } from '@/hooks/useBookmarks'
+import { useReadingRibbon } from '@/hooks/useReadingRibbon'
+import { useOfflineVersion } from '@/hooks/useOfflineVersion'
 import { ReaderContext } from '@/lib/context/ReaderContext'
 import type { BookInfo } from '@/lib/bible/types'
 
@@ -84,6 +87,7 @@ export function ReaderLayoutClient({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [bookmarksOpen, setBookmarksOpen] = useState(false)
   const [bookmarksModalOpen, setBookmarksModalOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // ── Bookmarks ───────────────────────────────────────────────────────────────
   const {
@@ -99,6 +103,20 @@ export function ReaderLayoutClient({
     removeFolder,
     moveBookmarkToFolder,
   } = useBookmarks(version)
+
+  // ── Reading ribbon (for pre-search-navigation placement) ───────────────────
+  const { setRibbon } = useReadingRibbon(version)
+
+  // ── Offline version management ──────────────────────────────────────────────
+  const {
+    status: offlineStatus,
+    progress: offlineProgress,
+    isDownloading: offlineIsDownloading,
+    totalChapters: offlineTotalChapters,
+    downloadVersion,
+    cancelDownload,
+    deleteVersion,
+  } = useOfflineVersion(lang, version, books)
 
   const bookmarksPanelProps = {
     lang,
@@ -144,6 +162,18 @@ export function ReaderLayoutClient({
           isReadingMode={readingMode}
           onToggleReadingMode={handleToggleReadingMode}
           onOpenTypography={handleOpenTypography}
+          isTypographyOpen={typographyOpen}
+          onOpenSearch={() => setSearchOpen(true)}
+          offline={{
+            status: offlineStatus,
+            progress: offlineProgress,
+            isDownloading: offlineIsDownloading,
+            totalChapters: offlineTotalChapters,
+            versionName,
+            onDownload: downloadVersion,
+            onCancel: cancelDownload,
+            onDelete: deleteVersion,
+          }}
         />
 
         {/* Typography settings panel */}
@@ -151,6 +181,19 @@ export function ReaderLayoutClient({
           open={typographyOpen}
           onClose={() => setTypographyOpen(false)}
           anchorRef={typographyAnchorRef}
+        />
+
+        {/* Bible search modal */}
+        <BibleSearchModal
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          lang={lang}
+          version={version}
+          books={books}
+          currentBookId={books.find((b) => b.slug === currentBookSlug)?.id}
+          currentBookSlug={currentBookSlug}
+          currentChapter={currentChapter}
+          onSetRibbon={setRibbon}
         />
 
         {/* ── Desktop: unified 3-column layout ──────────────────────────────── */}

@@ -1,11 +1,12 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useI18n } from '@/lib/i18n/client'
 import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
 import { ThemeToggle } from './ThemeToggle'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { OfflineVersionButton, type OfflineVersionButtonProps } from '@/components/reader/OfflineVersionButton'
 
 
 // Icons
@@ -43,6 +44,12 @@ const TypographyIcon = () => (
     <line x1="12" y1="4" x2="12" y2="20" />
   </svg>
 )
+const SearchIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" />
+    <path d="M21 21l-4.35-4.35" />
+  </svg>
+)
 
 
 interface ReaderHeaderProps {
@@ -53,6 +60,10 @@ interface ReaderHeaderProps {
   isReadingMode: boolean
   onToggleReadingMode: () => void
   onOpenTypography: (anchor: HTMLButtonElement) => void
+  /** Whether the typography panel is currently open — used to suppress its tooltip */
+  isTypographyOpen: boolean
+  onOpenSearch: () => void
+  offline: OfflineVersionButtonProps
 }
 
 export function ReaderHeader({
@@ -63,9 +74,14 @@ export function ReaderHeader({
   isReadingMode,
   onToggleReadingMode,
   onOpenTypography,
+  isTypographyOpen,
+  onOpenSearch,
+  offline,
 }: ReaderHeaderProps) {
   const { t } = useI18n()
   const readingModeLabel = isReadingMode ? t.nav.exitReadingMode : t.nav.readingMode
+  // Track whether the offline dropdown is open so we can suppress its Tooltip
+  const [offlinePanelOpen, setOfflinePanelOpen] = useState(false)
 
   return (
     <header className="app-header app-header-height sticky top-0 z-30">
@@ -107,8 +123,28 @@ export function ReaderHeader({
               </button>
             </Tooltip>
 
+            {/* Bible search — always visible */}
+            <Tooltip content={t.search.open}>
+              <button
+                onClick={onOpenSearch}
+                className="btn-icon flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200"
+                aria-label={t.search.open}
+                id="bible-search-btn"
+              >
+                <SearchIcon />
+              </button>
+            </Tooltip>
+
+            {/* Offline version management */}
+            <Tooltip content={t.offline.open} disabled={offlinePanelOpen}>
+              <OfflineVersionButton
+                {...offline}
+                onOpenChange={setOfflinePanelOpen}
+              />
+            </Tooltip>
+
             {/* Typography settings — only in the reader */}
-            <Tooltip content={t.reader.typography}>
+            <Tooltip content={t.reader.typography} disabled={isTypographyOpen}>
               <button
                 onClick={(e) => onOpenTypography(e.currentTarget as HTMLButtonElement)}
                 className="btn-icon flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200"
@@ -119,6 +155,7 @@ export function ReaderHeader({
               </button>
             </Tooltip>
           </div>
+
         </div>
 
         {/* Right side: Language, Theme, and Bookmarks menu on mobile */}

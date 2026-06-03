@@ -16,6 +16,24 @@ export const es: Translations = {
     exitReadingMode: 'Salir del modo de lectura',
   },
 
+  // Buscador bíblico
+  search: {
+    title: 'Buscar en la Biblia',
+    open: 'Buscar versículos',
+    placeholder: 'Buscar versículos… (mín. 2 caracteres)',
+    close: 'Cerrar búsqueda',
+    hint: 'Escribe al menos 2 caracteres para buscar en todos los versículos de esta versión.',
+    searching: 'Buscando…',
+    stillSearching: 'aún buscando',
+    noResults: 'No se encontraron versículos',
+    noResultsHint: 'Intenta con otra palabra o frase.',
+    results: (hits: number, books: number) =>
+      `${hits} ${hits === 1 ? 'versículo' : 'versículos'} en ${books} ${books === 1 ? 'libro' : 'libros'}`,
+    scopeAll: 'Toda la Biblia',
+    scopeBook: 'Solo este libro',
+    setRibbonBeforeNav: 'Poner separador antes de navegar',
+  },
+
   // Reader
   reader: {
     chapter: 'Capítulo',
@@ -112,6 +130,34 @@ export const es: Translations = {
     setConfirm: 'Separador establecido',
     clearConfirm: 'Separador quitado',
   },
+
+  // Disponibilidad offline
+  offline: {
+    title: 'Disponibilidad offline',
+    open: 'Gestionar disponibilidad offline',
+    // Badges de estado
+    statusChecking: 'Verificando\u2026',
+    statusNotCached: 'No disponible',
+    statusPartial: 'Parcial',
+    statusAvailable: 'Disponible',
+    statusDownloading: 'Descargando\u2026',
+    // Descripciones
+    descNotCached: 'Descarga esta versión para leer y buscar sin conexión a internet. Una vez descargada, las búsquedas también serán mucho más rápidas.',
+    descPartial: 'Descargada parcialmente. Completa la descarga para tener acceso offline completo y búsquedas rápidas.',
+    descAvailable: 'Esta versión está completamente disponible offline. Puedes leer y buscar sin conexión a internet.',
+    descDownloading: 'Descargando todos los capítulos. Ya puedes buscar más rápido mientras se completa.',
+    // Acciones
+    download: 'Descargar para offline',
+    downloadResume: 'Completar descarga',
+    cancel: 'Cancelar descarga',
+    delete: 'Eliminar datos offline',
+    deleteConfirm: '¿Eliminar todos los datos offline de esta versión?',
+    cancelDelete: 'Conservar',
+    // Info
+    chaptersInfo: (total: number) => `${total} ${total === 1 ? 'capítulo' : 'capítulos'} en total`,
+    progress: (done: number, total: number) => `${done}\u202f/\u202f${total} capítulos`,
+  },
+
 
   // Theme
   theme: {

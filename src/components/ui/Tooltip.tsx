@@ -8,9 +8,11 @@ interface TooltipProps {
   content: string
   className?: string
   placement?: 'top' | 'bottom'
+  /** When true the tooltip stays hidden — use when the child has its own open panel */
+  disabled?: boolean
 }
 
-export function Tooltip({ children, content, className = '', placement = 'bottom' }: TooltipProps) {
+export function Tooltip({ children, content, className = '', placement = 'bottom', disabled = false }: TooltipProps) {
   const [visible, setVisible] = useState(false)
   const [coords, setCoords] = useState({ top: 0, left: 0 })
   const [mounted, setMounted] = useState(false)
@@ -85,7 +87,7 @@ export function Tooltip({ children, content, className = '', placement = 'bottom
   }
 
   const handleMouseEnter = () => {
-    if (isTouchRef.current) return
+    if (isTouchRef.current || disabled) return
     updatePosition()
     setVisible(true)
   }
@@ -95,7 +97,7 @@ export function Tooltip({ children, content, className = '', placement = 'bottom
   }
 
   const handleFocus = () => {
-    if (isTouchRef.current) return
+    if (isTouchRef.current || disabled) return
     updatePosition()
     setVisible(true)
   }
@@ -133,8 +135,8 @@ export function Tooltip({ children, content, className = '', placement = 'bottom
           style={{
             top: `${coords.top}px`,
             left: `${coords.left}px`,
-            transform: `translateX(-50%) ${placement === 'top' ? 'translateY(-100%)' : ''} ${visible ? 'scale(1)' : 'scale(0.95)'}`,
-            opacity: visible ? 1 : 0,
+            transform: `translateX(-50%) ${placement === 'top' ? 'translateY(-100%)' : ''} ${visible && !disabled ? 'scale(1)' : 'scale(0.95)'}`,
+            opacity: visible && !disabled ? 1 : 0,
             pointerEvents: 'none',
             background: 'var(--bg-card)',
             color: 'var(--text-primary)',

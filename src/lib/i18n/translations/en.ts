@@ -14,6 +14,24 @@ export const en = {
     exitReadingMode: 'Exit reading mode',
   },
 
+  // Bible search
+  search: {
+    title: 'Search the Bible',
+    open: 'Search verses',
+    placeholder: 'Search verses… (min. 2 characters)',
+    close: 'Close search',
+    hint: 'Type at least 2 characters to search across all verses in this version.',
+    searching: 'Searching…',
+    stillSearching: 'still searching',
+    noResults: 'No verses found',
+    noResultsHint: 'Try a different word or phrase.',
+    results: (hits: number, books: number) =>
+      `${hits} ${hits === 1 ? 'verse' : 'verses'} in ${books} ${books === 1 ? 'book' : 'books'}`,
+    scopeAll: 'Entire Bible',
+    scopeBook: 'This book only',
+    setRibbonBeforeNav: 'Place ribbon before navigating',
+  },
+
   // Reader
   reader: {
     chapter: 'Chapter',
@@ -111,6 +129,33 @@ export const en = {
     clearConfirm: 'Ribbon removed',
   },
 
+  // Offline availability
+  offline: {
+    title: 'Offline availability',
+    open: 'Manage offline availability',
+    // Status badges
+    statusChecking: 'Checking…',
+    statusNotCached: 'Not available',
+    statusPartial: 'Partial',
+    statusAvailable: 'Available',
+    statusDownloading: 'Downloading…',
+    // Descriptions
+    descNotCached: 'Download this Bible version to read and search without an internet connection. Once downloaded, searches will also be much faster.',
+    descPartial: 'Partially downloaded. Complete the download to enable full offline access and fast search.',
+    descAvailable: 'This version is fully available offline. You can read and search without an internet connection.',
+    descDownloading: 'Downloading all chapters. You can already search faster while this completes.',
+    // Actions
+    download: 'Download for offline',
+    downloadResume: 'Complete download',
+    cancel: 'Cancel download',
+    delete: 'Delete offline data',
+    deleteConfirm: 'Delete all offline data for this version?',
+    cancelDelete: 'Keep',
+    // Info
+    chaptersInfo: (total: number) => `${total} ${total === 1 ? 'chapter' : 'chapters'} in total`,
+    progress: (done: number, total: number) => `${done} / ${total} chapters`,
+  },
+
   // Theme
   theme: {
     label: 'Theme',
@@ -201,10 +246,12 @@ export interface Translations {
   appName: string
   appTagline: string
   nav: { home: string; bookmarks: string; settings: string; search: string; tableOfContents: string; readingMode: string; exitReadingMode: string }
+  search: { title: string; open: string; placeholder: string; close: string; hint: string; searching: string; stillSearching: string; noResults: string; noResultsHint: string; results: (hits: number, books: number) => string; scopeAll: string; scopeBook: string; setRibbonBeforeNav: string }
   reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string; typography: string; resetTypography: string; fontFamily: string; lineHeight: string; lineHeight_tight: string; lineHeight_normal: string; lineHeight_relaxed: string; lineHeight_loose: string; typographyPreview: string; prevFont: string; nextFont: string; fontCategory_serif: string; fontCategory_sans: string; fontCategory_script: string; contentWidth: string; contentWidth_full: string; contentWidth_normal: string; contentWidth_thin: string; contentWidth_veryThin: string; listenChapter: string; watchYoutube: string; listen: string; recommendedTitle: string }
   testament: { old: string; new: string }
   bookmarks: { title: string; titleWithNotes: string; openModal: string; closeModal: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; noteLabel: string; hasNote: string; editNote: string; notePlaceholder: string; searchPlaceholder: string; noResults: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
   ribbon: { label: string; set: string; update: string; go: string; clear: string; at: string; none: string; setConfirm: string; clearConfirm: string }
+  offline: { title: string; open: string; statusChecking: string; statusNotCached: string; statusPartial: string; statusAvailable: string; statusDownloading: string; descNotCached: string; descPartial: string; descAvailable: string; descDownloading: string; download: string; downloadResume: string; cancel: string; delete: string; deleteConfirm: string; cancelDelete: string; chaptersInfo: (total: number) => string; progress: (done: number, total: number) => string }
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
   version: { label: string; switch: string; chaptersTooltip: (count: number) => string }
