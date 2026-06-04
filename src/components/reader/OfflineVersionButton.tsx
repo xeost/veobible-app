@@ -234,41 +234,15 @@ export function OfflineVersionButton({
         >
           {/* Panel header */}
           <div
-            className="flex items-center justify-between px-4 py-3"
+            className="flex items-center gap-2 px-4 py-3"
             style={{ borderBottom: '1px solid var(--border)' }}
           >
-            <div className="flex items-center gap-2">
-              <span style={{ color: status === 'available' ? 'var(--brand)' : 'var(--text-muted)' }}>
-                {status === 'available' ? <CloudCheckIcon /> : <CloudDownloadIcon />}
-              </span>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {t.offline.title}
-              </p>
-            </div>
-            {/* Status badge */}
-            <span
-              className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-              style={{
-                background: status === 'available'
-                  ? 'var(--brand-light)'
-                  : isDownloading
-                    ? 'var(--brand-light)'
-                    : 'color-mix(in srgb, var(--border-strong) 60%, transparent)',
-                color: status === 'available' || isDownloading
-                  ? 'var(--brand)'
-                  : 'var(--text-muted)',
-              }}
-            >
-              {status === 'checking'
-                ? t.offline.statusChecking
-                : isDownloading
-                  ? t.offline.statusDownloading
-                  : status === 'available'
-                    ? t.offline.statusAvailable
-                    : status === 'partial'
-                      ? t.offline.statusPartial
-                      : t.offline.statusNotCached}
+            <span style={{ color: status === 'available' ? 'var(--brand)' : 'var(--text-muted)' }}>
+              {status === 'available' ? <CloudCheckIcon /> : <CloudDownloadIcon />}
             </span>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {t.offline.title}
+            </p>
           </div>
 
           {/* Panel body */}
@@ -363,7 +337,7 @@ export function OfflineVersionButton({
                           border: '1px solid color-mix(in srgb, #ef4444 30%, transparent)',
                         }}
                       >
-                        {t.offline.delete}
+                        {t.offline.deleteConfirmBtn}
                       </button>
                     </div>
                   </div>
@@ -396,7 +370,7 @@ export function OfflineVersionButton({
                   }}
                 >
                   <DownloadIcon />
-                  {status === 'partial' ? t.offline.downloadResume : t.offline.download}
+                  {t.offline.download}
                 </button>
               )}
             </div>

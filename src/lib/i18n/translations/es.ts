@@ -147,11 +147,12 @@ export const es: Translations = {
     descAvailable: 'Esta versión está completamente disponible offline. Puedes leer y buscar sin conexión a internet.',
     descDownloading: 'Descargando todos los capítulos. Ya puedes buscar más rápido mientras se completa.',
     // Acciones
-    download: 'Descargar para offline',
-    downloadResume: 'Completar descarga',
+    download: 'Descargar',
+    downloadResume: 'Descargar',
     cancel: 'Cancelar descarga',
     delete: 'Eliminar datos offline',
-    deleteConfirm: '¿Eliminar todos los datos offline de esta versión?',
+    deleteConfirmBtn: 'Eliminar',
+    deleteConfirm: '¿Eliminar los datos offline de esta versión?',
     cancelDelete: 'Conservar',
     // Info
     chaptersInfo: (total: number) => `${total} ${total === 1 ? 'libro' : 'libros'} en la Biblia`,

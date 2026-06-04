@@ -145,10 +145,11 @@ export const en = {
     descAvailable: 'This version is fully available offline. You can read and search without an internet connection.',
     descDownloading: 'Downloading all chapters. You can already search faster while this completes.',
     // Actions
-    download: 'Download for offline',
-    downloadResume: 'Complete download',
+    download: 'Download',
+    downloadResume: 'Download',
     cancel: 'Cancel download',
     delete: 'Delete offline data',
+    deleteConfirmBtn: 'Delete',
     deleteConfirm: 'Delete all offline data for this version?',
     cancelDelete: 'Keep',
     // Info
@@ -251,7 +252,7 @@ export interface Translations {
   testament: { old: string; new: string }
   bookmarks: { title: string; titleWithNotes: string; openModal: string; closeModal: string; empty: string; emptyDescription: string; addTitle: string; editTitle: string; titleHint: string; goTo: string; delete: string; deleteConfirm: string; deleteConfirmYes: string; deleteConfirmNo: string; noteLabel: string; hasNote: string; editNote: string; notePlaceholder: string; searchPlaceholder: string; noResults: string; newFolder: string; folderNamePlaceholder: string; renameFolder: string; deleteFolder: string; deleteFolderConfirm: string; noFolder: string; dragToUnfolder: string }
   ribbon: { label: string; set: string; update: string; go: string; clear: string; at: string; none: string; setConfirm: string; clearConfirm: string }
-  offline: { title: string; open: string; statusChecking: string; statusNotCached: string; statusPartial: string; statusAvailable: string; statusDownloading: string; descNotCached: string; descPartial: string; descAvailable: string; descDownloading: string; download: string; downloadResume: string; cancel: string; delete: string; deleteConfirm: string; cancelDelete: string; chaptersInfo: (total: number) => string; progress: (done: number, total: number) => string }
+  offline: { title: string; open: string; statusChecking: string; statusNotCached: string; statusPartial: string; statusAvailable: string; statusDownloading: string; descNotCached: string; descPartial: string; descAvailable: string; descDownloading: string; download: string; downloadResume: string; cancel: string; delete: string; deleteConfirmBtn: string; deleteConfirm: string; cancelDelete: string; chaptersInfo: (total: number) => string; progress: (done: number, total: number) => string }
   theme: { label: string; light: string; dark: string; system: string }
   language: { label: string; en: string; es: string }
   version: { label: string; switch: string; chaptersTooltip: (count: number) => string }
