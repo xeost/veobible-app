@@ -152,8 +152,8 @@ export const en = {
     deleteConfirm: 'Delete all offline data for this version?',
     cancelDelete: 'Keep',
     // Info
-    chaptersInfo: (total: number) => `${total} ${total === 1 ? 'chapter' : 'chapters'} in total`,
-    progress: (done: number, total: number) => `${done} / ${total} chapters`,
+    chaptersInfo: (total: number) => `${total} ${total === 1 ? 'book' : 'books'} in the Bible`,
+    progress: (done: number, total: number) => `${done} / ${total} books downloaded`,
   },
 
   // Theme

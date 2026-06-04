@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BookInfo } from '@/lib/bible/types'
 import {
-  prefetchChapter,
-  getCachedChapterCount,
+  fetchBook,
+  getCachedBookCount,
   deleteVersionFromCache,
 } from '@/lib/bible/bibleDataCache'
 
@@ -14,7 +14,9 @@ import {
 export type OfflineStatus = 'checking' | 'not-cached' | 'partial' | 'available'
 
 export interface DownloadProgress {
+  /** Books fetched so far (out of 66). */
   done: number
+  /** Total books (usually 66). */
   total: number
 }
 
@@ -31,31 +33,31 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
   const [isDownloading, setIsDownloading] = useState(false)
 
   const abortRef = useRef<AbortController | null>(null)
-  const totalChapters = books.reduce((sum, b) => sum + b.chapters, 0)
+  const totalBooks = books.length // 66
 
   // ── Status check ─────────────────────────────────────────────────────────
 
   const recheckStatus = useCallback(async () => {
-    const count = await getCachedChapterCount(lang, version)
+    const count = await getCachedBookCount(lang, version)
     if (count === 0) setStatus('not-cached')
-    else if (count >= totalChapters) setStatus('available')
+    else if (count >= totalBooks) setStatus('available')
     else setStatus('partial')
-  }, [lang, version, totalChapters])
+  }, [lang, version, totalBooks])
 
   // Check on mount and whenever lang/version/books change
   useEffect(() => {
     let cancelled = false
     setStatus('checking')
-    getCachedChapterCount(lang, version).then((count) => {
+    getCachedBookCount(lang, version).then((count) => {
       if (cancelled) return
       if (count === 0) setStatus('not-cached')
-      else if (count >= totalChapters) setStatus('available')
+      else if (count >= totalBooks) setStatus('available')
       else setStatus('partial')
     })
     return () => {
       cancelled = true
     }
-  }, [lang, version, totalChapters])
+  }, [lang, version, totalBooks])
 
   // ── Download ──────────────────────────────────────────────────────────────
 
@@ -67,33 +69,25 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
 
     setIsDownloading(true)
     setStatus('checking')
-    setProgress({ done: 0, total: totalChapters })
-
-    // Build the full list of (bookId, chapter) tasks in canonical order
-    const tasks: Array<{ bookId: string; chapter: number }> = []
-    for (const book of books) {
-      for (let ch = 1; ch <= book.chapters; ch++) {
-        tasks.push({ bookId: book.id, chapter: ch })
-      }
-    }
+    setProgress({ done: 0, total: totalBooks })
 
     let done = 0
     let failed = 0
-    let taskIdx = 0
+    let bookIdx = 0
 
-    // Worker function — each worker grabs the next task until exhausted
+    // Worker function — each worker grabs the next book until exhausted
     async function worker(): Promise<void> {
-      while (taskIdx < tasks.length) {
+      while (bookIdx < books.length) {
         if (ctrl.signal.aborted) return
-        const task = tasks[taskIdx++]
+        const book = books[bookIdx++]
         try {
-          await prefetchChapter(lang, version, task.bookId, task.chapter, ctrl.signal)
+          await fetchBook(lang, version, book.id, book.chapters, ctrl.signal)
         } catch {
           if (ctrl.signal.aborted) return
           failed++
         }
         done++
-        setProgress({ done, total: totalChapters })
+        setProgress({ done, total: totalBooks })
       }
     }
 
@@ -105,7 +99,7 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
       setStatus(failed === 0 ? 'available' : 'partial')
       setProgress(null)
     }
-  }, [lang, version, books, totalChapters, isDownloading])
+  }, [lang, version, books, totalBooks, isDownloading])
 
   // ── Cancel ────────────────────────────────────────────────────────────────
 
@@ -136,7 +130,7 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
     status,
     progress,
     isDownloading,
-    totalChapters,
+    totalChapters: totalBooks, // keep prop name for UI compatibility
     downloadVersion,
     cancelDownload,
     deleteVersion,

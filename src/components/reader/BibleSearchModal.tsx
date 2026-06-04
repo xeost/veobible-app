@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/client'
-import { fetchChapter } from '@/lib/bible/bibleDataCache'
+import { fetchBook } from '@/lib/bible/bibleDataCache'
 import type { BookInfo } from '@/lib/bible/types'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -117,16 +117,19 @@ async function runSearch({
       if (signal.aborted) return
       const bookHits: VerseHit[] = []
 
+      // Fetch all chapters for this book in a single request (per-book JSON)
+      let bookData: Record<number, Array<{ verse: number; text: string }>> = {}
+      try {
+        bookData = await fetchBook(lang, version, book.id, book.chapters, signal)
+      } catch {
+        if (signal.aborted) return
+        continue // skip unreadable book
+      }
+
       for (let ch = 1; ch <= book.chapters; ch++) {
         if (signal.aborted) return
 
-        let verses: Array<{ verse: number; text: string }> = []
-        try {
-          verses = await fetchChapter(lang, version, book.id, ch, signal)
-        } catch {
-          if (signal.aborted) return
-          continue
-        }
+        const verses = bookData[ch] ?? []
 
         for (const v of verses) {
           if (v.text.toLowerCase().includes(normalizedQuery)) {

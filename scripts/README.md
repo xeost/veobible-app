@@ -4,6 +4,115 @@ Utility scripts for the veobible-app project.
 
 ---
 
+## `generate-book-json.py`
+
+Generates one JSON file per Bible **book** by merging the existing per-chapter
+JSON files that live inside a Bible version directory.
+
+### Why this exists
+
+The app stores Bible content as individual chapter files
+(`/bible-data/{lang}/{version}/{book}/{chapter}.json`).  This is ideal for
+SSG page rendering (each chapter page only loads what it needs), but it means
+the in-browser **search** and **offline download** features have to make up to
+1,189 separate network requests to cover the whole Bible.
+
+By generating one file per book (`genesis.json`, `exodus.json`, …), the same
+operations require only **66 requests** — an ~18× reduction.  The per-chapter
+files are left intact, so SSG pages continue to work without modification.
+
+### Output format
+
+Each per-book file is a compact JSON object whose keys are chapter numbers
+(as strings) and whose values are the verse arrays from the original chapter
+files:
+
+```json
+{
+  "1": [{"verse": 1, "text": "In the beginning..."}, ...],
+  "2": [{"verse": 1, "text": "..."}, ...],
+  ...
+}
+```
+
+Files are written to the **root** of the version directory, alongside
+`index.json`:
+
+```text
+public/bible-data/es/rv1909/
+  index.json
+  genesis.json          ← generated (all 50 chapters merged)
+  exodus.json           ← generated
+  ...
+  genesis/              ← untouched
+    1.json
+    2.json
+    ...
+```
+
+### Requirements
+
+- Python 3.8+ (no external dependencies — uses only the standard library)
+
+### Usage
+
+Run from the project root (`veobible-app/`):
+
+```bash
+# Generate per-book files for the Spanish RV1909 version:
+python3 scripts/generate-book-json.py public/bible-data/es/rv1909
+
+# Generate for the English KJV version:
+python3 scripts/generate-book-json.py public/bible-data/en/kjv
+
+# Preview what would be generated without writing any files:
+python3 scripts/generate-book-json.py public/bible-data/es/rv1909 --dry-run
+
+# Overwrite existing files (useful after updating chapter JSONs):
+python3 scripts/generate-book-json.py public/bible-data/es/rv1909 --force
+
+# Write human-readable JSON (useful for debugging, larger files):
+python3 scripts/generate-book-json.py public/bible-data/es/rv1909 --pretty
+```
+
+### Options
+
+| Flag | Description |
+| ------ | ------------- |
+| `--dry-run` | Print what would be written without creating any files |
+| `--force` | Overwrite existing per-book JSON files (default: skip) |
+| `--pretty` | Write indented JSON (human-readable but ~15% larger) |
+
+### Exit codes
+
+| Code | Meaning |
+| ------ | --------- |
+| `0` | All books processed successfully |
+| `1` | Fatal error (version directory not found, malformed `index.json`) |
+| `2` | One or more chapter files were missing or unreadable (partial success) |
+
+### Output example
+
+```text
+Generating per-book JSON files for: /path/to/public/bible-data/es/rv1909
+
+  [ok]      genesis.json      (50 chapters, 243.2 KB)
+  [ok]      exodus.json       (40 chapters, 202.1 KB)
+  [ok]      leviticus.json    (27 chapters, 165.8 KB)
+  ...
+  [ok]      revelation.json   (22 chapters, 72.1 KB)
+
+Done.
+```
+
+### When to re-run
+
+Re-run the script (with `--force`) whenever the per-chapter JSON source files
+are updated. The generated per-book files are checked in to the repository so
+they are served as static assets — no build step required.
+
+---
+
 ## `normalize-audio-filenames.py`
 
 Recursively traverses a directory and renames `.mp3` files that don't follow the canonical naming format, stripping any extra suffix added by audio optimization tools.

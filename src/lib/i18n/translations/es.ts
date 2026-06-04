@@ -154,8 +154,8 @@ export const es: Translations = {
     deleteConfirm: '¿Eliminar todos los datos offline de esta versión?',
     cancelDelete: 'Conservar',
     // Info
-    chaptersInfo: (total: number) => `${total} ${total === 1 ? 'capítulo' : 'capítulos'} en total`,
-    progress: (done: number, total: number) => `${done}\u202f/\u202f${total} capítulos`,
+    chaptersInfo: (total: number) => `${total} ${total === 1 ? 'libro' : 'libros'} en la Biblia`,
+    progress: (done: number, total: number) => `${done} / ${total} libros descargados`,
   },
 
 
