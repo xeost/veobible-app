@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const defaultRuntimeCaching = require('next-pwa/cache')
+
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
@@ -15,6 +17,13 @@ const withPWA = require('next-pwa')({
   // that users should opt into explicitly via the offline download button.
   // The runtimeCaching rule below ensures they are still cached on first access.
   publicExcludes: ['!bible-data/**'],
+  additionalManifestEntries: [
+    { url: '/', revision: '1' },
+    { url: '/es', revision: '1' },
+    { url: '/en', revision: '1' },
+    { url: '/es/rv1909', revision: '1' },
+    { url: '/en/kjv', revision: '1' },
+  ],
   runtimeCaching: [
     {
       // Bible chapter and book JSON files — cache on first access (CacheFirst).
@@ -36,6 +45,7 @@ const withPWA = require('next-pwa')({
         },
       },
     },
+    ...defaultRuntimeCaching,
   ],
 })
 

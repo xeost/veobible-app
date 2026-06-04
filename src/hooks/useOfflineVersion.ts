@@ -82,6 +82,13 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
         const book = books[bookIdx++]
         try {
           await fetchBook(lang, version, book.id, book.chapters, ctrl.signal)
+          
+          // Pre-cache chapter 1 HTML and Next.js payload (.txt) for offline entry
+          const ch1Url = `/${lang}/${version}/${book.slug}/1`
+          await Promise.all([
+            fetch(ch1Url, { signal: ctrl.signal }).catch(() => {}),
+            fetch(`${ch1Url}.txt`, { signal: ctrl.signal }).catch(() => {}),
+          ])
         } catch {
           if (ctrl.signal.aborted) return
           failed++
