@@ -331,7 +331,7 @@
         13
       ],
       "description": "Narrates the Israelites' forty-year journey through the wilderness, highlighting their rebellions and God's faithfulness.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=fZ0P7xniX8M",
       "chapterOffsets": [
         0,
         510,
@@ -547,7 +547,29 @@
       ],
       "description": "Records the cycle of apostasy, oppression, repentance, and deliverance of Israel during the era of the judges.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        383,
+        639,
+        967,
+        1267,
+        1582,
+        2062,
+        2429,
+        2836,
+        3503,
+        3683,
+        4137,
+        4301,
+        4584,
+        4832,
+        5070,
+        5474,
+        5611,
+        5973,
+        6361,
+        6888
+      ]
     },
     {
       "id": "ruth",

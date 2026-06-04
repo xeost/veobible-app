@@ -331,7 +331,7 @@
         13
       ],
       "description": "Narra la travesía de los israelitas por el desierto durante cuarenta años, destacando sus rebeliones y la fidelidad de Dios.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=l-j-7uoqs68",
       "chapterOffsets": [
         0,
         439,
@@ -547,7 +547,29 @@
       ],
       "description": "Registra el ciclo de apostasía, opresión, arrepentimiento y liberación de Israel durante la época de los jueces.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        327,
+        550,
+        844,
+        1093,
+        1372,
+        1781,
+        2093,
+        2424,
+        2961,
+        3127,
+        3517,
+        3665,
+        3905,
+        4125,
+        4330,
+        4699,
+        4825,
+        5158,
+        5496,
+        5973
+      ]
     },
     {
       "id": "ruth",
