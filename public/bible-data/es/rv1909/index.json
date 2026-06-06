@@ -415,7 +415,7 @@
         12
       ],
       "description": "La repetición de la Ley por Moisés antes de que Israel entre a la Tierra Prometida, llamando a la obediencia y al amor a Dios.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=vzH41UFxoiQ",
       "chapterOffsets": [
         0,
         409,
@@ -586,7 +586,12 @@
       ],
       "description": "Una historia de amor, lealtad y redención, que muestra la providencia de Dios a través de la vida de una mujer moabita que se convierte en antepasada de David.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        217,
+        449,
+        612
+      ]
     },
     {
       "id": "1-samuel",
@@ -630,7 +635,39 @@
       ],
       "description": "Narra la transición de Israel del período de los jueces a la monarquía, incluyendo las vidas de Samuel, Saúl y el joven David.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        256,
+        604,
+        787,
+        1027,
+        1161,
+        1405,
+        1582,
+        1758,
+        2070,
+        2355,
+        2519,
+        2783,
+        3015,
+        3576,
+        3921,
+        4171,
+        4748,
+        5022,
+        5271,
+        5693,
+        5857,
+        6108,
+        6394,
+        6607,
+        7066,
+        7353,
+        7485,
+        7752,
+        7882,
+        8192
+      ]
     },
     {
       "id": "2-samuel",

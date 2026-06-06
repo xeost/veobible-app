@@ -415,7 +415,7 @@
         12
       ],
       "description": "Moses' repetition of the Law before Israel enters the Promised Land, calling for obedience and love for God.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=UtJgwxVoXhY",
       "chapterOffsets": [
         0,
         468,
@@ -586,7 +586,12 @@
       ],
       "description": "A story of love, loyalty, and redemption, showing God's providence through the life of a Moabite woman who becomes an ancestor of David.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        266,
+        558,
+        762
+      ]
     },
     {
       "id": "1-samuel",
@@ -630,7 +635,39 @@
       ],
       "description": "Narrates Israel's transition from the period of the judges to the monarchy, including the lives of Samuel, Saul, and young David.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        311,
+        732,
+        951,
+        1216,
+        1364,
+        1638,
+        1834,
+        2041,
+        2384,
+        2711,
+        2890,
+        3186,
+        3450,
+        4027,
+        4423,
+        4700,
+        5290,
+        5598,
+        5846,
+        6308,
+        6477,
+        6746,
+        7062,
+        7328,
+        7871,
+        8212,
+        8366,
+        8687,
+        8844,
+        9188
+      ]
     },
     {
       "id": "2-samuel",

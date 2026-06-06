@@ -31,17 +31,18 @@ import sys
 
 
 # Matches the canonical format exactly: NN-text-N.mp3
+# The middle segment (text) can start with an optional digit followed by a hyphen (e.g. "1-samuel").
 CANONICAL_RE = re.compile(
-    r'^(\d{2,})-([a-z][a-z0-9-]*[a-z0-9]|[a-z])-(\d+)\.mp3$',
+    r'^(\d{2,})-((?:[1-9]-)?(?:[a-z][a-z0-9-]*[a-z0-9]|[a-z]))-(\d+)\.mp3$',
     re.IGNORECASE,
 )
 
 # Captures a canonical-looking prefix at the start of any filename.
 # The first number must be at least 2 digits (zero-padded).
-# The middle text is letters/hyphens.
+# The middle text can start with an optional digit and hyphen, followed by letters/hyphens/digits.
 # The trailing chapter number has no leading zeros.
 PREFIX_RE = re.compile(
-    r'^(\d{2,})-([a-z][a-z0-9-]*[a-z0-9]|[a-z])-(0*([1-9]\d*))(?=[-.])',
+    r'^(\d{2,})-((?:[1-9]-)?(?:[a-z][a-z0-9-]*[a-z0-9]|[a-z]))-(0*([1-9]\d*))(?=[-.])',
     re.IGNORECASE,
 )
 
