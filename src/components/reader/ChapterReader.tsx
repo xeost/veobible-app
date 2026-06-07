@@ -28,6 +28,19 @@ const ChevronRightIcon = () => (
   </svg>
 )
 
+interface RecommendedVideo {
+  title: string
+  description: string
+  videoUrl: string
+  imageFilename: string
+}
+
+interface RecommendedChannelData {
+  slug: string
+  name: string
+  videos: RecommendedVideo[]
+}
+
 interface ChapterReaderProps {
   data: ChapterData
   lang: string
@@ -308,7 +321,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
 
       {/* Recommended content section */}
       {(() => {
-        const data = lang === 'es' ? laBibliaEnContexto : theBibleInContext;
+        const data = (lang === 'es' ? laBibliaEnContexto : theBibleInContext) as RecommendedChannelData;
         const videos = data.videos;
         if (!videos || videos.length === 0) return null;
 
@@ -324,16 +337,11 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
           return (Math.abs(hash) + offset) % videos.length;
         };
 
-        const selectedVideos = [];
         const index1 = getDeterministicIndex(0);
-        selectedVideos.push(videos[index1]);
-
-        if (videos.length > 1) {
-          const index2 = getDeterministicIndex(1);
-          if (index1 !== index2) {
-            selectedVideos.push(videos[index2]);
-          }
-        }
+        const index2 = videos.length > 1 ? getDeterministicIndex(1) : index1;
+        const selectedVideos = index1 !== index2
+          ? [videos[index1], videos[index2]]
+          : [videos[index1]];
 
         if (selectedVideos.length === 0) return null;
 
