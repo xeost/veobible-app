@@ -14,7 +14,8 @@ import type { TextSelection } from '@/hooks/useTextSelection'
 import { useI18n } from '@/lib/i18n/client'
 import ExportedImage from 'next-image-export-optimizer'
 import laBibliaEnContexto from '@/data/la-biblia-en-contexto.json'
-import theBibleInContext from '@/data/the-bible-in-context.json'
+import theBibleInContext from '@/data/the-bible-in-contexto.json'
+import { isReaderRecommendedContentEnabled } from '@/lib/config/env'
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -294,6 +295,8 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
         )}
       </div>
 
+      {isReaderRecommendedContentEnabled && (
+        <>
       {/* Elegant divider */}
       <div className="my-16 flex items-center justify-center gap-4 mx-auto animate-fade-in" style={{ maxWidth: 'var(--reader-max-width)' }}>
         <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-surface-200 dark:via-brand-950/40 to-transparent" />
@@ -410,6 +413,8 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
           </div>
         );
       })()}
+        </>
+      )}
     </div>
   )
 }

@@ -76,6 +76,16 @@ pnpm dev
 
 Then open [http://localhost:3000](http://localhost:3000).
 
+### Environment variables
+
+Copy [`.env.example`](.env.example) to `.env.local` and adjust as needed:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_READER_RECOMMENDED_CONTENT` | *(disabled)* | Set to `true` to show the **Recommended Content** section below verses in the chapter reader. |
+
+> `NEXT_PUBLIC_*` variables are inlined at build time. Restart the dev server (or rebuild for production) after changing them.
+
 ```bash
 # Production build (generates all 2,386 static pages)
 pnpm build
