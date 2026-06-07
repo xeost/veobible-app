@@ -14,7 +14,7 @@ import type { TextSelection } from '@/hooks/useTextSelection'
 import { useI18n } from '@/lib/i18n/client'
 import ExportedImage from 'next-image-export-optimizer'
 import laBibliaEnContexto from '@/data/la-biblia-en-contexto.json'
-import theBibleInContext from '@/data/the-bible-in-contexto.json'
+import theBibleInContext from '@/data/the-bible-in-context.json'
 import { isReaderRecommendedContentEnabled } from '@/lib/config/env'
 
 const ChevronLeftIcon = () => (
