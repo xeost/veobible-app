@@ -704,7 +704,32 @@
       ],
       "description": "Focuses on the reign of King David, his victories, failures, and the establishment of Jerusalem as the capital of Israel.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        265,
+        607,
+        1040,
+        1199,
+        1446,
+        1712,
+        2059,
+        2257,
+        2428,
+        2665,
+        2970,
+        3338,
+        3754,
+        4162,
+        4585,
+        4857,
+        5218,
+        5639,
+        6181,
+        6511,
+        6807,
+        7187,
+        7574
+      ]
     },
     {
       "id": "1-kings",

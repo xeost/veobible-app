@@ -4,30 +4,5 @@
   "slug": "la-biblia-en-contexto",
   "description": "Un viaje fascinante por el mundo antiguo para comprender el contexto histórico, cultural y geográfico de las Escrituras. Descubre cómo vivían, pensaban y sentían los personajes bíblicos para transformar tu lectura de la Biblia.",
   "youtubeUrl": "https://www.youtube.com/@la-biblia-en-contexto",
-  "videos": [
-    {
-      "title": "Bodas del Primer Siglo: La Espera del Esposo Prometido",
-      "description": "Descubre las antiguas etapas del compromiso y la boda judía. Este fascinante contexto cultural revela los profundos secretos de las diez vírgenes.",
-      "videoUrl": "https://www.youtube.com/watch?v=SGNiYEQYZnk",
-      "imageFilename": "bodas-del-primer-siglo-la-espera-del-esposo-prometido.jpg"
-    },
-    {
-      "title": "Recibir al Forastero: El Sagrado Deber de la Hospitalidad",
-      "description": "Exploramos la hospitalidad en el Medio Oriente antiguo. Conoce por qué lavar los pies y recibir extraños era una cuestión de sagrado honor bíblico.",
-      "videoUrl": "https://www.youtube.com/watch?v=8bIBmnn8xhg",
-      "imageFilename": "recibir-al-forastero-el-sagrado-deber-de-la-hospitalidad.jpg"
-    },
-    {
-      "title": "El Pastor y su Rebaño: El Cuidado de las Ovejas Antiguas",
-      "description": "Sumérgete en la vida del pastoreo antiguo y descubre cómo el cuidado literal de las ovejas ilumina profundamente el Salmo veintitrés y Juan diez.",
-      "videoUrl": "https://www.youtube.com/watch?v=GkTO-g3hIJM",
-      "imageFilename": "el-pastor-y-su-rebano-el-cuidado-de-las-ovejas-antiguas.jpg"
-    },
-    {
-      "title": "Tiempos de Cosecha: Las Estaciones y la Agricultura Bíblica",
-      "description": "Analizamos el ciclo de la agricultura bíblica. Las lluvias tempranas y tardías nos enseñan valiosas lecciones sobre la fe y el juicio de Dios hoy.",
-      "videoUrl": "https://www.youtube.com/watch?v=wUXePUUKvKU",
-      "imageFilename": "tiempos-de-cosecha-las-estaciones-y-la-agricultura-biblica.jpg"
-    }
-  ]
+  "videos": []
 }

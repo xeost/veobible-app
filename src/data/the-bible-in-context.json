@@ -4,30 +4,5 @@
   "slug": "the-bible-in-context",
   "description": "A fascinating journey through the ancient world to understand the historical, cultural and geographical context of the Scriptures. Discover how biblical characters lived, thought and felt to transform your reading of the Bible.",
   "youtubeUrl": "https://www.youtube.com/@the-bible-context",
-  "videos": [
-    {
-      "title": "First Century Weddings: Awaiting the Promised Bridegroom",
-      "description": "Discover the ancient stages of Jewish betrothal and marriage. This highly fascinating cultural context reveals the deep secrets of the ten virgins.",
-      "videoUrl": "https://www.youtube.com/watch?v=p3DPLPkK2I8",
-      "imageFilename": "first-century-weddings-awaiting-the-promised-bridegroom.jpg"
-    },
-    {
-      "title": "Welcoming the Stranger: The Sacred Duty of Hospitality",
-      "description": "We explore hospitality in the ancient Middle East. Discover why washing feet and receiving strangers was a matter of sacred and true biblical honor.",
-      "videoUrl": "https://www.youtube.com/watch?v=gWBMs2P8QT8",
-      "imageFilename": "welcoming-the-stranger-the-sacred-duty-of-hospitality.jpg"
-    },
-    {
-      "title": "The Shepherd and His Flock: Caring for the Ancient Sheep",
-      "description": "Dive deep into the life of ancient shepherding and discover how the literal care of the sheep profoundly illuminates Psalm twenty-three and John ten.",
-      "videoUrl": "https://www.youtube.com/watch?v=UqeATU8KwEM",
-      "imageFilename": "the-shepherd-and-his-flock-caring-for-the-ancient-sheep.jpg"
-    },
-    {
-      "title": "Harvest Times: The Seasons and Ancient Biblical Farming",
-      "description": "We analyze the ancient biblical agricultural cycle. The early and latter rains teach us highly valuable lessons about faith and God's judgment today.",
-      "videoUrl": "https://www.youtube.com/watch?v=RuGGvL6T1nI",
-      "imageFilename": "harvest-times-the-seasons-and-ancient-biblical-farming.jpg"
-    }
-  ]
+  "videos": []
 }
