@@ -159,20 +159,84 @@ The UI uses **CSS custom properties** for all semantic colors, making the theme 
 | `--reader-bg` | `#fafafa` | `#120f1e` |
 
 **Fonts:**
+
 - **Inter** — UI elements, navigation, labels
 - **Lora** (serif) — Bible body text for comfortable long-form reading
 
 ---
 
-## 📱 PWA
+## 📱 PWA & Offline Support
 
-The app is installable from any modern browser. The service worker is generated automatically by [`next-pwa`](https://github.com/shadowwalker/next-pwa) during `pnpm build`. In development, the service worker is disabled to avoid caching issues.
+The app is installable from any modern browser. The service worker is generated automatically by [`next-pwa`](https://github.com/shadowwalker/next-pwa) during `pnpm build`.
+
+### Caching architecture
+
+| Cache | Strategy | Contents |
+|-------|----------|----------|
+| Precache (Workbox) | Instant (no network) | All 2,525 HTML pages, JS chunks, CSS, fonts |
+| `pages` | `StaleWhileRevalidate` | Same-origin navigation requests |
+| `veobible-bible-data` | `CacheFirst` (1 year) | Bible JSON files downloaded for offline reading |
+| `static-js-assets` | `StaleWhileRevalidate` | JS chunks |
+| `static-style-assets` | `StaleWhileRevalidate` | CSS |
+| `google-fonts-webfonts` | `CacheFirst` (1 year) | Font files |
+
+When a page is not found in any cache and there is no network, the SW serves **`/offline`** — a self-contained fallback page that auto-reloads when connectivity is restored.
+
+### ⚠️ The service worker is disabled in development
+
+`next-pwa` sets `disable: true` when `NODE_ENV === 'development'`, so **`pnpm dev` cannot be used to test offline behaviour**. You must build and serve the static export instead.
+
+### Testing offline — step by step
+
+**1. Build and serve the static export**
+
+```bash
+pnpm build
+npx serve out/ -p 3000
+```
+
+**2. Open Chrome and register the service worker**
+
+Open [http://localhost:3000](http://localhost:3000) in Chrome. Wait a few seconds for the SW to install. You can confirm it is active in:
+
+> DevTools → Application → Service Workers → check that `/sw.js` shows **"activated and is running"**
+
+**3. Go offline**
+
+> DevTools → Network tab → throttle dropdown → **Offline**
+
+Or simply disconnect your machine from the internet.
+
+**4. What to verify**
+
+| Test | Expected result |
+| ------ | ---------------- |
+| Navigate to `/en` or `/es` | Homepage loads instantly from cache |
+| Navigate to `/en/kjv/genesis/1` | Chapter loads with full text |
+| Navigate between chapters (Prev / Next) | Instant navigation, no network needed |
+| Navigate to a URL that was never visited | The `/offline` fallback page is shown |
+| Reconnect to the internet | The `/offline` page auto-reloads |
+
+**5. Testing the offline Bible download**
+
+With the network online, open any chapter, then click the **cloud icon** in the reader header to download a version for offline use. After the download completes, go offline and try reading chapters from that version — they will be served from `veobible-bible-data` cache.
+
+**6. Inspecting caches**
+
+> DevTools → Application → Cache Storage
+
+You should see entries for `workbox-precache-*`, `pages`, `veobible-bible-data`, `static-js-assets`, etc.
+
+### Installing as a PWA
+
+After the SW is registered, Chrome/Edge will show an install prompt in the address bar. On mobile, use **Share → Add to Home Screen** (iOS Safari) or the browser menu (Android Chrome). Once installed, the app launches in standalone mode and works fully offline.
 
 ---
 
 ## 🔍 SEO
 
 Every chapter page generates:
+
 - `<title>` — e.g. *Genesis 1 - KJV | VeoBible*
 - `<meta name="description">` — first verse of the chapter
 - Open Graph (`og:title`, `og:description`, `og:url`)

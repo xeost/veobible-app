@@ -156,7 +156,18 @@ export const es: Translations = {
     cancelDelete: 'Conservar',
     // Info
     chaptersInfo: (total: number) => `${total} ${total === 1 ? 'libro' : 'libros'} en la Biblia`,
-    progress: (done: number, total: number) => `${done} / ${total} libros descargados`,
+    progress: (done: number, total: number) => `${done} / ${total} libros descargados`,
+    // Página de fallback offline
+    offlinePage: {
+      title: 'Sin conexión a internet',
+      subtitle: 'Parece que estás sin conexión. Las páginas que ya visitaste siguen disponibles.',
+      goHome: 'Ir al inicio',
+      goBack: 'Volver',
+      tip: 'Consejo: descarga una versión de la Biblia desde el lector para tenerla siempre disponible sin conexión.',
+    },
+    // Reader: versión no disponible offline
+    versionNotAvailable: 'Esta versión no está disponible sin conexión',
+    versionNotAvailableDesc: 'Conéctate a internet o descarga esta versión desde el lector para leerla sin conexión.',
   },
 
 

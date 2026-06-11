@@ -272,6 +272,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Script>
           </>
         )}
+
+        {/*
+          Service Worker registration.
+          next-pwa@5.6.0 has a bug where its auto-generated sw-register.js is
+          not copied into the static export output directory, so the SW never
+          registers. This script is the canonical workaround: register /sw.js
+          manually on every page load. It is intentionally placed here (in the
+          root layout) so it runs on every route without duplicating code.
+        */}
+        <Script id="sw-registration" strategy="afterInteractive">
+          {`
+            if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+              window.addEventListener('load', function () {
+                navigator.serviceWorker
+                  .register('/sw.js')
+                  .catch(function (err) {
+                    console.warn('[SW] Registration failed:', err);
+                  });
+              });
+            }
+          `}
+        </Script>
+
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
