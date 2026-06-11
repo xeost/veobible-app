@@ -1,4 +1,10 @@
 /** @type {import('next').NextConfig} */
+
+// A unique timestamp captured once per build.  Used as the Workbox revision for
+// the app-shell pages in additionalManifestEntries so that Workbox re-fetches
+// them on every new deployment (ensuring users never serve stale HTML offline).
+const BUILD_TIMESTAMP = Date.now().toString()
+
 const withPWA = require('next-pwa')({
   dest: 'public',
   // Disable next-pwa's built-in auto-registration: with output:'export' the
@@ -8,26 +14,47 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   // Cache pages visited via Next.js client-side navigation (Link / router.push).
-  // Without this, navigating between chapters only caches via the runtime rule
-  // but never stores the HTML — so only pages the user opened directly as a
-  // full page load are guaranteed to be offline.
   cacheOnFrontEndNav: true,
-  // Offline fallback: served when a navigation request fails and the page is
-  // not in any cache.  next-pwa will automatically add /offline to the precache.
-  fallbacks: {
-    document: '/offline',
-  },
+
+  // NOTE: We intentionally do NOT use next-pwa's `fallbacks` option here.
+  // That option builds a separate worker bundle via webpack + babel-loader.
+  // On Cloudflare Pages (and other CI environments) this can produce a 0-byte
+  // fallback worker when babel-loader is unavailable, which causes the SW's
+  // precache step to fail, leaving the new SW in the "redundant" state while
+  // the OLD SW (with NetworkFirst and no offline strategy) stays active.
+  //
+  // Instead, we implement the offline fallback via Workbox's `handlerDidError`
+  // plugin directly on the pages runtime-cache rule (see below).
+
   buildExcludes: [
     /app-build-manifest.json$/,
     /pages-manifest.json$/,
     /build-manifest.json$/,
     /react-loadable-manifest.json$/,
   ],
+
   // Exclude all bible-data JSON files from the automatic Workbox pre-cache.
-  // These are static content files (5+ MB per version, many versions/languages)
-  // that users should opt into explicitly via the offline download button.
-  // The runtimeCaching rule below ensures they are still cached on first access.
+  // These are large static files that users opt into via the offline download
+  // button.  The runtimeCaching CacheFirst rule below covers them on demand.
   publicExcludes: ['!bible-data/**'],
+
+  // Explicitly precache the app shell pages so they are always available
+  // offline — even on a user's very first offline visit.  Without this,
+  // StaleWhileRevalidate only caches pages AFTER the user visits them while
+  // online, meaning a first-offline navigation to /en or /es shows the offline
+  // fallback page instead of the actual home page.
+  //
+  // BUILD_TIMESTAMP ensures Workbox treats each deployment as a new revision
+  // and re-fetches these entries, so users never get stale cached HTML.
+  additionalManifestEntries: [
+    { url: '/',       revision: BUILD_TIMESTAMP },
+    { url: '/en',     revision: BUILD_TIMESTAMP },
+    { url: '/es',     revision: BUILD_TIMESTAMP },
+    // /offline must stay in the precache so the handlerDidError plugin below
+    // can always resolve it from cache when all routes and the network fail.
+    { url: '/offline', revision: BUILD_TIMESTAMP },
+  ],
+
   runtimeCaching: [
     {
       // Bible chapter and book JSON files — cache on first access (CacheFirst).
@@ -44,9 +71,7 @@ const withPWA = require('next-pwa')({
           // Keep for 1 year — bible text doesn't change
           maxAgeSeconds: 365 * 24 * 60 * 60,
         },
-        cacheableResponse: {
-          statuses: [0, 200],
-        },
+        cacheableResponse: { statuses: [0, 200] },
       },
     },
     {
@@ -145,10 +170,13 @@ const withPWA = require('next-pwa')({
     },
     {
       // All same-origin navigation requests (HTML pages).
-      // StaleWhileRevalidate serves from cache instantly and revalidates in the
-      // background — this is the key fix for offline support.  The /offline
-      // fallback (configured above) covers the edge case where the page is not
-      // in any cache at all.
+      // StaleWhileRevalidate: serve instantly from cache, refresh in background.
+      //
+      // handlerDidError plugin: when BOTH the cache and the network fail (i.e.
+      // the user is offline and the page was never cached), serve /offline
+      // directly from the Workbox precache.  This replaces next-pwa's `fallbacks`
+      // option which required babel-loader and produced an unreliable separate
+      // worker bundle in production CI environments.
       urlPattern: ({ url }) => {
         if (!(self.origin === url.origin)) return false
         return !url.pathname.startsWith('/api/')
@@ -158,6 +186,18 @@ const withPWA = require('next-pwa')({
         cacheName: 'pages',
         expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
         cacheableResponse: { statuses: [0, 200] },
+        plugins: [
+          {
+            // Called by Workbox when both the cache lookup and the network
+            // fetch have failed.  Return the /offline page from the precache.
+            handlerDidError: async ({ event }) => {
+              if (event.request.destination === 'document') {
+                return caches.match('/offline', { ignoreSearch: true })
+              }
+              return undefined
+            },
+          },
+        ],
       },
     },
     {
