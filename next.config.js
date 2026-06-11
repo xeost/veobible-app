@@ -47,12 +47,27 @@ const withPWA = require('next-pwa')({
   // BUILD_TIMESTAMP ensures Workbox treats each deployment as a new revision
   // and re-fetches these entries, so users never get stale cached HTML.
   additionalManifestEntries: [
-    { url: '/',       revision: BUILD_TIMESTAMP },
-    { url: '/en',     revision: BUILD_TIMESTAMP },
-    { url: '/es',     revision: BUILD_TIMESTAMP },
+    { url: '/',        revision: BUILD_TIMESTAMP },
+    { url: '/en',      revision: BUILD_TIMESTAMP },
+    { url: '/es',      revision: BUILD_TIMESTAMP },
     // /offline must stay in the precache so the handlerDidError plugin below
     // can always resolve it from cache when all routes and the network fail.
     { url: '/offline', revision: BUILD_TIMESTAMP },
+    // App-shell assets that must be available immediately offline.
+    // /logo.png is excluded from the auto-precache by publicExcludes and would
+    // only be in the runtime static-image-assets cache after the first online
+    // visit — without this entry the logo breaks on first offline load.
+    { url: '/logo.png', revision: BUILD_TIMESTAMP },
+    // Favicons and PWA icons — served as Next.js App Router metadata routes
+    // (src/app/favicon.ico, icon.svg, etc.) and therefore absent from the
+    // automatic Workbox precache.  Required so the browser can render them
+    // correctly when the app is installed as a PWA or used offline.
+    { url: '/favicon.ico',              revision: BUILD_TIMESTAMP },
+    { url: '/icon.svg',                 revision: BUILD_TIMESTAMP },
+    { url: '/icon.png',                 revision: BUILD_TIMESTAMP },
+    { url: '/apple-icon.png',           revision: BUILD_TIMESTAMP },
+    { url: '/web-app-manifest-192x192.png', revision: BUILD_TIMESTAMP },
+    { url: '/web-app-manifest-512x512.png', revision: BUILD_TIMESTAMP },
   ],
 
   runtimeCaching: [
