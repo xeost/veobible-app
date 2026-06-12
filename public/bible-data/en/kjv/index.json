@@ -546,7 +546,7 @@
         25
       ],
       "description": "Records the cycle of apostasy, oppression, repentance, and deliverance of Israel during the era of the judges.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=al71mLq2xXk",
       "chapterOffsets": [
         0,
         383,
@@ -585,7 +585,7 @@
         22
       ],
       "description": "A story of love, loyalty, and redemption, showing God's providence through the life of a Moabite woman who becomes an ancestor of David.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=-9B5pxDU9dk",
       "chapterOffsets": [
         0,
         266,
@@ -972,7 +972,44 @@
       ],
       "description": "Follows the history of the kingdom of Judah from Solomon to the Babylonian exile, highlighting the religious reforms of some kings.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        214,
+        470,
+        650,
+        867,
+        1042,
+        1564,
+        1857,
+        2049,
+        2377,
+        2593,
+        2796,
+        2990,
+        3249,
+        3430,
+        3631,
+        3825,
+        4029,
+        4441,
+        4584,
+        5056,
+        5290,
+        5462,
+        5749,
+        6103,
+        6477,
+        6759,
+        6854,
+        7223,
+        7675,
+        8041,
+        8358,
+        8796,
+        9083,
+        9529,
+        9874
+      ]
     },
     {
       "id": "ezra",

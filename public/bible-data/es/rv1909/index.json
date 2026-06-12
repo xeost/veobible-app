@@ -546,7 +546,7 @@
         25
       ],
       "description": "Registra el ciclo de apostasía, opresión, arrepentimiento y liberación de Israel durante la época de los jueces.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=D7UlT0fZtWs",
       "chapterOffsets": [
         0,
         327,
@@ -585,7 +585,7 @@
         22
       ],
       "description": "Una historia de amor, lealtad y redención, que muestra la providencia de Dios a través de la vida de una mujer moabita que se convierte en antepasada de David.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=KTf4k1G0pB0",
       "chapterOffsets": [
         0,
         217,
@@ -1032,7 +1032,18 @@
       ],
       "description": "Narra el regreso de los judíos del exilio en Babilonia y la reconstrucción del templo en Jerusalén bajo el liderazgo de Zorobabel y Esdras.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        126,
+        513,
+        694,
+        952,
+        1146,
+        1403,
+        1674,
+        2016,
+        2233
+      ]
     },
     {
       "id": "nehemiah",
