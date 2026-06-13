@@ -132,15 +132,19 @@ export function printReadinessTable(rows: ReadinessRow[]): void {
     const tick = (v: boolean) => (v ? C.accent("✔") : C.danger("✖"));
     const ready = r.ready ? C.accent.bold("YES") : C.danger.bold("NO");
 
+    const audioText = r.hasAudios
+      ? "✔"
+      : `✖ (ch. ${r.missingChapters.slice(0, 3).join(",")}${r.missingChapters.length > 3 ? "…" : ""} missing)`;
+
     const audioStatus = r.hasAudios
       ? tick(true)
       : tick(false) + C.danger(` (ch. ${r.missingChapters.slice(0, 3).join(",")}${r.missingChapters.length > 3 ? "…" : ""} missing)`);
 
     const colLabel  = C.white(r.label.slice(0, 24).padEnd(26));
-    const colAudio  = audioStatus + " ".repeat(2);
+    const colAudio  = audioStatus + " ".repeat(Math.max(0, 12 - audioText.length));
     const colImage  = tick(r.hasImage) + " ".repeat(9);
 
-    console.log(`  ${colLabel}${colAudio.padEnd(12)}${colImage}${ready}`);
+    console.log(`  ${colLabel}${colAudio}${colImage}${ready}`);
   }
   console.log();
 }

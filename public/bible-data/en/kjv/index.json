@@ -634,7 +634,7 @@
         13
       ],
       "description": "Narrates Israel's transition from the period of the judges to the monarchy, including the lives of Samuel, Saul, and young David.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=SOb7AWSuMII",
       "chapterOffsets": [
         0,
         311,
@@ -1032,7 +1032,18 @@
       ],
       "description": "Narrates the return of the Jews from exile in Babylon and the rebuilding of the temple in Jerusalem under the leadership of Zerubbabel and Ezra.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        143,
+        612,
+        815,
+        1125,
+        1337,
+        1629,
+        1948,
+        2350,
+        2599
+      ]
     },
     {
       "id": "nehemiah",
@@ -1058,7 +1069,21 @@
       ],
       "description": "Describes the rebuilding of the walls of Jerusalem under Nehemiah's direction and the spiritual renewal of the people.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        148,
+        395,
+        743,
+        995,
+        1237,
+        1461,
+        1967,
+        2230,
+        2800,
+        3087,
+        3413,
+        3828
+      ]
     },
     {
       "id": "esther",
@@ -1081,7 +1106,18 @@
       ],
       "description": "The story of a young Jewish woman who becomes queen of Persia and is used by God to save her people from extermination.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        284,
+        595,
+        819,
+        1040,
+        1221,
+        1407,
+        1538,
+        1804,
+        2200
+      ]
     },
     {
       "id": "job",

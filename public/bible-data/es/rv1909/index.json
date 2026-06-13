@@ -634,7 +634,7 @@
         13
       ],
       "description": "Narra la transición de Israel del período de los jueces a la monarquía, incluyendo las vidas de Samuel, Saúl y el joven David.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=hB_jQWGiIO4",
       "chapterOffsets": [
         0,
         256,
@@ -1069,7 +1069,21 @@
       ],
       "description": "Describe la reconstrucción de los muros de Jerusalén bajo la dirección de Nehemías y la renovación espiritual del pueblo.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        134,
+        356,
+        680,
+        907,
+        1118,
+        1308,
+        1757,
+        1997,
+        2465,
+        2938,
+        3242,
+        3628
+      ]
     },
     {
       "id": "esther",
@@ -1092,7 +1106,18 @@
       ],
       "description": "La historia de una joven judía que se convierte en reina de Persia y es usada por Dios para salvar a su pueblo del exterminio.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        251,
+        529,
+        719,
+        894,
+        1045,
+        1202,
+        1325,
+        1548,
+        1905
+      ]
     },
     {
       "id": "job",
@@ -1147,7 +1172,50 @@
       ],
       "description": "Un drama poético que explora el problema del sufrimiento de los justos y la soberanía inescrutable de Dios.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        226,
+        369,
+        515,
+        641,
+        807,
+        978,
+        1111,
+        1240,
+        1434,
+        1565,
+        1688,
+        1844,
+        2005,
+        2145,
+        2339,
+        2473,
+        2569,
+        2681,
+        2845,
+        3011,
+        3197,
+        3361,
+        3452,
+        3613,
+        3647,
+        3724,
+        3854,
+        4006,
+        4141,
+        4318,
+        4531,
+        4675,
+        4852,
+        5063,
+        5149,
+        5338,
+        5488,
+        5709,
+        5866,
+        5996,
+        6175
+      ]
     },
     {
       "id": "psalms",

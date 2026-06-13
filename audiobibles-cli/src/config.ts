@@ -58,7 +58,7 @@ export const config = {
      * Anchor date for book scheduling (YYYY-MM-DD).
      * Book 1 of any version is scheduled starting from this date.
      */
-    baseDate: "2026-05-26",
+    baseDate: "2026-06-05",
 
     /**
      * Weekdays on which videos are scheduled for publication.
@@ -69,13 +69,21 @@ export const config = {
      * - Spanish: "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"
      * - Numbers: 0 (Sunday) to 6 (Saturday)
      */
-    publishDays: ["Wednesday", "Friday", "Sunday"],
+    publishDays: [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday"
+    ],
 
     /**
      * Fixed upload time shown in the YouTube info file.
      * Format: 12-hour clock with AM/PM, e.g. "3:30 PM".
      */
-    scheduledTime: "3:00 PM",
+    scheduledTime: "9:00 AM",
   },
 
   /**

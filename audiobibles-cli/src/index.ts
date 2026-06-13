@@ -10,6 +10,7 @@ import { runStep1 } from "./steps/step1-json.js";
 import { runStep2 } from "./steps/step2-image-prompt.js";
 import { runStep3 } from "./steps/step3-verify.js";
 import { runStep4 } from "./steps/step4-generate.js";
+import { runStep5 } from "./steps/step5-normalize.js";
 
 // ── Menu items ────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ const MENU_ITEMS = [
   { key: "2", label: "Copy Image Prompts (Gemini)",    value: 2 },
   { key: "3", label: "Verify Source Files",            value: 3 },
   { key: "4", label: "Generate Videos (FFmpeg)",       value: 4 },
+  { key: "5", label: "Normalize Audio Filenames",      value: 5 },
   { key: "0", label: "Exit program",                   value: 0 },
 ];
 
@@ -45,7 +47,7 @@ function renderMenu(defaultBook: number, versionLabel: string, selectedIdx: numb
   }
 
   console.log();
-  console.log(C.muted("  ↑↓ navigate  ·  enter select  ·  0–4 shortcut  ·  ⌫ clear screen"));
+  console.log(C.muted("  ↑↓ navigate  ·  enter select  ·  0–5 shortcut  ·  ⌫ clear screen"));
 }
 
 // ── Interactive menu (raw stdin) ──────────────────────────────────────────────
@@ -122,8 +124,8 @@ function showMenu(
         process.exit(0);
       }
 
-      // ── Digit shortcut 0–4: jump to item, flash highlight, then confirm ─
-      if (data[0] >= 0x30 && data[0] <= 0x34) {
+      // ── Digit shortcut 0–5: jump to item, flash highlight, then confirm ─
+      if (data[0] >= 0x30 && data[0] <= 0x35) {
         const value = data[0] - 0x30;
         const idx = MENU_ITEMS.findIndex((i) => i.value === value);
         if (idx !== -1) {
@@ -181,6 +183,7 @@ async function main() {
           case 2: await runStep2(session); break;
           case 3: await runStep3(session); break;
           case 4: await runStep4(session); break;
+          case 5: await runStep5(session); break;
           case 0: exitRequested = true; break;
         }
       } catch (error) {
