@@ -108,7 +108,7 @@ export function useBookmarks(versionSlug?: string) {
   // ── Folders ────────────────────────────────────────────────────────
 
   const addFolder = useCallback(
-    async (data: Omit<BookmarkFolder, 'id' | 'createdAt'>) => {
+    async (data: Omit<BookmarkFolder, 'id' | 'createdAt' | 'updatedAt'>) => {
       const saved = await storage.addFolder(data)
       setFolders((prev) => [...prev, saved].sort((a, b) => a.order - b.order))
       return saved

@@ -15,10 +15,9 @@ export interface Bookmark {
   note?: string           // Optional multi-line personal note
   folderId?: string       // Optional reference to a BookmarkFolder id
   createdAt: string       // ISO 8601
-  // Future sync fields (optional now, required when remote sync is added)
+  updatedAt?: string      // ISO 8601 — set by adapter, used for LWW sync
+  deletedAt?: string      // ISO 8601 — set by server on soft delete
   syncStatus?: 'local' | 'synced' | 'pending' | 'conflict'
-  serverId?: string
-  updatedAt?: string
 }
 
 // Folders group bookmarks within a specific book of a version
@@ -29,6 +28,7 @@ export interface BookmarkFolder {
   name: string
   order: number           // for ordering folders within a book group
   createdAt: string       // ISO 8601
+  updatedAt: string       // ISO 8601 — required for LWW sync
 }
 
 export interface ReadingPosition {
@@ -106,7 +106,7 @@ export interface StorageRepository {
 
   // ── Bookmark Folders ───────────────────────────────────────
   getFoldersByVersion(versionSlug: string): Promise<BookmarkFolder[]>
-  addFolder(data: Omit<BookmarkFolder, 'id' | 'createdAt'>): Promise<BookmarkFolder>
+  addFolder(data: Omit<BookmarkFolder, 'id' | 'createdAt' | 'updatedAt'>): Promise<BookmarkFolder>
   updateFolder(id: string, patch: Partial<Omit<BookmarkFolder, 'id' | 'createdAt'>>): Promise<BookmarkFolder>
   removeFolder(id: string): Promise<void>
 

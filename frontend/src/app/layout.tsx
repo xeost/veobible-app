@@ -28,6 +28,8 @@ import { ThemeProvider } from 'next-themes'
 import { ToastContainer } from '@/components/ui/Toast'
 import { ReaderPreferencesProvider } from '@/hooks/useReaderPreferences'
 import { ThemeColorUpdater } from '@/components/layout/ThemeColorUpdater'
+import { QueryProvider } from '@/lib/query/QueryProvider'
+import { AuthProvider } from '@/lib/auth/AuthContext'
 import '@/styles/globals.css'
 
 const inter = Inter({
@@ -295,18 +297,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
 
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange={false}
-        >
-          <ReaderPreferencesProvider>
-            {children}
-            <ThemeColorUpdater />
-            <ToastContainer />
-          </ReaderPreferencesProvider>
-        </ThemeProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange={false}
+            >
+              <ReaderPreferencesProvider>
+                {children}
+                <ThemeColorUpdater />
+                <ToastContainer />
+              </ReaderPreferencesProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   )

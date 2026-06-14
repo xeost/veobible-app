@@ -118,13 +118,15 @@ export class LocalStorageAdapter implements StorageRepository {
   }
 
   async addFolder(
-    data: Omit<BookmarkFolder, 'id' | 'createdAt'>,
+    data: Omit<BookmarkFolder, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<BookmarkFolder> {
     const all = safeGet<BookmarkFolder[]>(KEYS.bookmarkFolders, [])
+    const now = new Date().toISOString()
     const folder: BookmarkFolder = {
       ...data,
       id: uuidv4(),
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     }
     safePut(KEYS.bookmarkFolders, [...all, folder])
     return folder
@@ -137,7 +139,12 @@ export class LocalStorageAdapter implements StorageRepository {
     const all = safeGet<BookmarkFolder[]>(KEYS.bookmarkFolders, [])
     const idx = all.findIndex((f) => f.id === id)
     if (idx === -1) throw new Error(`Folder ${id} not found`)
-    const updated: BookmarkFolder = { ...all[idx], ...patch, id }
+    const updated: BookmarkFolder = {
+      ...all[idx],
+      ...patch,
+      id,
+      updatedAt: new Date().toISOString(),
+    }
     all[idx] = updated
     safePut(KEYS.bookmarkFolders, all)
     return updated

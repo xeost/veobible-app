@@ -7,6 +7,7 @@ import { LanguageToggle } from './LanguageToggle'
 import { ThemeToggle } from './ThemeToggle'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { OfflineVersionButton, type OfflineVersionButtonProps } from '@/components/reader/OfflineVersionButton'
+import { AuthButton } from '@/components/auth/AuthButton'
 
 
 // Icons
@@ -162,6 +163,7 @@ export function ReaderHeader({
         <div className="flex items-center gap-1.5 md:gap-2 justify-end z-10">
           <LanguageToggle />
           <ThemeToggle />
+          <AuthButton />
 
           {/* Mobile: Bookmarks button — always visible when handler provided */}
           <button

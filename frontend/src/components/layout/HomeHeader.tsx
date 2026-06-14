@@ -4,6 +4,7 @@ import React from 'react'
 import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
 import { ThemeToggle } from './ThemeToggle'
+import { AuthButton } from '@/components/auth/AuthButton'
 
 interface HomeHeaderProps {
   currentLang: string
@@ -16,6 +17,7 @@ export function HomeHeader({ currentLang }: HomeHeaderProps) {
         <Logo currentLang={currentLang} />
         <LanguageToggle />
         <ThemeToggle />
+        <AuthButton />
       </div>
     </header>
   )

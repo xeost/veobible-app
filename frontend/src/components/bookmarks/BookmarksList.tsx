@@ -20,7 +20,7 @@ interface BookmarksListProps {
   loading: boolean
   removeBookmark: (id: string) => Promise<void>
   updateBookmark: (id: string, patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>) => Promise<Bookmark>
-  addFolder: (data: Omit<BookmarkFolder, 'id' | 'createdAt'>) => Promise<BookmarkFolder>
+  addFolder: (data: Omit<BookmarkFolder, 'id' | 'createdAt' | 'updatedAt'>) => Promise<BookmarkFolder>
   updateFolder: (id: string, patch: Partial<Omit<BookmarkFolder, 'id' | 'createdAt'>>) => Promise<BookmarkFolder>
   removeFolder: (id: string) => Promise<void>
   moveBookmarkToFolder: (bookmarkId: string, folderId: string | undefined) => Promise<void>
