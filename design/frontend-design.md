@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-VeoBible is a Progressive Web App (PWA) for reading the Bible. It is statically generated at build time for optimal SEO and deployed to Cloudflare Pages. The app works fully offline for downloaded Bible versions, supports multiple languages and versions, and provides a rich reading experience with bookmarks, typography customization, and reading progress tracking.
+VeoBible is a Progressive Web App (PWA) for reading the Bible. It is statically generated at build time for optimal SEO and deployed to Cloudflare Workers. The app works fully offline for downloaded Bible versions, supports multiple languages and versions, and provides a rich reading experience with bookmarks, typography customization, and reading progress tracking.
 
 **Production URL:** `https://veobible.com`
 
@@ -18,7 +18,7 @@ VeoBible is a Progressive Web App (PWA) for reading the Bible. It is statically 
 | Theme | next-themes (light / dark / system) |
 | Typography | 21 Google Fonts loaded via `next/font` with CSS variable injection |
 | PWA | next-pwa (Workbox service worker) |
-| Hosting | Cloudflare Pages (static assets) |
+| Hosting | Cloudflare Workers (static assets via Wrangler) |
 | Analytics | Google Analytics 4 |
 | State (current) | React hooks (useState, useCallback, useEffect) |
 | State (planned) | TanStack Query for server state, React hooks for UI state |
@@ -469,6 +469,6 @@ All commands run from the `frontend/` directory:
 | `pnpm build` | `next build` + `next-image-export-optimizer` |
 | `pnpm prod-preview` | Build + serve via `wrangler pages dev out` |
 
-**CI/CD**: Push to main → Cloudflare Pages auto-deploys from `frontend/out/` directory.
+**CI/CD**: Push to main → Cloudflare Workers deploys from `frontend/out/` directory via Wrangler.
 
 **Output**: ~2,400 static HTML files + JS bundles + Bible JSON data + SW.

@@ -21,7 +21,7 @@ veobible-app/
 
 ## Frontend
 
-A Next.js 14 PWA with full static export (`output: 'export'`), deployed to **Cloudflare Pages**.
+A Next.js 14 PWA with full static export (`output: 'export'`), deployed to **Cloudflare Workers**.
 
 **Key features:**
 - Multi-version, multi-language Bible reader (English & Spanish)
@@ -33,7 +33,7 @@ A Next.js 14 PWA with full static export (`output: 'export'`), deployed to **Clo
 - Optimistic UI + TanStack Query (planned, for cloud sync)
 - Optional Supabase authentication (planned)
 
-**Stack:** Next.js · TypeScript · Tailwind CSS · next-pwa (Workbox) · Cloudflare Pages
+**Stack:** Next.js · TypeScript · Tailwind CSS · next-pwa (Workbox) · Cloudflare Workers
 
 ```bash
 cd frontend
