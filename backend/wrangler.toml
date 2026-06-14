@@ -1,0 +1,15 @@
+name = "veobible-api"
+main = "src/index.ts"
+compatibility_date = "2024-06-01"
+
+[vars]
+ENVIRONMENT = "production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "veobible-prod"
+database_id = "<replace-with-d1-database-id>"
+
+# Secrets — set via `wrangler secret put <NAME>`:
+#   SUPABASE_JWT_SECRET   — Supabase project JWT secret (Settings > API)
+#   SUPABASE_URL          — Supabase project URL (optional, for admin calls)

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+
+# Wrangler local state and D1 SQLite files
+.wrangler/
+
+# Environment secrets (never commit)
+.env
+.env.local
+.dev.vars
