@@ -29,58 +29,74 @@ VeoBible is a Progressive Web App (PWA) for reading the Bible. It is statically 
 
 ## 3. Project Structure
 
+### Monorepo Layout
+
 ```
-src/
-├── app/                      # Next.js App Router pages
-│   ├── layout.tsx            # Root layout (fonts, theme, SW registration)
-│   ├── page.tsx              # Root redirect → /[lang]
-│   ├── sitemap.ts            # Dynamic sitemap for all chapters
-│   ├── robots.ts             # Robots.txt
-│   ├── offline/page.tsx      # Generic offline fallback page
-│   └── [lang]/
-│       ├── layout.tsx        # I18nProvider per language
-│       ├── page.tsx          # Home page (version cards, verse of the day)
-│       ├── offline-reader/   # Offline reader shell (SW document fallback)
-│       └── [version]/
-│           ├── page.tsx      # Version page (book list)
-│           └── [book]/
-│               └── (reader)/
-│                   ├── layout.tsx          # Server: loads BibleIndex
-│                   ├── ReaderLayoutClient.tsx  # Client: header, sidebars, state
-│                   └── [chapter]/
-│                       ├── page.tsx        # Server: SSG chapter, metadata
-│                       └── ChapterClient.tsx   # Client: renders verses
-├── components/
-│   ├── bookmarks/            # BookmarkCard, BookmarksList, Folders, Modals
-│   ├── layout/               # Headers, Sidebar, Logo, Theme/Language toggles
-│   ├── reader/               # ChapterReader, BibleSearch, Settings, VerseItem
-│   └── ui/                   # Dropdown, Sheet, Toast, Tooltip
-├── hooks/
-│   ├── useBookmarks.ts       # Bookmarks CRUD with optimistic updates
-│   ├── useReadingRibbon.ts   # Manual reading marker per version
-│   ├── useReadingPosition.ts # Auto-saved scroll position (debounced)
-│   ├── useReaderPreferences.tsx  # Typography settings (font, size, width)
-│   ├── useOfflineVersion.ts  # Download/delete Bible versions for offline
-│   ├── useBibleIndex.ts      # Load bible index from cache
-│   ├── useTextSelection.ts   # Verse selection for bookmarking
-│   └── useTouchDrag.ts       # Touch gesture handling
-├── lib/
-│   ├── bible/
-│   │   ├── config.ts         # Bible version registry
-│   │   ├── types.ts          # VersionMetadata, BookInfo, Verse, ChapterData
-│   │   ├── loader.ts         # Server-side data loading (fs.readFileSync)
-│   │   ├── bibleDataCache.ts # Client-side two-level cache (memory + Cache API)
-│   │   └── verses-of-the-day.ts
-│   ├── i18n/                 # Lightweight i18n (en, es)
-│   ├── storage/
-│   │   ├── types.ts          # StorageRepository interface
-│   │   ├── local-adapter.ts  # localStorage implementation
-│   │   └── index.ts          # Adapter factory (singleton)
-│   └── context/
-│       └── ReaderContext.tsx  # Bookmark functions for reader components
-├── data/                     # Static contextual data (Bible overview JSON)
-└── styles/
-    └── globals.css           # CSS custom properties, Tailwind base
+veobible-app/
+├── frontend/    # Next.js PWA (this document)
+├── backend/     # Cloudflare Workers + Hono + D1 (see backend-design.md)
+└── design/      # Design documents
+```
+
+### Frontend (`frontend/`)
+
+```
+frontend/
+├── src/
+│   ├── app/                      # Next.js App Router pages
+│   │   ├── layout.tsx            # Root layout (fonts, theme, SW registration)
+│   │   ├── page.tsx              # Root redirect → /[lang]
+│   │   ├── sitemap.ts            # Dynamic sitemap for all chapters
+│   │   ├── robots.ts             # Robots.txt
+│   │   ├── offline/page.tsx      # Generic offline fallback page
+│   │   └── [lang]/
+│   │       ├── layout.tsx        # I18nProvider per language
+│   │       ├── page.tsx          # Home page (version cards, verse of the day)
+│   │       ├── offline-reader/   # Offline reader shell (SW document fallback)
+│   │       └── [version]/
+│   │           ├── page.tsx      # Version page (book list)
+│   │           └── [book]/
+│   │               └── (reader)/
+│   │                   ├── layout.tsx          # Server: loads BibleIndex
+│   │                   ├── ReaderLayoutClient.tsx  # Client: header, sidebars, state
+│   │                   └── [chapter]/
+│   │                       ├── page.tsx        # Server: SSG chapter, metadata
+│   │                       └── ChapterClient.tsx   # Client: renders verses
+│   ├── components/
+│   │   ├── bookmarks/            # BookmarkCard, BookmarksList, Folders, Modals
+│   │   ├── layout/               # Headers, Sidebar, Logo, Theme/Language toggles
+│   │   ├── reader/               # ChapterReader, BibleSearch, Settings, VerseItem
+│   │   └── ui/                   # Dropdown, Sheet, Toast, Tooltip
+│   ├── hooks/
+│   │   ├── useBookmarks.ts       # Bookmarks CRUD with optimistic updates
+│   │   ├── useReadingRibbon.ts   # Manual reading marker per version
+│   │   ├── useReadingPosition.ts # Auto-saved scroll position (debounced)
+│   │   ├── useReaderPreferences.tsx  # Typography settings (font, size, width)
+│   │   ├── useOfflineVersion.ts  # Download/delete Bible versions for offline
+│   │   ├── useBibleIndex.ts      # Load bible index from cache
+│   │   ├── useTextSelection.ts   # Verse selection for bookmarking
+│   │   └── useTouchDrag.ts       # Touch gesture handling
+│   ├── lib/
+│   │   ├── bible/
+│   │   │   ├── config.ts         # Bible version registry
+│   │   │   ├── types.ts          # VersionMetadata, BookInfo, Verse, ChapterData
+│   │   │   ├── loader.ts         # Server-side data loading (fs.readFileSync)
+│   │   │   ├── bibleDataCache.ts # Client-side two-level cache (memory + Cache API)
+│   │   │   └── verses-of-the-day.ts
+│   │   ├── i18n/                 # Lightweight i18n (en, es)
+│   │   ├── storage/
+│   │   │   ├── types.ts          # StorageRepository interface
+│   │   │   ├── local-adapter.ts  # localStorage implementation
+│   │   │   └── index.ts          # Adapter factory (singleton)
+│   │   └── context/
+│   │       └── ReaderContext.tsx  # Bookmark functions for reader components
+│   ├── data/                     # Static contextual data (Bible overview JSON)
+│   └── styles/
+│       └── globals.css           # CSS custom properties, Tailwind base
+├── public/
+│   └── bible-data/               # Bible JSON data (lang/version/...)
+├── next.config.js
+└── package.json
 ```
 
 ---
@@ -113,7 +129,7 @@ All chapter pages are statically generated at build time via `generateStaticPara
 
 ### 5.1 Bible Content (Static)
 
-Bible data lives in `public/bible-data/[lang]/[version]/`:
+Bible data lives in `frontend/public/bible-data/[lang]/[version]/`:
 
 | File | Content |
 |------|---------|
@@ -240,7 +256,7 @@ Users can download entire Bible versions via `useOfflineVersion`:
 Lightweight custom i18n system (no heavy library):
 
 - **Supported locales**: `en`, `es`
-- **Translation files**: `src/lib/i18n/translations/{en,es}.ts`
+- **Translation files**: `frontend/src/lib/i18n/translations/{en,es}.ts`
 - **Context**: `I18nProvider` wraps `[lang]/layout.tsx`
 - **Client hook**: `useI18n()` → `{ locale, t }`
 - **Server helper**: `getTranslations(locale)`
@@ -445,12 +461,14 @@ RootLayout
 
 ## 12. Build & Deployment
 
+All commands run from the `frontend/` directory:
+
 | Command | Action |
 |---------|--------|
 | `pnpm dev` | Local development server |
 | `pnpm build` | `next build` + `next-image-export-optimizer` |
 | `pnpm prod-preview` | Build + serve via `wrangler pages dev out` |
 
-**CI/CD**: Push to main → Cloudflare Pages auto-deploys from `out/` directory.
+**CI/CD**: Push to main → Cloudflare Pages auto-deploys from `frontend/out/` directory.
 
 **Output**: ~2,400 static HTML files + JS bundles + Bible JSON data + SW.
