@@ -68,6 +68,11 @@ const withPWA = require('next-pwa')({
     { url: '/apple-icon.png',           revision: BUILD_TIMESTAMP },
     { url: '/web-app-manifest-192x192.png', revision: BUILD_TIMESTAMP },
     { url: '/web-app-manifest-512x512.png', revision: BUILD_TIMESTAMP },
+    // Offline reader shell — one per language.  The SW serves these pages
+    // instead of /offline when a chapter URL navigation fails offline,
+    // so the user always sees the reader header and can navigate back home.
+    { url: '/en/offline-reader', revision: BUILD_TIMESTAMP },
+    { url: '/es/offline-reader', revision: BUILD_TIMESTAMP },
   ],
 
   runtimeCaching: [
@@ -207,6 +212,9 @@ const withPWA = require('next-pwa')({
             // fetch have failed.  Return the /offline page from the precache.
             handlerDidError: async ({ event }) => {
               if (event.request.destination === 'document') {
+                if (new URL(event.request.url).pathname.split('/').length >= 5) {
+                  return caches.match('/' + new URL(event.request.url).pathname.split('/')[1] + '/offline-reader', { ignoreSearch: true })
+                }
                 return caches.match('/offline', { ignoreSearch: true })
               }
               return undefined

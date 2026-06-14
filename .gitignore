@@ -18,6 +18,9 @@ public/fallback-*.js
 public/sw.js.map
 public/workbox-*.js.map
 
+# Wrangler local state/cache
+.wrangler/
+
 # Environment variables
 .env
 .env.local

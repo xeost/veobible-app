@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BookInfo } from '@/lib/bible/types'
 import {
   fetchBook,
+  fetchAndCacheIndex,
   getCachedBookCount,
   deleteVersionFromCache,
 } from '@/lib/bible/bibleDataCache'
@@ -70,6 +71,19 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
     setIsDownloading(true)
     setStatus('checking')
     setProgress({ done: 0, total: totalBooks })
+
+    // Cache index.json so the offline reader shell can reconstruct chapter
+    // data without requiring the page HTML to be in the SW pages cache.
+    try {
+      await fetchAndCacheIndex(lang, version, ctrl.signal)
+    } catch {
+      // Non-critical — continue download even if this fails
+    }
+    if (ctrl.signal.aborted) {
+      setIsDownloading(false)
+      setProgress(null)
+      return
+    }
 
     let done = 0
     let failed = 0

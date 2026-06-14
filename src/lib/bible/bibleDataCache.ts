@@ -14,7 +14,7 @@
 // This module has no React dependencies and can be imported by any client module.
 // All browser-API calls are guarded with `typeof` checks so SSR never throws.
 
-import type { Verse } from '@/lib/bible/types'
+import type { Verse, BibleIndex } from '@/lib/bible/types'
 
 const CACHE_NAME = 'veobible-bible-data'
 
@@ -34,6 +34,10 @@ export function chapterUrl(
 
 export function bookUrl(lang: string, version: string, bookId: string): string {
   return `/bible-data/${lang}/${version}/${bookId}.json`
+}
+
+export function indexUrl(lang: string, version: string): string {
+  return `/bible-data/${lang}/${version}/index.json`
 }
 
 // ── Cache API helpers ─────────────────────────────────────────────────────────
@@ -232,6 +236,105 @@ export async function getCachedBookCount(
   } catch {
     return 0
   }
+}
+
+/**
+ * Read the Bible index (index.json) from the Cache API only — no network.
+ * Used by the offline reader shell to map book slugs → book IDs.
+ */
+export async function readIndexFromCache(
+  lang: string,
+  version: string,
+): Promise<BibleIndex | null> {
+  const url = indexUrl(lang, version)
+  const cache = await openCache()
+  if (!cache) return null
+  try {
+    const cached = await cache.match(url)
+    if (!cached) return null
+    return (await cached.json()) as BibleIndex
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Fetch index.json from the network and store it in the Cache API.
+ * Called at the start of the offline download flow so the offline reader
+ * shell can reconstruct chapter data without requiring the page HTML.
+ *
+ * If already cached, returns immediately without any network request.
+ */
+export async function fetchAndCacheIndex(
+  lang: string,
+  version: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const url = indexUrl(lang, version)
+  const cache = await openCache()
+  if (cache) {
+    try {
+      const existing = await cache.match(url)
+      if (existing) return
+    } catch {}
+  }
+  try {
+    const res = await fetch(url, signal ? { signal } : undefined)
+    if (!res.ok) return
+    const data = await res.json()
+    if (cache) {
+      cache
+        .put(
+          url,
+          new Response(JSON.stringify(data), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
+        .catch(() => {})
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
+/**
+ * Read chapter verses from the Cache API only — no network fallback.
+ *
+ * Checks the per-book file first (populated by the offline downloader via
+ * fetchBook), then falls back to the per-chapter file (populated by
+ * individual chapter visits via fetchChapter).
+ *
+ * Used by the offline reader shell to load content for a chapter that
+ * has been downloaded but whose HTML page is not in the SW pages cache.
+ */
+export async function readChapterFromCache(
+  lang: string,
+  version: string,
+  bookId: string,
+  chapterNum: number,
+): Promise<Verse[] | null> {
+  const cache = await openCache()
+  if (!cache) return null
+
+  // 1. Per-book file first (populated by the offline downloader)
+  try {
+    const bUrl = bookUrl(lang, version, bookId)
+    const bookCached = await cache.match(bUrl)
+    if (bookCached) {
+      const data = (await bookCached.json()) as Record<string, Verse[]>
+      const verses = data[String(chapterNum)]
+      if (verses) return verses
+    }
+  } catch {}
+
+  // 2. Per-chapter file (cached on individual chapter visits)
+  try {
+    const cUrl = chapterUrl(lang, version, bookId, chapterNum)
+    const chCached = await cache.match(cUrl)
+    if (chCached) return (await chCached.json()) as Verse[]
+  } catch {}
+
+  return null
 }
 
 /**
