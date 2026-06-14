@@ -6,7 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "type-check": "tsc --noEmit",
-    "db:migrate": "wrangler d1 migrations apply veobible-prod",
+    "db:migrate": "wrangler d1 migrations apply veobible-prod --remote",
     "db:migrate:local": "wrangler d1 migrations apply veobible-prod --local",
     "db:migration:new": "wrangler d1 migrations create veobible-prod"
   },
