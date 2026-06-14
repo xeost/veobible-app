@@ -260,6 +260,22 @@ Every chapter page generates:
 
 ---
 
+## ☁️ Deployment
+
+Deployment is handled automatically via the **native Cloudflare Workers × GitHub integration**. Every push to `main` that includes changes under `frontend/` triggers a new deploy.
+
+### Cloudflare dashboard configuration
+
+Connect the repository at **Cloudflare Dashboard → Workers & Pages → Create → Import a repository**, then set:
+
+| Setting | Value |
+|---------|-------|
+| **Root directory** | `/frontend` |
+| **Build command** | `pnpm run build` |
+| **Deploy command** | `pnpm wrangler deploy` |
+
+---
+
 ## 📄 Bible Version Licensing
 
 | Version | Language | Copyright |

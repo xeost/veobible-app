@@ -410,8 +410,21 @@ database_id = "<d1-database-id>"
 | Command | Action |
 |---------|--------|
 | `wrangler dev` | Local development with D1 |
-| `wrangler d1 execute veobible-prod --file=src/db/schema.sql` | Apply schema |
-| `wrangler deploy` | Deploy to Cloudflare Workers |
+| `wrangler d1 migrations apply veobible-prod --local` | Apply pending migrations locally |
+| `wrangler d1 migrations apply veobible-prod` | Apply pending migrations to production |
+| `wrangler d1 migrations create veobible-prod <name>` | Create a new numbered migration file |
+| `wrangler deploy` | Deploy Worker to Cloudflare |
+
+### Migration workflow
+
+Migration SQL files live in `migrations/` and are numbered sequentially (`0001_initial_schema.sql`, `0002_name.sql`, …). Wrangler tracks applied migrations in a `d1_migrations` table in D1.
+
+Migrations are **not** applied automatically on `wrangler deploy`. The recommended CI/CD order is:
+
+```
+1. wrangler d1 migrations apply veobible-prod   # schema changes first
+2. wrangler deploy                               # then deploy new code
+```
 
 ---
 

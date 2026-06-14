@@ -109,6 +109,38 @@ Conflicts (server version is newer) are returned in the response — the client 
 
 ---
 
+## Database Migrations
+
+Migrations live in `migrations/` as numbered SQL files (`0001_name.sql`, `0002_name.sql`, …). Wrangler tracks which ones have been applied via a `d1_migrations` table in D1.
+
+### Creating a new migration
+
+```bash
+pnpm db:migration:new add_reading_goals
+# creates migrations/0002_add_reading_goals.sql
+```
+
+Edit the generated file with your `ALTER TABLE` / `CREATE TABLE` statements, then apply:
+
+```bash
+pnpm db:migrate:local   # test locally first
+pnpm db:migrate         # apply to production
+```
+
+### Migrations and deployment
+
+Migrations are **not** applied automatically on `wrangler deploy`. Run them as an explicit step before deploying:
+
+```bash
+# In CI/CD pipeline (e.g. GitHub Actions):
+pnpm db:migrate   # 1. apply schema changes
+pnpm deploy       # 2. deploy new Worker code
+```
+
+This separation ensures schema changes are always intentional and auditable.
+
+---
+
 ## Setup
 
 ### Prerequisites
@@ -141,17 +173,14 @@ database_name = "veobible-prod"
 database_id   = "<paste-here>"
 ```
 
-### 3. Apply the database schema
+### 3. Apply database migrations
 
 ```bash
-pnpm db:migrate
+pnpm db:migrate          # apply pending migrations to production
+pnpm db:migrate:local    # apply pending migrations to local dev DB
 ```
 
-For local development only:
-
-```bash
-pnpm db:migrate:local
-```
+D1 tracks applied migrations in a `d1_migrations` table. Only pending (unapplied) migrations are executed on each run.
 
 ### 4. Set secrets
 
@@ -180,19 +209,27 @@ pnpm type-check
 
 ## Deployment
 
-```bash
-pnpm deploy
-```
+Deployment is handled automatically via the **native Cloudflare Workers × GitHub integration**. Every push to `main` that includes changes under `backend/` triggers a new deploy.
 
-Deploys to Cloudflare Workers via Wrangler. The Worker is deployed globally to Cloudflare's edge network.
+### Cloudflare dashboard configuration
 
-### Environment variables
+Connect the repository at **Cloudflare Dashboard → Workers & Pages → Create → Import a repository**, then set:
 
-Secrets are stored in Cloudflare and injected at runtime — never committed to the repository.
+| Setting | Value |
+|---------|-------|
+| **Root directory** | `/backend` |
+| **Build command** | `pnpm install` |
+| **Deploy command** | `pnpm db:migrate && pnpm wrangler deploy` |
+
+The deploy command applies any pending D1 migrations before deploying the new Worker code, ensuring the schema is always updated before the code that depends on it.
+
+### Secrets
+
+Secrets are configured in **Cloudflare Dashboard → Worker → Settings → Variables and Secrets** — never committed to the repository.
 
 | Secret | Description |
 |--------|-------------|
-| `SUPABASE_JWT_SECRET` | Supabase project JWT secret (used to verify tokens) |
+| `SUPABASE_JWT_SECRET` | Supabase project JWT secret (Settings → API → JWT Secret) |
 
 ---
 

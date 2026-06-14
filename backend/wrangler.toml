@@ -8,7 +8,12 @@ ENVIRONMENT = "production"
 [[d1_databases]]
 binding = "DB"
 database_name = "veobible-prod"
-database_id = "<replace-with-d1-database-id>"
+database_id = "0295221a-b6fb-4fad-8848-49598afd5d44"
+migrations_dir = "migrations"
+
+[[routes]]
+pattern = "api.veobible.com"
+custom_domain = true
 
 # Secrets — set via `wrangler secret put <NAME>`:
 #   SUPABASE_JWT_SECRET   — Supabase project JWT secret (Settings > API)

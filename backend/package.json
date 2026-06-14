@@ -6,8 +6,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "type-check": "tsc --noEmit",
-    "db:migrate": "wrangler d1 execute veobible-prod --file=src/db/schema.sql",
-    "db:migrate:local": "wrangler d1 execute veobible-prod --local --file=src/db/schema.sql"
+    "db:migrate": "wrangler d1 migrations apply veobible-prod",
+    "db:migrate:local": "wrangler d1 migrations apply veobible-prod --local",
+    "db:migration:new": "wrangler d1 migrations create veobible-prod"
   },
   "dependencies": {
     "hono": "^4.4.0"
@@ -15,6 +16,6 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240620.0",
     "typescript": "^5.4.5",
-    "wrangler": "^3.60.0"
+    "wrangler": "^4.100.0"
   }
 }
