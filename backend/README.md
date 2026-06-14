@@ -133,7 +133,7 @@ Migrations are **not** applied automatically on `wrangler deploy`. Run them as a
 
 ```bash
 # In CI/CD pipeline (e.g. GitHub Actions):
-pnpm db:migrate   # 1. apply schema changes
+pnpm db:migrate   # 1. apply schema changes (--remote → production D1)
 pnpm deploy       # 2. deploy new Worker code
 ```
 
@@ -176,7 +176,7 @@ database_id   = "<paste-here>"
 ### 3. Apply database migrations
 
 ```bash
-pnpm db:migrate          # apply pending migrations to production
+pnpm db:migrate          # apply pending migrations to production (--remote)
 pnpm db:migrate:local    # apply pending migrations to local dev DB
 ```
 
