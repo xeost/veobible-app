@@ -1,0 +1,1045 @@
+openapi: 3.1.0
+info:
+  title: VeoBible API
+  version: 1.0.0
+  description: |
+    REST API for VeoBible cross-device synchronization.
+    Handles bookmarks, reading positions, ribbons, preferences, and sync.
+    All endpoints require authentication via Supabase JWT.
+  contact:
+    name: VeoBible
+    url: https://veobible.com
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: https://api.veobible.com/v1
+    description: Production
+  - url: http://127.0.0.1:8787/v1
+    description: Local development (wrangler dev)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Health
+    description: API health and connectivity check (unauthenticated)
+  - name: Bookmarks
+    description: Bible verse bookmarks with optional titles, notes, and folder organization
+  - name: Bookmark Folders
+    description: Folders to organize bookmarks within a book
+  - name: Reading
+    description: Reading positions and ribbons (per Bible version)
+  - name: Preferences
+    description: User preferences (theme, locale, typography)
+  - name: Sync
+    description: Incremental sync protocol for offline-first clients
+
+paths:
+  # ─── Health ──────────────────────────────────────────────────────────────────
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: |
+        Returns API and database status. Does not require authentication.
+        Useful for monitoring services and client connectivity checks.
+      operationId: healthCheck
+      security: []
+      responses:
+        "200":
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded]
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                  database:
+                    type: string
+                    enum: [ok, error]
+                    example: ok
+        "429":
+          description: Rate limited
+
+  # ─── Bookmarks ────────────────────────────────────────────────────────────────
+
+  /bookmarks:
+    get:
+      tags: [Bookmarks]
+      summary: List bookmarks
+      description: Returns all bookmarks for the authenticated user. Optionally filter by version.
+      operationId: listBookmarks
+      parameters:
+        - name: versionSlug
+          in: query
+          schema:
+            type: string
+          description: Filter by Bible version slug (e.g. "kjv", "rv1909")
+        - name: includeDeleted
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include soft-deleted bookmarks (for sync clients)
+      responses:
+        "200":
+          description: List of bookmarks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Bookmark"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Bookmarks]
+      summary: Create a bookmark
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkCreate"
+      responses:
+        "201":
+          description: Bookmark created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Bookmark"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /bookmarks/{id}:
+    patch:
+      tags: [Bookmarks]
+      summary: Update a bookmark
+      operationId: updateBookmark
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkUpdate"
+      responses:
+        "200":
+          description: Bookmark updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Bookmark"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Bookmarks]
+      summary: Delete a bookmark
+      description: Soft-deletes the bookmark (sets deletedAt). The record remains for sync purposes.
+      operationId: deleteBookmark
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Bookmark deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Bookmark Folders ─────────────────────────────────────────────────────────
+
+  /bookmarks/folders:
+    get:
+      tags: [Bookmark Folders]
+      summary: List bookmark folders
+      operationId: listFolders
+      parameters:
+        - name: versionSlug
+          in: query
+          schema:
+            type: string
+          description: Filter by Bible version slug
+      responses:
+        "200":
+          description: List of folders
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BookmarkFolder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Bookmark Folders]
+      summary: Create a bookmark folder
+      operationId: createFolder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkFolderCreate"
+      responses:
+        "201":
+          description: Folder created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BookmarkFolder"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /bookmarks/folders/{id}:
+    patch:
+      tags: [Bookmark Folders]
+      summary: Update a bookmark folder
+      operationId: updateFolder
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkFolderUpdate"
+      responses:
+        "200":
+          description: Folder updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BookmarkFolder"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Bookmark Folders]
+      summary: Delete a bookmark folder
+      description: |
+        Soft-deletes the folder. Bookmarks in this folder have their folderId set to null.
+      operationId: deleteFolder
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Folder deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Reading Positions ────────────────────────────────────────────────────────
+
+  /reading/positions:
+    get:
+      tags: [Reading]
+      summary: List all reading positions
+      description: Returns the current reading position for each Bible version the user has read.
+      operationId: listReadingPositions
+      responses:
+        "200":
+          description: List of reading positions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ReadingPosition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /reading/positions/{versionSlug}:
+    put:
+      tags: [Reading]
+      summary: Upsert reading position
+      description: Creates or updates the reading position for a specific Bible version.
+      operationId: upsertReadingPosition
+      parameters:
+        - name: versionSlug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bible version slug (e.g. "kjv")
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReadingPositionUpsert"
+      responses:
+        "200":
+          description: Position saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ReadingPosition"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Reading Ribbons ──────────────────────────────────────────────────────────
+
+  /reading/ribbons:
+    get:
+      tags: [Reading]
+      summary: List all reading ribbons
+      description: Returns the manual reading ribbon for each Bible version.
+      operationId: listReadingRibbons
+      responses:
+        "200":
+          description: List of ribbons
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ReadingRibbon"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /reading/ribbons/{versionSlug}:
+    put:
+      tags: [Reading]
+      summary: Upsert reading ribbon
+      description: Creates or updates the reading ribbon for a specific Bible version.
+      operationId: upsertReadingRibbon
+      parameters:
+        - name: versionSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReadingRibbonUpsert"
+      responses:
+        "200":
+          description: Ribbon saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ReadingRibbon"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    delete:
+      tags: [Reading]
+      summary: Delete reading ribbon
+      operationId: deleteReadingRibbon
+      parameters:
+        - name: versionSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Ribbon deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Preferences ──────────────────────────────────────────────────────────────
+
+  /preferences:
+    get:
+      tags: [Preferences]
+      summary: Get all preferences
+      operationId: getPreferences
+      responses:
+        "200":
+          description: User preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/UserPreferences"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    put:
+      tags: [Preferences]
+      summary: Batch upsert preferences
+      description: Merges the provided preferences with existing ones. Only specified keys are updated.
+      operationId: upsertPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPreferences"
+      responses:
+        "200":
+          description: Preferences saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/UserPreferences"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Sync ─────────────────────────────────────────────────────────────────────
+
+  /sync:
+    get:
+      tags: [Sync]
+      summary: Pull changes since timestamp
+      description: |
+        Returns all records modified after the given timestamp across all resource types.
+        Used for incremental synchronization. For a full pull (first sync on new device),
+        use `since=1970-01-01T00:00:00Z`.
+      operationId: syncPull
+      parameters:
+        - name: since
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: ISO 8601 timestamp. Only records modified after this time are returned.
+          example: "2024-01-01T00:00:00Z"
+      responses:
+        "200":
+          description: All changes since the given timestamp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPullResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Sync]
+      summary: Push local changes
+      description: |
+        Pushes a batch of locally-modified records to the server. The server applies
+        each change using last-write-wins based on `updatedAt`. If the server has a
+        newer version of a record, it is returned as a conflict for the client to resolve.
+      operationId: syncPush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPushRequest"
+      responses:
+        "200":
+          description: Push results with any conflicts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPushResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+# ─── Components ───────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT access token
+
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Resource UUID
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: unauthorized
+            message: Missing or invalid Bearer token
+
+    ValidationError:
+      description: Request body validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: validationFailed
+            message: "Field 'chapter' must be a positive integer"
+            details:
+              - field: chapter
+                issue: mustBePositiveInteger
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: notFound
+            message: Resource not found
+
+  schemas:
+    # ─── Error ────────────────────────────────────────────────────────────────
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+          example: validationFailed
+        message:
+          type: string
+          description: Human-readable error description
+          example: "Field 'chapter' must be a positive integer"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+
+    # ─── Bookmark ─────────────────────────────────────────────────────────────
+
+    Bookmark:
+      type: object
+      required:
+        - id
+        - versionSlug
+        - bookSlug
+        - chapter
+        - verseStart
+        - verseEnd
+        - selectedText
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionSlug:
+          type: string
+          example: kjv
+        bookSlug:
+          type: string
+          example: genesis
+        chapter:
+          type: integer
+          minimum: 1
+          example: 1
+        verseStart:
+          type: integer
+          minimum: 1
+          example: 1
+        verseEnd:
+          type: integer
+          minimum: 1
+          example: 3
+        selectedText:
+          type: string
+          example: "In the beginning God created the heaven and the earth."
+        title:
+          type:
+            - string
+            - 'null'
+          example: Creation
+        note:
+          type:
+            - string
+            - 'null'
+          example: "Foundational verse about God's creative power"
+        folderId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+
+    BookmarkCreate:
+      type: object
+      required:
+        - id
+        - versionSlug
+        - bookSlug
+        - chapter
+        - verseStart
+        - verseEnd
+        - selectedText
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Client-generated UUID (enables offline creation)
+        versionSlug:
+          type: string
+        bookSlug:
+          type: string
+        chapter:
+          type: integer
+          minimum: 1
+        verseStart:
+          type: integer
+          minimum: 1
+        verseEnd:
+          type: integer
+          minimum: 1
+        selectedText:
+          type: string
+          minLength: 1
+        title:
+          type:
+            - string
+            - 'null'
+        note:
+          type:
+            - string
+            - 'null'
+        folderId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BookmarkUpdate:
+      type: object
+      required: [updatedAt]
+      properties:
+        title:
+          type:
+            - string
+            - 'null'
+        note:
+          type:
+            - string
+            - 'null'
+        folderId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        updatedAt:
+          type: string
+          format: date-time
+          description: Client timestamp of the update (used for conflict resolution)
+
+    # ─── Bookmark Folder ──────────────────────────────────────────────────────
+
+    BookmarkFolder:
+      type: object
+      required:
+        - id
+        - versionSlug
+        - bookSlug
+        - name
+        - order
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionSlug:
+          type: string
+        bookSlug:
+          type: string
+        name:
+          type: string
+          example: Promises
+        order:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+
+    BookmarkFolderCreate:
+      type: object
+      required:
+        - id
+        - versionSlug
+        - bookSlug
+        - name
+        - order
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionSlug:
+          type: string
+        bookSlug:
+          type: string
+        name:
+          type: string
+          minLength: 1
+        order:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BookmarkFolderUpdate:
+      type: object
+      required: [updatedAt]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        order:
+          type: integer
+          minimum: 0
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ─── Reading Position ─────────────────────────────────────────────────────
+
+    ReadingPosition:
+      type: object
+      required:
+        - versionSlug
+        - bookSlug
+        - chapter
+        - updatedAt
+      properties:
+        versionSlug:
+          type: string
+          example: kjv
+        bookSlug:
+          type: string
+          example: john
+        chapter:
+          type: integer
+          minimum: 1
+          example: 3
+        verseIndex:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+          description: Scroll position (index of the topmost visible verse)
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReadingPositionUpsert:
+      type: object
+      required:
+        - bookSlug
+        - chapter
+        - updatedAt
+      properties:
+        bookSlug:
+          type: string
+        chapter:
+          type: integer
+          minimum: 1
+        verseIndex:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ─── Reading Ribbon ───────────────────────────────────────────────────────
+
+    ReadingRibbon:
+      type: object
+      required:
+        - versionSlug
+        - bookSlug
+        - chapter
+        - updatedAt
+      properties:
+        versionSlug:
+          type: string
+          example: kjv
+        bookSlug:
+          type: string
+          example: psalms
+        chapter:
+          type: integer
+          minimum: 1
+          example: 23
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReadingRibbonUpsert:
+      type: object
+      required:
+        - bookSlug
+        - chapter
+        - updatedAt
+      properties:
+        bookSlug:
+          type: string
+        chapter:
+          type: integer
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ─── Preferences ──────────────────────────────────────────────────────────
+
+    UserPreferences:
+      type: object
+      description: |
+        Syncable user preferences. All fields are optional — only provided
+        keys are stored/updated. Device-dependent settings (readerFontSize,
+        readerLineHeight, readerContentWidth) are NOT synced and remain in
+        localStorage only, as their ideal values depend on each device's screen.
+      properties:
+        locale:
+          type: string
+          enum: [en, es]
+        theme:
+          type: string
+          enum: [light, dark, system]
+        lastVersionSlug:
+          type: string
+          example: kjv
+        readerFontFamily:
+          type: string
+          example: im-fell-english
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ─── Sync ────────────────────────────────────────────────────────────────
+
+    SyncPullResponse:
+      type: object
+      required:
+        - bookmarks
+        - bookmarkFolders
+        - readingPositions
+        - readingRibbons
+        - preferences
+        - serverTime
+      properties:
+        bookmarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bookmark"
+          description: Bookmarks modified since the requested timestamp (includes soft-deleted)
+        bookmarkFolders:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookmarkFolder"
+        readingPositions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReadingPosition"
+        readingRibbons:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReadingRibbon"
+        preferences:
+          $ref: "#/components/schemas/UserPreferences"
+        serverTime:
+          type: string
+          format: date-time
+          description: Server timestamp to use as `since` in the next pull
+
+    SyncPushRequest:
+      type: object
+      properties:
+        bookmarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookmarkCreate"
+          description: Bookmarks to create or update. Include `deletedAt` for deletions.
+        bookmarkFolders:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookmarkFolderCreate"
+        readingPositions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReadingPosition"
+        readingRibbons:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReadingRibbon"
+        preferences:
+          $ref: "#/components/schemas/UserPreferences"
+
+    SyncPushResponse:
+      type: object
+      required:
+        - applied
+        - conflicts
+        - serverTime
+      properties:
+        applied:
+          type: integer
+          minimum: 0
+          description: Total number of records successfully applied
+          example: 12
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncConflict"
+          description: Records where the server had a newer version (last-write-wins rejected client)
+        serverTime:
+          type: string
+          format: date-time
+          description: Server timestamp to use as `since` in the next pull
+
+    SyncConflict:
+      type: object
+      required:
+        - type
+        - id
+        - serverVersion
+      properties:
+        type:
+          type: string
+          enum: [bookmark, bookmarkFolder, readingPosition, readingRibbon, preference]
+          description: The resource type that conflicted
+        id:
+          type: string
+          description: |
+            Resource identifier. For bookmarks/folders this is the UUID.
+            For positions/ribbons this is the versionSlug.
+            For preferences this is the preference key.
+        serverVersion:
+          type: object
+          description: The server's current version of the record (client should adopt this)
