@@ -285,7 +285,13 @@ export class HybridStorageAdapter implements StorageRepository {
   ): Promise<Bookmark> {
     const updated = await this.local.updateBookmark(id, patch)
     if (this.isAuthenticated) {
-      this.api.updateBookmark(id, patch).catch(console.error)
+      // Send the merged result so the required `updatedAt` is always present
+      this.api.updateBookmark(id, {
+        title: updated.title,
+        note: updated.note,
+        folderId: updated.folderId,
+        updatedAt: updated.updatedAt,
+      }).catch(console.error)
     }
     return updated
   }
@@ -321,7 +327,12 @@ export class HybridStorageAdapter implements StorageRepository {
   ): Promise<BookmarkFolder> {
     const updated = await this.local.updateFolder(id, patch)
     if (this.isAuthenticated) {
-      this.api.updateFolder(id, patch).catch(console.error)
+      // Send the merged result so the required `updatedAt` is always present
+      this.api.updateFolder(id, {
+        name: updated.name,
+        order: updated.order,
+        updatedAt: updated.updatedAt,
+      }).catch(console.error)
     }
     return updated
   }
