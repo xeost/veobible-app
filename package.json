@@ -1,0 +1,7 @@
+{
+  "name": "veobible-app-root",
+  "private": true,
+  "scripts": {
+    "audiobibles": "cd audiobibles-cli && pnpm start"
+  }
+}

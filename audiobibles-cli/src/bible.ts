@@ -1,6 +1,6 @@
 /**
  * Bible data helpers — reads and parses the Bible version index files
- * from public/bible-data/<locale>/<versionId>/index.json.
+ * from frontend/public/bible-data/<locale>/<versionId>/index.json.
  */
 import fs from "fs";
 import path from "path";

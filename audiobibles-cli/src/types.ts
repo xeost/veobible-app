@@ -9,7 +9,7 @@ export interface BibleVersion {
   youtubeLabel?: string;
 }
 
-// ─── Bible index (mirrors public/bible-data/<locale>/<id>/index.json) ─────────
+// ─── Bible index (mirrors frontend/public/bible-data/<locale>/<id>/index.json) ─────────
 
 export interface BibleVersionMetadata {
   name: string;

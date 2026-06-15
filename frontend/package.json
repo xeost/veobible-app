@@ -7,7 +7,7 @@
     "build": "next build && next-image-export-optimizer",
     "start": "next start",
     "lint": "next lint",
-    "audiobibles": "pnpm --filter audiobibles-cli start",
+    "audiobibles": "cd ../audiobibles-cli && pnpm start",
     "prod-preview": "pnpm build && npx wrangler pages dev out"
   },
   "dependencies": {

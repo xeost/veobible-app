@@ -28,7 +28,7 @@ export const config = {
    */
   bibleDataDir:
     process.env.AUDIOBIBLES_BIBLE_DATA_DIR ??
-    path.join(projectRoot, "public", "bible-data"),
+    path.join(projectRoot, "frontend", "public", "bible-data"),
 
   /**
    * Base URL of the published website. Used to construct book page URLs.
