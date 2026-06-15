@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthModal } from './AuthModal'
 import { toast } from '@/components/ui/Toast'
@@ -8,8 +9,39 @@ import { toast } from '@/components/ui/Toast'
 export function AuthButton({ className }: { className?: string }) {
   const { user, loading, signOut } = useAuth()
   const [modalOpen, setModalOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const avatarRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (
+        !avatarRef.current?.contains(e.target as Node) &&
+        !dropdownRef.current?.contains(e.target as Node)
+      ) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [dropdownOpen])
+
+  const handleAvatarClick = () => {
+    if (!dropdownOpen && avatarRef.current) {
+      const rect = avatarRef.current.getBoundingClientRect()
+      setDropdownPos({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      })
+    }
+    setDropdownOpen((v) => !v)
+  }
 
   const handleSignOut = async () => {
+    setDropdownOpen(false)
     await signOut()
     toast('Signed out', 'info')
   }
@@ -25,19 +57,52 @@ export function AuthButton({ className }: { className?: string }) {
 
   if (user) {
     return (
-      <button
-        onClick={handleSignOut}
-        title={user.email ?? 'Signed in'}
-        className={`flex items-center justify-center rounded-full text-xs font-semibold transition-opacity hover:opacity-80 ${className ?? ''}`}
-        style={{
-          width: 32,
-          height: 32,
-          background: 'var(--brand)',
-          color: 'white',
-        }}
-      >
-        {(user.email?.[0] ?? '?').toUpperCase()}
-      </button>
+      <>
+        <button
+          ref={avatarRef}
+          onClick={handleAvatarClick}
+          aria-label={user.email ?? 'Account menu'}
+          aria-haspopup="true"
+          aria-expanded={dropdownOpen}
+          className={`flex items-center justify-center rounded-full text-xs font-semibold transition-opacity hover:opacity-80 ${className ?? ''}`}
+          style={{ width: 32, height: 32, background: 'var(--brand)', color: 'white' }}
+        >
+          {(user.email?.[0] ?? '?').toUpperCase()}
+        </button>
+
+        {dropdownOpen && typeof document !== 'undefined' && createPortal(
+          <div
+            ref={dropdownRef}
+            role="menu"
+            className="fixed z-50 min-w-[160px] rounded-xl py-1 shadow-lg"
+            style={{
+              top: dropdownPos.top,
+              right: dropdownPos.right,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <p className="px-3 py-2 text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
+              {user.email}
+            </p>
+            <div style={{ height: 1, background: 'var(--border)', margin: '0 8px' }} />
+            <button
+              role="menuitem"
+              onClick={handleSignOut}
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[var(--bg-secondary)]"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Log out
+            </button>
+          </div>,
+          document.body,
+        )}
+      </>
     )
   }
 

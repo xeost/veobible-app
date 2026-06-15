@@ -582,33 +582,6 @@ export default function LangHomePage({ params: _params }: LangHomePageProps) {
           }}
         />
 
-        {/* Floating particles */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-          {[
-            { top: '15%', left: '8%', size: 6, delay: '0s', opacity: 0.4 },
-            { top: '30%', right: '12%', size: 4, delay: '0.6s', opacity: 0.3 },
-            { top: '60%', left: '15%', size: 5, delay: '1.2s', opacity: 0.25 },
-            { top: '70%', right: '20%', size: 7, delay: '0.3s', opacity: 0.35 },
-            { top: '20%', left: '45%', size: 3, delay: '0.9s', opacity: 0.2 },
-          ].map((p, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full animate-pulse"
-              style={{
-                top: p.top,
-                left: 'left' in p ? p.left : undefined,
-                right: 'right' in p ? p.right : undefined,
-                width: p.size,
-                height: p.size,
-                background: 'var(--brand)',
-                opacity: p.opacity,
-                animationDelay: p.delay,
-                animationDuration: '3s',
-              }}
-            />
-          ))}
-        </div>
-
         <div className="relative max-w-3xl mx-auto text-center">
           {/* Badge */}
           <div

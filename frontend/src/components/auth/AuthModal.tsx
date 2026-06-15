@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from '@/components/ui/Toast'
 
@@ -18,6 +19,22 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const [nextFocus, setNextFocus] = useState<'email' | 'password' | null>(null)
+
+  // Focus email when modal opens or mode switches
+  useEffect(() => {
+    if (open) setNextFocus('email')
+  }, [open, mode])
+
+  // Execute the pending focus after every render (inputs are enabled by then)
+  useEffect(() => {
+    if (!nextFocus) return
+    const ref = nextFocus === 'password' ? passwordRef : emailRef
+    ref.current?.focus()
+    setNextFocus(null)
+  }, [nextFocus])
 
   const reset = useCallback(() => {
     setEmail('')
@@ -43,6 +60,10 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
       if (authError) {
         setError(authError.message)
         setLoading(false)
+        // Schedule focus on the most relevant field after re-render
+        const msg = authError.message.toLowerCase()
+        const isPasswordError = msg.includes('password') || msg.includes('credentials') || msg.includes('invalid')
+        setNextFocus(isPasswordError ? 'password' : 'email')
       } else {
         toast(mode === 'signin' ? 'Signed in successfully' : 'Account created — welcome!', 'success')
         handleClose()
@@ -60,9 +81,9 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
     }
   }, [signInWithGoogle])
 
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
@@ -123,6 +144,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
               type="email"
               autoComplete="email"
               required
+              ref={emailRef}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
@@ -143,6 +165,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
               type="password"
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               required
+              ref={passwordRef}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
@@ -182,6 +205,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
           </button>
         </p>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

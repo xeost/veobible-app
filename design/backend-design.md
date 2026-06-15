@@ -67,19 +67,40 @@ The backend is **optional** — the frontend works fully without it (local-only 
 
 ### 4.2 Middleware
 
+The auth middleware supports both **ES256** (new Supabase projects, default) and **HS256** (legacy). For ES256 it fetches and caches the JWKS public key from Supabase; for HS256 it uses the `SUPABASE_JWT_SECRET`.
+
 ```typescript
 // middleware/auth.ts
 import { createMiddleware } from 'hono/factory'
-import { verify } from 'hono/jwt'
+import { verify, decode } from 'hono/jwt'
+
+// JWKS cache (module-level, persists within Worker isolate)
+let _jwksCache: { keys: JWKEntry[]; fetchedAt: number } | null = null
+const JWKS_TTL_MS = 60 * 60 * 1000
+
+async function getPublicKey(supabaseUrl: string, kid?: string): Promise<CryptoKey> {
+  // Fetch + cache JWKS from Supabase, import EC P-256 public key
+  // ...
+}
 
 export const authMiddleware = createMiddleware(async (c, next) => {
-  const header = c.req.header('Authorization')
-  if (!header?.startsWith('Bearer ')) {
+  const authHeader = c.req.header('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
     return c.json({ error: 'unauthorized' }, 401)
   }
-  const token = header.slice(7)
+  const token = authHeader.slice(7)
   try {
-    const payload = await verify(token, c.env.SUPABASE_JWT_SECRET)
+    const { header: jwtHeader } = decode(token)
+    const alg = jwtHeader.alg ?? 'HS256'
+
+    let payload
+    if (alg === 'ES256') {
+      const key = await getPublicKey(c.env.SUPABASE_URL, jwtHeader.kid)
+      payload = await verify(token, key, 'ES256')
+    } else {
+      payload = await verify(token, c.env.SUPABASE_JWT_SECRET, 'HS256')
+    }
+
     c.set('userId', payload.sub as string)
   } catch {
     return c.json({ error: 'invalidToken' }, 401)
@@ -90,14 +111,16 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 
 ### 4.3 Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `SUPABASE_JWT_SECRET` | Supabase project JWT secret (for HS256 verification) |
-| `SUPABASE_URL` | Supabase project URL (for optional admin calls) |
+| Variable | Type | Description |
+|----------|------|-------------|
+| `SUPABASE_URL` | Var | Supabase project URL — required for JWKS fetch (ES256) |
+| `SUPABASE_JWT_SECRET` | Secret | Supabase JWT secret — used only for HS256 fallback |
 
 ---
 
 ## 5. Database Schema (D1)
+
+The schema is managed via **Wrangler D1 migrations** in the `migrations/` directory (see §13). The initial schema (`0001_initial_schema.sql`):
 
 ```sql
 -- Users table (minimal — auth is in Supabase)
@@ -357,26 +380,29 @@ Implemented via Cloudflare's built-in rate limiting or a simple D1-backed counte
 
 ```
 backend/
+├── migrations/
+│   └── 0001_initial_schema.sql   # D1 migration (schema)
 ├── src/
-│   ├── index.ts              # Hono app entry, route registration
+│   ├── index.ts                  # Hono app entry, route registration
 │   ├── middleware/
-│   │   ├── auth.ts           # JWT verification middleware
-│   │   └── error.ts          # Global error handler
+│   │   ├── auth.ts               # JWT verification (ES256/HS256)
+│   │   └── error.ts              # Global error handler
 │   ├── routes/
-│   │   ├── bookmarks.ts      # /bookmarks CRUD
-│   │   ├── folders.ts        # /bookmarks/folders CRUD
-│   │   ├── reading.ts        # /reading/positions & ribbons
-│   │   ├── preferences.ts    # /preferences
-│   │   └── sync.ts           # /sync/pull & push
+│   │   ├── health.ts             # /health (public)
+│   │   ├── bookmarks.ts          # /bookmarks CRUD
+│   │   ├── folders.ts            # /bookmarks/folders CRUD
+│   │   ├── reading.ts            # /reading/positions & ribbons
+│   │   ├── preferences.ts        # /preferences
+│   │   └── sync.ts               # /sync pull & push
 │   ├── db/
-│   │   ├── schema.sql        # D1 table definitions
-│   │   └── queries.ts        # Typed query helpers
+│   │   └── queries.ts            # Typed query helpers
 │   ├── types/
-│   │   └── index.ts          # Shared types (mirrors frontend models)
+│   │   └── index.ts              # Shared types (mirrors frontend models)
 │   └── utils/
-│       ├── validation.ts     # Request body validation
-│       └── timestamps.ts     # ISO 8601 helpers
-├── wrangler.toml             # Workers config (D1 binding, env vars)
+│       ├── validation.ts         # Request body validation
+│       └── timestamps.ts         # ISO 8601 helpers
+├── wrangler.toml                 # Workers config (D1 binding, env vars)
+├── .dev.vars.example             # Template for local secrets
 ├── package.json
 └── tsconfig.json
 ```
@@ -392,39 +418,72 @@ compatibility_date = "2024-06-01"
 
 [vars]
 ENVIRONMENT = "production"
+SUPABASE_URL = "https://<project>.supabase.co"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "veobible-prod"
 database_id = "<d1-database-id>"
+migrations_dir = "migrations"
 
 # Secrets (set via `wrangler secret put`):
 # - SUPABASE_JWT_SECRET
-# - SUPABASE_URL
 ```
+
+### Local development
+
+For local dev, create `.dev.vars` (git-ignored) from `.dev.vars.example`:
+
+```
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_JWT_SECRET=<your-jwt-secret>
+```
+
+Wrangler loads `.dev.vars` automatically on `wrangler dev`.
 
 ---
 
-## 13. Deployment
+## 13. Deployment & Migrations
+
+### Commands
 
 | Command | Action |
 |---------|--------|
-| `wrangler dev` | Local development with D1 |
-| `wrangler d1 migrations apply veobible-prod --local` | Apply pending migrations locally |
-| `wrangler d1 migrations apply veobible-prod` | Apply pending migrations to production |
+| `wrangler dev` | Local development (D1 local SQLite + hot reload) |
+| `wrangler d1 migrations apply veobible-prod --local` | Apply pending migrations to local D1 |
+| `wrangler d1 migrations apply veobible-prod --remote` | Apply pending migrations to production D1 |
 | `wrangler d1 migrations create veobible-prod <name>` | Create a new numbered migration file |
+| `wrangler d1 migrations list veobible-prod --local` | List applied migrations locally |
+| `wrangler d1 migrations list veobible-prod --remote` | List applied migrations in production |
 | `wrangler deploy` | Deploy Worker to Cloudflare |
 
 ### Migration workflow
 
-Migration SQL files live in `migrations/` and are numbered sequentially (`0001_initial_schema.sql`, `0002_name.sql`, …). Wrangler tracks applied migrations in a `d1_migrations` table in D1.
+Migration SQL files live in `migrations/` (configured via `migrations_dir` in `wrangler.toml`) and are numbered sequentially (`0001_initial_schema.sql`, `0002_name.sql`, …). Wrangler tracks which migrations have been applied in an internal `d1_migrations` table inside D1.
 
 Migrations are **not** applied automatically on `wrangler deploy`. The recommended CI/CD order is:
 
 ```
-1. wrangler d1 migrations apply veobible-prod   # schema changes first
-2. wrangler deploy                               # then deploy new code
+1. wrangler d1 migrations apply veobible-prod --remote   # schema changes first
+2. wrangler deploy                                       # then deploy new code
 ```
+
+### Creating a new migration
+
+```bash
+pnpm exec wrangler d1 migrations create veobible-prod add_some_column
+# → creates migrations/0002_add_some_column.sql (empty)
+# Edit the file with the SQL DDL, then apply locally to test:
+pnpm exec wrangler d1 migrations apply veobible-prod --local
+```
+
+### Local development flow
+
+```bash
+pnpm dev              # starts wrangler dev (auto-applies pending local migrations)
+```
+
+`wrangler dev` automatically applies any pending local migrations on startup, so the local D1 database is always up to date.
 
 ---
 

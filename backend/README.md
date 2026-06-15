@@ -184,14 +184,43 @@ D1 tracks applied migrations in a `d1_migrations` table. Only pending (unapplied
 
 ### 4. Set secrets
 
+**Production** — secrets are stored encrypted in Cloudflare and never leave the platform:
+
 ```bash
 npx wrangler secret put SUPABASE_JWT_SECRET
 # Paste the value from: Supabase Dashboard → Project Settings → API → JWT Secret
 ```
 
+**Local development** — Wrangler reads secrets from `.dev.vars` (git-ignored):
+
+```bash
+cp .dev.vars.example .dev.vars
+# Edit .dev.vars and fill in the real values
+```
+
 ---
 
 ## Development
+
+### Local secrets
+
+Secrets for the local dev server are stored in `.dev.vars` (git-ignored). This file is loaded automatically by `wrangler dev` — no extra configuration needed.
+
+Create it from the provided template:
+
+```bash
+cp .dev.vars.example .dev.vars
+```
+
+Then open `.dev.vars` and replace each placeholder with the real value:
+
+| Variable | Where to find it |
+|----------|------------------|
+| `SUPABASE_JWT_SECRET` | Supabase Dashboard → Project Settings → API → JWT Secret |
+
+> **Never commit `.dev.vars`**. The example template (`.dev.vars.example`) is committed instead so other contributors can reproduce the setup.
+
+### Start the dev server
 
 ```bash
 pnpm dev

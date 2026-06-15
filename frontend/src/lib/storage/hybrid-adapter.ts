@@ -10,7 +10,22 @@ import { LocalStorageAdapter } from './local-adapter'
 import { ApiClient, SYNCABLE_PREFERENCE_KEYS, type SyncablePreferenceKey } from '@/lib/api/client'
 import { getSupabaseClient } from '@/lib/supabase/client'
 
+// localStorage key constants — must match local-adapter.ts
+const LS_BOOKMARKS = 'veobible_bookmarks'
+const LS_FOLDERS   = 'veobible_bookmark_folders'
+const LS_POSITIONS = 'veobible_reading_positions'
+const LS_RIBBONS   = 'veobible_reading_ribbons'
 const LAST_SYNC_KEY = 'veobible_last_sync'
+
+// Background sync interval (5 minutes)
+const SYNC_INTERVAL_MS = 5 * 60 * 1000
+
+function lsGet<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch { return fallback }
+}
 
 function getLastSync(): string {
   if (typeof window === 'undefined') return new Date(0).toISOString()
@@ -18,9 +33,29 @@ function getLastSync(): string {
 }
 
 function setLastSync(time: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(LAST_SYNC_KEY, time)
+  if (typeof window !== 'undefined') localStorage.setItem(LAST_SYNC_KEY, time)
+}
+
+function getAllPositions(): ReadingPosition[] {
+  const record = lsGet<Record<string, ReadingPosition>>(LS_POSITIONS, {})
+  return Object.values(record)
+}
+
+function getAllRibbons(): RibbonPosition[] {
+  const record = lsGet<Record<string, RibbonPosition>>(LS_RIBBONS, {})
+  return Object.values(record)
+}
+
+function buildSyncablePrefs(
+  prefs: UserPreferences,
+): Partial<Pick<UserPreferences, SyncablePreferenceKey>> {
+  const out: Partial<Pick<UserPreferences, SyncablePreferenceKey>> = {}
+  for (const key of SYNCABLE_PREFERENCE_KEYS) {
+    if (prefs[key] !== undefined) {
+      (out as Record<string, unknown>)[key] = prefs[key]
+    }
   }
+  return out
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -29,12 +64,14 @@ function setLastSync(time: string): void {
 // Writes always go to localStorage first (offline-safe), then are sent to
 // the API in the background when authenticated. On first login, a full sync
 // is performed: local data is pushed to the server and remote data is pulled.
+// Returning authenticated users get an incremental pull on app focus/interval.
 // ────────────────────────────────────────────────────────────────────────────
 export class HybridStorageAdapter implements StorageRepository {
   private readonly local: LocalStorageAdapter
   private readonly api: ApiClient
   private accessToken: string | null = null
   private isSyncing = false
+  private syncInterval: ReturnType<typeof setInterval> | null = null
 
   constructor() {
     this.local = new LocalStorageAdapter()
@@ -43,16 +80,21 @@ export class HybridStorageAdapter implements StorageRepository {
     if (typeof window !== 'undefined') {
       const supabase = getSupabaseClient()
 
-      supabase.auth.getSession().then(({ data }) => {
-        this.accessToken = data.session?.access_token ?? null
-      })
-
       supabase.auth.onAuthStateChange(async (event, session) => {
         const wasAuthenticated = this.accessToken !== null
         this.accessToken = session?.access_token ?? null
 
-        if (event === 'SIGNED_IN' && !wasAuthenticated) {
-          this.performInitialSync().catch(console.error)
+        if (session) {
+          if (event === 'SIGNED_IN' && !wasAuthenticated) {
+            // Fresh login: push local data then pull everything from server
+            this.performInitialSync().catch(console.error)
+          } else if (event === 'INITIAL_SESSION') {
+            // App opened while already logged in: incremental pull only
+            this.backgroundSync().catch(console.error)
+          }
+          this.startBackgroundSync()
+        } else {
+          this.stopBackgroundSync()
         }
       })
     }
@@ -62,47 +104,62 @@ export class HybridStorageAdapter implements StorageRepository {
     return this.accessToken !== null
   }
 
+  // ── Background sync scheduling ───────────────────────────────────────────
+
+  private startBackgroundSync(): void {
+    if (this.syncInterval) return
+
+    // Sync on tab focus
+    document.addEventListener('visibilitychange', this.onVisibilityChange)
+
+    // Sync on interval
+    this.syncInterval = setInterval(() => {
+      if (!document.hidden) this.backgroundSync().catch(console.error)
+    }, SYNC_INTERVAL_MS)
+  }
+
+  private stopBackgroundSync(): void {
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval)
+      this.syncInterval = null
+    }
+  }
+
+  private onVisibilityChange = () => {
+    if (!document.hidden && this.isAuthenticated) {
+      this.backgroundSync().catch(console.error)
+    }
+  }
+
   // ── Initial sync (on first login) ────────────────────────────────────────
 
   async performInitialSync(): Promise<void> {
     if (!this.isAuthenticated || this.isSyncing) return
     this.isSyncing = true
     try {
-      const [bookmarks, folders, positions, ribbons, prefs] = await Promise.all([
+      const [bookmarks, allFolders, allPositions, allRibbons, prefs] = await Promise.all([
         this.local.getBookmarks(),
-        this.local.getFoldersByVersion(''),
-        Promise.resolve([] as ReadingPosition[]),
-        Promise.resolve([] as RibbonPosition[]),
+        Promise.resolve(lsGet<BookmarkFolder[]>(LS_FOLDERS, [])),
+        Promise.resolve(getAllPositions()),
+        Promise.resolve(getAllRibbons()),
         this.local.getPreferences(),
       ])
 
-      const allFolders = JSON.parse(
-        typeof window !== 'undefined'
-          ? (localStorage.getItem('veobible_bookmark_folders') ?? '[]')
-          : '[]',
-      ) as BookmarkFolder[]
-
-      const syncablePrefs: Partial<Pick<UserPreferences, SyncablePreferenceKey>> = {}
-      for (const key of SYNCABLE_PREFERENCE_KEYS) {
-        if (prefs[key] !== undefined) {
-          (syncablePrefs as Record<string, unknown>)[key] = prefs[key]
-        }
-      }
-
       const pushResponse = await this.api.push({
-        bookmarks: bookmarks.map(({ syncStatus: _s, ...b }) => b),
+        bookmarks: bookmarks.map(({ syncStatus: _s, deletedAt: _d, ...b }) => b),
         bookmarkFolders: allFolders,
-        preferences: syncablePrefs,
+        readingPositions: allPositions,
+        readingRibbons: allRibbons,
+        preferences: buildSyncablePrefs(prefs),
       })
 
       if (pushResponse.conflicts.length > 0) {
         const { toast } = await import('@/components/ui/Toast')
-        toast(
-          `Sync: ${pushResponse.conflicts.length} conflict(s) resolved by server`,
-          'info',
-        )
+        toast(`Sync: ${pushResponse.conflicts.length} conflict(s) resolved by server`, 'info')
       }
 
+      // Pull everything since epoch so server state wins for any conflicts
       const pullResponse = await this.api.pull(new Date(0).toISOString())
       await this.applyPull(pullResponse)
     } finally {
@@ -116,80 +173,83 @@ export class HybridStorageAdapter implements StorageRepository {
     if (!this.isAuthenticated || this.isSyncing) return
     this.isSyncing = true
     try {
-      const since = getLastSync()
-      const pullResponse = await this.api.pull(since)
+      const pullResponse = await this.api.pull(getLastSync())
       await this.applyPull(pullResponse)
     } catch {
-      // Silent failure — sync will retry next time
+      // Silent failure — will retry on next trigger
     } finally {
       this.isSyncing = false
     }
   }
 
+  // ── Apply pulled server data (LWW) ───────────────────────────────────────
+
   private async applyPull(
     pull: Awaited<ReturnType<ApiClient['pull']>>,
   ): Promise<void> {
-    const allBookmarks = await this.local.getBookmarks()
-    const allFolders: BookmarkFolder[] = typeof window !== 'undefined'
-      ? JSON.parse(localStorage.getItem('veobible_bookmark_folders') ?? '[]')
-      : []
+    if (typeof window === 'undefined') return
 
-    // Apply remote bookmarks (LWW)
+    // ── Bookmarks ──────────────────────────────────────────────────────────
+    // Work on a mutable copy so multiple insertions don't clobber each other
+    const bookmarks = lsGet<Bookmark[]>(LS_BOOKMARKS, [])
+    let bookmarksChanged = false
+
     for (const remote of pull.bookmarks) {
-      const local = allBookmarks.find((b) => b.id === remote.id)
-      if (!local || (remote.updatedAt && (!local.updatedAt || remote.updatedAt > local.updatedAt))) {
-        if (remote.deletedAt) {
-          await this.local.removeBookmark(remote.id)
+      const localIdx = bookmarks.findIndex((b) => b.id === remote.id)
+      const localTs  = localIdx !== -1 ? bookmarks[localIdx].updatedAt : undefined
+      const wins     = !remote.updatedAt || !localTs || remote.updatedAt >= localTs
+
+      if (!wins) continue
+
+      if (remote.deletedAt) {
+        if (localIdx !== -1) { bookmarks.splice(localIdx, 1); bookmarksChanged = true }
+      } else {
+        const entry: Bookmark = { ...remote, syncStatus: 'synced' }
+        if (localIdx === -1) {
+          bookmarks.unshift(entry)
         } else {
-          const existing = allBookmarks.findIndex((b) => b.id === remote.id)
-          if (existing === -1) {
-            // Insert without going through addBookmark to preserve ID
-            const updated = [{ ...remote, syncStatus: 'synced' as const }, ...allBookmarks]
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('veobible_bookmarks', JSON.stringify(updated))
-            }
-          } else {
-            await this.local.updateBookmark(remote.id, { ...remote, syncStatus: 'synced' })
-          }
+          bookmarks[localIdx] = entry
         }
+        bookmarksChanged = true
       }
     }
+    if (bookmarksChanged) localStorage.setItem(LS_BOOKMARKS, JSON.stringify(bookmarks))
 
-    // Apply remote folders (LWW)
+    // ── Folders ────────────────────────────────────────────────────────────
+    const folders = lsGet<BookmarkFolder[]>(LS_FOLDERS, [])
+    let foldersChanged = false
+
     for (const remote of pull.bookmarkFolders) {
-      const local = allFolders.find((f) => f.id === remote.id)
-      if (!local || remote.updatedAt > local.updatedAt) {
-        const idx = allFolders.findIndex((f) => f.id === remote.id)
-        if (idx === -1) {
-          allFolders.push(remote)
-        } else {
-          allFolders[idx] = remote
-        }
+      const idx = folders.findIndex((f) => f.id === remote.id)
+      const localTs = idx !== -1 ? folders[idx].updatedAt : undefined
+      if (!localTs || remote.updatedAt >= localTs) {
+        if (idx === -1) { folders.push(remote) } else { folders[idx] = remote }
+        foldersChanged = true
       }
     }
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('veobible_bookmark_folders', JSON.stringify(allFolders))
-    }
+    if (foldersChanged) localStorage.setItem(LS_FOLDERS, JSON.stringify(folders))
 
-    // Apply remote reading positions
+    // ── Reading positions ──────────────────────────────────────────────────
     for (const pos of pull.readingPositions) {
       const local = await this.local.getReadingPosition(pos.versionSlug)
-      if (!local || pos.updatedAt > local.updatedAt) {
+      if (!local || pos.updatedAt >= local.updatedAt) {
         await this.local.setReadingPosition(pos)
       }
     }
 
-    // Apply remote reading ribbons
+    // ── Reading ribbons ────────────────────────────────────────────────────
     for (const ribbon of pull.readingRibbons) {
       const local = await this.local.getRibbonPosition(ribbon.versionSlug)
-      if (!local || ribbon.updatedAt > local.updatedAt) {
+      if (!local || ribbon.updatedAt >= local.updatedAt) {
         await this.local.setRibbonPosition(ribbon)
       }
     }
 
-    // Apply remote preferences
-    if (pull.preferences) {
-      await this.local.setPreferences(pull.preferences)
+    // ── Preferences ────────────────────────────────────────────────────────
+    if (pull.preferences && Object.keys(pull.preferences).length > 0) {
+      // Strip server-internal fields (e.g. updatedAt) before storing
+      const { updatedAt: _ts, ...cleanPrefs } = pull.preferences as typeof pull.preferences & { updatedAt?: string }
+      await this.local.setPreferences(cleanPrefs)
     }
 
     setLastSync(pull.serverTime)

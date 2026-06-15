@@ -1,0 +1,6 @@
+# Local development secrets — copy this file to .dev.vars and fill in the values.
+# .dev.vars is loaded automatically by `wrangler dev` and is git-ignored.
+# Never commit .dev.vars; only commit this example file.
+
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_JWT_SECRET=your_supabase_jwt_secret_here
