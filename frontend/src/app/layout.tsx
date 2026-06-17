@@ -28,6 +28,7 @@ import { ThemeProvider } from 'next-themes'
 import { ToastContainer } from '@/components/ui/Toast'
 import { ReaderPreferencesProvider } from '@/hooks/useReaderPreferences'
 import { ThemeColorUpdater } from '@/components/layout/ThemeColorUpdater'
+import { PwaUpdateBanner } from '@/components/layout/PwaUpdateBanner'
 import { QueryProvider } from '@/lib/query/QueryProvider'
 import { AuthProvider } from '@/lib/auth/AuthContext'
 import '@/styles/globals.css'
@@ -309,6 +310,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {children}
                 <ThemeColorUpdater />
                 <ToastContainer />
+                <PwaUpdateBanner />
               </ReaderPreferencesProvider>
             </ThemeProvider>
           </AuthProvider>
