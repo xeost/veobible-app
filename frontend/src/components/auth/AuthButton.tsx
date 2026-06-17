@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { AuthModal } from './AuthModal'
 import { SignOutDialog } from './SignOutDialog'
 import { toast } from '@/components/ui/Toast'
+import { useSyncStatus, formatCountdown, formatLastSync } from '@/hooks/useSyncStatus'
 
 // ── Local data helpers ────────────────────────────────────────────────────────
 
@@ -23,6 +24,39 @@ function clearLocalAppData(): void {
   keysToRemove.forEach((k) => localStorage.removeItem(k))
 }
 
+// ── i18n ─────────────────────────────────────────────────────────────────────
+
+const i18n = {
+  en: {
+    signOut: 'Sign out',
+    syncTitle: 'Cloud sync',
+    lastSync: 'Last synced',
+    nextSync: 'Next sync',
+    nextSyncSoon: 'soon',
+    syncNow: 'Sync now',
+    syncing: 'Syncing…',
+  },
+  es: {
+    signOut: 'Cerrar sesión',
+    syncTitle: 'Sincronización',
+    lastSync: 'Última sincronización',
+    nextSync: 'Próxima sincronización',
+    nextSyncSoon: 'pronto',
+    syncNow: 'Sincronizar ahora',
+    syncing: 'Sincronizando…',
+  },
+} as const
+
+type Lang = keyof typeof i18n
+
+function detectLang(): Lang {
+  if (typeof window === 'undefined') return 'en'
+  const seg = window.location.pathname.split('/').filter(Boolean)[0]
+  return seg === 'es' ? 'es' : 'en'
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function AuthButton({ className }: { className?: string }) {
   const { user, loading, signOut } = useAuth()
   const [modalOpen, setModalOpen] = useState(false)
@@ -33,6 +67,8 @@ export function AuthButton({ className }: { className?: string }) {
   const avatarRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
+
+  const { lastSyncMs, secondsUntilNext, isSyncing, triggerSync } = useSyncStatus(!!user)
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -62,7 +98,6 @@ export function AuthButton({ className }: { className?: string }) {
 
   const handleSignOutClick = () => {
     setDropdownOpen(false)
-    // Reset state each time the dialog opens
     setClearLocalData(true)
     setSignOutDialogOpen(true)
   }
@@ -92,6 +127,13 @@ export function AuthButton({ className }: { className?: string }) {
   }
 
   if (user) {
+    const lang = detectLang()
+    const t = i18n[lang]
+    const lastSyncLabel = formatLastSync(lastSyncMs, lang)
+    const nextSyncLabel = secondsUntilNext > 0
+      ? formatCountdown(secondsUntilNext)
+      : t.nextSyncSoon
+
     return (
       <>
         <button
@@ -110,31 +152,127 @@ export function AuthButton({ className }: { className?: string }) {
           <div
             ref={dropdownRef}
             role="menu"
-            className="fixed z-50 min-w-[160px] rounded-xl py-1 shadow-lg"
+            className="fixed z-50 rounded-2xl shadow-xl overflow-hidden"
             style={{
               top: dropdownPos.top,
               right: dropdownPos.right,
+              minWidth: 260,
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
             }}
           >
-            <p className="px-3 py-2 text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>
-              {user.email}
-            </p>
-            <div style={{ height: 1, background: 'var(--border)', margin: '0 8px' }} />
-            <button
-              role="menuitem"
-              onClick={handleSignOutClick}
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[var(--bg-secondary)]"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-              Sign out
-            </button>
+            {/* User email */}
+            <div className="px-4 pt-4 pb-3">
+              <p
+                className="text-xs font-medium truncate"
+                style={{ color: 'var(--text-tertiary)' }}
+                title={user.email ?? undefined}
+              >
+                {user.email}
+              </p>
+            </div>
+
+            <div style={{ height: 1, background: 'var(--border)', margin: '0 12px' }} />
+
+            {/* Sync panel */}
+            <div className="px-4 py-3">
+              {/* Section header */}
+              <div className="flex items-center gap-1.5 mb-3">
+                <svg
+                  width="11" height="11" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true"
+                  style={{ color: 'var(--brand)', flexShrink: 0 }}
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                  <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+                </svg>
+                <span
+                  className="text-xs font-semibold tracking-wide"
+                  style={{ color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: '0.65rem' }}
+                >
+                  {t.syncTitle}
+                </span>
+              </div>
+
+              {/* Stats grid */}
+              <div
+                className="rounded-xl px-3 py-2.5 mb-3"
+                style={{ background: 'var(--bg-secondary)' }}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    {t.lastSync}
+                  </span>
+                  <span
+                    className="text-xs font-medium tabular-nums"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {lastSyncLabel}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    {t.nextSync}
+                  </span>
+                  <span
+                    className="text-xs font-medium tabular-nums"
+                    style={{ color: isSyncing ? 'var(--brand)' : 'var(--text-secondary)' }}
+                  >
+                    {isSyncing ? t.syncing : nextSyncLabel}
+                  </span>
+                </div>
+              </div>
+
+              {/* Sync now button */}
+              <button
+                role="menuitem"
+                onClick={triggerSync}
+                disabled={isSyncing}
+                className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all disabled:opacity-60"
+                style={{ background: 'var(--brand)', color: 'white' }}
+              >
+                <svg
+                  width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true"
+                  className={isSyncing ? 'animate-spin' : ''}
+                  style={{ animationDirection: isSyncing ? 'reverse' : undefined }}
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                  <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+                </svg>
+                {isSyncing ? t.syncing : t.syncNow}
+              </button>
+            </div>
+
+            <div style={{ height: 1, background: 'var(--border)', margin: '0 12px' }} />
+
+            {/* Sign out */}
+            <div className="px-2 py-2">
+              <button
+                role="menuitem"
+                onClick={handleSignOutClick}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-xl transition-colors hover:bg-[var(--bg-secondary)]"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <svg
+                  width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" aria-hidden="true"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                {t.signOut}
+              </button>
+            </div>
           </div>,
           document.body,
         )}
@@ -162,9 +300,17 @@ export function AuthButton({ className }: { className?: string }) {
           color: 'var(--text-secondary)',
         }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
+        {/* Sync icon — signals that signing in enables cloud sync */}
+        <svg
+          width="13" height="13" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+          <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
         </svg>
         Sign in
       </button>

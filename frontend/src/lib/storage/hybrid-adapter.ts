@@ -47,6 +47,13 @@ function dispatchSyncEvent(): void {
   }
 }
 
+/** Dispatches a custom event to signal that a sync is in progress. */
+function dispatchSyncingEvent(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('veobible:syncing'))
+  }
+}
+
 function getAllPositions(): ReadingPosition[] {
   const record = lsGet<Record<string, ReadingPosition>>(LS_POSITIONS, {})
   return Object.values(record)
@@ -151,6 +158,7 @@ export class HybridStorageAdapter implements StorageRepository {
   async performInitialSync(): Promise<void> {
     if (!this.isAuthenticated || this.isSyncing) return
     this.isSyncing = true
+    dispatchSyncingEvent()
     try {
       const [bookmarks, allFolders, allPositions, allRibbons, prefs] = await Promise.all([
         this.local.getBookmarks(),
@@ -186,14 +194,26 @@ export class HybridStorageAdapter implements StorageRepository {
   async backgroundSync(): Promise<void> {
     if (!this.isAuthenticated || this.isSyncing) return
     this.isSyncing = true
+    dispatchSyncingEvent()
     try {
       const pullResponse = await this.api.pull(getLastSync())
       await this.applyPull(pullResponse)
     } catch {
       // Silent failure — will retry on next trigger
+      window.dispatchEvent(new CustomEvent('veobible:sync-error'))
     } finally {
       this.isSyncing = false
     }
+  }
+
+  // ── Public API ───────────────────────────────────────────────────────────
+
+  /**
+   * Triggers an immediate incremental sync if authenticated and not already
+   * syncing. Intended for use by the UI (e.g. a "Sync now" button).
+   */
+  public async manualSync(): Promise<void> {
+    await this.backgroundSync()
   }
 
   // ── Apply pulled server data (LWW) ───────────────────────────────────────

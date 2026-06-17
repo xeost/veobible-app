@@ -109,6 +109,22 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   const title = mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Reset password'
   const showGoogle = ENABLE_GOOGLE_AUTH && mode !== 'forgot'
 
+  // Language detection — mirrors SignOutDialog approach
+  const lang = typeof window !== 'undefined'
+    && window.location.pathname.split('/').filter(Boolean)[0] === 'es'
+    ? 'es' : 'en'
+
+  const syncBanner = {
+    en: {
+      title: 'Free account — your data, protected',
+      body: 'Sign in to automatically back up your bookmarks and reading progress, and keep them synced across all your devices.',
+    },
+    es: {
+      title: 'Cuenta gratuita — tus datos, protegidos',
+      body: 'Inicia sesión para guardar automáticamente tus marcadores y progreso de lectura, y mantenerlos sincronizados en todos tus dispositivos.',
+    },
+  }[lang]
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -281,6 +297,43 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             </button>
           </p>
         ) : null}
+
+        {/* Sync value-prop — only in signin/signup modes */}
+        {mode !== 'forgot' && (
+          <div
+            className="mt-5 flex items-start gap-3 rounded-xl px-3 py-3"
+            style={{ background: 'var(--bg-secondary)' }}
+          >
+            {/* Cloud-sync icon */}
+            <span
+              className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+              style={{
+                background: 'color-mix(in srgb, var(--brand) 15%, transparent)',
+              }}
+            >
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round"
+                aria-hidden="true"
+                style={{ color: 'var(--brand)' }}
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>
+                {syncBanner.title}
+              </p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                {syncBanner.body}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body,
