@@ -17,6 +17,7 @@ interface AuthActions {
   signUpWithEmail(email: string, password: string): Promise<{ error: AuthError | null }>
   signInWithGoogle(): Promise<{ error: AuthError | null }>
   resetPassword(email: string): Promise<{ error: AuthError | null }>
+  updatePassword(newPassword: string): Promise<{ error: AuthError | null }>
   signOut(): Promise<void>
 }
 
@@ -88,6 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error }
   }, [])
 
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    return { error }
+  }, [])
+
   const signOut = useCallback(async () => {
     const supabase = getSupabaseClient()
     await supabase.auth.signOut()
@@ -95,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ ...state, signInWithEmail, signUpWithEmail, signInWithGoogle, resetPassword, signOut }}
+      value={{ ...state, signInWithEmail, signUpWithEmail, signInWithGoogle, resetPassword, updatePassword, signOut }}
     >
       {children}
     </AuthContext.Provider>

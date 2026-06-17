@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthModal } from './AuthModal'
 import { SignOutDialog } from './SignOutDialog'
+import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { toast } from '@/components/ui/Toast'
 import { useSyncStatus, formatCountdown, formatLastSync } from '@/hooks/useSyncStatus'
 
@@ -29,6 +30,7 @@ function clearLocalAppData(): void {
 const i18n = {
   en: {
     signOut: 'Sign out',
+    changePassword: 'Change password',
     syncTitle: 'Cloud sync',
     lastSync: 'Last synced',
     nextSync: 'Next sync',
@@ -38,6 +40,7 @@ const i18n = {
   },
   es: {
     signOut: 'Cerrar sesión',
+    changePassword: 'Cambiar contraseña',
     syncTitle: 'Sincronización',
     lastSync: 'Última sincronización',
     nextSync: 'Próxima sincronización',
@@ -64,6 +67,7 @@ export function AuthButton({ className }: { className?: string }) {
   const [signOutDialogOpen, setSignOutDialogOpen] = useState(false)
   const [clearLocalData, setClearLocalData] = useState(true)
   const [signingOut, setSigningOut] = useState(false)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const avatarRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
@@ -218,12 +222,28 @@ export function AuthButton({ className }: { className?: string }) {
                   <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                     {t.nextSync}
                   </span>
-                  <span
-                    className="text-xs font-medium tabular-nums"
-                    style={{ color: isSyncing ? 'var(--brand)' : 'var(--text-secondary)' }}
-                  >
-                    {isSyncing ? t.syncing : nextSyncLabel}
-                  </span>
+                  {isSyncing ? (
+                    <svg
+                      width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2.5"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      className="animate-spin"
+                      aria-label={t.syncing}
+                      style={{ color: 'var(--brand)', flexShrink: 0 }}
+                    >
+                      <polyline points="23 4 23 10 17 10" />
+                      <polyline points="1 20 1 14 7 14" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                      <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+                    </svg>
+                  ) : (
+                    <span
+                      className="text-xs font-medium tabular-nums"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      {nextSyncLabel}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -254,13 +274,33 @@ export function AuthButton({ className }: { className?: string }) {
 
             <div style={{ height: 1, background: 'var(--border)', margin: '0 12px' }} />
 
-            {/* Sign out */}
-            <div className="px-2 py-2">
+            {/* Account actions */}
+            <div className="px-2 pt-2 pb-1">
+              {/* Change password */}
+              <button
+                role="menuitem"
+                onClick={() => { setDropdownOpen(false); setChangePasswordOpen(true) }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-xl transition-colors hover:bg-[var(--bg-secondary)]"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <svg
+                  width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" aria-hidden="true"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                {t.changePassword}
+              </button>
+
+              <div style={{ height: 1, background: 'var(--border)', margin: '6px 4px' }} />
+
+              {/* Sign out */}
               <button
                 role="menuitem"
                 onClick={handleSignOutClick}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-xl transition-colors hover:bg-[var(--bg-secondary)]"
-                style={{ color: 'var(--text-secondary)' }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-xl transition-colors hover:bg-red-500/10"
+                style={{ color: '#ef4444' }}
               >
                 <svg
                   width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -284,6 +324,10 @@ export function AuthButton({ className }: { className?: string }) {
           onClearLocalDataChange={setClearLocalData}
           onConfirm={handleSignOutConfirm}
           onCancel={handleSignOutCancel}
+        />
+        <ChangePasswordDialog
+          open={changePasswordOpen}
+          onClose={() => setChangePasswordOpen(false)}
         />
       </>
     )
