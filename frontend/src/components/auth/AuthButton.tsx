@@ -4,12 +4,32 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthModal } from './AuthModal'
+import { SignOutDialog } from './SignOutDialog'
 import { toast } from '@/components/ui/Toast'
+
+// ── Local data helpers ────────────────────────────────────────────────────────
+
+/** Prefix used by all veobible localStorage keys (matches local-adapter.ts). */
+const LOCAL_DATA_PREFIX = 'veobible_'
+
+/** Remove all veobible_* keys from localStorage. */
+function clearLocalAppData(): void {
+  if (typeof window === 'undefined') return
+  const keysToRemove: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key?.startsWith(LOCAL_DATA_PREFIX)) keysToRemove.push(key)
+  }
+  keysToRemove.forEach((k) => localStorage.removeItem(k))
+}
 
 export function AuthButton({ className }: { className?: string }) {
   const { user, loading, signOut } = useAuth()
   const [modalOpen, setModalOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false)
+  const [clearLocalData, setClearLocalData] = useState(true)
+  const [signingOut, setSigningOut] = useState(false)
   const avatarRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
@@ -40,10 +60,26 @@ export function AuthButton({ className }: { className?: string }) {
     setDropdownOpen((v) => !v)
   }
 
-  const handleSignOut = async () => {
+  const handleSignOutClick = () => {
     setDropdownOpen(false)
+    // Reset state each time the dialog opens
+    setClearLocalData(true)
+    setSignOutDialogOpen(true)
+  }
+
+  const handleSignOutConfirm = async () => {
+    setSigningOut(true)
+    if (clearLocalData) {
+      clearLocalAppData()
+    }
     await signOut()
+    setSigningOut(false)
+    setSignOutDialogOpen(false)
     toast('Signed out', 'info')
+  }
+
+  const handleSignOutCancel = () => {
+    if (!signingOut) setSignOutDialogOpen(false)
   }
 
   if (loading) {
@@ -88,7 +124,7 @@ export function AuthButton({ className }: { className?: string }) {
             <div style={{ height: 1, background: 'var(--border)', margin: '0 8px' }} />
             <button
               role="menuitem"
-              onClick={handleSignOut}
+              onClick={handleSignOutClick}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[var(--bg-secondary)]"
               style={{ color: 'var(--text-primary)' }}
             >
@@ -97,11 +133,20 @@ export function AuthButton({ className }: { className?: string }) {
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Log out
+              Sign out
             </button>
           </div>,
           document.body,
         )}
+
+        <SignOutDialog
+          open={signOutDialogOpen}
+          loading={signingOut}
+          clearLocalData={clearLocalData}
+          onClearLocalDataChange={setClearLocalData}
+          onConfirm={handleSignOutConfirm}
+          onCancel={handleSignOutCancel}
+        />
       </>
     )
   }

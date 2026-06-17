@@ -824,7 +824,7 @@
         30
       ],
       "description": "Continúa la historia de los reinos divididos de Israel y Judá, marcados por la idolatría de los reyes y el ministerio de los profetas, culminando en los exilios.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=gQvkonVN89I",
       "chapterOffsets": [
         0,
         212,
@@ -892,7 +892,7 @@
         30
       ],
       "description": "Una revisión de la historia de Israel desde Adán hasta David, con énfasis en la genealogía, la adoración en el templo y el pacto de Dios.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=9BQFCLC99I8",
       "chapterOffsets": [
         0,
         333,
@@ -1573,7 +1573,39 @@
       ],
       "description": "Un libro de sabiduría práctica que ofrece consejos sobre cómo vivir una vida justa, prudente y temerosa de Dios.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        189,
+        302,
+        488,
+        635,
+        759,
+        959,
+        1104,
+        1314,
+        1409,
+        1609,
+        1813,
+        1999,
+        2162,
+        2381,
+        2597,
+        2847,
+        3040,
+        3190,
+        3385,
+        3582,
+        3784,
+        3969,
+        4180,
+        4393,
+        4572,
+        4745,
+        4915,
+        5114,
+        5286,
+        5522
+      ]
     },
     {
       "id": "ecclesiastes",
@@ -1598,7 +1630,20 @@
       ],
       "description": "Una reflexión filosófica sobre la vanidad de la vida terrenal y la conclusión de que el verdadero sentido se encuentra en temer a Dios.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        142,
+        387,
+        555,
+        686,
+        866,
+        967,
+        1184,
+        1353,
+        1545,
+        1691,
+        1789
+      ]
     },
     {
       "id": "song-of-solomon",
@@ -1619,7 +1664,16 @@
       ],
       "description": "Un poema lírico que celebra el amor romántico y conyugal, a menudo interpretado como una alegoría del amor de Dios por su pueblo.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        126,
+        257,
+        348,
+        486,
+        629,
+        734,
+        831
+      ]
     },
     {
       "id": "isaiah",

@@ -27,6 +27,12 @@ export function useBookmarks(versionSlug?: string) {
       }
     }
     load()
+
+    // Re-read storage whenever the hybrid adapter finishes a sync (login pull
+    // or sign-out clear). Without this, the in-memory state would only reflect
+    // the snapshot taken at mount time.
+    window.addEventListener('veobible:sync', load)
+    return () => window.removeEventListener('veobible:sync', load)
   }, [versionSlug])
 
   // ── Bookmarks ──────────────────────────────────────────────────────

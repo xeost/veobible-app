@@ -325,25 +325,33 @@ export function ReaderPreferencesProvider({ children }: { children: React.ReactN
     contentWidth: DEFAULT_CONTENT_WIDTH,
   })
 
-  // Load saved preferences on mount
+  // Load saved preferences on mount and after any sync (login / sign-out)
   React.useEffect(() => {
-    storage.getPreferences().then((saved) => {
-      // Validate the saved font — old values like 'serif'/'sans'/'mono' won't
-      // exist in FONTS after the migration, so we fall back to the default.
-      const savedFont = saved.readerFontFamily
-      const validFont: ReaderFontFamily =
-        savedFont && FONTS[savedFont] ? savedFont : DEFAULT_FONT_FAMILY
+    function loadPrefs() {
+      storage.getPreferences().then((saved) => {
+        // Validate the saved font — old values like 'serif'/'sans'/'mono' won't
+        // exist in FONTS after the migration, so we fall back to the default.
+        const savedFont = saved.readerFontFamily
+        const validFont: ReaderFontFamily =
+          savedFont && FONTS[savedFont] ? savedFont : DEFAULT_FONT_FAMILY
 
-      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-      const fallbackLh = isMobile ? 'normal' : 'relaxed'
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+        const fallbackLh = isMobile ? 'normal' : 'relaxed'
 
-      setPrefs({
-        fontFamily: validFont,
-        fontSize:   saved.readerFontSize   ?? DEFAULT_FONT_SIZE,
-        lineHeight: saved.readerLineHeight ?? fallbackLh,
-        contentWidth: saved.readerContentWidth ?? DEFAULT_CONTENT_WIDTH,
+        setPrefs({
+          fontFamily: validFont,
+          fontSize:   saved.readerFontSize   ?? DEFAULT_FONT_SIZE,
+          lineHeight: saved.readerLineHeight ?? fallbackLh,
+          contentWidth: saved.readerContentWidth ?? DEFAULT_CONTENT_WIDTH,
+        })
       })
-    })
+    }
+    loadPrefs()
+
+    // Re-read whenever the hybrid adapter finishes a sync (login pull or
+    // sign-out clear) so preferences update without a page reload.
+    window.addEventListener('veobible:sync', loadPrefs)
+    return () => window.removeEventListener('veobible:sync', loadPrefs)
   }, [])
 
   // Apply CSS custom properties to <html> whenever prefs change.

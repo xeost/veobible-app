@@ -36,6 +36,17 @@ function setLastSync(time: string): void {
   if (typeof window !== 'undefined') localStorage.setItem(LAST_SYNC_KEY, time)
 }
 
+/**
+ * Dispatches a custom event that hooks can listen for to re-read storage.
+ * This is the signal that localStorage contents have changed due to a
+ * sync operation (initial login pull, background pull, or sign-out clear).
+ */
+function dispatchSyncEvent(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('veobible:sync'))
+  }
+}
+
 function getAllPositions(): ReadingPosition[] {
   const record = lsGet<Record<string, ReadingPosition>>(LS_POSITIONS, {})
   return Object.values(record)
@@ -94,7 +105,10 @@ export class HybridStorageAdapter implements StorageRepository {
           }
           this.startBackgroundSync()
         } else {
+          // Signed out — notify hooks so they re-read the (now possibly
+          // cleared) localStorage and update their in-memory state.
           this.stopBackgroundSync()
+          dispatchSyncEvent()
         }
       })
     }
@@ -253,6 +267,9 @@ export class HybridStorageAdapter implements StorageRepository {
     }
 
     setLastSync(pull.serverTime)
+
+    // Notify React hooks that localStorage has been updated
+    dispatchSyncEvent()
   }
 
   // ── StorageRepository implementation ────────────────────────────────────

@@ -8,13 +8,18 @@ export function useReadingRibbon(versionSlug: string) {
   const [ribbon, setRibbonState] = useState<RibbonPosition | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Load from storage on mount / versionSlug change
+  // Load from storage on mount / versionSlug change, and after any sync
   useEffect(() => {
-    setLoading(true)
-    storage.getRibbonPosition(versionSlug).then((pos) => {
-      setRibbonState(pos)
-      setLoading(false)
-    })
+    function load() {
+      setLoading(true)
+      storage.getRibbonPosition(versionSlug).then((pos) => {
+        setRibbonState(pos)
+        setLoading(false)
+      })
+    }
+    load()
+    window.addEventListener('veobible:sync', load)
+    return () => window.removeEventListener('veobible:sync', load)
   }, [versionSlug])
 
   const setRibbon = useCallback(
