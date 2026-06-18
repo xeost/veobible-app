@@ -2,3 +2,15 @@
 /es/rv-1909/* /es/rv1909/:splat 301
 /es/rv-1909 /es/rv1909 301
 /es/rv-1909/ /es/rv1909/ 301
+
+# Correcciones de slugs para RV1909
+/es/rv1909/esther /es/rv1909/ester 301
+/es/rv1909/esther/* /es/rv1909/ester/:splat 301
+/es/rv1909/ecclesiastes /es/rv1909/eclesiastes 301
+/es/rv1909/ecclesiastes/* /es/rv1909/eclesiastes/:splat 301
+/es/rv1909/cancion-de-canciones /es/rv1909/cantares 301
+/es/rv1909/cancion-de-canciones/* /es/rv1909/cantares/:splat 301
+/es/rv1909/haggeo /es/rv1909/hageo 301
+/es/rv1909/haggeo/* /es/rv1909/hageo/:splat 301
+/es/rv1909/revelacion /es/rv1909/apocalipsis 301
+/es/rv1909/revelacion/* /es/rv1909/apocalipsis/:splat 301
