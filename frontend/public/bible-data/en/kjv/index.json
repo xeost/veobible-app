@@ -971,7 +971,7 @@
         23
       ],
       "description": "Follows the history of the kingdom of Judah from Solomon to the Babylonian exile, highlighting the religious reforms of some kings.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=IsPzES9Ip0A",
       "chapterOffsets": [
         0,
         214,
@@ -1630,7 +1630,20 @@
       ],
       "description": "A philosophical reflection on the vanity of earthly life and the conclusion that true meaning is found in fearing God.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        175,
+        474,
+        672,
+        831,
+        1037,
+        1155,
+        1405,
+        1610,
+        1825,
+        1991,
+        2089
+      ]
     },
     {
       "id": "song-of-solomon",

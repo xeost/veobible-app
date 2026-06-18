@@ -6,13 +6,15 @@ import { useEffect, useState } from 'react'
 
 const i18n = {
   en: {
-    message: 'A new version is available',
-    update: 'Update now',
+    eyebrow: 'Update available',
+    message: 'A new version of VeoBible is ready.',
+    update:  'Reload now',
     dismiss: 'Later',
   },
   es: {
-    message: 'Hay una nueva versión disponible',
-    update: 'Actualizar',
+    eyebrow: 'Actualización disponible',
+    message: 'Una nueva versión de VeoBible está lista.',
+    update:  'Recargar ahora',
     dismiss: 'Después',
   },
 } as const
@@ -25,71 +27,71 @@ function detectLang(): 'en' | 'es' {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function PwaUpdateBanner() {
-  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
   const [visible, setVisible] = useState(false)
-  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
 
-    const handleRegistration = (reg: ServiceWorkerRegistration) => {
-      // A waiting worker means a new version has been downloaded and is ready
-      // to activate. Show the banner.
-      const onWaiting = () => {
-        setWaitingWorker(reg.waiting)
+    // Whether a SW was already controlling the page when this effect ran.
+    // If a controllerchange fires AFTER that, it means a new SW took over → update.
+    const hadController = !!navigator.serviceWorker.controller
+
+    // ── Case 1: controllerchange fires after initial mount ──────────────────
+    // With skipWaiting:true the new SW auto-activates without a waiting phase,
+    // so controllerchange is the most reliable signal that an update was applied
+    // while the user had the app open.
+    let controllerChangeFired = false
+    const onControllerChange = () => {
+      // Ignore the very first controllerchange that fires when a SW first takes
+      // control of an uncontrolled page (no old SW present).
+      if (!hadController && !controllerChangeFired) {
+        controllerChangeFired = true
+        return
+      }
+      setVisible(true)
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+
+    // ── Case 2: a waiting worker already exists on mount ────────────────────
+    // This happens when the user opens the app while a new SW is still
+    // in the waiting phase (skipWaiting not yet triggered).
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (!reg) return
+
+      // Already waiting when we mounted
+      if (reg.waiting && navigator.serviceWorker.controller) {
         setVisible(true)
+        return
       }
 
-      if (reg.waiting) {
-        // Already waiting on mount (e.g. page was loaded after the SW updated)
-        onWaiting()
-      }
-
+      // Watch for future updates found during this session
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing
         if (!newWorker) return
         newWorker.addEventListener('statechange', () => {
+          // With skipWaiting:true the worker jumps from installing → activated,
+          // but the controllerchange listener above already covers that path.
+          // This branch covers the case where skipWaiting is NOT active and
+          // the worker parks in the waiting state.
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // New SW installed while an old one is controlling the page
-            setWaitingWorker(newWorker)
             setVisible(true)
           }
         })
       })
-    }
-
-    // Poll for an existing registration (the SW is registered via an inline
-    // <Script> in layout.tsx, so it may already exist when this component mounts)
-    navigator.serviceWorker.getRegistration().then((reg) => {
-      if (reg) handleRegistration(reg)
     })
 
-    // Also listen for future registrations
-    const onControllerChange = () => {
-      // A new SW has taken control — the page is about to reload
-    }
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
     }
   }, [])
 
   const handleUpdate = () => {
-    if (!waitingWorker) return
-    setUpdating(true)
-
-    // Tell the waiting SW to skip waiting and become active immediately.
-    // Once the new SW controls the page, we reload to serve fresh assets.
-    const onControllerChange = () => {
-      window.location.reload()
-    }
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' })
+    // The new SW is already active (skipWaiting:true) — just reload to serve
+    // the new assets. No postMessage needed.
+    window.location.reload()
   }
 
-  const handleDismiss = () => {
-    setVisible(false)
-  }
+  const handleDismiss = () => setVisible(false)
 
   if (!visible) return null
 
@@ -97,80 +99,148 @@ export function PwaUpdateBanner() {
 
   return (
     <div
-      role="status"
-      aria-live="polite"
-      className="fixed bottom-6 left-1/2 z-[90] -translate-x-1/2 animate-slide-up"
-      style={{ width: 'min(calc(100vw - 2rem), 380px)' }}
+      role="alert"
+      aria-live="assertive"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 200,
+        // Slide down from top
+        animation: 'pwa-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both',
+      }}
     >
+      <style>{`
+        @keyframes pwa-slide-down {
+          from { transform: translateY(-110%); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+      `}</style>
+
+      {/* Gradient ribbon */}
       <div
-        className="flex items-center gap-3 rounded-2xl px-4 py-3 shadow-2xl"
         style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          backdropFilter: 'blur(12px)',
+          background: 'linear-gradient(90deg, #6d28d9 0%, #4f46e5 40%, #0ea5e9 100%)',
+          boxShadow: '0 4px 24px rgba(79, 70, 229, 0.45)',
         }}
       >
-        {/* Icon */}
-        <span
-          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl"
-          style={{ background: 'color-mix(in srgb, var(--brand) 15%, transparent)' }}
+        <div
+          style={{
+            maxWidth: '64rem',
+            margin: '0 auto',
+            padding: '0 1rem',
+            height: '3rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}
         >
-          <svg
-            width="15" height="15" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ color: 'var(--brand)' }}
+          {/* Pulse dot */}
+          <span
+            style={{
+              flexShrink: 0,
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.9)',
+              boxShadow: '0 0 0 0 rgba(255,255,255,0.7)',
+              animation: 'pwa-pulse 2s infinite',
+            }}
+          />
+          <style>{`
+            @keyframes pwa-pulse {
+              0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
+              70%  { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
+              100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+            }
+          `}</style>
+
+          {/* Eye-catcher label */}
+          <span
+            style={{
+              flexShrink: 0,
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.75)',
+              display: 'none',
+            }}
+            className="pwa-eyebrow"
           >
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
-          </svg>
-        </span>
+            {t.eyebrow}
+          </span>
 
-        {/* Text */}
-        <p
-          className="flex-1 text-sm font-medium"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {t.message}
-        </p>
+          {/* Message */}
+          <p
+            style={{
+              flex: 1,
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              color: 'white',
+              margin: 0,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            <span style={{ fontWeight: 700, marginRight: '0.4rem' }}>{t.eyebrow} —</span>
+            {t.message}
+          </p>
 
-        {/* Dismiss */}
-        <button
-          onClick={handleDismiss}
-          disabled={updating}
-          className="text-xs transition-opacity hover:opacity-70 disabled:opacity-40"
-          style={{ color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}
-          aria-label={t.dismiss}
-        >
-          {t.dismiss}
-        </button>
+          {/* Dismiss */}
+          <button
+            onClick={handleDismiss}
+            style={{
+              flexShrink: 0,
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.65)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.25rem 0.5rem',
+              borderRadius: '0.5rem',
+              transition: 'color 0.15s',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,1)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.65)')}
+            aria-label={t.dismiss}
+          >
+            {t.dismiss}
+          </button>
 
-        {/* Update CTA */}
-        <button
-          onClick={handleUpdate}
-          disabled={updating}
-          className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-opacity disabled:opacity-60"
-          style={{ background: 'var(--brand)', color: 'white', whiteSpace: 'nowrap' }}
-        >
-          {updating ? (
-            <svg
-              width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5"
-              strokeLinecap="round" strokeLinejoin="round"
-              className="animate-spin"
-              aria-hidden="true"
-            >
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-              <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
-            </svg>
-          ) : null}
-          {t.update}
-        </button>
+          {/* Reload CTA */}
+          <button
+            onClick={handleUpdate}
+            style={{
+              flexShrink: 0,
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: '#4f46e5',
+              background: 'white',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.375rem 0.875rem',
+              borderRadius: '6rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              transition: 'transform 0.15s, box-shadow 0.15s',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)'
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)'
+            }}
+          >
+            {t.update}
+          </button>
+        </div>
       </div>
     </div>
   )
