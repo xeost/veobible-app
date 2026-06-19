@@ -5,14 +5,15 @@ import { createPortal } from 'react-dom'
 
 interface TooltipProps {
   children: React.ReactNode
-  content: string
+  content: React.ReactNode
   className?: string
   placement?: 'top' | 'bottom'
   /** When true the tooltip stays hidden — use when the child has its own open panel */
   disabled?: boolean
+  wrapContent?: boolean
 }
 
-export function Tooltip({ children, content, className = '', placement = 'bottom', disabled = false }: TooltipProps) {
+export function Tooltip({ children, content, className = '', placement = 'bottom', disabled = false, wrapContent = false }: TooltipProps) {
   const [visible, setVisible] = useState(false)
   const [coords, setCoords] = useState({ top: 0, left: 0 })
   const [mounted, setMounted] = useState(false)
@@ -131,7 +132,7 @@ export function Tooltip({ children, content, className = '', placement = 'bottom
 
       {createPortal(
         <div
-          className="fixed z-[9999] px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap shadow-md border"
+          className={`fixed z-[9999] px-2.5 py-1.5 rounded-lg font-medium shadow-md border ${wrapContent ? 'whitespace-normal max-w-xs sm:max-w-sm px-4 py-3 text-[13px] leading-relaxed' : 'whitespace-nowrap text-[11px]'}`}
           style={{
             top: `${coords.top}px`,
             left: `${coords.left}px`,

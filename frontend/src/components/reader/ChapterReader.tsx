@@ -16,6 +16,7 @@ import ExportedImage from 'next-image-export-optimizer'
 import laBibliaEnContexto from '@/data/la-biblia-en-contexto.json'
 import theBibleInContext from '@/data/the-bible-in-context.json'
 import { isReaderRecommendedContentEnabled } from '@/lib/config/env'
+import { SupportBanner } from '@/components/ui/SupportBanner'
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -187,14 +188,19 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
         className="mx-auto"
         style={{ background: 'transparent', borderRadius: '12px', padding: '2rem 0', maxWidth: 'var(--reader-max-width)' }}
       >
-        {verses.map((verse) => (
-          <VerseItem
-            key={verse.verse}
-            verseNum={verse.verse}
-            text={verse.text}
-            isBookmarked={isBookmarked(version, book.slug, chapterNum, verse.verse)}
-          />
-        ))}
+        {verses.map((verse, index) => {
+          const isMiddle = verses.length > 5 && index === Math.floor(verses.length / 2);
+          return (
+            <React.Fragment key={verse.verse}>
+              {isMiddle && <SupportBanner isClosable={true} />}
+              <VerseItem
+                verseNum={verse.verse}
+                text={verse.text}
+                isBookmarked={isBookmarked(version, book.slug, chapterNum, verse.verse)}
+              />
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {/* YouTube Video invitation card */}
@@ -307,6 +313,8 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
           <div className="flex-1" />
         )}
       </div>
+
+      <SupportBanner isClosable={false} />
 
       {isReaderRecommendedContentEnabled && (
         <>
