@@ -1031,7 +1031,7 @@
         44
       ],
       "description": "Narrates the return of the Jews from exile in Babylon and the rebuilding of the temple in Jerusalem under the leadership of Zerubbabel and Ezra.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=-sxIeBZSals",
       "chapterOffsets": [
         0,
         143,
@@ -1664,7 +1664,16 @@
       ],
       "description": "A lyric poem celebrating romantic and marital love, often interpreted as an allegory of God's love for His people.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        131,
+        261,
+        366,
+        510,
+        663,
+        777,
+        886
+      ]
     },
     {
       "id": "isaiah",
