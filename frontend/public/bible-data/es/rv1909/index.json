@@ -1572,7 +1572,7 @@
         31
       ],
       "description": "Un libro de sabiduría práctica que ofrece consejos sobre cómo vivir una vida justa, prudente y temerosa de Dios.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=5MgWVY65uaY",
       "chapterOffsets": [
         0,
         189,
@@ -1629,7 +1629,7 @@
         14
       ],
       "description": "Una reflexión filosófica sobre la vanidad de la vida terrenal y la conclusión de que el verdadero sentido se encuentra en temer a Dios.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=r_3rDEy8aR4",
       "chapterOffsets": [
         0,
         142,
@@ -1955,7 +1955,13 @@
       ],
       "description": "Poemas fúnebres que expresan el dolor y la tristeza por la destrucción de Jerusalén, al tiempo que reconocen la fidelidad de Dios.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        267,
+        538,
+        819,
+        1019
+      ]
     },
     {
       "id": "ezekiel",
@@ -2016,7 +2022,56 @@
       ],
       "description": "Visiones proféticas dadas durante el exilio en Babilonia, anunciando el juicio sobre Jerusalén y prometiendo la restauración espiritual.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        270,
+        357,
+        605,
+        767,
+        967,
+        1125,
+        1375,
+        1579,
+        1718,
+        1921,
+        2153,
+        2401,
+        2637,
+        2882,
+        2952,
+        3546,
+        3798,
+        4092,
+        4209,
+        4711,
+        5022,
+        5298,
+        5751,
+        5985,
+        6147,
+        6360,
+        6664,
+        6912,
+        7124,
+        7350,
+        7553,
+        7880,
+        8211,
+        8505,
+        8631,
+        8998,
+        9266,
+        9505,
+        9785,
+        10246,
+        10492,
+        10677,
+        10952,
+        11275,
+        11548,
+        11804,
+        12038
+      ]
     },
     {
       "id": "daniel",
@@ -2041,7 +2096,20 @@
       ],
       "description": "Historias de fidelidad a Dios en el exilio babilónico y visiones apocalípticas sobre los imperios mundiales y el triunfo final del reino de Dios.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        201,
+        705,
+        1063,
+        1483,
+        1816,
+        2128,
+        2444,
+        2722,
+        3056,
+        3266,
+        3728
+      ]
     },
     {
       "id": "hosea",
