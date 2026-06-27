@@ -1751,7 +1751,7 @@
         24
       ],
       "description": "Prophecies of judgment and comfort, with profound revelations about the coming of the Messiah, the suffering Servant, and the glorious future.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=cZvTAqgasGM",
       "chapterOffsets": [
         0,
         314,
@@ -2136,7 +2136,22 @@
       ],
       "description": "God's unwavering love illustrated through the prophet's marriage to an unfaithful wife, representing God's relationship with Israel.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        141,
+        386,
+        450,
+        644,
+        798,
+        899,
+        1066,
+        1206,
+        1401,
+        1582,
+        1708,
+        1838,
+        2012
+      ]
     },
     {
       "id": "joel",
@@ -2152,7 +2167,11 @@
       ],
       "description": "A prophecy about the day of the Lord, illustrated by a devastating locust plague and the promise of the outpouring of the Holy Spirit.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        217,
+        612
+      ]
     },
     {
       "id": "amos",
@@ -2174,7 +2193,17 @@
       ],
       "description": "A call for social justice and warnings of judgment against the nations and the northern kingdom for their oppression of the poor.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        184,
+        359,
+        513,
+        701,
+        964,
+        1117,
+        1303,
+        1461
+      ]
     },
     {
       "id": "obadiah",
@@ -2188,7 +2217,9 @@
       ],
       "description": "A prophecy of judgment against the nation of Edom for its pride and hostility toward Judah.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jonah",
@@ -2205,7 +2236,12 @@
       ],
       "description": "The story of a reluctant prophet sent to preach repentance to Nineveh, showing God's grace and compassion toward the Gentiles.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        183,
+        270,
+        374
+      ]
     },
     {
       "id": "micah",
@@ -2225,7 +2261,15 @@
       ],
       "description": "Messages of judgment and hope, prophesying the Messiah's birthplace and summarizing what God requires of man.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        196,
+        356,
+        493,
+        674,
+        841,
+        1011
+      ]
     },
     {
       "id": "nahum",
@@ -2241,7 +2285,11 @@
       ],
       "description": "A prophecy announcing the imminent and deserved destruction of the Assyrian city of Nineveh.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        160,
+        302
+      ]
     },
     {
       "id": "habakkuk",
@@ -2257,7 +2305,11 @@
       ],
       "description": "A dialogue between the prophet and God about divine justice, concluding with an affirmation of faith despite circumstances.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        172,
+        384
+      ]
     },
     {
       "id": "zephaniah",
@@ -2273,7 +2325,11 @@
       ],
       "description": "Warnings about the great day of the Lord's wrath and promises of salvation for a humble remnant.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        199,
+        388
+      ]
     },
     {
       "id": "haggai",
@@ -2288,7 +2344,10 @@
       ],
       "description": "A call to the Jewish people to prioritize the rebuilding of the temple in Jerusalem after their return from exile.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        164
+      ]
     },
     {
       "id": "zechariah",
@@ -2315,7 +2374,22 @@
       ],
       "description": "Prophetic visions encouraging the rebuilding of the temple and detailing the coming of the Messiah and His future reign.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        233,
+        356,
+        474,
+        613,
+        737,
+        896,
+        1043,
+        1303,
+        1512,
+        1668,
+        1865,
+        2049,
+        2183
+      ]
     },
     {
       "id": "malachi",
@@ -2332,7 +2406,12 @@
       ],
       "description": "A confrontation of the spiritual apathy of the priests and the people, with the promise of the Messiah's forerunner.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        182,
+        383,
+        602
+      ]
     },
     {
       "id": "matthew",

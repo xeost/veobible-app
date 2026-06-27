@@ -1751,7 +1751,7 @@
         24
       ],
       "description": "Profecías de juicio y consuelo, con profundas revelaciones sobre la venida del Mesías, el Siervo sufriente y el futuro glorioso.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=oh3EhZu9S9o",
       "chapterOffsets": [
         0,
         277,
@@ -2136,7 +2136,22 @@
       ],
       "description": "El amor inquebrantable de Dios ilustrado a través del matrimonio del profeta con una esposa infiel, representando la relación de Dios con Israel.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        119,
+        321,
+        372,
+        530,
+        655,
+        740,
+        880,
+        992,
+        1154,
+        1303,
+        1414,
+        1522,
+        1660
+      ]
     },
     {
       "id": "joel",
@@ -2152,7 +2167,11 @@
       ],
       "description": "Profecía sobre el día del Señor, ilustrada por una devastadora plaga de langostas y la promesa del derramamiento del Espíritu Santo.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        174,
+        484
+      ]
     },
     {
       "id": "amos",
@@ -2174,7 +2193,17 @@
       ],
       "description": "Un llamado a la justicia social y advertencias de juicio contra las naciones y el reino del norte por su opresión a los pobres.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        145,
+        290,
+        422,
+        570,
+        783,
+        913,
+        1068,
+        1196
+      ]
     },
     {
       "id": "obadiah",
@@ -2188,7 +2217,9 @@
       ],
       "description": "Profecía de juicio contra la nación de Edom por su soberbia y hostilidad hacia Judá.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jonah",
@@ -2205,7 +2236,12 @@
       ],
       "description": "La historia de un profeta renuente enviado a predicar arrepentimiento a Nínive, mostrando la gracia y compasión de Dios hacia los gentiles.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        162,
+        231,
+        319
+      ]
     },
     {
       "id": "micah",
@@ -2225,7 +2261,15 @@
       ],
       "description": "Mensajes de juicio y esperanza, profetizando el lugar de nacimiento del Mesías y resumiendo lo que Dios requiere del hombre.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        144,
+        273,
+        385,
+        528,
+        660,
+        802
+      ]
     },
     {
       "id": "nahum",
@@ -2241,7 +2285,11 @@
       ],
       "description": "Profecía que anuncia la inminente y merecida destrucción de la ciudad asiria de Nínive.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        139,
+        265
+      ]
     },
     {
       "id": "habakkuk",
@@ -2257,7 +2305,11 @@
       ],
       "description": "Un diálogo entre el profeta y Dios sobre la justicia divina, concluyendo con una afirmación de fe a pesar de las circunstancias.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        144,
+        332
+      ]
     },
     {
       "id": "zephaniah",
@@ -2273,7 +2325,11 @@
       ],
       "description": "Advertencias sobre el gran día de la ira del Señor y promesas de salvación para un remanente humilde.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        179,
+        336
+      ]
     },
     {
       "id": "haggai",
@@ -2288,7 +2344,10 @@
       ],
       "description": "Un llamado al pueblo judío para que priorice la reconstrucción del templo de Jerusalén tras su regreso del exilio.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        157
+      ]
     },
     {
       "id": "zechariah",
@@ -2315,7 +2374,22 @@
       ],
       "description": "Visiones proféticas que animan a la reconstrucción del templo y predicen detalladamente la venida del Mesías y su futuro reinado.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        219,
+        320,
+        423,
+        542,
+        644,
+        778,
+        905,
+        1136,
+        1305,
+        1432,
+        1599,
+        1751,
+        1852
+      ]
     },
     {
       "id": "malachi",
@@ -2332,7 +2406,12 @@
       ],
       "description": "Una confrontación a la apatía espiritual de los sacerdotes y el pueblo, con la promesa del precursor del Mesías.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        173,
+        365,
+        561
+      ]
     },
     {
       "id": "matthew",
