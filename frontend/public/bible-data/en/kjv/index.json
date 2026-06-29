@@ -1883,7 +1883,7 @@
         34
       ],
       "description": "The ministry of the weeping prophet, warning Judah of imminent judgment for its sin and prophesying the New Covenant.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=O3t2jPy8mII",
       "chapterOffsets": [
         0,
         202,
@@ -2452,7 +2452,36 @@
       ],
       "description": "Presents Jesus as the King and Messiah promised in the Old Testament, focusing on His teachings and the kingdom of heaven.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        237,
+        471,
+        635,
+        864,
+        1301,
+        1641,
+        1897,
+        2199,
+        2540,
+        2902,
+        3173,
+        3663,
+        4229,
+        4530,
+        4871,
+        5155,
+        5421,
+        5763,
+        6077,
+        6372,
+        6812,
+        7141,
+        7499,
+        7908,
+        8307,
+        8922,
+        9455
+      ]
     },
     {
       "id": "mark",

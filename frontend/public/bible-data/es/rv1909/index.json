@@ -1883,7 +1883,7 @@
         34
       ],
       "description": "El ministerio del profeta llorón, que advierte a Judá del juicio inminente por su pecado y profetiza el Nuevo Pacto.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=xVyw3OAXnu4",
       "chapterOffsets": [
         0,
         179,
@@ -2452,7 +2452,36 @@
       ],
       "description": "Presenta a Jesús como el Rey y Mesías prometido en el Antiguo Testamento, enfocándose en sus enseñanzas y el reino de los cielos.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        219,
+        445,
+        604,
+        810,
+        1218,
+        1530,
+        1758,
+        2050,
+        2386,
+        2741,
+        3009,
+        3444,
+        3930,
+        4205,
+        4515,
+        4775,
+        5022,
+        5324,
+        5599,
+        5884,
+        6318,
+        6654,
+        7015,
+        7389,
+        7763,
+        8385,
+        8913
+      ]
     },
     {
       "id": "mark",
