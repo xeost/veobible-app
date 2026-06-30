@@ -2021,7 +2021,7 @@
         35
       ],
       "description": "Visiones proféticas dadas durante el exilio en Babilonia, anunciando el juicio sobre Jerusalén y prometiendo la restauración espiritual.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=r5zCs4uAs60",
       "chapterOffsets": [
         0,
         270,
@@ -2510,7 +2510,24 @@
       ],
       "description": "Un relato rápido y orientado a la acción sobre la vida de Jesús, presentándolo como el Siervo de Dios que vino a sufrir y servir.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        342,
+        600,
+        853,
+        1174,
+        1501,
+        1963,
+        2264,
+        2567,
+        2987,
+        3435,
+        3713,
+        4108,
+        4407,
+        5000,
+        5343
+      ]
     },
     {
       "id": "luke",
@@ -2547,7 +2564,32 @@
       ],
       "description": "Una narración detallada y compasiva que enfatiza la humanidad de Jesús y su amor por los marginados, los pobres y los pecadores.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        557,
+        962,
+        1289,
+        1645,
+        1997,
+        2431,
+        2860,
+        3361,
+        3895,
+        4259,
+        4738,
+        5224,
+        5524,
+        5811,
+        6060,
+        6335,
+        6613,
+        6932,
+        7289,
+        7638,
+        7929,
+        8448,
+        8864
+      ]
     },
     {
       "id": "john",
@@ -2581,7 +2623,29 @@
       ],
       "description": "Se centra en la deidad de Cristo, estructurado en torno a sus milagros y enseñanzas para que los lectores crean que Él es el Hijo de Dios.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        387,
+        571,
+        854,
+        1255,
+        1612,
+        2140,
+        2508,
+        2983,
+        3286,
+        3566,
+        3969,
+        4361,
+        4662,
+        4906,
+        5120,
+        5375,
+        5589,
+        5938,
+        6324,
+        6589
+      ]
     },
     {
       "id": "acts",
