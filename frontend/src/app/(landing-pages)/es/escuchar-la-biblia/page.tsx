@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Audio Biblia Gratis - Escuchar la Biblia en 2026",
     description: "La guía definitiva para escuchar la Biblia en formato audio. Ideal para devocionales en movimiento.",
     type: "website",
-    url: "/escuchar-la-biblia",
+    url: "/es/escuchar-la-biblia",
   },
 };
 

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Biblia Reina Valera Online Gratis - Guía 2026",
     description: "Lee la versión más querida por los hispanohablantes (Reina Valera 1960) online, sin distracciones y completamente gratis.",
     type: "website",
-    url: "/biblia-reina-valera-online",
+    url: "/es/biblia-reina-valera-online",
   },
 };
 

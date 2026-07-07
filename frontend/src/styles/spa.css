@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom SPA overrides to ensure total independence */
+.font-display {
+  font-family: var(--font-outfit), var(--font-sans), sans-serif;
+}
+
+.prose {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif !important;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-family: var(--font-outfit), var(--font-sans), sans-serif !important;
+}

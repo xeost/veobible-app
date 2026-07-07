@@ -1,18 +1,18 @@
 import ExportedImage from "next-image-export-optimizer";
-import { Check, X, Star, Globe, Shield, BookOpen, Clock, Heart, Volume2, Search, ArrowRight, BookMarked, Sparkles, AlertCircle, Smartphone } from "lucide-react";
+import { Check, X, Star, Smartphone, Shield, BookOpen, Clock, Heart, Volume2, Search, ArrowRight, BookMarked, Sparkles, AlertCircle } from "lucide-react";
 import { ForceLightTheme } from "./force-light-theme";
 import { ComparisonTable } from "./comparison-table";
 import type { Metadata } from "next";
 
 // SEO Metadata for the landing page
 export const metadata: Metadata = {
-  title: "Mejor página para leer la Biblia en 2026 - Comparativa",
-  description: "Descubre cuál es la mejor página web para leer y estudiar la Biblia este año. Análisis completo de VeoBible, YouVersion, Bible Gateway y Bible Hub.",
+  title: "La Mejor App para Leer la Biblia en 2026 - Comparativa",
+  description: "Descubre cuál es la mejor aplicación para leer y estudiar la Biblia este año. Análisis completo de VeoBible, YouVersion, Bible Gateway y Logos.",
   openGraph: {
-    title: "Mejor página para leer la Biblia en 2026 - Comparativa Completa",
-    description: "Comparamos las mejores web bíblicas: VeoBible, YouVersion, Bible Gateway y Bible Hub. Encuentra el sitio ideal para tu lectura diaria sin distracciones.",
+    title: "La Mejor App para Leer la Biblia en 2026 - Comparativa Completa",
+    description: "Comparamos las mejores apps bíblicas: VeoBible, YouVersion, Bible Gateway y Logos. Encuentra la aplicación ideal para tu lectura diaria sin distracciones.",
     type: "website",
-    url: "/mejor-pagina-para-leer-la-biblia",
+    url: "/es/mejor-app-para-leer-la-biblia",
   },
 };
 
@@ -22,23 +22,23 @@ interface AppDetails {
   focus: string;
   ads: string;
   ui: string;
-  studyTools: string;
+  offline: string;
   audio: string;
   price: string;
   easeOfUse: string;
   isWinner?: boolean;
 }
 
-export default function BibleWebLandingPage() {
+export default function BibleLandingPage() {
   const apps: AppDetails[] = [
     {
       name: "VeoBible",
       tagline: "El nuevo estándar de lectura minimalista",
       focus: "Lectura enfocada, sin distracciones, tipografía premium y diseño moderno.",
       ads: "100% Libre de anuncios",
-      ui: "Limpia, elegante, optimizada para la lectura en cualquier pantalla",
-      studyTools: "Básicas (Enfoque en lectura fluida y referencias)",
-      audio: "Voz natural premium con reproducción en YouTube",
+      ui: "Limpia, elegante, optimizada para la lectura",
+      offline: "Sí, soporte offline completo",
+      audio: "Voz natural premium con reproducción nativa",
       price: "100% Gratis (Sostenido por canales asociados)",
       easeOfUse: "Excelente (Curva de aprendizaje nula)",
       isWinner: true,
@@ -48,33 +48,33 @@ export default function BibleWebLandingPage() {
       tagline: "La comunidad global y planes de lectura",
       focus: "Lectura social, planes devocionales y conexión con amigos.",
       ads: "Libre de anuncios (Financiado por donaciones)",
-      ui: "Moderna, pero con exceso de planes y menús",
-      studyTools: "Moderadas (Planes devocionales, notas y marcadores)",
-      audio: "Sí, narraciones de audio integradas por capítulo",
+      ui: "Funcional, pero con exceso de pestañas y notificaciones",
+      offline: "Sí, requiere descarga manual de versiones",
+      audio: "Sí, narraciones variadas por versión",
       price: "100% Gratis",
-      easeOfUse: "Buena (Navegación limpia)",
+      easeOfUse: "Buena (Puede resultar abrumadora)",
     },
     {
       name: "Bible Gateway",
       tagline: "La biblioteca de referencia clásica",
-      focus: "Consulta rápida y búsqueda de textos paralelos.",
-      ads: "Con publicidad molesta y banners",
-      ui: "Anticuada, ruidosa y con banners de anuncios",
-      studyTools: "Buenas (Buscador avanzado y diccionarios básicos)",
-      audio: "Sí, pero interrumpido por publicidad",
-      price: "Gratis con anuncios / Opción Plus de pago",
-      easeOfUse: "Regular (La publicidad interrumpe la lectura)",
+      focus: "Consulta rápida, búsquedas de palabras clave y versículos específicos.",
+      ads: "Con publicidad molesta en versión gratis",
+      ui: "Anticuada, saturada con anuncios e interfaces del 2010",
+      offline: "Limitado en app móvil, ausente en web",
+      audio: "Sí, básico con anuncios de audio",
+      price: "Gratis con anuncios / Suscripción Plus de pago",
+      easeOfUse: "Regular (La publicidad interrumpe)",
     },
     {
-      name: "Bible Hub",
-      tagline: "La herramienta exegética profunda",
-      focus: "Estudio exegético profundo, concordancia y comentarios.",
-      ads: "Publicidad invasiva",
-      ui: "Muy anticuada (diseño 2005) y sobrecargada",
-      studyTools: "Excelentes (Interlineal hebreo/griego, léxicos y comentarios)",
-      audio: "Sí, reproducción de audio básica por capítulo",
-      price: "100% Gratis (Sostenido por anuncios)",
-      easeOfUse: "Baja (Muy saturada de enlaces y tablas)",
+      name: "Logos Bible Software",
+      tagline: "La herramienta académica profesional",
+      focus: "Estudio teológico profundo, lenguajes originales (hebreo/griego).",
+      ads: "Libre de anuncios",
+      ui: "Extremadamente compleja, repleta de paneles científicos",
+      offline: "Sí, pero requiere equipos con alta capacidad",
+      audio: "De pago, enfocado en audio-libros académicos",
+      price: "De pago (Paquetes desde $50 hasta más de $1,000)",
+      easeOfUse: "Muy baja (Requiere capacitación técnica)",
     },
   ];
 
@@ -90,9 +90,9 @@ export default function BibleWebLandingPage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Article",
-            "headline": "Mejor página para leer la Biblia en 2026",
+            "headline": "La Mejor App para Leer la Biblia en 2026",
             "image": "https://esdocu.com/images/veobible-mockup.png",
-            "description": "Análisis comparativo de las mejores páginas web para leer la Biblia. Comparamos VeoBible, YouVersion, Bible Gateway y Bible Hub.",
+            "description": "Análisis comparativo de las mejores aplicaciones para leer la Biblia. Comparamos VeoBible, YouVersion, Bible Gateway y Logos.",
             "author": {
               "@type": "Person",
               "name": "Biblia Comparada"
@@ -115,26 +115,26 @@ export default function BibleWebLandingPage() {
             "mainEntity": [
               {
                 "@type": "Question",
-                "name": "¿Cuál es la mejor página web para leer la Biblia en 2026?",
+                "name": "¿Cuál es la mejor aplicación para leer la Biblia en 2026?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "VeoBible es la página web recomendada en 2026 para lectura diaria gracias a su interfaz minimalista, tipografía de alta legibilidad y por estar 100% libre de anuncios."
+                  "text": "VeoBible es la aplicación recomendada en 2026 para lectura diaria gracias a su interfaz minimalista, tipografía de alta legibilidad, soporte offline completo y por estar 100% libre de anuncios."
                 }
               },
               {
                 "@type": "Question",
-                "name": "¿Qué página bíblica no tiene anuncios publicitarios?",
+                "name": "¿Qué aplicación bíblica no tiene anuncios publicitarios?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "VeoBible es 100% libre de publicidad. YouVersion también es libre de anuncios (sostenida por donaciones). Bible Gateway y Bible Hub contienen publicidad molesta o invasiva en sus versiones gratuitas."
+                  "text": "VeoBible es 100% libre de publicidad. YouVersion también es libre de anuncios (sostenida por donaciones). Bible Gateway contiene publicidad en su versión gratuita."
                 }
               },
               {
                 "@type": "Question",
-                "name": "¿Qué características debe tener una buena página para leer la Biblia?",
+                "name": "¿Qué características debe tener una buena app para leer la Biblia?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Debe ofrecer una lectura libre de distracciones y anuncios, excelente legibilidad tipográfica (fuentes serif bien espaciadas), carga instantánea y diseño limpio adaptado a todo tipo de pantallas."
+                  "text": "Debe ofrecer una lectura libre de distracciones y anuncios, excelente legibilidad tipográfica (fuentes serif bien espaciadas), carga instantánea y funcionamiento completo sin conexión a internet (modo offline)."
                 }
               }
             ]
@@ -178,14 +178,14 @@ export default function BibleWebLandingPage() {
               </div>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-extrabold tracking-tight text-slate-950 leading-tight">
-                Mejor página para leer la{" "}
+                Mejor app para leer la <br className="hidden sm:inline" />
                 <span className="bg-linear-to-r from-amber-600 to-amber-500 bg-clip-text text-transparent">
                   Biblia en 2026
                 </span>
               </h1>
 
               <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                Comparamos las páginas web bíblicas más utilizadas del mundo. Analizamos su legibilidad, facilidad de uso, publicidad y herramientas de estudio para ayudarte a encontrar la experiencia de lectura perfecta.
+                Comparamos las plataformas bíblicas más utilizadas del mundo. Analizamos su legibilidad, facilidad de uso, publicidad y coste para ayudarte a encontrar la experiencia de lectura perfecta.
               </p>
 
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
@@ -218,7 +218,7 @@ export default function BibleWebLandingPage() {
                   <div className="overflow-hidden rounded-[32px] border border-slate-100 bg-[#FAF9F5]">
                     <ExportedImage
                       src="/images/veobible-mockup.png"
-                      alt="VeoBible Mockup"
+                      alt="VeoBible App Mockup"
                       width={380}
                       height={380}
                       className="object-cover"
@@ -246,10 +246,10 @@ export default function BibleWebLandingPage() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center max-w-2xl mx-auto mb-16">
               <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight">
-                Comparativa de las Mejores Páginas Bíblicas
+                Comparativa de las Mejores Apps Bíblicas
               </h2>
               <p className="mt-4 text-slate-600 leading-relaxed">
-                Evaluamos los aspectos más importantes que definen la calidad de lectura y estudio de cada página web.
+                Evaluamos los aspectos más importantes que definen la calidad de lectura de cada aplicación.
               </p>
             </div>
 
@@ -262,7 +262,7 @@ export default function BibleWebLandingPage() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center max-w-2xl mx-auto mb-16">
               <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight">
-                Análisis Detallado de Cada Página Web
+                Análisis Detallado de Cada Aplicación
               </h2>
               <p className="mt-4 text-slate-600 leading-relaxed">
                 Descubre los puntos fuertes y débiles de las opciones más populares para tomar una decisión informada.
@@ -289,7 +289,7 @@ export default function BibleWebLandingPage() {
                   </div>
 
                   <p className="text-slate-600 mb-6 leading-relaxed">
-                    VeoBible nace con la misión de devolver el protagonismo al texto bíblico en la web. Mientras que otras páginas saturan la pantalla con banners de publicidad, menús ruidosos y enlaces complejos, VeoBible ofrece una interfaz pulida y enfocada para navegadores. Su tipografía ha sido seleccionada quirúrgicamente para evitar la fatiga ocular y su navegación permite cambiar de libro y capítulo al instante.
+                    VeoBible nace con la misión de devolver el protagonismo al texto bíblico. Mientras que otras apps saturan la pantalla con notificaciones, anuncios y redes sociales, VeoBible ofrece una interfaz pulida y enfocada. Su tipografía ha sido seleccionada quirúrgicamente para evitar la fatiga ocular, y su sistema inteligente permite cambiar de capítulo y buscar versículos al instante.
                   </p>
 
                   <div className="space-y-3.5 mb-8">
@@ -305,7 +305,7 @@ export default function BibleWebLandingPage() {
                       </li>
                       <li className="flex items-start gap-2.5 text-sm text-slate-600">
                         <Check className="h-4.5 w-4.5 text-emerald-600 shrink-0 mt-0.5" />
-                        <span><strong>Carga Instantánea:</strong> Diseñada sin scripts innecesarios para garantizar la rapidez.</span>
+                        <span><strong>Modo Offline Completo:</strong> Funciona a la perfección sin cobertura o internet.</span>
                       </li>
                     </ul>
                   </div>
@@ -334,15 +334,15 @@ export default function BibleWebLandingPage() {
                         Segunda Opción
                       </span>
                       <h3 className="text-2xl font-bold text-slate-950">YouVersion</h3>
-                      <p className="text-slate-400 text-sm">bible.com</p>
+                      <p className="text-slate-400 text-sm">La app de la comunidad</p>
                     </div>
                     <span className="p-2.5 rounded-xl bg-slate-50 text-slate-500">
-                      <Globe className="h-6 w-6" />
+                      <Smartphone className="h-6 w-6" />
                     </span>
                   </div>
 
                   <p className="text-slate-600 mb-6 leading-relaxed">
-                    La versión web de YouVersion (bible.com) es una de las más rápidas y populares. Es totalmente gratuita, no contiene anuncios y sincroniza perfectamente con su aplicación móvil. Sin embargo, su ecosistema web está fuertemente enfocado en la retención de usuarios: la página de inicio y la navegación constante te invitan a descargar la app móvil, iniciar planes de lectura estructurados, ganar insignias y conectar con la comunidad, lo cual puede generar ruido visual si tu único objetivo es abrir el navegador y leer el texto en paz.
+                    Es la aplicación más descargada de la historia. Cuenta con una librería colosal de traducciones y es fantástica para seguir planes devocionales grupales e interactuar con amigos. Sin embargo, su interfaz se ha vuelto sumamente densa con los años: está repleta de recordatorios de rachas, avatares, fotos de versículos del día y notificaciones push que alejan al usuario de una lectura relajada.
                   </p>
 
                   <div className="space-y-3.5 mb-8">
@@ -350,11 +350,11 @@ export default function BibleWebLandingPage() {
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2.5 text-sm text-slate-600">
                         <Check className="h-4.5 w-4.5 text-emerald-600 shrink-0 mt-0.5" />
-                        <span><strong>Gratuita y limpia:</strong> 100% gratis, con un lector de texto amplio y cómodo.</span>
+                        <span><strong>Es 100% gratis:</strong> No contiene pagos dentro de la aplicación.</span>
                       </li>
                       <li className="flex items-start gap-2.5 text-sm text-slate-600">
                         <AlertCircle className="h-4.5 w-4.5 text-amber-500 shrink-0 mt-0.5" />
-                        <span><strong>Ecosistema ruidoso:</strong> Promoción constante de su app, planes e insignias sociales.</span>
+                        <span><strong>Mucha distracción visual:</strong> Difícil enfocarse debido a constantes estímulos sociales.</span>
                       </li>
                     </ul>
                   </div>
@@ -374,7 +374,7 @@ export default function BibleWebLandingPage() {
                         Referencia Rápida
                       </span>
                       <h3 className="text-2xl font-bold text-slate-950">Bible Gateway</h3>
-                      <p className="text-slate-400 text-sm">biblegateway.com</p>
+                      <p className="text-slate-400 text-sm">Herramienta de consulta rápida</p>
                     </div>
                     <span className="p-2.5 rounded-xl bg-slate-50 text-slate-500">
                       <Search className="h-6 w-6" />
@@ -382,7 +382,7 @@ export default function BibleWebLandingPage() {
                   </div>
 
                   <p className="text-slate-600 mb-6 leading-relaxed">
-                    Un portal de referencia legendario en internet, ideal para buscar versículos clave o comparar rápidamente traducciones en paralelo. Lamentablemente, la versión web gratuita contiene una cantidad de publicidad en forma de banners parpadeantes y vídeos auto-reproducibles que interrumpen de forma constante la concentración, a menos que adquieras su plan de pago.
+                    La aplicación móvil mantiene el potente motor de búsqueda de su web original, siendo ideal para buscar palabras específicas o comparar traducciones en paralelo. Lamentablemente, la experiencia en la versión gratuita de la app se ve afectada por publicidad invasiva. Banners publicitarios permanentes en la parte inferior de la pantalla y frecuentes ventanas emergentes invitándote a pagar su suscripción Plus rompen constantemente la inmersión del tiempo devocional.
                   </p>
 
                   <div className="space-y-3.5 mb-8">
@@ -390,11 +390,11 @@ export default function BibleWebLandingPage() {
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2.5 text-sm text-slate-600">
                         <Check className="h-4.5 w-4.5 text-emerald-600 shrink-0 mt-0.5" />
-                        <span><strong>Múltiples versiones:</strong> Excelente motor de búsqueda avanzada de textos.</span>
+                        <span><strong>Múltiples versiones:</strong> Excelente motor de búsqueda e indexación.</span>
                       </li>
                       <li className="flex items-start gap-2.5 text-sm text-slate-600">
                         <X className="h-4.5 w-4.5 text-red-500 shrink-0 mt-0.5" />
-                        <span><strong>Publicidad molesta:</strong> Banners que ensucian la experiencia estética y lectora.</span>
+                        <span><strong>Publicidad molesta:</strong> Banners constantes y avisos de mejora (upselling).</span>
                       </li>
                     </ul>
                   </div>
@@ -405,7 +405,7 @@ export default function BibleWebLandingPage() {
                 </div>
               </div>
 
-              {/* App 3: Bible Hub */}
+              {/* App 3: Logos Bible */}
               <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.01)] flex flex-col justify-between">
                 <div>
                   <div className="flex items-start justify-between mb-4">
@@ -413,8 +413,8 @@ export default function BibleWebLandingPage() {
                       <span className="inline-block px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold tracking-wider uppercase mb-2">
                         Uso Académico
                       </span>
-                      <h3 className="text-2xl font-bold text-slate-950">Bible Hub</h3>
-                      <p className="text-slate-400 text-sm">biblehub.com</p>
+                      <h3 className="text-2xl font-bold text-slate-950">Logos Bible Software</h3>
+                      <p className="text-slate-400 text-sm">La biblioteca teológica digital</p>
                     </div>
                     <span className="p-2.5 rounded-xl bg-slate-50 text-slate-500">
                       <BookOpen className="h-6 w-6" />
@@ -422,7 +422,7 @@ export default function BibleWebLandingPage() {
                   </div>
 
                   <p className="text-slate-600 mb-6 leading-relaxed">
-                    Es el recurso definitivo para el análisis exegético en la web. Permite desglosar palabra por palabra los textos bíblicos utilizando concordancias Strong, interlineales en hebreo y griego, léxicos y una inmensa colección de comentarios históricos gratis. Sin embargo, su interfaz web sigue anclada en el diseño del año 2005, resultando abrumadoramente compleja y repleta de tablas, además de estar financiada con anuncios invasivos.
+                    Es el software definitivo para teólogos, pastores y estudiantes serios de la Biblia. Su poder para cruzar datos en idiomas originales, analizar manuscritos y estudiar comentarios es inigualable. No obstante, es un sistema excesivamente pesado y complejo para el creyente que solo desea realizar su devocional diario antes de comenzar su jornada laboral, además de requerir una inversión económica sustancial.
                   </p>
 
                   <div className="space-y-3.5 mb-8">
@@ -430,159 +430,132 @@ export default function BibleWebLandingPage() {
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2.5 text-sm text-slate-600">
                         <Check className="h-4.5 w-4.5 text-emerald-600 shrink-0 mt-0.5" />
-                        <span><strong>Herramientas exegéticas:</strong> Acceso inigualable a lenguajes originales y comentarios.</span>
+                        <span><strong>Poder analítico insuperable:</strong> Permite desglosar palabra por palabra el original griego.</span>
                       </li>
                       <li className="flex items-start gap-2.5 text-sm text-slate-600">
                         <X className="h-4.5 w-4.5 text-red-500 shrink-0 mt-0.5" />
-                        <span><strong>Interfaz obsoleta y anuncios:</strong> Muy sobrecargada, no apta para lectura devocional diaria.</span>
+                        <span><strong>Coste e Interfaz Compleja:</strong> Precios prohibitivos y requiere semanas de aprendizaje.</span>
                       </li>
                     </ul>
                   </div>
                 </div>
 
                 <div className="pt-6 border-t border-slate-100">
-                  <span className="text-xs font-bold text-slate-400 uppercase">ENFOQUE: Investigación Exegética y Estudio</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase">ENFOQUE: Investigación Exegética</span>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Section 3: Ventajas del Navegador Web */}
+        {/* Section 3: Beneficios de una Biblia Digital */}
         <section className="py-20 bg-white border-t border-slate-200/60 px-6">
           <div className="max-w-5xl mx-auto">
             <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight text-center mb-12">
-              Ventajas únicas de leer la Biblia en el navegador web
+              ¿Por qué usar una aplicación para leer la Biblia?
             </h2>
-            <div className="prose prose-slate prose-lg max-w-none text-slate-600 mb-12 text-center mx-auto">
-              <p>
-                Aunque las aplicaciones móviles son extremadamente populares, millones de personas prefieren acudir a una página web para su lectura o estudio bíblico diario. Estas son las razones fundamentales de por qué la web sigue siendo la plataforma reina.
-              </p>
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="bg-[#FAF9F5] p-8 rounded-3xl border border-slate-100 shadow-sm text-center hover:shadow-md transition-shadow">
-                <div className="h-14 w-14 mx-auto bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
-                  <Globe className="h-7 w-7" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-950 mb-3">Acceso Universal y Sin Instalación</h3>
-                <p className="text-slate-600 leading-relaxed text-sm">
-                  Cero descargas, cero actualizaciones y cero consumo de espacio de almacenamiento en tu disco duro. Puedes acceder desde la computadora de tu oficina en la hora de descanso, desde la laptop de un amigo, o desde una biblioteca pública, simplemente recordando una URL.
-                </p>
-              </div>
-              <div className="bg-[#FAF9F5] p-8 rounded-3xl border border-slate-100 shadow-sm text-center hover:shadow-md transition-shadow">
+              <div className="bg-[#FAF9F5] p-8 rounded-3xl border border-slate-100 shadow-sm text-center">
                 <div className="h-14 w-14 mx-auto bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
                   <BookOpen className="h-7 w-7" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-950 mb-3">Pestañas Múltiples para Estudio</h3>
+                <h3 className="text-xl font-bold text-slate-950 mb-3">Portabilidad Absoluta</h3>
                 <p className="text-slate-600 leading-relaxed text-sm">
-                  El entorno de escritorio te permite tener cinco pestañas abiertas simultáneamente: una con el texto bíblico, otra con un mapa de los viajes de Pablo, otra con un comentario teológico y otra con tu procesador de textos para tomar apuntes. El navegador es el ecosistema de estudio definitivo.
+                  Lleva docenas de traducciones, comentarios bíblicos y diccionarios en tu bolsillo. Una aplicación te permite leer en el autobús, en la sala de espera o durante tu hora de almuerzo sin cargar libros pesados.
                 </p>
               </div>
-              <div className="bg-[#FAF9F5] p-8 rounded-3xl border border-slate-100 shadow-sm text-center hover:shadow-md transition-shadow">
+              <div className="bg-[#FAF9F5] p-8 rounded-3xl border border-slate-100 shadow-sm text-center">
                 <div className="h-14 w-14 mx-auto bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
-                  <Shield className="h-7 w-7" />
+                  <Search className="h-7 w-7" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-950 mb-3">Privacidad y Control de Datos</h3>
+                <h3 className="text-xl font-bold text-slate-950 mb-3">Búsqueda Instantánea</h3>
                 <p className="text-slate-600 leading-relaxed text-sm">
-                  Muchas apps nativas exigen docenas de permisos en tu teléfono (ubicación, contactos, micrófono). En una página web, el navegador actúa como un escudo de seguridad, limitando drásticamente la información personal a la que pueden acceder los proveedores del servicio.
+                  ¿No recuerdas en qué libro está ese versículo que tienes en mente? Las apps bíblicas te permiten buscar palabras clave y encontrar pasajes específicos en fracciones de segundo, algo imposible en papel.
+                </p>
+              </div>
+              <div className="bg-[#FAF9F5] p-8 rounded-3xl border border-slate-100 shadow-sm text-center">
+                <div className="h-14 w-14 mx-auto bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
+                  <BookMarked className="h-7 w-7" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-950 mb-3">Organización Personal</h3>
+                <p className="text-slate-600 leading-relaxed text-sm">
+                  Resalta versículos con múltiples colores, añade notas y crea categorías sin temor a arruinar las páginas de tu Biblia. Todo tu estudio queda guardado de manera segura en la nube.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Section 4: Herramientas de Estudio */}
+        {/* Section 4: Versiones Populares */}
         <section className="py-20 bg-[#FAF9F5] border-t border-slate-200/60 px-6">
           <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col md:flex-row items-center gap-12">
-              <div className="w-full md:w-1/2 space-y-6">
-                <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight">
-                  Herramientas clave que una web de estudio bíblico debe tener
-                </h2>
-                <div className="prose prose-slate prose-lg text-slate-600">
-                  <p>
-                    Si vas a utilizar la computadora para profundizar más allá de la lectura devocional, asegúrate de que la página que elijas cuente con al menos algunas de estas funcionalidades críticas:
-                  </p>
-                  <ul className="space-y-4 text-base mt-6">
-                    <li className="flex items-start gap-3">
-                      <div className="mt-1 bg-amber-100 p-1.5 rounded-full text-amber-700">
-                        <Check className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <strong className="text-slate-900 block">Concordancia Integrada:</strong>
-                        Permite hacer clic en cualquier palabra y ver cuántas veces y en qué contextos aparece en el resto de las Escrituras.
-                      </div>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <div className="mt-1 bg-amber-100 p-1.5 rounded-full text-amber-700">
-                        <Check className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <strong className="text-slate-900 block">Texto Interlineal Griego/Hebreo:</strong>
-                        Muestra el texto original debajo del texto en español, vinculando cada palabra al diccionario Strong para analizar su raíz etimológica exacta.
-                      </div>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <div className="mt-1 bg-amber-100 p-1.5 rounded-full text-amber-700">
-                        <Check className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <strong className="text-slate-900 block">Lectura Paralela:</strong>
-                        La pantalla ancha del monitor es perfecta para colocar dos o tres traducciones (por ejemplo: RVR1960, NVI y NTV) una al lado de la otra y comparar cómo diferentes eruditos tradujeron un pasaje complejo.
-                      </div>
-                    </li>
-                  </ul>
+            <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight text-center mb-12">
+              Traducciones que no deben faltar en tu app
+            </h2>
+            <div className="prose prose-slate prose-lg max-w-none text-slate-600">
+              <p className="text-center mb-10">
+                Al elegir la <strong>mejor app para leer la Biblia</strong>, asegúrate de que incluya las versiones más confiables y utilizadas en el mundo hispanohablante.
+              </p>
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center">
+                  <div className="bg-amber-50 text-amber-700 font-bold px-4 py-2 rounded-xl text-lg whitespace-nowrap">RVR1960</div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 m-0 mb-1">Reina-Valera 1960</h4>
+                    <p className="m-0 text-sm">La traducción clásica por excelencia. Es la más utilizada en las iglesias evangélicas de habla hispana, conocida por su lenguaje poético y reverente.</p>
+                  </div>
                 </div>
-              </div>
-              <div className="w-full md:w-1/2 bg-white rounded-3xl p-8 border border-slate-100 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-bl from-amber-100/50 to-transparent rounded-bl-[100px]" />
-                <h4 className="font-bold text-slate-900 text-lg mb-4 relative z-10">El equilibrio perfecto</h4>
-                <p className="text-slate-600 text-sm leading-relaxed relative z-10 mb-4">
-                  Es importante mencionar que la inmensa mayoría de creyentes no necesitan herramientas exegéticas complejas para su día a día. De hecho, el exceso de información académica puede llegar a "secar" la experiencia devocional, convirtiendo un encuentro espiritual en un ejercicio puramente intelectual.
-                </p>
-                <p className="text-slate-600 text-sm leading-relaxed relative z-10 font-medium italic">
-                  "Para el 95% de tus lecturas, una página web limpia y sin distracciones como VeoBible será mucho más provechosa que una suite académica compleja."
-                </p>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center">
+                  <div className="bg-amber-50 text-amber-700 font-bold px-4 py-2 rounded-xl text-lg whitespace-nowrap">NVI</div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 m-0 mb-1">Nueva Versión Internacional</h4>
+                    <p className="m-0 text-sm">Una traducción contemporánea que equilibra la fidelidad a los textos originales con un lenguaje claro y comprensible para el lector moderno.</p>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center">
+                  <div className="bg-amber-50 text-amber-700 font-bold px-4 py-2 rounded-xl text-lg whitespace-nowrap">NTV</div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 m-0 mb-1">Nueva Traducción Viviente</h4>
+                    <p className="m-0 text-sm">Destaca por su legibilidad excepcional. Transmite el mensaje de los textos originales de una manera tan clara que parece haber sido escrita directamente en español.</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Section 5: Cómo organizar tu estudio en la PC */}
+        {/* Section 5: Consejos para un hábito de lectura */}
         <section className="py-20 bg-white border-t border-slate-200/60 px-6">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight text-center mb-12">
-              Guía práctica: Cómo organizar tu estudio bíblico en la computadora
-            </h2>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight">
+                Cómo establecer un hábito de lectura exitoso
+              </h2>
+              <p className="mt-4 text-slate-600 leading-relaxed max-w-2xl mx-auto">
+                Tener la mejor app instalada es solo el primer paso. Aquí tienes 3 consejos probados para mantener la consistencia en tu devocional diario.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              <div className="space-y-4">
-                <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-md">1</div>
-                <h3 className="text-xl font-bold text-slate-900">Configura tu espacio de pantalla</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  Aprovecha el ancho de tu monitor. Usa la funcionalidad de "Pantalla dividida" (Split view) de tu sistema operativo. Coloca la página web de la Biblia (como VeoBible) ocupando el lado izquierdo de la pantalla, y una aplicación de notas (como Notion, Evernote o Microsoft Word) en el lado derecho. Esto elimina la necesidad de alternar constantemente entre ventanas, manteniendo tu enfoque intacto.
-                </p>
+            <div className="flex flex-col gap-8">
+              <div className="flex items-start gap-4">
+                <div className="shrink-0 w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xl">1</div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Asigna un tiempo y lugar innegociables</h3>
+                  <p className="text-slate-600 leading-relaxed">Ya sea por la mañana junto a tu café o antes de dormir, vincula tu lectura a un hábito existente. La consistencia en el horario y lugar programa a tu cerebro para esperar ese momento del día. Con el tiempo, verás que si un día te saltas la lectura, tu mente la reclamará naturalmente como hace con cualquier otro hábito sólido.</p>
+                </div>
               </div>
-              <div className="space-y-4">
-                <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-md">2</div>
-                <h3 className="text-xl font-bold text-slate-900">Usa los marcadores del navegador inteligentemente</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  Crea una carpeta en la barra de marcadores (Bookmarks) de Chrome o Safari llamada "Devocional". Guarda allí accesos directos específicos no solo a la página principal, sino directamente al libro o capítulo que estás estudiando actualmente, además de enlaces directos a mapas bíblicos o diccionarios que consultes frecuentemente.
-                </p>
+              <div className="flex items-start gap-4">
+                <div className="shrink-0 w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xl">2</div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Desactiva las notificaciones</h3>
+                  <p className="text-slate-600 leading-relaxed">Cuando abras tu aplicación de lectura, activa el modo "No molestar" en tu teléfono. La lectura profunda requiere foco; una notificación de WhatsApp puede arruinar 15 minutos de concentración.</p>
+                </div>
               </div>
-              <div className="space-y-4">
-                <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-md">3</div>
-                <h3 className="text-xl font-bold text-slate-900">Instala la web como una aplicación (PWA)</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  Páginas modernas como VeoBible están programadas como "Aplicaciones Web Progresivas". Si usas Google Chrome, busca el ícono de "Instalar" en la barra de direcciones superior derecha. Esto creará un ícono en tu escritorio que abrirá la Biblia en una ventana limpia, sin pestañas, barra de direcciones ni marcadores del navegador, brindando una experiencia inmersiva idéntica a un software nativo.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-md">4</div>
-                <h3 className="text-xl font-bold text-slate-900">Habilita el modo lectura del navegador</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  Si visitas páginas llenas de anuncios como Bible Gateway y no puedes pagar la versión premium, utiliza la extensión "Reader View" o el modo lectura nativo de navegadores como Safari o Firefox. Esto forzará al navegador a eliminar los banners publicitarios, las columnas laterales y los colores estridentes, presentándote únicamente el texto limpio.
-                </p>
+              <div className="flex items-start gap-4">
+                <div className="shrink-0 w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xl">3</div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Comienza con un plan de lectura pequeño</h3>
+                  <p className="text-slate-600 leading-relaxed">No intentes leer toda la Biblia en 30 días si nunca has mantenido el hábito. Empieza leyendo un capítulo de los Proverbios o del Evangelio de Juan cada día. Proverbios tiene 31 capítulos, uno por cada día del mes, y cada uno es breve y lleno de sabiduría aplicable. La constancia de cinco minutos diarios es infinitamente más valiosa que una sesión de dos horas que solo haces una vez por semana.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -592,7 +565,7 @@ export default function BibleWebLandingPage() {
         <section className="py-20 bg-[#FAF9F5] border-t border-slate-200/60 px-6">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight text-center mb-12">
-              ¿Cómo elegir la página perfecta para leer la Biblia?
+              ¿Cómo elegir la app perfecta para leer la Biblia?
             </h2>
 
             <div className="space-y-10">
@@ -603,7 +576,7 @@ export default function BibleWebLandingPage() {
                 <div>
                   <h3 className="text-lg font-bold text-slate-950 mb-2">1. Cero publicidad para una mayor devoción</h3>
                   <p className="text-slate-600 leading-relaxed">
-                    Los banners parpadeantes y anuncios pop-up de las páginas gratuitas rompen por completo la atmósfera de recogimiento durante la lectura. En un entorno web, un clic accidental en un anuncio malicioso puede abrir pestañas no deseadas o descargar software peligroso. Prioriza páginas 100% limpias para mantener la paz visual y proteger tu computadora de distracciones y amenazas. La santidad del momento devocional no debería competir con ofertas de seguros o videos auto-reproducibles.
+                    Las interrupciones visuales en forma de anuncios rompen el ambiente de oración y lectura reflexiva. Cada vez que aparece un banner parpadeante tu cerebro interrumpe el estado de contemplación y vuelve al modo de alerta. Es preferible optar por aplicaciones totalmente limpias o suscripciones económicas para garantizar la paz visual en tu tiempo de intimidad con las Escrituras.
                   </p>
                 </div>
               </div>
@@ -615,7 +588,7 @@ export default function BibleWebLandingPage() {
                 <div>
                   <h3 className="text-lg font-bold text-slate-950 mb-2">2. Legibilidad y tipografía cuidada</h3>
                   <p className="text-slate-600 leading-relaxed">
-                    El texto de la Biblia es denso y requiere tiempo de asimilación. Un fondo con tonos crema o sepia suave en lugar de blanco deslumbrante, y una tipografía tipo Serif con buen espaciado entre líneas, disminuyen notablemente el cansancio ocular en pantallas grandes de laptops o monitores de escritorio. Las mejores plataformas web modernas aplican reglas de oro de la tipografía editorial, limitando el ancho de línea a unos 70 caracteres para que tus ojos no tengan que viajar demasiado de izquierda a derecha.
+                    La Biblia contiene textos extensos con pasajes poéticos como los Salmos y narrativas largas como los Evangelios. Un diseño con tipografía serif fluida, interlineado amplio (al menos 1.6) y fondos amables como el color crema o sepia disminuyen notablemente el cansancio ocular frente a pantallas brillantes. Cuando la lectura no duele, lees más y mejor.
                   </p>
                 </div>
               </div>
@@ -625,9 +598,9 @@ export default function BibleWebLandingPage() {
                   <Clock className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-950 mb-2">3. Enfoque de lectura vs. Estudio académico</h3>
+                  <h3 className="text-lg font-bold text-slate-950 mb-2">3. Enfoque personal vs. Enfoque social</h3>
                   <p className="text-slate-600 leading-relaxed">
-                    Define tu meta antes de elegir: si buscas una lectura fluida de capítulos completos para meditar antes de empezar tu jornada de trabajo, busca simplicidad absoluta (VeoBible). Si por el contrario, estás preparando un sermón y necesitas desmenuzar las raíces etimológicas de las palabras en hebreo/griego o consultar docenas de comentarios teológicos reformados, utiliza herramientas académicas robustas (Bible Hub o Blue Letter Bible). Cada necesidad tiene su herramienta ideal.
+                    Pregúntate si buscas interactuar con otros lectores compartiendo pasajes (YouVersion) o si valoras un rincón privado de meditación personal sin la sensación de estar en una red social más (VeoBible).
                   </p>
                 </div>
               </div>
@@ -637,9 +610,9 @@ export default function BibleWebLandingPage() {
                   <Volume2 className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-950 mb-2">4. Rapidez y adaptabilidad móvil</h3>
+                  <h3 className="text-lg font-bold text-slate-950 mb-2">4. Rendimiento rápido y modo offline</h3>
                   <p className="text-slate-600 leading-relaxed">
-                    Una página web moderna debe cargar al instante, incluso con conexiones de internet lentas, y verse excelente tanto en pantallas de escritorio grandes como en la pantalla vertical de tu celular, sin necesidad de descargar aplicaciones pesadas que consumen el almacenamiento de tu dispositivo. Las PWA (Aplicaciones Web Progresivas) representan el estándar de oro en este aspecto, ofreciendo lo mejor de ambos mundos.
+                    Asegúrate de que la app cargue de inmediato y tenga soporte sin conexión a internet. Una aplicación rápida te invita a leer más en cualquier pequeño momento libre de tu día a día.
                   </p>
                 </div>
               </div>
@@ -647,111 +620,155 @@ export default function BibleWebLandingPage() {
           </div>
         </section>
 
-        {/* Section 7: Funciones Clave de la Página Ganadora */}
+        {/* Section 7: Funciones Clave de la App Ganadora */}
         <section className="py-20 bg-white border-t border-slate-200/60 px-6">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight text-center mb-12">
-              ¿Qué hace a VeoBible la mejor página para leer la Biblia?
+              ¿Qué hace a VeoBible la mejor app de la Biblia sin internet?
             </h2>
             <div className="prose prose-slate prose-lg max-w-none text-slate-600">
               <p>
-                Al evaluar la <strong>mejor página web para leer la Biblia</strong>, la experiencia de usuario es fundamental. Las plataformas modernas deben ser rápidas y adaptables. VeoBible destaca en la web porque está construida con tecnología de última generación que ofrece:
+                Al evaluar la <strong>mejor app para leer la Biblia</strong>, no solo nos fijamos en la lectura básica. Las aplicaciones modernas deben ofrecer herramientas que faciliten el estudio diario sin distracciones. VeoBible destaca especialmente porque funciona como una PWA (Progressive Web App) instalable que ofrece:
               </p>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 list-none pl-0 mt-8">
                 <li className="bg-[#FAF9F5] p-6 rounded-2xl border border-slate-100 shadow-sm">
                   <h4 className="flex items-center gap-2 font-bold text-slate-900 mt-0 mb-3">
-                    <Globe className="h-5 w-5 text-amber-600" />
-                    Carga Ultra Rápida
-                  </h4>
-                  <p className="m-0 text-sm">Diseñada sin elementos pesados ni scripts innecesarios. Al cambiar de libro o capítulo, el texto se carga de manera instantánea, sin tiempos de espera molestos ni saltos repentinos en el diseño.</p>
-                </li>
-                <li className="bg-[#FAF9F5] p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <h4 className="flex items-center gap-2 font-bold text-slate-900 mt-0 mb-3">
                     <Smartphone className="h-5 w-5 text-amber-600" />
-                    Diseño Adaptativo Web
+                    Sincronización en la Nube
                   </h4>
-                  <p className="m-0 text-sm">No importa si estás en un monitor ultra ancho de 32 pulgadas o en la pantalla de un celular antiguo; la interfaz, los márgenes y el tamaño de letra se ajustan de manera automática para una lectura óptima.</p>
+                  <p className="m-0 text-sm">Empieza a leer en tu teléfono móvil y continúa en tu computadora de escritorio. Tus marcadores y el progreso de lectura se sincronizan automáticamente entre todos tus dispositivos.</p>
                 </li>
                 <li className="bg-[#FAF9F5] p-6 rounded-2xl border border-slate-100 shadow-sm">
                   <h4 className="flex items-center gap-2 font-bold text-slate-900 mt-0 mb-3">
                     <BookMarked className="h-5 w-5 text-amber-600" />
-                    Sincronización en la Nube
+                    Marcadores y Notas Pro
                   </h4>
-                  <p className="m-0 text-sm">Crea tu cuenta segura en la página web y todos tus marcadores, notas y progreso de lectura estarán allí protegidos, sincronizados en tiempo real con la aplicación móvil en todos tus dispositivos.</p>
+                  <p className="m-0 text-sm">Un sistema avanzado que te permite guardar tus versículos favoritos, añadir notas personales y organizar tus estudios por categorías y colores personalizados.</p>
+                </li>
+                <li className="bg-[#FAF9F5] p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <h4 className="flex items-center gap-2 font-bold text-slate-900 mt-0 mb-3">
+                    <Volume2 className="h-5 w-5 text-amber-600" />
+                    Audio Biblia Integrada
+                  </h4>
+                  <p className="m-0 text-sm">Ideal para tus trayectos diarios o momentos de devocional auditivo. Escucha la Biblia con voces naturales, sin voces robóticas ni cortes incómodos.</p>
                 </li>
                 <li className="bg-[#FAF9F5] p-6 rounded-2xl border border-slate-100 shadow-sm">
                   <h4 className="flex items-center gap-2 font-bold text-slate-900 mt-0 mb-3">
                     <Shield className="h-5 w-5 text-amber-600" />
-                    100% Libre de Banners
+                    100% Offline (Sin Internet)
                   </h4>
-                  <p className="m-0 text-sm">A diferencia de los grandes portales gratuitos tradicionales, VeoBible se compromete a no utilizar jamás banners laterales ni pop-ups intrusivos que ensucian la pantalla y perjudican tu tiempo de estudio.</p>
+                  <p className="m-0 text-sm">Descarga tus versiones preferidas y accede a ellas en cualquier momento. La mejor app bíblica sin publicidad que además no consume tus datos móviles.</p>
                 </li>
               </ul>
             </div>
           </div>
         </section>
 
-        {/* Section 8: Preguntas Frecuentes Web */}
+        {/* Section 8: Por qué la lectura bíblica digital es el futuro */}
         <section className="py-20 bg-[#FAF9F5] border-t border-slate-200/60 px-6">
           <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight">
+                La lectura bíblica en la era digital: qué ha cambiado
+              </h2>
+              <p className="mt-4 text-slate-600 leading-relaxed max-w-2xl mx-auto">
+                Las aplicaciones no reemplazan al libro físico, pero han ampliado el acceso a las Escrituras de una manera que ningún formato anterior pudo lograr.
+              </p>
+            </div>
+
+            <div className="space-y-8 text-slate-600 leading-relaxed">
+              <p>
+                Hace apenas dos décadas, llevar varias traducciones de la Biblia, un diccionario griego-hebreo y un comentario bíblico requería una bolsa de libros que pesaba varios kilogramos. Hoy, toda esa biblioteca cabe en el bolsillo de tu pantalón. Esta democratización del acceso a las Escrituras ha tenido un impacto enorme en la forma en que millones de personas en todo el mundo estudian y meditan la Palabra de Dios.
+              </p>
+              <p>
+                Según estadísticas de la industria editorial bíblica, el tiempo promedio que un lector dedica a la Biblia digital es <strong>mayor que el tiempo que dedica a la Biblia impresa</strong>, especialmente en grupos de edad entre 18 y 35 años. Esto se explica porque la app siempre está disponible: no necesitas recordar dónde dejaste el libro ni tener buena iluminación. En cualquier momento de pausa —esperando en una fila, en el transporte o durante el descanso del trabajo— puedes abrir la app y leer aunque sea un versículo.
+              </p>
+              <p>
+                Sin embargo, no todas las apps aprovechan este potencial de la misma forma. Muchas han caído en la trampa de convertirse en redes sociales bíblicas: feeds de versículos, likes, racha de días seguidos y notificaciones constantes que, paradójicamente, generan más ansiedad y distracción que paz espiritual. La <strong>mejor app para leer la Biblia</strong> en 2026 es aquella que entiende que su único trabajo es desaparecer y dejar que el texto hable por sí mismo.
+              </p>
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-2xl">
+                <p className="text-amber-900 font-medium m-0">
+                  &ldquo;La tecnología más poderosa es aquella que se vuelve invisible. La mejor app de la Biblia es la que no notas que estás usando.&rdquo;
+                </p>
+              </div>
+              <p>
+                Es en este contexto donde VeoBible marca una diferencia notable. Su filosofía de diseño prioriza el texto sobre cualquier elemento de interfaz. Los botones son mínimos, la navegación es intuitiva y el fondo crema reduce la luz azul de la pantalla, haciendo que leer de noche sea menos invasivo. En un mercado saturado de apps que compiten por tu atención, VeoBible compite por darte <em>paz</em>.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 9: Preguntas Frecuentes ampliadas */}
+        <section className="py-20 bg-white border-t border-slate-200/60 px-6">
+          <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-display font-extrabold text-slate-950 tracking-tight text-center mb-12">
-              Preguntas Frecuentes sobre leer la Biblia online
+              Preguntas frecuentes sobre apps para leer la Biblia
             </h2>
 
             <div className="space-y-6">
-              <details className="group bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <details className="group bg-[#FAF9F5] border border-slate-200 rounded-2xl overflow-hidden">
                 <summary className="flex items-center justify-between cursor-pointer p-6 font-bold text-slate-900 text-lg list-none">
-                  ¿Es peligroso entrar a páginas gratuitas para leer la Biblia?
+                  ¿Cuál es la mejor app para leer la Biblia en español en 2026?
                   <span className="text-amber-600 font-bold text-2xl group-open:rotate-45 transition-transform duration-200">+</span>
                 </summary>
                 <div className="px-6 pb-6 text-slate-600 leading-relaxed">
-                  Las páginas más reconocidas (como VeoBible, YouVersion o Bible Gateway) son completamente seguras. El peligro radica en sitios web dudosos que prometen "descargar biblias completas gratis en PDF" y terminan inyectando malware a través de publicidad engañosa. Por regla general, nunca hagas clic en anuncios de botones de "Download" intermitentes. Es mucho más seguro leer online en plataformas limpias como VeoBible.
+                  VeoBible es la opción más recomendada para la lectura diaria en español en 2026. Ofrece la Reina-Valera 1960, la NVI y otras traducciones populares en un formato de lectura limpio y sin publicidad. Su modo offline y su sincronización entre dispositivos la convierten en la solución más completa y cómoda del mercado hispanohablante.
                 </div>
               </details>
 
-              <details className="group bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <details className="group bg-[#FAF9F5] border border-slate-200 rounded-2xl overflow-hidden">
                 <summary className="flex items-center justify-between cursor-pointer p-6 font-bold text-slate-900 text-lg list-none">
-                  ¿Necesito crear una cuenta para leer online?
+                  ¿Se puede leer la Biblia en el celular sin internet?
                   <span className="text-amber-600 font-bold text-2xl group-open:rotate-45 transition-transform duration-200">+</span>
                 </summary>
                 <div className="px-6 pb-6 text-slate-600 leading-relaxed">
-                  No obligatoriamente. La gran mayoría de páginas te permiten leer todo el texto bíblico y realizar búsquedas de manera anónima como invitado. Sin embargo, si deseas disfrutar de funcionalidades avanzadas como subrayar versículos, guardar notas de estudio, o mantener un historial de tu progreso de lectura en un plan anual, sí será necesario registrar un usuario (usualmente usando tu correo electrónico o cuenta de Google).
+                  Sí. Varias aplicaciones permiten descargar las traducciones para usarlas completamente offline. VeoBible, al funcionar como una PWA (Progressive Web App), se instala directamente desde el navegador y almacena el contenido en el dispositivo para que funcione sin necesidad de conexión a internet. Esto es ideal si vas a viajes, zonas con cobertura limitada o quieres ahorrar datos móviles.
                 </div>
               </details>
 
-              <details className="group bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <details className="group bg-[#FAF9F5] border border-slate-200 rounded-2xl overflow-hidden">
                 <summary className="flex items-center justify-between cursor-pointer p-6 font-bold text-slate-900 text-lg list-none">
-                  ¿Por qué algunas páginas tienen la Biblia incompleta?
+                  ¿Qué diferencia hay entre una app de la Biblia y una página web?
                   <span className="text-amber-600 font-bold text-2xl group-open:rotate-45 transition-transform duration-200">+</span>
                 </summary>
                 <div className="px-6 pb-6 text-slate-600 leading-relaxed">
-                  Esto suele deberse a cuestiones de derechos de autor (Copyright). Las traducciones modernas más populares (como la NVI, NTV o LBLA) no son de dominio público; pertenecen a sociedades bíblicas editoriales. Las páginas web deben pagar licencias costosas o llegar a acuerdos corporativos muy estrictos para poder mostrar esos textos completos en internet. Solo las traducciones muy antiguas (como la Reina-Valera antigua) son libres de derechos en todos los países.
+                  Las páginas web tradicionales requieren conexión constante y no se adaptan tan bien a la lectura prolongada en móvil. Una aplicación (especialmente una PWA como VeoBible) se instala en tu pantalla de inicio, funciona offline, guarda tu progreso localmente y tiene una interfaz optimizada para pantallas táctiles. La experiencia es notablemente más fluida y cómoda que una página web genérica.
                 </div>
               </details>
 
-              <details className="group bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <details className="group bg-[#FAF9F5] border border-slate-200 rounded-2xl overflow-hidden">
                 <summary className="flex items-center justify-between cursor-pointer p-6 font-bold text-slate-900 text-lg list-none">
-                  ¿Puedo escuchar la Biblia en audio desde una página web?
+                  ¿Cuántas traducciones debería tener una buena app bíblica?
                   <span className="text-amber-600 font-bold text-2xl group-open:rotate-45 transition-transform duration-200">+</span>
                 </summary>
                 <div className="px-6 pb-6 text-slate-600 leading-relaxed">
-                  Sí, la tecnología web actual lo permite perfectamente. Plataformas como VeoBible incluyen integración directa para reproducir el audio del capítulo que estás leyendo. Esto es muy útil para tener la pestaña de fondo abierta mientras trabajas en otras aplicaciones de tu computadora, algo mucho más complejo de gestionar desde un teléfono celular.
+                  Para el lector promedio, con 3 o 4 traducciones bien seleccionadas es más que suficiente. La clave no está en la cantidad sino en la calidad. Te recomendamos tener siempre disponible una versión de estudio (RVR1960), una de lectura fluida (NTV) y una de referencia académica (NVI). Tener decenas de versiones raramente usadas complica la navegación innecesariamente.
+                </div>
+              </details>
+
+              <details className="group bg-[#FAF9F5] border border-slate-200 rounded-2xl overflow-hidden">
+                <summary className="flex items-center justify-between cursor-pointer p-6 font-bold text-slate-900 text-lg list-none">
+                  ¿Es mejor una app gratuita o de pago para leer la Biblia?
+                  <span className="text-amber-600 font-bold text-2xl group-open:rotate-45 transition-transform duration-200">+</span>
+                </summary>
+                <div className="px-6 pb-6 text-slate-600 leading-relaxed">
+                  Depende de lo que necesites. Para la lectura devocional diaria, una aplicación gratuita de calidad como VeoBible es completamente suficiente. Las aplicaciones de pago como Logos Bible Software están justificadas únicamente para teólogos, pastores o estudiantes que necesitan herramientas de estudio avanzado como análisis griego del Nuevo Testamento o acceso a comentarios académicos especializados.
                 </div>
               </details>
             </div>
           </div>
         </section>
 
-        {/* Section 9: Final Call to Action */}
-        <section className="py-20 px-6 bg-linear-to-b from-[#FAF9F5] to-amber-50/20 text-center relative overflow-hidden border-t border-slate-200/50">
+        {/* Section 10: Final Call to Action */}
+        <section className="py-20 px-6 bg-linear-to-b from-white to-amber-50/20 text-center relative overflow-hidden border-t border-slate-200/50">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(45%_45%_at_50%_100%,rgba(217,119,6,0.05)_0%,transparent_100%)]" />
 
           <div className="max-w-3xl mx-auto space-y-6">
             <h2 className="text-3xl md:text-4xl font-display font-extrabold text-slate-950 tracking-tight">
-              ¿Listo para una mejor experiencia de lectura web?
+              ¿Listo para una mejor experiencia de lectura?
             </h2>
             <p className="text-slate-600 text-lg max-w-2xl mx-auto leading-relaxed">
-              Te recomendamos iniciar hoy mismo con <strong className="font-bold text-slate-900">VeoBible</strong>. Descubre cómo una interfaz web minimalista y completamente libre de anuncios puede enriquecer tu hábito diario en 2026.
+              Te recomendamos iniciar hoy mismo con <strong className="font-bold text-slate-900">VeoBible</strong>. Descubre cómo el diseño minimalista y libre de publicidad puede transformar tu hábito de lectura bíblica diario en 2026.
             </p>
             <div className="pt-4">
               <a
@@ -766,7 +783,7 @@ export default function BibleWebLandingPage() {
               </a>
             </div>
             <div className="pt-2 text-xs text-slate-400 font-medium">
-              Acceso gratuito • Funciona en cualquier navegador de PC y móvil
+              Disponible para múltiples dispositivos • Sin registros obligatorios
             </div>
           </div>
         </section>

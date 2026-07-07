@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { HomeHeader } from '@/components/layout/HomeHeader'
+import { Footer } from '@/components/layout/Footer'
 import { useI18n } from '@/lib/i18n/client'
 import { getVersionsForLang } from '@/lib/bible/config'
 import { storage } from '@/lib/storage'
@@ -562,105 +563,109 @@ export default function LangHomePage({ params: _params }: LangHomePageProps) {
   }, [locale])
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-page)' }}>
       <HomeHeader currentLang={locale} />
 
-      {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden py-20 md:py-28 px-4">
-        {/* Layered radial gradients */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(ellipse 90% 60% at 50% -10%, rgba(139,92,246,0.18) 0%, transparent 70%)',
-          }}
-        />
-        <div
-          className="absolute top-0 right-0 w-96 h-96 pointer-events-none"
-          style={{
-            background: 'radial-gradient(circle at 80% 20%, rgba(139,92,246,0.1) 0%, transparent 60%)',
-          }}
-        />
-
-        <div className="relative max-w-3xl mx-auto text-center">
-          {/* Badge */}
+      <div className="flex-grow">
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <section className="relative overflow-hidden py-20 md:py-28 px-4">
+          {/* Layered radial gradients */}
           <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold mb-8 animate-fade-in"
-            style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}
-          >
-            {t.home.welcome}
-          </div>
-
-          {/* Headline */}
-          <h1
-            className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight"
+            className="absolute inset-0 pointer-events-none"
             style={{
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-lora), Georgia, serif',
+              background:
+                'radial-gradient(ellipse 90% 60% at 50% -10%, rgba(139,92,246,0.18) 0%, transparent 70%)',
             }}
-          >
-            {t.appTagline}
-          </h1>
-
-          {/* Sub-headline */}
-          <p className="text-lg md:text-xl mb-12 max-w-xl mx-auto" style={{ color: 'var(--text-secondary)', lineHeight: '1.7' }}>
-            {locale === 'es'
-              ? 'Lee, marca y retoma la lectura donde la dejaste, desde cualquier dispositivo.'
-              : 'Read, bookmark, and continue where you left off, from any device.'}
-          </p>
-
-          {/* Stats strip */}
-          <div className="flex flex-wrap justify-center gap-8 text-center">
-            {[
-              { value: '66', label: locale === 'es' ? 'Libros' : 'Books' },
-              { value: '31K+', label: locale === 'es' ? 'Versículos' : 'Verses' },
-              { value: locale === 'es' ? 'Gratis' : 'Free', label: locale === 'es' ? 'Para siempre' : 'Forever' },
-            ].map(({ value, label }) => (
-              <div key={label}>
-                <p
-                  className="text-2xl font-bold"
-                  style={{ color: 'var(--brand)' }}
-                >
-                  {value}
-                </p>
-                <p className="text-xs font-medium uppercase tracking-widest mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Main content ─────────────────────────────────────────────── */}
-      <div className="max-w-4xl mx-auto px-4 pb-24 space-y-14">
-
-        {/* Featured version */}
-        {primaryVersion && (
-          <FeaturedVersionCard
-            version={primaryVersion}
-            lang={locale}
-            lastPosition={mounted ? lastPositions[primaryVersion.slug] ?? null : null}
           />
-        )}
+          <div
+            className="absolute top-0 right-0 w-96 h-96 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle at 80% 20%, rgba(139,92,246,0.1) 0%, transparent 60%)',
+            }}
+          />
 
-        {/* Verse of the day */}
-        {primaryVersion && (
-          <VerseOfTheDay locale={locale} versionSlug={primaryVersion.slug} />
-        )}
+          <div className="relative max-w-3xl mx-auto text-center">
+            {/* Badge */}
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold mb-8 animate-fade-in"
+              style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}
+            >
+              {t.home.welcome}
+            </div>
 
-        {/* YouTube channels */}
-        <YouTubeSection />
+            {/* Headline */}
+            <h1
+              className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight"
+              style={{
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-lora), Georgia, serif',
+              }}
+            >
+              {t.appTagline}
+            </h1>
 
-        {/* Divider */}
-        <div
-          className="h-px w-full"
-          style={{ background: 'var(--border)' }}
-        />
+            {/* Sub-headline */}
+            <p className="text-lg md:text-xl mb-12 max-w-xl mx-auto" style={{ color: 'var(--text-secondary)', lineHeight: '1.7' }}>
+              {locale === 'es'
+                ? 'Lee, marca y retoma la lectura donde la dejaste, desde cualquier dispositivo.'
+                : 'Read, bookmark, and continue where you left off, from any device.'}
+            </p>
 
-        {/* PWA install guide */}
-        <PwaInstallGuide />
+            {/* Stats strip */}
+            <div className="flex flex-wrap justify-center gap-8 text-center">
+              {[
+                { value: '66', label: locale === 'es' ? 'Libros' : 'Books' },
+                { value: '31K+', label: locale === 'es' ? 'Versículos' : 'Verses' },
+                { value: locale === 'es' ? 'Gratis' : 'Free', label: locale === 'es' ? 'Para siempre' : 'Forever' },
+              ].map(({ value, label }) => (
+                <div key={label}>
+                  <p
+                    className="text-2xl font-bold"
+                    style={{ color: 'var(--brand)' }}
+                  >
+                    {value}
+                  </p>
+                  <p className="text-xs font-medium uppercase tracking-widest mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Main content ─────────────────────────────────────────────── */}
+        <div className="max-w-4xl mx-auto px-4 pb-24 space-y-14">
+
+          {/* Featured version */}
+          {primaryVersion && (
+            <FeaturedVersionCard
+              version={primaryVersion}
+              lang={locale}
+              lastPosition={mounted ? lastPositions[primaryVersion.slug] ?? null : null}
+            />
+          )}
+
+          {/* Verse of the day */}
+          {primaryVersion && (
+            <VerseOfTheDay locale={locale} versionSlug={primaryVersion.slug} />
+          )}
+
+          {/* YouTube channels */}
+          <YouTubeSection />
+
+          {/* Divider */}
+          <div
+            className="h-px w-full"
+            style={{ background: 'var(--border)' }}
+          />
+
+          {/* PWA install guide */}
+          <PwaInstallGuide />
+        </div>
       </div>
+
+      <Footer lang={locale} />
     </div>
   )
 }

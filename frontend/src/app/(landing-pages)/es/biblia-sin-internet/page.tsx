@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Biblia Sin Internet - Guía de Apps Offline 2026",
     description: "Lee la Biblia en cualquier lugar sin gastar tus datos móviles con la mejor aplicación offline del mercado.",
     type: "website",
-    url: "/biblia-sin-internet",
+    url: "/es/biblia-sin-internet",
   },
 };
 

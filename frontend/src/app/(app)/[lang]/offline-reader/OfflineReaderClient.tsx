@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ReaderLayoutClient } from '@/app/[lang]/[version]/[book]/(reader)/ReaderLayoutClient'
-import { ChapterClient } from '@/app/[lang]/[version]/[book]/(reader)/[chapter]/ChapterClient'
+import { ReaderLayoutClient } from '@/app/(app)/[lang]/[version]/[book]/(reader)/ReaderLayoutClient'
+import { ChapterClient } from '@/app/(app)/[lang]/[version]/[book]/(reader)/[chapter]/ChapterClient'
 import { ReaderHeader } from '@/components/layout/ReaderHeader'
 import { useI18n } from '@/lib/i18n/client'
 import {

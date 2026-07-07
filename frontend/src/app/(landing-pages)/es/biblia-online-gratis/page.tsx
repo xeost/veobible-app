@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Biblia Online Gratis - Guía de Lectura 2026",
     description: "La guía definitiva para leer la Biblia online de forma gratuita y sin distracciones publicitarias.",
     type: "website",
-    url: "/biblia-online-gratis",
+    url: "/es/biblia-online-gratis",
   },
 };
 
