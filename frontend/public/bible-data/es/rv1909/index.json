@@ -2744,7 +2744,24 @@
       ],
       "description": "Una exposición sistemática y profunda del evangelio, explicando la justificación por la fe, la gracia y la vida en el Espíritu.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        291,
+        525,
+        751,
+        959,
+        1158,
+        1359,
+        1571,
+        1923,
+        2184,
+        2357,
+        2666,
+        2841,
+        2975,
+        3173,
+        3450
+      ]
     },
     {
       "id": "1-corinthians",
