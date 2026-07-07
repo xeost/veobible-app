@@ -2235,7 +2235,7 @@
         11
       ],
       "description": "The story of a reluctant prophet sent to preach repentance to Nineveh, showing God's grace and compassion toward the Gentiles.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=Nhq6nv3y-Dg",
       "chapterOffsets": [
         0,
         183,
@@ -2260,7 +2260,7 @@
         20
       ],
       "description": "Messages of judgment and hope, prophesying the Messiah's birthplace and summarizing what God requires of man.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=cA2RrUEBAW4",
       "chapterOffsets": [
         0,
         196,
@@ -2686,7 +2686,36 @@
       ],
       "description": "Narrates the history of the early church, the descent of the Holy Spirit, and the spread of the gospel from Jerusalem to the ends of the earth.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        257,
+        662,
+        916,
+        1240,
+        1620,
+        1766,
+        2311,
+        2652,
+        3064,
+        3497,
+        3759,
+        4002,
+        4492,
+        4747,
+        5118,
+        5478,
+        5820,
+        6089,
+        6456,
+        6781,
+        7155,
+        7429,
+        7755,
+        8008,
+        8281,
+        8583,
+        8974
+      ]
     },
     {
       "id": "romans",

@@ -2235,7 +2235,7 @@
         11
       ],
       "description": "La historia de un profeta renuente enviado a predicar arrepentimiento a Nínive, mostrando la gracia y compasión de Dios hacia los gentiles.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=1lbep1uvP2s",
       "chapterOffsets": [
         0,
         162,
@@ -2260,7 +2260,7 @@
         20
       ],
       "description": "Mensajes de juicio y esperanza, profetizando el lugar de nacimiento del Mesías y resumiendo lo que Dios requiere del hombre.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=IlM_mTXjfy4",
       "chapterOffsets": [
         0,
         144,
@@ -2686,7 +2686,36 @@
       ],
       "description": "Narra la historia de la iglesia primitiva, el descenso del Espíritu Santo y la expansión del evangelio desde Jerusalén hasta los confines de la tierra.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        250,
+        628,
+        857,
+        1168,
+        1540,
+        1680,
+        2186,
+        2510,
+        2899,
+        3306,
+        3559,
+        3789,
+        4264,
+        4508,
+        4869,
+        5211,
+        5532,
+        5782,
+        6142,
+        6468,
+        6847,
+        7109,
+        7434,
+        7672,
+        7918,
+        8219,
+        8592
+      ]
     },
     {
       "id": "romans",
