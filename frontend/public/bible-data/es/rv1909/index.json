@@ -1105,7 +1105,7 @@
         3
       ],
       "description": "La historia de una joven judía que se convierte en reina de Persia y es usada por Dios para salvar a su pueblo del exterminio.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=CNU3H2VXhCU",
       "chapterOffsets": [
         0,
         251,
@@ -2284,7 +2284,7 @@
         19
       ],
       "description": "Profecía que anuncia la inminente y merecida destrucción de la ciudad asiria de Nínive.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=sil43YjGi1k",
       "chapterOffsets": [
         0,
         139,
@@ -2304,7 +2304,7 @@
         19
       ],
       "description": "Un diálogo entre el profeta y Dios sobre la justicia divina, concluyendo con una afirmación de fe a pesar de las circunstancias.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=MxtIKcc-TxY",
       "chapterOffsets": [
         0,
         144,
@@ -2790,7 +2790,24 @@
       ],
       "description": "Carta dirigida a una iglesia dividida, abordando problemas prácticos, la disciplina, los dones espirituales y la resurrección.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        247,
+        389,
+        567,
+        753,
+        875,
+        1061,
+        1399,
+        1510,
+        1737,
+        1973,
+        2228,
+        2459,
+        2566,
+        2871,
+        3305
+      ]
     },
     {
       "id": "2-corinthians",
@@ -2816,7 +2833,21 @@
       ],
       "description": "Una carta profundamente personal en la que Pablo defiende su ministerio apostólico y exhorta al arrepentimiento y la generosidad.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        228,
+        362,
+        515,
+        682,
+        861,
+        1009,
+        1184,
+        1388,
+        1529,
+        1697,
+        1962,
+        2170
+      ]
     },
     {
       "id": "galatians",
@@ -2835,7 +2866,14 @@
       ],
       "description": "Una defensa apasionada de la libertad en Cristo y la justificación por la fe, frente a la enseñanza de que era necesario guardar la ley.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        170,
+        379,
+        619,
+        847,
+        1039
+      ]
     },
     {
       "id": "ephesians",
@@ -2854,7 +2892,14 @@
       ],
       "description": "Explora las bendiciones espirituales en Cristo, la unidad de la iglesia y la armadura de Dios para la guerra espiritual.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        194,
+        376,
+        534,
+        776,
+        1003
+      ]
     },
     {
       "id": "philippians",
@@ -2871,7 +2916,12 @@
       ],
       "description": "Una carta llena de gozo y gratitud, animando a los creyentes a vivir con humildad, unidad y confianza en Cristo a pesar de las pruebas.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        233,
+        452,
+        626
+      ]
     },
     {
       "id": "colossians",
@@ -2888,7 +2938,12 @@
       ],
       "description": "Destaca la supremacía y suficiencia de Cristo sobre todas las cosas, advirtiendo contra las falsas filosofías y tradiciones humanas.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        254,
+        451,
+        656
+      ]
     },
     {
       "id": "1-thessalonians",
@@ -2906,7 +2961,13 @@
       ],
       "description": "Instrucciones sobre cómo vivir una vida santa y respuestas a preguntas sobre la segunda venida de Cristo y los creyentes fallecidos.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        107,
+        291,
+        409,
+        552
+      ]
     },
     {
       "id": "2-thessalonians",
@@ -2922,7 +2983,11 @@
       ],
       "description": "Aclaraciones adicionales sobre los eventos que precederán al retorno de Cristo y exhortaciones a trabajar y mantenerse firmes.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        118,
+        259
+      ]
     },
     {
       "id": "1-timothy",
@@ -2941,7 +3006,14 @@
       ],
       "description": "Instrucciones pastorales a un joven líder sobre el orden de la iglesia, el papel de los líderes y la defensa de la sana doctrina.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        180,
+        285,
+        407,
+        534,
+        727
+      ]
     },
     {
       "id": "2-timothy",
@@ -2958,7 +3030,12 @@
       ],
       "description": "Las últimas palabras de Pablo antes de su muerte, animando a Timoteo a perseverar en la fe, predicar la palabra y soportar el sufrimiento.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        155,
+        350,
+        491
+      ]
     },
     {
       "id": "titus",
@@ -2974,7 +3051,11 @@
       ],
       "description": "Consejos prácticos para organizar las iglesias en Creta, enfatizando la sana doctrina y las buenas obras en la vida de los creyentes.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        145,
+        260
+      ]
     },
     {
       "id": "philemon",
@@ -2988,7 +3069,9 @@
       ],
       "description": "Una breve petición personal a un cristiano rico para que reciba a su esclavo prófugo, Onésimo, ahora como un hermano en Cristo.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "hebrews",
@@ -3014,7 +3097,21 @@
       ],
       "description": "Demuestra la superioridad de Jesucristo y su nuevo pacto sobre el sacerdocio y los sacrificios del Antiguo Testamento.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        124,
+        295,
+        437,
+        578,
+        692,
+        858,
+        1091,
+        1222,
+        1486,
+        1781,
+        2123,
+        2384
+      ]
     },
     {
       "id": "james",
@@ -3032,7 +3129,13 @@
       ],
       "description": "Exhortaciones muy prácticas sobre cómo la fe genuina debe manifestarse en obras, control de la lengua y perseverancia en las pruebas.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        217,
+        423,
+        584,
+        731
+      ]
     },
     {
       "id": "1-peter",
@@ -3050,7 +3153,13 @@
       ],
       "description": "Palabras de aliento y esperanza para los cristianos que sufren persecución, llamándolos a vivir vidas santas como peregrinos en el mundo.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        251,
+        488,
+        706,
+        893
+      ]
     },
     {
       "id": "2-peter",
@@ -3066,7 +3175,11 @@
       ],
       "description": "Advertencias contra los falsos maestros y un recordatorio de la certeza del regreso de Cristo y el juicio venidero.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        205,
+        441
+      ]
     },
     {
       "id": "1-john",
@@ -3084,7 +3197,13 @@
       ],
       "description": "Una epístola que enfatiza el amor, la obediencia, la verdad y la seguridad de la vida eterna para aquellos que creen en el Hijo de Dios.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        96,
+        366,
+        567,
+        749
+      ]
     },
     {
       "id": "2-john",
@@ -3098,7 +3217,9 @@
       ],
       "description": "Una breve advertencia contra el apoyo a falsos maestros que niegan la encarnación de Jesucristo.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "3-john",
@@ -3112,7 +3233,9 @@
       ],
       "description": "Una carta elogiando a Gayo por su hospitalidad hacia los mensajeros del evangelio y condenando la actitud dictatorial de Diótrefes.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jude",
@@ -3126,7 +3249,9 @@
       ],
       "description": "Un llamado urgente a contender ardientemente por la fe contra aquellos que se infiltran en la iglesia para corromper la gracia de Dios.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "revelation",
@@ -3161,7 +3286,30 @@
       ],
       "description": "Visiones apocalípticas que revelan el triunfo final de Jesucristo sobre el mal, el juicio del mundo y el establecimiento de los cielos nuevos y la tierra nueva.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        211,
+        490,
+        707,
+        843,
+        998,
+        1183,
+        1367,
+        1505,
+        1712,
+        1824,
+        2039,
+        2218,
+        2400,
+        2627,
+        2727,
+        2930,
+        3110,
+        3379,
+        3601,
+        3763,
+        4032
+      ]
     }
   ]
 }

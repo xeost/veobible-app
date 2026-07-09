@@ -2284,7 +2284,7 @@
         19
       ],
       "description": "A prophecy announcing the imminent and deserved destruction of the Assyrian city of Nineveh.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=G2FhH6thbS4",
       "chapterOffsets": [
         0,
         160,
@@ -2304,7 +2304,7 @@
         19
       ],
       "description": "A dialogue between the prophet and God about divine justice, concluding with an affirmation of faith despite circumstances.",
-      "video": "",
+      "video": "https://www.youtube.com/watch?v=bBSk2ehRXIo",
       "chapterOffsets": [
         0,
         172,
@@ -2790,7 +2790,24 @@
       ],
       "description": "A letter addressed to a divided church, tackling practical issues, discipline, spiritual gifts, and the resurrection.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        265,
+        425,
+        637,
+        856,
+        994,
+        1206,
+        1611,
+        1742,
+        2031,
+        2333,
+        2626,
+        2897,
+        3043,
+        3429,
+        3949
+      ]
     },
     {
       "id": "2-corinthians",
@@ -2816,7 +2833,21 @@
       ],
       "description": "A deeply personal letter in which Paul defends his apostolic ministry and urges repentance and generosity.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        251,
+        407,
+        569,
+        744,
+        963,
+        1137,
+        1326,
+        1554,
+        1709,
+        1890,
+        2189,
+        2422
+      ]
     },
     {
       "id": "galatians",
@@ -2835,7 +2866,14 @@
       ],
       "description": "A passionate defense of freedom in Christ and justification by faith, against the teaching that keeping the law was necessary.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        203,
+        435,
+        722,
+        979,
+        1201
+      ]
     },
     {
       "id": "ephesians",
@@ -2854,7 +2892,14 @@
       ],
       "description": "Explores the spiritual blessings in Christ, the unity of the church, and the armor of God for spiritual warfare.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        205,
+        397,
+        564,
+        827,
+        1067
+      ]
     },
     {
       "id": "philippians",
@@ -2871,7 +2916,12 @@
       ],
       "description": "A letter full of joy and gratitude, encouraging believers to live with humility, unity, and confidence in Christ despite trials.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        259,
+        511,
+        711
+      ]
     },
     {
       "id": "colossians",
@@ -2888,7 +2938,12 @@
       ],
       "description": "Highlights the supremacy and sufficiency of Christ over all things, warning against false philosophies and human traditions.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        299,
+        532,
+        756
+      ]
     },
     {
       "id": "1-thessalonians",
@@ -2906,7 +2961,13 @@
       ],
       "description": "Instructions on how to live a holy life and answers to questions about the second coming of Christ and deceased believers.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        113,
+        321,
+        450,
+        615
+      ]
     },
     {
       "id": "2-thessalonians",
@@ -2922,7 +2983,11 @@
       ],
       "description": "Further clarifications about the events preceding Christ's return and exhortations to work and stand firm.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        125,
+        288
+      ]
     },
     {
       "id": "1-timothy",
@@ -2941,7 +3006,14 @@
       ],
       "description": "Pastoral instructions to a young leader regarding church order, the role of leaders, and the defense of sound doctrine.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        196,
+        304,
+        439,
+        584,
+        788
+      ]
     },
     {
       "id": "2-timothy",
@@ -2958,7 +3030,12 @@
       ],
       "description": "Paul's final words before his death, encouraging Timothy to persevere in faith, preach the word, and endure suffering.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        184,
+        394,
+        549
+      ]
     },
     {
       "id": "titus",
@@ -2974,7 +3051,11 @@
       ],
       "description": "Practical advice for organizing the churches in Crete, emphasizing sound doctrine and good works in the lives of believers.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        153,
+        278
+      ]
     },
     {
       "id": "philemon",
@@ -2988,7 +3069,9 @@
       ],
       "description": "A brief personal plea to a wealthy Christian to receive his runaway slave, Onesimus, now as a brother in Christ.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "hebrews",
@@ -3014,7 +3097,21 @@
       ],
       "description": "Demonstrates the superiority of Jesus Christ and His new covenant over the priesthood and sacrifices of the Old Testament.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        145,
+        340,
+        495,
+        660,
+        799,
+        984,
+        1259,
+        1418,
+        1716,
+        2057,
+        2462,
+        2772
+      ]
     },
     {
       "id": "james",
@@ -3032,7 +3129,13 @@
       ],
       "description": "Highly practical exhortations on how genuine faith should manifest in works, control of the tongue, and perseverance in trials.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        234,
+        452,
+        618,
+        779
+      ]
     },
     {
       "id": "1-peter",
@@ -3050,7 +3153,13 @@
       ],
       "description": "Words of encouragement and hope for Christians suffering persecution, calling them to live holy lives as pilgrims in the world.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        261,
+        504,
+        735,
+        929
+      ]
     },
     {
       "id": "2-peter",
@@ -3066,7 +3175,11 @@
       ],
       "description": "Warnings against false teachers and a reminder of the certainty of Christ's return and the coming judgment.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        222,
+        479
+      ]
     },
     {
       "id": "1-john",
@@ -3084,7 +3197,13 @@
       ],
       "description": "An epistle emphasizing love, obedience, truth, and the assurance of eternal life for those who believe in the Son of God.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        97,
+        382,
+        599,
+        804
+      ]
     },
     {
       "id": "2-john",
@@ -3098,7 +3217,9 @@
       ],
       "description": "A brief warning against supporting false teachers who deny the incarnation of Jesus Christ.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "3-john",
@@ -3112,7 +3233,9 @@
       ],
       "description": "A letter commending Gaius for his hospitality toward gospel messengers and condemning the dictatorial attitude of Diotrephes.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jude",
@@ -3126,7 +3249,9 @@
       ],
       "description": "An urgent call to contend earnestly for the faith against those who infiltrate the church to corrupt the grace of God.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "revelation",
@@ -3161,7 +3286,30 @@
       ],
       "description": "Apocalyptic visions revealing the final triumph of Jesus Christ over evil, the judgment of the world, and the establishment of the new heavens and new earth.",
       "video": "",
-      "chapterOffsets": []
+      "chapterOffsets": [
+        0,
+        249,
+        558,
+        814,
+        965,
+        1155,
+        1352,
+        1561,
+        1717,
+        1940,
+        2082,
+        2306,
+        2498,
+        2704,
+        2956,
+        3063,
+        3282,
+        3496,
+        3819,
+        4082,
+        4264,
+        4587
+      ]
     }
   ]
 }
