@@ -27,6 +27,14 @@ export const BIBLE_VERSIONS: BibleVersion[] = [
     name: 'Reina Valera 1909',
     shortName: 'rv1909',
   },
+  {
+    langCode: 'pt',
+    slug: 'arc',
+    dataPath: 'pt/arc',
+    publicPath: 'pt/arc',
+    name: 'Almeida Revista e Corrigida',
+    shortName: 'ARC',
+  },
 ]
 
 // Versions available per language
