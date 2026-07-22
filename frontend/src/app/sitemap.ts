@@ -24,6 +24,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${baseUrl}/pt`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    },
+    {
       url: `${baseUrl}/en/kjv`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
@@ -31,6 +37,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${baseUrl}/es/rv1909`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/pt/arc`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.8,

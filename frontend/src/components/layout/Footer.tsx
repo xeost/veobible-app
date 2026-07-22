@@ -7,6 +7,7 @@ interface FooterProps {
 
 export function Footer({ lang }: FooterProps) {
   const isEs = lang === 'es'
+  const isPt = lang === 'pt'
   const showArticles = lang === 'es'
 
   const links = [
@@ -21,6 +22,7 @@ export function Footer({ lang }: FooterProps) {
   const readingLinks = [
     { href: `/en/kjv`, label: 'King James Version (KJV)' },
     { href: `/es/rv1909`, label: 'Reina Valera 1909 (RV1909)' },
+    { href: `/pt/arc`, label: 'Almeida Revista e Corrigida (ARC)' },
   ]
 
   return (
@@ -43,12 +45,14 @@ export function Footer({ lang }: FooterProps) {
             </span>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            {isEs
+            {isPt
+              ? 'Uma experiência moderna e focada para ler e estudar as Escrituras Sagradas.'
+              : isEs
               ? 'Una experiencia moderna y enfocada para leer y estudiar las Sagradas Escrituras.'
               : 'A modern, focused experience for reading and studying the Holy Scriptures.'}
           </p>
           <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
-            &copy; {new Date().getFullYear()} VeoBible. {isEs ? 'Todos los derechos reservados.' : 'All rights reserved.'}
+            &copy; {new Date().getFullYear()} VeoBible. {isPt ? 'Todos os direitos reservados.' : isEs ? 'Todos los derechos reservados.' : 'All rights reserved.'}
           </p>
         </div>
 
@@ -58,7 +62,7 @@ export function Footer({ lang }: FooterProps) {
             className="text-xs font-semibold uppercase tracking-wider"
             style={{ color: 'var(--brand)' }}
           >
-            {isEs ? 'Lectura' : 'Read'}
+            {isPt ? 'Leitura' : isEs ? 'Lectura' : 'Read'}
           </h3>
           <ul className="space-y-2">
             {readingLinks.map((link) => (

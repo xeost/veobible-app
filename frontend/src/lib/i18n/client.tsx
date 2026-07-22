@@ -1,12 +1,13 @@
 'use client'
 
-import React, { createContext, useContext } from 'react'
+import React, { createContext, useContext, useEffect } from 'react'
 import type { Translations } from './translations/en'
 import { en } from './translations/en'
 import { es } from './translations/es'
+import { pt } from './translations/pt'
 import type { Locale } from './config'
 
-const translations: Record<Locale, Translations> = { en, es }
+const translations: Record<Locale, Translations> = { en, es, pt }
 
 function getTranslations(locale: Locale): Translations {
   return translations[locale] ?? en
@@ -25,6 +26,13 @@ export function I18nProvider({
   children: React.ReactNode
 }) {
   const t = getTranslations(locale)
+
+  useEffect(() => {
+    if (typeof document !== 'undefined' && locale) {
+      document.documentElement.lang = locale
+    }
+  }, [locale])
+
   return <I18nContext.Provider value={{ locale, t }}>{children}</I18nContext.Provider>
 }
 

@@ -15,6 +15,7 @@ export async function generateStaticParams() {
   return [
     { lang: 'en', version: 'kjv' },
     { lang: 'es', version: 'rv1909' },
+    { lang: 'pt', version: 'arc' },
   ]
 }
 

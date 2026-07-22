@@ -7,7 +7,7 @@ import { Footer } from '@/components/layout/Footer'
 import { useI18n } from '@/lib/i18n/client'
 import { getVersionsForLang } from '@/lib/bible/config'
 import { storage } from '@/lib/storage'
-import { getVerseOfTheDay } from '@/lib/bible/verses-of-the-day'
+import { getVerseOfTheDay, getDailyVerseReference } from '@/lib/bible/verses-of-the-day'
 import type { ReadingPosition } from '@/lib/storage'
 
 interface LangHomePageProps {
@@ -93,7 +93,7 @@ function VerseOfTheDay({ locale, versionSlug }: { locale: string; versionSlug: s
 
   // Each locale has its own routing slug for the book
   const bookSlug = locale === 'es' ? dailyVerse.bookSlugEs : dailyVerse.bookSlug
-  const reference = locale === 'es' ? dailyVerse.referenceEs : dailyVerse.reference
+  const reference = getDailyVerseReference(dailyVerse, locale)
 
   // Fetch the real verse text from the public JSON file
   const [verseText, setVerseText] = useState<string | null>(null)
@@ -503,7 +503,7 @@ function FeaturedVersionCard({
         {/* Info */}
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--brand)' }}>
-            {version.langCode === 'en' ? 'English' : 'Español'}
+            {version.langCode === 'en' ? 'English' : version.langCode === 'pt' ? 'Português' : 'Español'}
           </p>
           <h2 className="text-2xl md:text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>
             {version.name}
@@ -606,7 +606,9 @@ export default function LangHomePage({ params: _params }: LangHomePageProps) {
 
             {/* Sub-headline */}
             <p className="text-lg md:text-xl mb-12 max-w-xl mx-auto" style={{ color: 'var(--text-secondary)', lineHeight: '1.7' }}>
-              {locale === 'es'
+              {locale === 'pt'
+                ? 'Leia, marque e retome a leitura de onde parou, de qualquer dispositivo.'
+                : locale === 'es'
                 ? 'Lee, marca y retoma la lectura donde la dejaste, desde cualquier dispositivo.'
                 : 'Read, bookmark, and continue where you left off, from any device.'}
             </p>
@@ -614,9 +616,9 @@ export default function LangHomePage({ params: _params }: LangHomePageProps) {
             {/* Stats strip */}
             <div className="flex flex-wrap justify-center gap-8 text-center">
               {[
-                { value: '66', label: locale === 'es' ? 'Libros' : 'Books' },
-                { value: '31K+', label: locale === 'es' ? 'Versículos' : 'Verses' },
-                { value: locale === 'es' ? 'Gratis' : 'Free', label: locale === 'es' ? 'Para siempre' : 'Forever' },
+                { value: '66', label: locale === 'pt' ? 'Livros' : locale === 'es' ? 'Libros' : 'Books' },
+                { value: '31K+', label: locale === 'pt' ? 'Versículos' : locale === 'es' ? 'Versículos' : 'Verses' },
+                { value: locale === 'pt' ? 'Grátis' : locale === 'es' ? 'Gratis' : 'Free', label: locale === 'pt' ? 'Para sempre' : locale === 'es' ? 'Para siempre' : 'Forever' },
               ].map(({ value, label }) => (
                 <div key={label}>
                   <p

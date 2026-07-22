@@ -136,6 +136,54 @@ export const DAILY_VERSES: DailyVerse[] = [
   { reference: 'Psalm 56:3',           referenceEs: 'Salmos 56:3',           bookSlug: 'psalms',         bookSlugEs: 'salmos',              chapter: 56,  verse: 3  },
 ]
 
+const PT_BOOK_NAMES: Record<string, string> = {
+  John: 'João',
+  Psalm: 'Salmos',
+  Psalms: 'Salmos',
+  Romans: 'Romanos',
+  Proverbs: 'Provérbios',
+  Isaiah: 'Isaías',
+  Philippians: 'Filipenses',
+  Jeremiah: 'Jeremias',
+  Matthew: 'Mateus',
+  Joshua: 'Josué',
+  Galatians: 'Gálatas',
+  '1 Corinthians': '1 Coríntios',
+  '2 Corinthians': '2 Coríntios',
+  Hebrews: 'Hebreus',
+  James: 'Tiago',
+  Ephesians: 'Efésios',
+  '2 Timothy': '2 Timóteo',
+  Genesis: 'Gênesis',
+  Micah: 'Miquéias',
+  Lamentations: 'Lamentações',
+  Luke: 'Lucas',
+  Colossians: 'Colossenses',
+  Revelation: 'Apocalipse',
+  '1 John': '1 João',
+  Mark: 'Marcos',
+  Acts: 'Atos',
+  Deuteronomy: 'Deuteronômio',
+  Nehemiah: 'Neemias',
+  Numbers: 'Números',
+  Habakkuk: 'Habacuque',
+  Ezekiel: 'Ezequiel',
+  '1 Peter': '1 Pedro',
+  '2 Chronicles': '2 Crônicas',
+}
+
+export function getDailyVerseReference(verse: DailyVerse, locale: string): string {
+  if (locale === 'es') return verse.referenceEs
+  if (locale === 'pt') {
+    for (const [enName, ptName] of Object.entries(PT_BOOK_NAMES)) {
+      if (verse.reference.startsWith(enName)) {
+        return verse.reference.replace(enName, ptName)
+      }
+    }
+  }
+  return verse.reference
+}
+
 /**
  * Returns the verse for today based on the current local date.
  * The same verse is shown for the entire calendar day.

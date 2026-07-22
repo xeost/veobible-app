@@ -184,6 +184,7 @@ export const es: Translations = {
     label: 'Idioma',
     en: 'Inglés',
     es: 'Español',
+    pt: 'Portugués',
   },
 
   // Version

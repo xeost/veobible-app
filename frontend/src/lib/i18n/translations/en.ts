@@ -181,6 +181,7 @@ export const en = {
     label: 'Language',
     en: 'English',
     es: 'Spanish',
+    pt: 'Portuguese',
   },
 
   // Version
@@ -265,7 +266,7 @@ export interface Translations {
   ribbon: { label: string; set: string; update: string; go: string; clear: string; at: string; none: string; setConfirm: string; clearConfirm: string }
   offline: { title: string; open: string; statusChecking: string; statusNotCached: string; statusPartial: string; statusAvailable: string; statusDownloading: string; descNotCached: string; descPartial: string; descAvailable: string; descDownloading: string; download: string; downloadResume: string; cancel: string; delete: string; deleteConfirmBtn: string; deleteConfirm: string; cancelDelete: string; chaptersInfo: (total: number) => string; progress: (done: number, total: number) => string; offlinePage: { title: string; subtitle: string; goHome: string; goBack: string; tip: string }; versionNotAvailable: string; versionNotAvailableDesc: string }
   theme: { label: string; light: string; dark: string; system: string }
-  language: { label: string; en: string; es: string }
+  language: { label: string; en: string; es: string; pt: string }
   version: { label: string; switch: string; chaptersTooltip: (count: number) => string }
   home: { welcome: string; continueReading: string; startReading: string; chooseVersion: string; availableVersions: string; verseOfTheDay: string; verseOfTheDaySubtitle: string; readInContext: string; installTitle: string; installSubtitle: string; installIos: string; installIosStep1: string; installIosStep2: string; installIosStep3: string; installIosStep4: string; installAndroid: string; installAndroidStep1: string; installAndroidStep2: string; installAndroidStep3: string; installAndroidStep4: string; installDesktopChrome: string; installDesktopChromeStep1: string; installDesktopChromeStep2: string; installDesktopChromeStep3: string; installDesktopSafari: string; installDesktopSafariStep1: string; installDesktopSafariStep2: string; installDesktopSafariStep3: string; youtubeTitle: string; youtubeSubtitle: string; youtubeChannelEs: string; youtubeChannelEsDesc: string; youtubeChannelEn: string; youtubeChannelEnDesc: string; youtubeSubscribe: string }
   error: { notFound: string; chapterNotFound: string; goHome: string }

@@ -4,9 +4,10 @@ import React, { createContext, useContext } from 'react'
 import type { Translations } from './translations/en'
 import { en } from './translations/en'
 import { es } from './translations/es'
+import { pt } from './translations/pt'
 import type { Locale } from './config'
 
-const translations: Record<Locale, Translations> = { en, es }
+const translations: Record<Locale, Translations> = { en, es, pt }
 
 // Note: getTranslations for server components is in @/lib/i18n/server
 // This re-export makes it available for client components too

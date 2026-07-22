@@ -205,16 +205,27 @@ export default function OfflinePage() {
       goBack: 'Volver',
       tip: '<strong>Consejo:</strong> Descarga una versión de la Biblia desde el lector para tenerla siempre disponible sin conexión.',
     },
+    pt: {
+      title: 'Sem conexão com a internet',
+      subtitle: 'Parece que você está offline. As páginas que você visitou anteriormente ainda estão disponíveis.',
+      goHome: 'Ir para o início',
+      goBack: 'Voltar',
+      tip: '<strong>Dica:</strong> Baixe uma versão da Bíblia a partir do leitor para tê-la sempre disponível offline.',
+    },
   };
 
   // Detect language: URL prefix > saved localStorage pref > browser language
   function detectLang() {
     try {
       var prefs = JSON.parse(localStorage.getItem('veobible-preferences') || '{}');
+      if (prefs.locale === 'pt') return 'pt';
       if (prefs.locale === 'es') return 'es';
       if (prefs.locale === 'en') return 'en';
     } catch (_) {}
-    return (navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en';
+    var navLang = (navigator.language || '').toLowerCase();
+    if (navLang.startsWith('pt')) return 'pt';
+    if (navLang.startsWith('es')) return 'es';
+    return 'en';
   }
 
   var lang = detectLang();
