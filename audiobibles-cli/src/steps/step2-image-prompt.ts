@@ -20,7 +20,8 @@ import { readBibleIndex, padBookNumber } from "../bible.js";
 import { config } from "../config.js";
 import { printStep, ok, info, warn, clipboardNotice, divider, C } from "../ui.js";
 import { logStep, log } from "../logger.js";
-import { findImageFile, filterTargetsByJson, readBookMetadata } from "../filesystem.js";
+import { findImageFile, filterTargetsByJson } from "../filesystem.js";
+import { getLocaleConfig } from "../i18n.js";
 import type { SessionState } from "../types.js";
 
 /**
@@ -32,39 +33,8 @@ function buildImagePrompt(
   versionLabel: string,
   locale: string
 ): string {
-  if (locale === "es") {
-    return `Crea una imagen de portada cinematográfica y de alta calidad para un video de La Biblia Hablada.
-
-📖 Libro: ${bookName}
-🕊️ Versión: ${versionLabel}
-
-Contexto del libro:
-${bookDescription}
-
-Requisitos de la imagen:
-- Formato horizontal (16:9), resolución al menos 1920×1080
-- Estilo: pintura épica o ilustración bíblica solemne
-- Colores ricos y dramáticos (dorados, azules profundos, tonos de desierto)
-- El texto del título estará superpuesto después, así que deja espacio visual limpio
-- Sin texto dentro de la imagen
-- Atmósfera: reverente, atemporal, impactante`;
-  }
-
-  return `Create a cinematic, high-quality cover image for an Audiobible video.
-
-📖 Book: ${bookName}
-🕊️ Version: ${versionLabel}
-
-Book context:
-${bookDescription}
-
-Image requirements:
-- Horizontal format (16:9), at least 1920×1080 resolution
-- Style: epic painting or solemn biblical illustration
-- Rich and dramatic colors (golds, deep blues, desert tones)
-- The title text will be overlaid separately, so leave clean visual space
-- No text inside the image
-- Atmosphere: reverent, timeless, impactful`;
+  const l = getLocaleConfig(locale);
+  return l.imagePrompt({ bookName, bookDescription, versionLabel });
 }
 
 export async function runStep2(session: SessionState): Promise<void> {

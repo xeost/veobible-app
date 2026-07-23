@@ -2,10 +2,10 @@ import fs from "fs";
 import path from "path";
 import { config } from "./config.js";
 import { log } from "./logger.js";
+import { getLocaleConfig } from "./i18n.js";
 import type { BibleVersion, BibleBook, BibleVersionMetadata } from "./types.js";
 
 const DAY_MAP: Record<string, number> = {
-  // English names
   sunday: 0, sun: 0,
   monday: 1, mon: 1,
   tuesday: 2, tue: 2,
@@ -13,14 +13,6 @@ const DAY_MAP: Record<string, number> = {
   thursday: 4, thu: 4,
   friday: 5, fri: 5,
   saturday: 6, sat: 6,
-  // Spanish names
-  domingo: 0, dom: 0,
-  lunes: 1, lun: 1,
-  martes: 2, mar: 2,
-  miércoles: 3, miercoles: 3, mie: 3,
-  jueves: 4, jue: 4,
-  viernes: 5, vie: 5,
-  sábado: 6, sabado: 6, sab: 6,
 };
 
 function parsePublishDays(publishDays: readonly (string | number)[] | string): Set<number> {
@@ -60,12 +52,15 @@ function parsePublishDays(publishDays: readonly (string | number)[] | string): S
 
 /**
  * Calculates the scheduled date for a given book number within a version.
- * Book 1 is scheduled on the first available publish day on or after config.schedule.baseDate;
- * each subsequent book is scheduled on the next available publish day.
+ * Book 1 is scheduled on the first available publish day on or after the version's
+ * (or global default) baseDate; each subsequent book is scheduled on the next available publish day.
  */
-function getScheduledDate(bookNumber: number): string {
-  const base = new Date(`${config.schedule.baseDate}T00:00:00`);
-  const publishDayNums = parsePublishDays(config.schedule.publishDays);
+function getScheduledDate(bookNumber: number, version: BibleVersion): string {
+  const baseDate = version.schedule?.baseDate ?? config.schedule.baseDate;
+  const publishDays = version.schedule?.publishDays ?? config.schedule.publishDays;
+
+  const base = new Date(`${baseDate}T00:00:00`);
+  const publishDayNums = parsePublishDays(publishDays);
 
   let currentDate = new Date(base.getTime());
 
@@ -114,13 +109,11 @@ SCHEDULED TIME
 
 /**
  * Builds the video title for a Bible book.
- * Pattern: "<BookName> | Santa Biblia / Holy Bible | <VersionLabel> | Audio Biblia / Audio Bible"
- * Example: "Génesis | Santa Biblia | Reina Valera 1909 | Audio Biblia"
+ * Pattern: "<BookName> | <BibleTerm> | <VersionLabel> | <AudioBibleTerm>"
  */
 function buildTitle(bookName: string, versionLabel: string, locale: string): string {
-  const bibleTerm = locale === "es" ? "Santa Biblia" : "Holy Bible";
-  const suffix = locale === "es" ? "Audio Biblia" : "Audio Bible";
-  return `${bookName} | ${bibleTerm} | ${versionLabel} | ${suffix}`;
+  const l = getLocaleConfig(locale);
+  return `${bookName} | ${l.youtube.bibleTerm} | ${versionLabel} | ${l.youtube.audioBibleTerm}`;
 }
 
 /**
@@ -148,15 +141,12 @@ function buildChaptersSection(
   chapterDurations: number[],
   locale: string
 ): string {
-  const isSpanish = locale === "es";
-  const label = isSpanish ? "Capítulo" : "Chapter";
-  const heading = isSpanish ? "📌 Capítulos" : "📌 Chapters";
-
+  const l = getLocaleConfig(locale);
   let offset = 0;
-  const lines: string[] = [heading, ""];
+  const lines: string[] = [l.youtube.chaptersHeading, ""];
 
   for (let i = 0; i < chapterDurations.length; i++) {
-    lines.push(`${formatTimestamp(offset)} ${label} ${i + 1}`);
+    lines.push(`${formatTimestamp(offset)} ${l.youtube.chapterLabel} ${i + 1}`);
     offset += chapterDurations[i];
   }
 
@@ -179,16 +169,10 @@ function buildDescription(
   chapterDurations: number[]
 ): string {
   const separator = "\n\n";
+  const l = getLocaleConfig(version.locale);
 
-  const isSpanish = version.locale === "es";
-
-  const versionSection = isSpanish
-    ? `📖 Sobre esta versión — ${versionMeta.name}\n\n${versionMeta.description}`
-    : `📖 About this version — ${versionMeta.name}\n\n${versionMeta.description}`;
-
-  const linkSection = isSpanish
-    ? `🔗 Leer en línea\n\nEncuentra el libro de ${book.name} en ${versionMeta.name} en:\n${bookUrl}`
-    : `🔗 Read online\n\nFind the book of ${book.name} in ${versionMeta.name} at:\n${bookUrl}`;
+  const versionSection = `${l.youtube.aboutVersionHeading(versionMeta.name)}\n\n${versionMeta.description}`;
+  const linkSection = `${l.youtube.readOnlineHeading}\n\n${l.youtube.readOnlineText(book.name, versionMeta.name, bookUrl)}`;
 
   const chaptersSection =
     chapterDurations.length > 0
@@ -220,13 +204,15 @@ export function generateUploadInfo(params: {
   const title = buildTitle(book.name, versionLabel, version.locale);
   const description = buildDescription(book, versionMeta, version, bookUrl, chapterDurations);
 
+  const scheduledTime = version.schedule?.scheduledTime ?? config.schedule.scheduledTime;
+
   const content = UPLOAD_INFO_TEMPLATE
     .replaceAll("{versionLabel}", versionMeta.shortname)
     .replaceAll("{bookName}", book.name)
     .replaceAll("{title}", title)
     .replaceAll("{description}", description)
-    .replaceAll("{date}", getScheduledDate(bookNumber))
-    .replaceAll("{time}", config.schedule.scheduledTime);
+    .replaceAll("{date}", getScheduledDate(bookNumber, version))
+    .replaceAll("{time}", scheduledTime);
 
   fs.writeFileSync(infoPath, content, "utf-8");
   log("INFO", `Upload info written: ${infoPath}`);

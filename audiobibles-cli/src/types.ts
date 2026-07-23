@@ -1,5 +1,14 @@
 // ─── Bible version ────────────────────────────────────────────────────────────
 
+export interface VersionScheduleConfig {
+  /** Anchor date for book scheduling (YYYY-MM-DD) */
+  baseDate?: string;
+  /** Weekdays on which videos are scheduled for publication */
+  publishDays?: readonly (string | number)[] | string;
+  /** Fixed upload time shown in the YouTube info file (e.g. "9:00 AM") */
+  scheduledTime?: string;
+}
+
 export interface BibleVersion {
   id: string;
   locale: string;
@@ -7,6 +16,8 @@ export interface BibleVersion {
   shortLabel: string;
   /** Optional custom label to be used in the generated YouTube video title instead of the index version name */
   youtubeLabel?: string;
+  /** Optional custom schedule configuration overriding the global defaults */
+  schedule?: VersionScheduleConfig;
 }
 
 // ─── Bible index (mirrors frontend/public/bible-data/<locale>/<id>/index.json) ─────────

@@ -65,8 +65,7 @@ export const config = {
      * Can be specified as a string of comma-separated day names
      * or an array of day names/numbers.
      * Supported formats:
-     * - English: "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
-     * - Spanish: "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"
+     * - Day names: "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
      * - Numbers: 0 (Sunday) to 6 (Saturday)
      */
     publishDays: [
@@ -135,6 +134,7 @@ export const config = {
    *
    * Optional properties:
    * - youtubeLabel: custom version label used in generated YouTube video titles.
+   * - schedule: per-version schedule overrides (e.g. baseDate, publishDays, scheduledTime).
    */
   versions: [
     {
@@ -150,6 +150,16 @@ export const config = {
       label: "King James Version",
       shortLabel: "KJV",
       youtubeLabel: "KJV",
+    },
+    {
+      id: "arc",
+      locale: "pt",
+      label: "Almeida Revista e Corrigida",
+      shortLabel: "ARC",
+      youtubeLabel: "ARC",
+      schedule: {
+        baseDate: "2026-07-23",
+      },
     },
   ],
 } as const;
