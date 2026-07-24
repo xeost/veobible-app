@@ -32,6 +32,10 @@ CONFIG = [
     {
         "bible_data_path": "public/bible-data/en/kjv",
         "youtube_channel": "https://www.youtube.com/@veobible"
+    },
+    {
+        "bible_data_path": "public/bible-data/pt/arc",
+        "youtube_channel": "https://www.youtube.com/@veobible-pt"
     }
 ]
 
