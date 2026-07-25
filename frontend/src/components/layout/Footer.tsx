@@ -8,16 +8,6 @@ interface FooterProps {
 export function Footer({ lang }: FooterProps) {
   const isEs = lang === 'es'
   const isPt = lang === 'pt'
-  const showArticles = lang === 'es'
-
-  const links = [
-    { href: '/es/mejor-pagina-para-leer-la-biblia', label: isEs ? 'Mejor página para leer la Biblia' : 'Best Website to Read the Bible' },
-    { href: '/es/mejor-app-para-leer-la-biblia', label: isEs ? 'La mejor App para leer la Biblia' : 'Best Bible Reading App' },
-    { href: '/es/biblia-online-gratis', label: isEs ? 'Biblia online gratis' : 'Free Online Bible' },
-    { href: '/es/biblia-reina-valera-online', label: isEs ? 'Biblia Reina Valera online' : 'Reina Valera Bible Online' },
-    { href: '/es/biblia-sin-internet', label: isEs ? 'Biblia sin internet' : 'Offline Bible' },
-    { href: '/es/escuchar-la-biblia', label: isEs ? 'Escuchar la Biblia' : 'Audio Bible' },
-  ]
 
   const readingLinks = [
     { href: `/en/kjv`, label: 'King James Version (KJV)' },
@@ -33,7 +23,7 @@ export function Footer({ lang }: FooterProps) {
         borderColor: 'var(--border)',
       }}
     >
-      <div className={`max-w-5xl mx-auto grid grid-cols-1 ${showArticles ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-8`}>
+      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Brand Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -78,31 +68,6 @@ export function Footer({ lang }: FooterProps) {
             ))}
           </ul>
         </div>
-
-        {/* Recommended Column */}
-        {showArticles && (
-          <div className="space-y-4">
-            <h3
-              className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: 'var(--brand)' }}
-            >
-              {isEs ? 'Artículos Recomendados' : 'Recommended Articles'}
-            </h3>
-            <ul className="space-y-2">
-              {links.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm transition-colors hover:opacity-85 block truncate"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
     </footer>
   )

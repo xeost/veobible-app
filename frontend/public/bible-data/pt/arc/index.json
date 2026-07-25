@@ -282,7 +282,8 @@
         6386,
         6837,
         7251
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=sPhCW9hPmBk"
     },
     {
       "id": "numbers",
@@ -412,7 +413,43 @@
         29,
         12
       ],
-      "description": "A repetição da Lei por Moisés antes de Israel entrar na Terra Prometida, chamando à obediência e ao amor a Deus."
+      "description": "A repetição da Lei por Moisés antes de Israel entrar na Terra Prometida, chamando à obediência e ao amor a Deus.",
+      "chapterOffsets": [
+        0,
+        412,
+        736,
+        1017,
+        1483,
+        1761,
+        1959,
+        2232,
+        2411,
+        2707,
+        2896,
+        3179,
+        3506,
+        3688,
+        3908,
+        4121,
+        4337,
+        4536,
+        4718,
+        4906,
+        5106,
+        5316,
+        5573,
+        5774,
+        5972,
+        6139,
+        6339,
+        6550,
+        7160,
+        7434,
+        7647,
+        7962,
+        8403,
+        8664
+      ]
     },
     {
       "id": "joshua",
@@ -447,7 +484,33 @@
         16,
         33
       ],
-      "description": "Relata a conquista de Canaã liderada por Josué e a divisão da terra entre as tribos de Israel."
+      "description": "Relata a conquista de Canaã liderada por Josué e a divisão da terra entre as tribos de Israel.",
+      "chapterOffsets": [
+        0,
+        188,
+        441,
+        625,
+        854,
+        1034,
+        1325,
+        1641,
+        2030,
+        2306,
+        2758,
+        2996,
+        3167,
+        3448,
+        3607,
+        4004,
+        4093,
+        4315,
+        4566,
+        4917,
+        5019,
+        5380,
+        5813,
+        5994
+      ]
     },
     {
       "id": "judges",
@@ -479,7 +542,30 @@
         48,
         25
       ],
-      "description": "História dos líderes e libertadores de Israel durante o período de ciclos de pecado, opressão e libertação."
+      "description": "História dos líderes e libertadores de Israel durante o período de ciclos de pecado, opressão e libertação.",
+      "chapterOffsets": [
+        0,
+        328,
+        545,
+        841,
+        1103,
+        1382,
+        1792,
+        2117,
+        2454,
+        3011,
+        3175,
+        3574,
+        3711,
+        3943,
+        4169,
+        4374,
+        4748,
+        4876,
+        5219,
+        5563,
+        6029
+      ]
     },
     {
       "id": "ruth",
@@ -494,7 +580,13 @@
         18,
         22
       ],
-      "description": "Uma história comovente de lealdade, fé e redenção na vida de Rute e Boaz, ancestrais do Rei Davi."
+      "description": "Uma história comovente de lealdade, fé e redenção na vida de Rute e Boaz, ancestrais do Rei Davi.",
+      "chapterOffsets": [
+        0,
+        217,
+        465,
+        639
+      ]
     },
     {
       "id": "1-samuel",
