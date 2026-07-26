@@ -24,23 +24,46 @@ import datetime
 
 # List of configurations mapping a Bible version directory (relative to project root)
 # to its corresponding YouTube channel URL.
+# Each entry maps a Bible version directory to its YouTube channel and the date
+# (YYYY-MM-DD) of the first uploaded video for that version ("base_date").
+# Videos published before base_date are ignored for that version.
+# When a channel hosts multiple versions sequentially, the version with the
+# highest base_date that is still <= the video's publish date wins.
 CONFIG = [
+    # --- Spanish channel ---
     {
         "bible_data_path": "public/bible-data/es/rv1909",
-        "youtube_channel": "https://www.youtube.com/@veobible-es"
+        "youtube_channel": "https://www.youtube.com/@veobible-es",
+        "base_date": "2026-05-26",
+        "disabled": False,  # Set to True once all videos for this version are detected
     },
+    {
+        "bible_data_path": "public/bible-data/es/spabll",
+        "youtube_channel": "https://www.youtube.com/@veobible-es",
+        "base_date": "2026-08-10",
+        "disabled": False,
+    },
+    # --- English channel ---
     {
         "bible_data_path": "public/bible-data/en/kjv",
-        "youtube_channel": "https://www.youtube.com/@veobible"
+        "youtube_channel": "https://www.youtube.com/@veobible",
+        "base_date": "2026-05-27",
+        "disabled": False,
     },
     {
+        "bible_data_path": "public/bible-data/en/web",
+        "youtube_channel": "https://www.youtube.com/@veobible",
+        "base_date": "2026-08-10",
+        "disabled": False,
+    },
+    # --- Portuguese channel ---
+    {
         "bible_data_path": "public/bible-data/pt/arc",
-        "youtube_channel": "https://www.youtube.com/@veobible-pt"
-    }
+        "youtube_channel": "https://www.youtube.com/@veobible-pt",
+        "base_date": "2026-07-23",
+        "disabled": False,
+    },
 ]
-
-# Only consider videos published on or after this date (YYYY-MM-DD)
-MIN_PUBLISH_DATE = "2026-05-26"
 
 # Time delay (in seconds) between requests to respect YouTube rate limits
 REQUEST_DELAY_SECONDS = 2
@@ -251,42 +274,94 @@ def main():
     project_root = os.path.dirname(script_dir)
     
     print("Starting YouTube Bible Video Integrator Script")
-    print(f"Filtering videos published on/after: {MIN_PUBLISH_DATE}")
     print("-" * 60)
     
+    # Build a map: channel_url -> sorted list of (base_date, config_item) so that
+    # for a given channel we can quickly determine which version a video belongs to.
+    # A video belongs to the version whose base_date is the highest date that is
+    # still <= the video's publish date.
+    # Only include active (non-disabled) entries in the channel_versions map
+    # so that disabled versions don't affect date-range boundaries.
+    channel_versions: dict = {}
     for item in CONFIG:
+        if item.get("disabled", False):
+            continue
+        ch = item["youtube_channel"]
+        channel_versions.setdefault(ch, []).append(item)
+    # Sort each channel's versions by base_date ascending
+    for ch in channel_versions:
+        channel_versions[ch].sort(key=lambda x: x["base_date"])
+
+    # Cache fetched videos per channel to avoid duplicate HTTP requests
+    channel_videos_cache: dict = {}
+
+    for item in CONFIG:
+        if item.get("disabled", False):
+            print(f"⏭ Skipping disabled version: {entry_dir_label(item['bible_data_path'])}")
+            print("-" * 60)
+            continue
+
         bible_path = item["bible_data_path"]
         if not os.path.isabs(bible_path):
             bible_path = os.path.abspath(os.path.join(project_root, bible_path))
-            
+
         index_path = os.path.join(bible_path, "index.json")
         if not os.path.exists(index_path):
             print(f"Error: index.json not found at {index_path}. Skipping this version.", file=sys.stderr)
             print("-" * 60)
             continue
-            
+
         channel_url = item["youtube_channel"]
+        version_base_date = item["base_date"]
         print(f"Processing version at: {entry_dir_label(bible_path)}")
         print(f"YouTube Channel: {channel_url}")
+        print(f"Version base date: {version_base_date}")
         
-        # 1. Resolve Channel ID
-        print("Resolving channel ID...")
-        channel_id = get_channel_id(channel_url)
-        if not channel_id:
-            print(f"Warning: Could not resolve channel ID for {channel_url}. Will attempt direct HTML fetching.")
+        # 1. Fetch videos for this channel (use cache to avoid duplicate requests)
+        if channel_url not in channel_videos_cache:
+            print("Resolving channel ID...")
+            channel_id = get_channel_id(channel_url)
+            if not channel_id:
+                print(f"Warning: Could not resolve channel ID for {channel_url}. Will attempt direct HTML fetching.")
+            else:
+                print(f"Resolved Channel ID: {channel_id}")
+
+            # Delay before next request
+            time.sleep(REQUEST_DELAY_SECONDS)
+
+            print("Fetching latest videos from YouTube...")
+            all_videos = fetch_videos_from_channel(channel_url, channel_id)
+            print(f"Retrieved {len(all_videos)} videos for channel.")
+            channel_videos_cache[channel_url] = all_videos
         else:
-            print(f"Resolved Channel ID: {channel_id}")
-        
-        # Delay before next request
-        time.sleep(REQUEST_DELAY_SECONDS)
-        
-        # 2. Fetch latest videos from channel (HTML scraper with RSS fallback)
-        print("Fetching latest videos from YouTube...")
-        videos = fetch_videos_from_channel(channel_url, channel_id)
-        print(f"Retrieved {len(videos)} videos.")
-        
+            all_videos = channel_videos_cache[channel_url]
+            print(f"Using cached {len(all_videos)} videos for channel.")
+
+        # 2. Determine which videos belong to this version.
+        # A video belongs to this version if its publish date >= version_base_date
+        # AND it does not belong to a newer version on the same channel.
+        # "Newer version" means a version whose base_date > this version's base_date
+        # AND that base_date <= the video's publish date.
+        channel_version_dates = [v["base_date"] for v in channel_versions[channel_url]]
+
+        def video_belongs_to_version(pub_date_str, this_base_date):
+            """Returns True if pub_date_str falls in the range owned by this_base_date."""
+            if pub_date_str[:10] < this_base_date:
+                return False
+            # Check if any later version has a base_date <= pub_date (that would claim this video)
+            for bd in channel_version_dates:
+                if bd > this_base_date and pub_date_str[:10] >= bd:
+                    return False
+            return True
+
+        videos = [
+            v for v in all_videos
+            if video_belongs_to_version(v["published"], version_base_date)
+        ]
+        print(f"{len(videos)} video(s) matched to this version (base_date >= {version_base_date}).")
+
         if not videos:
-            print("No videos retrieved. Skipping version.")
+            print("No videos matched for this version. Skipping.")
             print("-" * 60)
             continue
             
@@ -307,14 +382,10 @@ def main():
         # 4. Process and match videos
         modified = False
         updates_count = 0
-        
-        # We process videos from the feed
+
+        # We process videos already filtered to this version's date range
         for video in videos:
             pub_date = video['published']
-            # Check date threshold
-            if pub_date[:10] < MIN_PUBLISH_DATE:
-                # Video is older than MIN_PUBLISH_DATE, skip it
-                continue
                 
             title = video['title']
             url = video['url']
