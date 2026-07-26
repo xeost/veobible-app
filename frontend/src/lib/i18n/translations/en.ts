@@ -6,6 +6,7 @@ export const en = {
   // Navigation
   nav: {
     home: 'Home',
+    back: 'Back',
     bookmarks: 'Bookmarks',
     settings: 'Settings',
     search: 'Search',
@@ -258,7 +259,7 @@ export type MetaFns = {
 export interface Translations {
   appName: string
   appTagline: string
-  nav: { home: string; bookmarks: string; settings: string; search: string; tableOfContents: string; readingMode: string; exitReadingMode: string }
+  nav: { home: string; back: string; bookmarks: string; settings: string; search: string; tableOfContents: string; readingMode: string; exitReadingMode: string }
   search: { title: string; open: string; placeholder: string; close: string; hint: string; searching: string; stillSearching: string; noResults: string; noResultsHint: string; results: (hits: number, books: number) => string; scopeAll: string; scopeBook: string; setRibbonBeforeNav: string }
   reader: { chapter: string; verse: string; previousChapter: string; nextChapter: string; goToChapter: string; fontSize: string; bookmark: string; bookmarkAdded: string; bookmarkRemoved: string; selectText: string; copyText: string; shareText: string; bookmarkTitleLabel: string; bookmarkTitlePlaceholder: string; bookmarkSave: string; bookmarkCancel: string; typography: string; resetTypography: string; fontFamily: string; lineHeight: string; lineHeight_tight: string; lineHeight_normal: string; lineHeight_relaxed: string; lineHeight_loose: string; typographyPreview: string; prevFont: string; nextFont: string; fontCategory_serif: string; fontCategory_sans: string; fontCategory_script: string; contentWidth: string; contentWidth_full: string; contentWidth_normal: string; contentWidth_thin: string; contentWidth_veryThin: string; listenChapter: string; watchYoutube: string; listen: string; recommendedTitle: string }
   testament: { old: string; new: string }

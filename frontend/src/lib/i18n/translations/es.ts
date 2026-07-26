@@ -8,6 +8,7 @@ export const es: Translations = {
   // Navigation
   nav: {
     home: 'Inicio',
+    back: 'Volver',
     bookmarks: 'Marcadores',
     settings: 'Ajustes',
     search: 'Buscar',

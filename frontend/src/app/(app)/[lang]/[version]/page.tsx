@@ -71,7 +71,7 @@ export default async function VersionPage({ params }: VersionPageProps) {
     <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
       <div className="max-w-5xl mx-auto px-4 py-10">
         {/* Back link */}
-        <BackButton fallbackHref={`/${lang}`} label={t.nav.home} />
+        <BackButton fallbackHref={`/${lang}`} label={t.nav.back} />
 
         <div className="mb-10 max-w-2xl">
           <h1 className="text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>
