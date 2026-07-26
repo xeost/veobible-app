@@ -151,7 +151,13 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
       {/* Chapter header */}
       <div className="mb-10 text-center mx-auto" style={{ maxWidth: 'var(--reader-max-width)' }}>
         <p className="text-sm font-medium mb-1" style={{ color: 'var(--brand)' }}>
-          {data.version.shortname}
+          <Link
+            href={`/${lang}/${version}`}
+            className="hover:underline underline-offset-2"
+            style={{ color: 'inherit' }}
+          >
+            {data.version.shortname}
+          </Link>
         </p>
         <h1 className="text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>
           {book.name}

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { HomeHeader } from '@/components/layout/HomeHeader'
 import { Footer } from '@/components/layout/Footer'
+import { SupportBanner } from '@/components/ui/SupportBanner'
 import { useI18n } from '@/lib/i18n/client'
 import { getVersionsForLang } from '@/lib/bible/config'
 import { storage } from '@/lib/storage'
@@ -84,6 +85,8 @@ const YoutubeIcon = () => (
     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
   </svg>
 )
+
+
 
 // ─── Verse of the Day ─────────────────────────────────────────────────────────
 
@@ -263,26 +266,7 @@ function InstallCard({
 // ─── YouTube Section ──────────────────────────────────────────────────────────
 
 function YouTubeSection() {
-  const { t, locale } = useI18n()
-
-  const channels = [
-    {
-      id: 'es',
-      label: t.home.youtubeChannelEs,
-      description: t.home.youtubeChannelEsDesc,
-      url: 'https://www.youtube.com/@veobible-es',
-      handle: '@veobible-es',
-      lang: 'Español',
-    },
-    {
-      id: 'en',
-      label: t.home.youtubeChannelEn,
-      description: t.home.youtubeChannelEnDesc,
-      url: 'https://www.youtube.com/@veobible',
-      handle: '@veobible',
-      lang: 'English',
-    },
-  ]
+  const { t } = useI18n()
 
   return (
     <section>
@@ -304,92 +288,12 @@ function YouTubeSection() {
         </div>
       </div>
 
-      {/* Channel cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {channels.map((ch) => (
-          <a
-            key={ch.id}
-            href={ch.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            id={`youtube-channel-${ch.id}`}
-            className="group relative overflow-hidden rounded-2xl flex flex-col gap-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              boxShadow: 'var(--shadow-md)',
-              textDecoration: 'none',
-            }}
-          >
-            {/* Thumbnail strip */}
-            <div
-              className="relative h-28 flex items-center justify-center overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, #1a0000 0%, #2d0000 50%, #1a0000 100%)',
-              }}
-            >
-              {/* Subtle grid pattern */}
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(255,255,255,0.4) 24px, rgba(255,255,255,0.4) 25px), repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(255,255,255,0.4) 24px, rgba(255,255,255,0.4) 25px)',
-                }}
-              />
-              {/* Glow */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: 'radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255,0,0,0.18) 0%, transparent 70%)',
-                }}
-              />
-              {/* Play button */}
-              <div
-                className="relative z-10 w-14 h-14 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
-                style={{ background: '#FF0000', boxShadow: '0 4px 20px rgba(255,0,0,0.5)' }}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-              {/* Lang badge */}
-              <span
-                className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-semibold"
-                style={{ background: 'rgba(0,0,0,0.55)', color: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(6px)' }}
-              >
-                {ch.lang}
-              </span>
-            </div>
-
-            {/* Info */}
-            <div className="p-5 flex flex-col gap-2 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#FF0000', opacity: 0.85 }}>
-                YouTube
-              </p>
-              <h3 className="font-bold text-base leading-tight" style={{ color: 'var(--text-primary)' }}>
-                {ch.label}
-              </h3>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {ch.description}
-              </p>
-              <div className="mt-auto pt-3 flex items-center justify-between">
-                <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                  {ch.handle}
-                </span>
-                <span
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 group-hover:scale-105"
-                  style={{ background: '#FF00001a', color: '#FF0000' }}
-                >
-                  {t.home.youtubeSubscribe}
-                  <ArrowRightIcon />
-                </span>
-              </div>
-            </div>
-          </a>
-        ))}
-      </div>
+      {/* Support Banner replacing channel cards */}
+      <SupportBanner />
     </section>
   )
 }
+
 
 // ─── PWA Install Guide ────────────────────────────────────────────────────────
 
@@ -447,6 +351,114 @@ function PwaInstallGuide() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {cards.map((card, i) => (
           <InstallCard key={i} {...card} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ─── Other Versions Section ───────────────────────────────────────────────────
+
+function OtherVersionCard({
+  version,
+  lang,
+  lastPosition,
+}: {
+  version: ReturnType<typeof getVersionsForLang>[0]
+  lang: string
+  lastPosition: ReadingPosition | null
+}) {
+  const href = lastPosition
+    ? `/${lang}/${version.slug}/${lastPosition.bookSlug}/${lastPosition.chapter}`
+    : `/${lang}/${version.slug}/genesis/1`
+
+  return (
+    <Link
+      href={href}
+      id={`version-card-${version.slug}`}
+      className="group flex items-center gap-4 rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-md)',
+        textDecoration: 'none',
+      }}
+    >
+      {/* Icon */}
+      <div
+        className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
+        style={{
+          background: 'var(--brand-light)',
+          color: 'var(--brand)',
+        }}
+      >
+        <BookOpenIcon />
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand)' }}>
+          {version.shortName.toUpperCase()}
+        </p>
+        <p className="font-semibold text-sm leading-snug truncate" style={{ color: 'var(--text-primary)' }}>
+          {version.name}
+        </p>
+        {lastPosition && (
+          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
+            {lastPosition.bookSlug.replace(/-/g, ' ')} {lastPosition.chapter}
+          </p>
+        )}
+      </div>
+
+      {/* Arrow */}
+      <div
+        className="flex-shrink-0 opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200"
+        style={{ color: 'var(--brand)' }}
+      >
+        <ArrowRightIcon />
+      </div>
+    </Link>
+  )
+}
+
+function OtherVersionsSection({
+  versions,
+  lang,
+  lastPositions,
+  mounted,
+}: {
+  versions: ReturnType<typeof getVersionsForLang>
+  lang: string
+  lastPositions: Record<string, ReadingPosition | null>
+  mounted: boolean
+}) {
+  if (versions.length === 0) return null
+
+  return (
+    <section>
+      <div className="flex items-center gap-3 mb-5">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}
+        >
+          <BookOpenIcon />
+        </div>
+        <h2 className="text-base font-semibold" style={{ color: 'var(--text-secondary)' }}>
+          {lang === 'pt'
+            ? 'Outras versões'
+            : lang === 'es'
+            ? 'Otras versiones'
+            : 'Other versions'}
+        </h2>
+      </div>
+      <div className="flex flex-col gap-3">
+        {versions.map((v) => (
+          <OtherVersionCard
+            key={v.slug}
+            version={v}
+            lang={lang}
+            lastPosition={mounted ? lastPositions[v.slug] ?? null : null}
+          />
         ))}
       </div>
     </section>
@@ -648,12 +660,22 @@ export default function LangHomePage({ params: _params }: LangHomePageProps) {
             />
           )}
 
+          {/* Other versions for this language */}
+          {versions.length > 1 && (
+            <OtherVersionsSection
+              versions={versions.slice(1)}
+              lang={locale}
+              lastPositions={lastPositions}
+              mounted={mounted}
+            />
+          )}
+
           {/* Verse of the day */}
           {primaryVersion && (
             <VerseOfTheDay locale={locale} versionSlug={primaryVersion.slug} />
           )}
 
-          {/* YouTube channels */}
+          {/* YouTube channels / Support Banner */}
           <YouTubeSection />
 
           {/* Divider */}

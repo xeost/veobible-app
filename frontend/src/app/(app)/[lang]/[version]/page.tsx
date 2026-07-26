@@ -3,20 +3,17 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { loadBibleIndex } from '@/lib/bible/loader'
-import { findVersion } from '@/lib/bible/config'
+import { findVersion, BIBLE_VERSIONS } from '@/lib/bible/config'
 import { isValidLocale } from '@/lib/i18n/config'
 import { getTranslations } from '@/lib/i18n/server'
+import { BackButton } from './BackButton'
 
 interface VersionPageProps {
   params: Promise<{ lang: string; version: string }>
 }
 
 export async function generateStaticParams() {
-  return [
-    { lang: 'en', version: 'kjv' },
-    { lang: 'es', version: 'rv1909' },
-    { lang: 'pt', version: 'arc' },
-  ]
+  return BIBLE_VERSIONS.map((v) => ({ lang: v.langCode, version: v.slug }))
 }
 
 export async function generateMetadata({ params }: VersionPageProps): Promise<Metadata> {
@@ -74,14 +71,7 @@ export default async function VersionPage({ params }: VersionPageProps) {
     <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
       <div className="max-w-5xl mx-auto px-4 py-10">
         {/* Back link */}
-        <Link
-          href={`/${lang}`}
-          className="inline-flex items-center gap-1.5 text-sm mb-8 transition-colors duration-100"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-          {t.nav.home}
-        </Link>
+        <BackButton fallbackHref={`/${lang}`} label={t.nav.home} />
 
         <div className="mb-10 max-w-2xl">
           <h1 className="text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>

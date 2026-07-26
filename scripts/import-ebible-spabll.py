@@ -406,14 +406,14 @@ def process_bible(
     # Build index.json
     index_data = {
         "metadata": {
-            "name": "Santa Biblia Libre Latinoamericano",
-            "shortname": "BLL",
+            "name": "Santa Biblia Libre Latinoamericana",
+            "shortname": "SPABLL",
             "slug": "spabll",
             "year": "2026",
             "language": "Spanish",
             "copyright": "Esta Biblia es de dominio público.",
             "description": (
-                "La Santa Biblia Libre Latinoamericano (BLL) es una traducción en el dialecto "
+                "La Santa Biblia Libre Latinoamericana (SPABLL) es una traducción en el dialecto "
                 "latinoamericano del español. Es un borrador de traducción de dominio público, "
                 "disponible a través de eBible.org."
             ),

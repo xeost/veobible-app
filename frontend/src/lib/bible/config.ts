@@ -20,12 +20,28 @@ export const BIBLE_VERSIONS: BibleVersion[] = [
     shortName: 'KJV',
   },
   {
+    langCode: 'en',
+    slug: 'web',
+    dataPath: 'en/web',
+    publicPath: 'en/web',
+    name: 'World English Bible',
+    shortName: 'WEB',
+  },
+  {
     langCode: 'es',
     slug: 'rv1909',
     dataPath: 'es/rv1909',
     publicPath: 'es/rv1909',
     name: 'Reina Valera 1909',
     shortName: 'rv1909',
+  },
+  {
+    langCode: 'es',
+    slug: 'spabll',
+    dataPath: 'es/spabll',
+    publicPath: 'es/spabll',
+    name: 'Santa Biblia Libre Latinoamericana',
+    shortName: 'SPABLL',
   },
   {
     langCode: 'pt',

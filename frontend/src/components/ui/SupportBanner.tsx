@@ -5,8 +5,9 @@ import { useI18n } from '@/lib/i18n/client'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 const YOUTUBE_CHANNELS = [
-  { lang: 'es', url: 'https://www.youtube.com/@veobible-es', label: 'VeoBible Español' },
-  { lang: 'en', url: 'https://www.youtube.com/@veobible', label: 'VeoBible English' },
+  { lang: 'es', url: 'https://www.youtube.com/@veobible-es', label: 'VeoBible en Español' },
+  { lang: 'en', url: 'https://www.youtube.com/@veobible', label: 'VeoBible' },
+  { lang: 'pt', url: 'https://www.youtube.com/@veobible-pt', label: 'VeoBible em Português' },
 ]
 
 const DONATION_PLATFORMS: { id: string; name: string; url: string }[] = [
@@ -38,6 +39,8 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
   if (isClosable && closed && !showSecondStep) return null
 
   const isEs = locale === 'es'
+  const isPt = locale === 'pt'
+
   const costsList = isEs ? (
     <div className="flex flex-col gap-2.5 text-left text-sm py-1">
       <strong className="block mb-1.5 text-base" style={{ color: 'var(--text-primary)' }}>¿Cuáles son los costos?</strong>
@@ -47,6 +50,17 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
         <li>Servicio de autenticación de usuario con Supabase</li>
         <li>Créditos de IA para generación de código</li>
         <li>Apoyo económico al programador principal</li>
+      </ul>
+    </div>
+  ) : isPt ? (
+    <div className="flex flex-col gap-2.5 text-left text-sm py-1">
+      <strong className="block mb-1.5 text-base" style={{ color: 'var(--text-primary)' }}>Quais são os custos?</strong>
+      <ul className="list-disc pl-5 space-y-2 opacity-90">
+        <li>Restauração e geração de áudios para a Bíblia em áudio</li>
+        <li>Hospedagem na Cloudflare, sincronização de dados e banco de dados</li>
+        <li>Serviço de autenticação de usuários com Supabase</li>
+        <li>Créditos de IA para geração de código</li>
+        <li>Apoio financeiro ao desenvolvedor principal</li>
       </ul>
     </div>
   ) : (
@@ -63,43 +77,60 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
   )
 
   const text = {
-    title: isEs ? "Ayuda a VeoBible sin gastar un centavo" : "Support VeoBible without spending a dime",
-    mainMsg: isEs
-      ? (
-        <>
-          Suscribirte a nuestro canal de YouTube es gratis y nos ayuda a cubrir los{' '}
-          <Tooltip content={costsList} placement="top" wrapContent className="inline-flex">
-            <span className="underline decoration-dashed underline-offset-4 cursor-help transition-colors hover:opacity-80" style={{ color: 'var(--text-primary)', textDecorationColor: 'color-mix(in srgb, var(--text-muted) 40%, transparent)' }}>
-              costos
-            </span>
-          </Tooltip>
-          {' '}para mantener esta app sin publicidad.
-        </>
-      )
-      : (
-        <>
-          Subscribing to our YouTube channel is free and is the best way to help us cover{' '}
-          <Tooltip content={costsList} placement="top" wrapContent className="inline-flex">
-            <span className="underline decoration-dashed underline-offset-4 cursor-help transition-colors hover:opacity-80" style={{ color: 'var(--text-primary)', textDecorationColor: 'color-mix(in srgb, var(--text-muted) 40%, transparent)' }}>
-              costs
-            </span>
-          </Tooltip>
-          {' '}to keep this app ad-free.
-        </>
-      ),
+    title: isEs
+      ? "Ayuda a VeoBible sin gastar un centavo"
+      : isPt
+      ? "Ajude o VeoBible sem gastar nada"
+      : "Support VeoBible without spending a dime",
+    mainMsg: isEs ? (
+      <>
+        Suscribirte a nuestro canal de YouTube es gratis y nos ayuda a cubrir los{' '}
+        <Tooltip content={costsList} placement="top" wrapContent className="inline-flex">
+          <span className="underline decoration-dashed underline-offset-4 cursor-help transition-colors hover:opacity-80" style={{ color: 'var(--text-primary)', textDecorationColor: 'color-mix(in srgb, var(--text-muted) 40%, transparent)' }}>
+            costos
+          </span>
+        </Tooltip>
+        {' '}para mantener esta app sin publicidad.
+      </>
+    ) : isPt ? (
+      <>
+        Inscrever-se no nosso canal do YouTube é gratuito e nos ajuda a cobrir os{' '}
+        <Tooltip content={costsList} placement="top" wrapContent className="inline-flex">
+          <span className="underline decoration-dashed underline-offset-4 cursor-help transition-colors hover:opacity-80" style={{ color: 'var(--text-primary)', textDecorationColor: 'color-mix(in srgb, var(--text-muted) 40%, transparent)' }}>
+            custos
+          </span>
+        </Tooltip>
+        {' '}para manter este app sem anúncios.
+      </>
+    ) : (
+      <>
+        Subscribing to our YouTube channel is free and is the best way to help us cover{' '}
+        <Tooltip content={costsList} placement="top" wrapContent className="inline-flex">
+          <span className="underline decoration-dashed underline-offset-4 cursor-help transition-colors hover:opacity-80" style={{ color: 'var(--text-primary)', textDecorationColor: 'color-mix(in srgb, var(--text-muted) 40%, transparent)' }}>
+            costs
+          </span>
+        </Tooltip>
+        {' '}to keep this app ad-free.
+      </>
+    ),
     footerMsg: isEs
       ? "Si deseas apoyarnos económicamente, puedes hacer una donación a través de:"
+      : isPt
+      ? "Se deseja apoiar-nos financeiramente, pode fazer uma doação através de:"
       : "If you wish to support us financially, you can make a donation via:",
     secondStepMsg: isEs
       ? "Este mensaje no volverá a aparecer aquí, pero siempre podrás encontrarlo al final de la página si deseas apoyar a VeoBible. ¡Gracias!"
+      : isPt
+      ? "Esta mensagem não aparecerá mais aqui, mas você sempre poderá encontrá-la no final da página se desejar apoiar o VeoBible. Obrigado!"
       : "This message will no longer appear here, but you can always find it at the bottom of the page if you wish to support VeoBible. Thank you!",
-    closeBtn: isEs ? "Cerrar" : "Close",
-    closeTooltip: isEs ? "Ocultar permanentemente" : "Hide permanently",
-    cancelBtn: isEs ? "Cancelar" : "Cancel",
-    understoodBtn: isEs ? "Entendido" : "Understood",
-    subscribeBtn: isEs ? "Suscribirse al canal" : "Subscribe to channel",
-    orDonateBtn: isEs ? "También puedes donar" : "You can also donate",
+    closeBtn: isEs ? "Cerrar" : isPt ? "Fechar" : "Close",
+    closeTooltip: isEs ? "Ocultar permanentemente" : isPt ? "Ocultar permanentemente" : "Hide permanently",
+    cancelBtn: isEs ? "Cancelar" : isPt ? "Cancelar" : "Cancel",
+    understoodBtn: isEs ? "Entendido" : isPt ? "Entendido" : "Understood",
+    subscribeBtn: isEs ? "Suscribirse al canal" : isPt ? "Inscrever-se no canal" : "Subscribe to channel",
+    orDonateBtn: isEs ? "También puedes donar" : isPt ? "Você também pode doar" : "You can also donate",
   }
+
 
   const handleClose = () => {
     setShowSecondStep(true)
