@@ -8,7 +8,7 @@ Each video corresponds to one book of the Bible in a specific version (e.g. Gene
 
 1. **Interactive Menu:** Elegant CLI that guides you through every production step.
 2. **Bible Version & Multi-language Content Support:** Works with any Bible version registered in `src/config.ts`. Automatically generates localized YouTube titles, descriptions, and Gemini cover prompts based on version locale (`es`, `en`, `pt`, easily extensible via `src/i18n.ts`). Currently includes RV 1909 (Spanish), KJV (English), and ARC (Portuguese).
-3. **Multi-chapter Audio Concat:** Automatically concatenates all chapter MP3 files in the correct order using FFmpeg's concat demuxer.
+3. **Multi-chapter Audio Concat:** Automatically concatenates all chapter audio files (`.mp3`, `.m4a`) in the correct order using FFmpeg's concat demuxer.
 4. **JSON Filter Workflow:** Same filtering mechanism as `podcasts-cli` — run Step 1 to generate metadata files, delete the books you want to skip, proceed with Steps 2–4.
 5. **Clipboard Handling:** Copies image-generation prompts in the version's language to clipboard and opens Gemini automatically.
 6. **Validation:** Verifies that all chapter audios and the book image are present before rendering.
@@ -43,9 +43,10 @@ The **working directory** must follow this structure:
       <versionId>/           ← JSON metadata files (created by Step 1)
         01-genesis.json
     audios/
-      <versionId>/           ← Chapter MP3 files
+    audios/
+      <versionId>/           ← Chapter audio files (.mp3, .m4a)
         01-genesis-1.mp3
-        01-genesis-2.mp3
+        01-genesis-2.m4a
         …
     images/
       <versionId>/           ← Book thumbnail images
@@ -150,7 +151,7 @@ Source and output files follow these patterns:
 
 | File type | Pattern | Example |
 | --- | --- | --- |
-| Chapter audio | `sources/audios/<versionId>/<NN>-<bookId>-<chapter>.mp3` | `01-genesis-1.mp3` |
+| Chapter audio | `sources/audios/<versionId>/<NN>-<bookId>-<chapter>.<ext>` | `01-genesis-1.mp3` or `.m4a` |
 | Book image | `sources/images/<versionId>/<NN>-<bookId>.<ext>` | `01-genesis.jpeg` |
 | JSON metadata | `sources/metadata/<versionId>/<NN>-<bookId>.json` | `01-genesis.json` |
 | Output video | `outputs/<versionId>-<NN>-<bookId>-1.mp4` | `rv1909-01-genesis-1.mp4` |

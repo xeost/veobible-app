@@ -2,20 +2,20 @@
  * Step 5 — Normalize Audio Filenames.
  *
  * Recursively traverses the audio directory of the current version and renames
- * any .mp3 file whose name does not exactly match the canonical format:
- *   [NN]-[text]-[N].mp3
+ * any audio file (.mp3, .m4a) whose name does not exactly match the canonical format:
+ *   [NN]-[text]-[N].<ext>
  */
 import fs from "fs";
 import path from "path";
 import { confirm } from "@inquirer/prompts";
-import { sourcesAudiosDir } from "../filesystem.js";
+import { sourcesAudiosDir, SUPPORTED_AUDIO_EXTENSIONS } from "../filesystem.js";
 import { printStep, ok, err, info, warn, C, divider } from "../ui.js";
 import { logStep, log } from "../logger.js";
 import type { SessionState } from "../types.js";
 
-// Matches the canonical format exactly: NN-text-N.mp3
+// Matches the canonical format exactly: NN-text-N.mp3 or NN-text-N.m4a (lowercase extension)
 // The middle segment (text) can start with an optional digit followed by a hyphen (e.g. "1-samuel").
-const CANONICAL_RE = /^(\d{2,})-((?:[1-9]-)?(?:[a-z][a-z0-9-]*[a-z0-9]|[a-z]))-(\d+)\.mp3$/i;
+const CANONICAL_RE = /^(\d{2,})-((?:[1-9]-)?(?:[a-z][a-z0-9-]*[a-z0-9]|[a-z]))-(\d+)\.(mp3|m4a)$/;
 
 // Captures a canonical-looking prefix at the start of any filename.
 // The first number must be at least 2 digits (zero-padded).
@@ -23,12 +23,12 @@ const CANONICAL_RE = /^(\d{2,})-((?:[1-9]-)?(?:[a-z][a-z0-9-]*[a-z0-9]|[a-z]))-(
 // The trailing chapter number has no leading zeros.
 const PREFIX_RE = /^(\d{2,})-((?:[1-9]-)?(?:[a-z][a-z0-9-]*[a-z0-9]|[a-z]))-(0*([1-9]\d*))(?=[-.])/i;
 
-function canonicalName(bookNum: string, bookText: string, chapterNum: string): string {
+function canonicalName(bookNum: string, bookText: string, chapterNum: string, ext: string): string {
   // Ensure book number is zero-padded to at least 2 digits.
   const padded = String(parseInt(bookNum, 10)).padStart(2, "0");
   // Ensure chapter number has no leading zeros.
   const chapter = String(parseInt(chapterNum, 10));
-  return `${padded}-${bookText.toLowerCase()}-${chapter}.mp3`;
+  return `${padded}-${bookText.toLowerCase()}-${chapter}${ext.toLowerCase()}`;
 }
 
 interface ProcessStats {
@@ -78,7 +78,7 @@ export async function runStep5(session: SessionState): Promise<void> {
 
     // Sort filenames for deterministic ordering
     const files = entries
-      .filter((e) => e.isFile() && e.name.toLowerCase().endsWith(".mp3"))
+      .filter((e) => e.isFile() && SUPPORTED_AUDIO_EXTENSIONS.some((ext) => e.name.toLowerCase().endsWith(ext.toLowerCase())))
       .map((e) => e.name)
       .sort();
 
@@ -103,7 +103,8 @@ export async function runStep5(session: SessionState): Promise<void> {
       const bookText = match[2];
       const chapterNum = match[4]; // group 4 strips leading zeros
 
-      const newName = canonicalName(bookNum, bookText, chapterNum);
+      const ext = path.extname(filename);
+      const newName = canonicalName(bookNum, bookText, chapterNum, ext);
       const newPath = path.join(currentDir, newName);
 
       if (newName === filename) {

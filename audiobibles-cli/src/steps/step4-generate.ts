@@ -5,7 +5,7 @@
  * (i.e., those not deleted after Step 1).
  *
  * For each filtered, ready book:
- *   1. Collects the sorted list of chapter MP3 files.
+ *   1. Collects the sorted list of chapter audio files (.mp3, .m4a).
  *   2. Finds the book thumbnail image.
  *   3. Runs FFmpeg: concat audio → visualizer over static image → MP4 output.
  *   4. Copies the thumbnail to outputs/ with the correct naming.

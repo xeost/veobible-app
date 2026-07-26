@@ -5,7 +5,7 @@
  *   <workingDir>/
  *     sources/
  *       audios/
- *         <versionId>/          ← chapter MP3 files: <NN>-<bookId>-<chapter>.mp3
+ *         <versionId>/          ← chapter audio files: <NN>-<bookId>-<chapter>.<ext> (.mp3, .m4a)
  *       images/                 ← book thumbnails:   <versionId>-<NN>-<bookId>.<ext>
  *     outputs/                  ← generated video + thumbnail + upload txt
  *     logs/                     ← daily log files
@@ -91,11 +91,16 @@ export function getOutputThumbnailPath(
 // ─── Source audio files ───────────────────────────────────────────────────────
 
 /**
+ * Supported audio file extensions (in preferred check order).
+ */
+export const SUPPORTED_AUDIO_EXTENSIONS = [".mp3", ".m4a", ".MP3", ".M4A"];
+
+/**
  * Returns a sorted list of chapter audio file paths for a given book.
- * Files must follow the naming pattern: <NN>-<bookId>-<chapter>.mp3
+ * Files must follow the naming pattern: <NN>-<bookId>-<chapter>.<ext> (.mp3 or .m4a)
  * They are sorted numerically by chapter number.
  *
- * Example: ["01-genesis-1.mp3", "01-genesis-2.mp3", ..., "01-genesis-50.mp3"]
+ * Example: ["01-genesis-1.mp3", "01-genesis-2.m4a", ..., "01-genesis-50.mp3"]
  */
 export function getChapterAudioFiles(
   bookNumber: number,
@@ -108,8 +113,18 @@ export function getChapterAudioFiles(
 
   return Array.from({ length: totalChapters }, (_, i) => {
     const chapterNumber = i + 1;
-    const filePath = path.join(dir, `${prefix}${chapterNumber}.mp3`);
-    return { chapterNumber, filePath, exists: fs.existsSync(filePath) };
+    let foundPath: string | null = null;
+
+    for (const ext of SUPPORTED_AUDIO_EXTENSIONS) {
+      const candidate = path.join(dir, `${prefix}${chapterNumber}${ext}`);
+      if (fs.existsSync(candidate)) {
+        foundPath = candidate;
+        break;
+      }
+    }
+
+    const filePath = foundPath ?? path.join(dir, `${prefix}${chapterNumber}.mp3`);
+    return { chapterNumber, filePath, exists: foundPath !== null };
   });
 }
 

@@ -71,8 +71,8 @@ export async function runStep3(session: SessionState): Promise<void> {
     console.log();
     console.log(C.white("  Audio files must be placed in:"));
     console.log(C.muted(`    sources/audios/${session.version.id}/`));
-    console.log(C.muted("    Pattern: <NN>-<bookId>-<chapter>.mp3"));
-    console.log(C.muted("    Example: 01-genesis-1.mp3 … 01-genesis-50.mp3"));
+    console.log(C.muted("    Pattern: <NN>-<bookId>-<chapter>.<ext> (.mp3 or .m4a)"));
+    console.log(C.muted("    Example: 01-genesis-1.mp3 or 01-genesis-1.m4a … 01-genesis-50.mp3"));
     console.log();
     console.log(C.white("  Image files must be placed in:"));
     console.log(C.muted(`    sources/images/${session.version.id}/`));

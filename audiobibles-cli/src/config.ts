@@ -143,6 +143,19 @@ export const config = {
       label: "Reina Valera 1909",
       shortLabel: "RV 1909",
       // youtubeLabel: "RV1909",
+      schedule: {
+        baseDate: "2026-05-26",
+      },
+    },
+    {
+      id: "spabll",
+      locale: "es",
+      label: "Santa Biblia Libre Latinoamericana",
+      shortLabel: "SPABLL",
+      // youtubeLabel: "SPABLL",
+      schedule: {
+        baseDate: "2026-08-10",
+      },
     },
     {
       id: "kjv",
@@ -150,6 +163,19 @@ export const config = {
       label: "King James Version",
       shortLabel: "KJV",
       youtubeLabel: "KJV",
+      schedule: {
+        baseDate: "2026-05-27",
+      },
+    },
+    {
+      id: "web",
+      locale: "en",
+      label: "World English Bible",
+      shortLabel: "WEB",
+      youtubeLabel: "WEB",
+      schedule: {
+        baseDate: "2026-08-10",
+      },
     },
     {
       id: "arc",

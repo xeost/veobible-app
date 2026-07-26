@@ -168,7 +168,7 @@ function writeConcatList(audioFiles: string[]): string {
  * and a single static background image.
  *
  * Process:
- *   1. Concatenate all chapter MP3s using the concat demuxer.
+ *   1. Concatenate all chapter audio files using the concat demuxer.
  *   2. Loop the static image for the full audio duration.
  *   3. Apply the audio visualizer over the background image.
  */
