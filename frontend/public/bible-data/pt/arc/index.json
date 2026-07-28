@@ -696,7 +696,33 @@
         39,
         25
       ],
-      "description": "O reinado do Rei Davi sobre Israel, suas vitórias, suas falhas e a aliança de Deus com sua dinastia."
+      "description": "O reinado do Rei Davi sobre Israel, suas vitórias, suas falhas e a aliança de Deus com sua dinastia.",
+      "chapterOffsets": [
+        0,
+        250,
+        569,
+        962,
+        1115,
+        1329,
+        1556,
+        1831,
+        1991,
+        2133,
+        2333,
+        2607,
+        2927,
+        3331,
+        3701,
+        4089,
+        4342,
+        4670,
+        5058,
+        5539,
+        5827,
+        6075,
+        6384,
+        6689
+      ]
     },
     {
       "id": "1-kings",
@@ -729,7 +755,31 @@
         29,
         53
       ],
-      "description": "O reinado de Salomão, a construção do Templo e a subsequente divisão do reino em Israel e Judá."
+      "description": "O reinado de Salomão, a construção do Templo e a subsequente divisão do reino em Israel e Judá.",
+      "chapterOffsets": [
+        0,
+        526,
+        1032,
+        1325,
+        1583,
+        1760,
+        2074,
+        2563,
+        3236,
+        3507,
+        3777,
+        4192,
+        4531,
+        4881,
+        5195,
+        5502,
+        5826,
+        6044,
+        6532,
+        6771,
+        7261,
+        7567
+      ]
     },
     {
       "id": "2-kings",
@@ -765,7 +815,34 @@
         20,
         30
       ],
-      "description": "O declínio e queda dos reinos divididos de Israel e Judá, culminando no exílio babilônico."
+      "description": "O declínio e queda dos reinos divididos de Israel e Judá, culminando no exílio babilônico.",
+      "chapterOffsets": [
+        0,
+        228,
+        511,
+        802,
+        1258,
+        1586,
+        1926,
+        2184,
+        2500,
+        2919,
+        3319,
+        3546,
+        3769,
+        4033,
+        4325,
+        4686,
+        4900,
+        5318,
+        5720,
+        6088,
+        6309,
+        6553,
+        6773,
+        7229,
+        7432
+      ]
     },
     {
       "id": "1-chronicles",
