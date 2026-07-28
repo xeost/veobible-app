@@ -7,9 +7,8 @@
  */
 import fs from "fs";
 import path from "path";
-import { confirm } from "@inquirer/prompts";
 import { sourcesAudiosDir, SUPPORTED_AUDIO_EXTENSIONS } from "../filesystem.js";
-import { printStep, ok, err, info, warn, C, divider } from "../ui.js";
+import { printStep, ok, err, info, warn, C, divider, showNumberedMenu } from "../ui.js";
 import { logStep, log } from "../logger.js";
 import type { SessionState } from "../types.js";
 
@@ -50,10 +49,21 @@ export async function runStep5(session: SessionState): Promise<void> {
 
   info(`Target directory: ${C.primary.bold(rootDir)}`);
 
-  const dryRun = await confirm({
-    message: C.white("Run in dry-run mode (preview changes without renaming)?"),
-    default: true,
-  });
+  const modeChoice = await showNumberedMenu<boolean>(
+    "Select rename mode:",
+    [
+      { label: "Dry-run — preview changes without renaming", value: true },
+      { label: "Apply   — rename files on disk",            value: false },
+    ],
+    "Cancel"
+  );
+
+  if (modeChoice === null) {
+    log("WARN", "Filename normalization cancelled by user.");
+    return;
+  }
+
+  const dryRun = modeChoice;
 
   const modeLabel = dryRun ? " (DRY RUN — no files will be changed)" : "";
   info(`Traversing: ${rootDir}${modeLabel}`);

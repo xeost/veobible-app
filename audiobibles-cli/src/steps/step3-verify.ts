@@ -11,10 +11,9 @@
  * Displays a readiness table and loops until all files are present
  * or the user cancels.
  */
-import { confirm } from "@inquirer/prompts";
 import { readBibleIndex } from "../bible.js";
 import { checkReadiness, filterTargetsByJson } from "../filesystem.js";
-import { printStep, printReadinessTable, ok, warn, C } from "../ui.js";
+import { printStep, printReadinessTable, ok, warn, C, showNumberedMenu } from "../ui.js";
 import { logStep, log } from "../logger.js";
 import type { SessionState } from "../types.js";
 
@@ -79,12 +78,13 @@ export async function runStep3(session: SessionState): Promise<void> {
     console.log(C.muted("    Pattern: <NN>-<bookId>.<ext>"));
     console.log(C.muted("    Example: 01-genesis.jpeg"));
 
-    const retry = await confirm({
-      message: C.white("Press Enter to re-check the directory"),
-      default: true,
-    });
+    const retry = await showNumberedMenu<boolean>(
+      "Re-check the directory?",
+      [{ label: "Re-check source files", value: true }],
+      "Cancel"
+    );
 
-    if (!retry) {
+    if (retry === null) {
       log("WARN", "User cancelled readiness check.");
       return;
     }

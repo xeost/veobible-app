@@ -15,10 +15,9 @@
  */
 import clipboard from "clipboardy";
 import open from "open";
-import { confirm } from "@inquirer/prompts";
 import { readBibleIndex, padBookNumber } from "../bible.js";
 import { config } from "../config.js";
-import { printStep, ok, info, warn, clipboardNotice, divider, C } from "../ui.js";
+import { printStep, ok, info, warn, clipboardNotice, divider, C, showNumberedMenu } from "../ui.js";
 import { logStep, log } from "../logger.js";
 import { findImageFile, filterTargetsByJson } from "../filesystem.js";
 import { getLocaleConfig } from "../i18n.js";
@@ -92,10 +91,16 @@ export async function runStep2(session: SessionState): Promise<void> {
     ok(`Opened Gemini in browser.`);
     log("INFO", `[${target.bookId}] Image prompt copied. Gemini opened.`);
 
-    await confirm({
-      message: C.white("Paste the prompt in Gemini, generate and save the image, then press Enter"),
-      default: true,
-    });
+    const proceed = await showNumberedMenu<boolean>(
+      "Paste the prompt in Gemini, generate and save the image, then continue:",
+      [{ label: "Image saved — continue to next book", value: true }],
+      "Cancel remaining books"
+    );
+
+    if (proceed === null) {
+      log("WARN", "User cancelled image prompt step.");
+      return;
+    }
 
     divider();
   }

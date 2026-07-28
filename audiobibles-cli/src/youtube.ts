@@ -217,3 +217,80 @@ export function generateUploadInfo(params: {
   fs.writeFileSync(infoPath, content, "utf-8");
   log("INFO", `Upload info written: ${infoPath}`);
 }
+
+// ─── Multi-book upload info ───────────────────────────────────────────────────
+
+/** Labels per scope and locale for the video title. */
+const SCOPE_LABELS: Record<string, Record<string, string>> = {
+  "old-testament": { es: "Antiguo Testamento", en: "Old Testament", pt: "Antigo Testamento" },
+  "new-testament": { es: "Nuevo Testamento",   en: "New Testament",  pt: "Novo Testamento"  },
+  "full-bible":    { es: "Biblia Completa",    en: "Full Bible",     pt: "Bíblia Completa"  },
+};
+
+function getScopeLabel(scope: string, locale: string): string {
+  return SCOPE_LABELS[scope]?.[locale] ?? SCOPE_LABELS[scope]?.["en"] ?? scope;
+}
+
+/**
+ * Generates the YouTube upload info .txt file for an Old Testament, New Testament,
+ * or Full Bible video.
+ *
+ * The description includes:
+ *   1. The version description.
+ *   2. An "About this version" section.
+ *   3. A YouTube chapters list where each entry is a book (not a chapter),
+ *      enabling YouTube's automatic book-level navigation.
+ *
+ * No thumbnail file is copied for multi-book videos.
+ *
+ * @param bookTotalDurations - Total audio duration in seconds for each book (in order).
+ */
+export function generateMultiBookUploadInfo(params: {
+  infoPath: string;
+  version: BibleVersion;
+  versionMeta: BibleVersionMetadata;
+  scope: string;
+  /** Books included in the video, in the same order they appear. */
+  books: BibleBook[];
+  /** Total audio duration (seconds) for each book, parallel to `books`. */
+  bookTotalDurations: number[];
+}): void {
+  const { infoPath, version, versionMeta, scope, books, bookTotalDurations } = params;
+
+  const l = getLocaleConfig(version.locale);
+  const versionLabel = version.youtubeLabel || versionMeta.name;
+  const scopeLabel = getScopeLabel(scope, version.locale);
+
+  // Title: "{BibleTerm} — {ScopeLabel} | {VersionLabel} | {AudioBibleTerm}"
+  const title = `${l.youtube.bibleTerm} — ${scopeLabel} | ${versionLabel} | ${l.youtube.audioBibleTerm}`;
+
+  // Description:
+  //   1. Version description
+  //   2. "About this version" section
+  //   3. YouTube book chapters list
+  const separator = "\n\n";
+
+  const versionSection = `${l.youtube.aboutVersionHeading(versionMeta.name)}\n\n${versionMeta.description}`;
+
+  // Build the book-level chapters list for YouTube
+  const chaptersLines: string[] = [l.youtube.chaptersHeading, ""];
+  let offset = 0;
+  for (let i = 0; i < books.length; i++) {
+    chaptersLines.push(`${formatTimestamp(offset)} ${books[i].name}`);
+    offset += bookTotalDurations[i] ?? 0;
+  }
+  const chaptersSection = chaptersLines.join("\n");
+
+  const description = `${versionMeta.description}${separator}${versionSection}${separator}${chaptersSection}`;
+
+  const content = UPLOAD_INFO_TEMPLATE
+    .replaceAll("{versionLabel}", versionMeta.shortname)
+    .replaceAll("{bookName}", scopeLabel)
+    .replaceAll("{title}", title)
+    .replaceAll("{description}", description)
+    .replaceAll("{date}", "—")
+    .replaceAll("{time}", "—");
+
+  fs.writeFileSync(infoPath, content, "utf-8");
+  log("INFO", `Multi-book upload info written: ${infoPath}`);
+}

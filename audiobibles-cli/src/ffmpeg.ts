@@ -280,3 +280,208 @@ export async function runFFmpegAudiobible(params: {
     try { fs.unlinkSync(concatListPath); } catch { /* ignore */ }
   }
 }
+
+// ─── Multi-book (OT / NT / Full Bible) generation ─────────────────────────────
+
+export interface MultiBookSegment {
+  /** Sorted list of chapter audio file paths for this book. */
+  chapterAudioFiles: string[];
+  /** Background image (or video) file for this book. */
+  backgroundImageFile: string;
+}
+
+/**
+ * Runs FFmpeg to generate a single video from multiple book segments.
+ *
+ * Each segment has its own background image (shown while that book's audio plays)
+ * and its own set of chapter audio files.  The segments are stitched together with
+ * the FFmpeg concat filter so the final video plays all books in order with their
+ * matching background images.
+ *
+ * Visualizer is applied per-segment using the same style configured in config.
+ *
+ * Process (per segment):
+ *   1. Write a concat list for the book's chapter audio files.
+ *   2. Add the background image as a looped video input.
+ *   3. Add the concat audio input.
+ *   4. Build a per-segment filtergraph (image → visualizer overlay).
+ *
+ * Then a final concat filter stitches all [vN][aN] pairs into [vout][aout].
+ */
+export async function runFFmpegMultiBook(params: {
+  segments: MultiBookSegment[];
+  outputFile: string;
+  onProgress?: ProgressCallback;
+}): Promise<void> {
+  const { segments, outputFile, onProgress } = params;
+
+  if (segments.length === 0) {
+    throw new Error("No segments provided for multi-book video generation.");
+  }
+
+  const concatListPaths: string[] = [];
+
+  try {
+    // ── Probe per-book total durations ──────────────────────────────────────
+    const segmentDurations: number[] = [];
+    for (const seg of segments) {
+      let dur = 0;
+      for (const f of seg.chapterAudioFiles) {
+        const d = await getMediaDuration(f);
+        dur += d ?? 0;
+      }
+      segmentDurations.push(dur);
+    }
+    const totalDuration = segmentDurations.reduce((a, b) => a + b, 0);
+
+    // ── Write one concat list per book ──────────────────────────────────────
+    for (const seg of segments) {
+      concatListPaths.push(writeConcatList(seg.chapterAudioFiles));
+    }
+
+    const [width, height] = config.video.output.resolution.split("x");
+    const fps = config.video.output.fps;
+    const visStyle   = config.video.visualizer.style;
+    const visColor   = hexToFFmpegColor(config.video.visualizer.color);
+    const visOpacity = config.video.visualizer.opacity ?? 1.0;
+    const visHeight  = config.video.visualizer.height.toString();
+
+    // ── Build FFmpeg args ───────────────────────────────────────────────────
+    // Input layout (2 inputs per segment):
+    //   input 2k   = looped background image for segment k
+    //   input 2k+1 = concat audio for segment k
+    //
+    // Filtergraph builds a per-segment [vk][ak] pair, then a final concat.
+
+    const args: string[] = ["-y"];
+
+    for (let k = 0; k < segments.length; k++) {
+      const seg = segments[k];
+      // Looped background image
+      args.push("-loop", "1", "-i", seg.backgroundImageFile);
+      // Concat audio (via concat demuxer)
+      args.push("-f", "concat", "-safe", "0", "-i", concatListPaths[k]);
+    }
+
+    // ── Build filter_complex ────────────────────────────────────────────────
+    const filterParts: string[] = [];
+    const GLOW = "split[_a][_b];[_b]gblur=sigma=18[_g];[_a][_g]blend=all_mode=screen";
+    const ox = "(W-w)/2";
+    const oy = "H-h-20";
+
+    for (let k = 0; k < segments.length; k++) {
+      const imgIdx   = k * 2;       // 0, 2, 4, ...
+      const audioIdx = k * 2 + 1;   // 1, 3, 5, ...
+      const audioDur = segmentDurations[k];
+
+      // Scale & pad background image to target resolution
+      const bg = `[${imgIdx}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2[bg${k}]`;
+
+      // Downmix to mono for the visualizer
+      const mono = `[${audioIdx}:a]aformat=channel_layouts=mono[_mono${k}]`;
+
+      let vis = "";
+      let compose = "";
+
+      switch (visStyle) {
+        case "wave": {
+          const visRate = parseInt(width) * fps;
+          vis = (
+            `${mono};[_mono${k}]aresample=${visRate}[_ar${k}];` +
+            `[_ar${k}]showwaves=s=${width}x${visHeight}:mode=cline:rate=${fps}:colors=${visColor}[_vis_raw${k}];` +
+            `[_vis_raw${k}]${GLOW}[_vis_opaque${k}]`
+          );
+          compose = `[bg${k}][_vis${k}]overlay=${ox}:${oy}[seg_v${k}]`;
+          break;
+        }
+        case "circle":
+          vis = `${mono};[_mono${k}]avectorscope=s=${visHeight}x${visHeight}:zoom=1.5:mode=lissajous_xy:draw=dot:scale=log[_vis_raw${k}];[_vis_raw${k}]${GLOW}[_vis_opaque${k}]`;
+          compose = `[bg${k}][_vis${k}]overlay=(W-w)/2:(H-h)/2[seg_v${k}]`;
+          break;
+        case "spectrum":
+          vis = `${mono};[_mono${k}]showcqt=s=${width}x${visHeight}:fps=${fps}:bar_g=3:bar_t=0.5:axis=0:csp=bt709[_vis_raw${k}];[_vis_raw${k}]${GLOW}[_vis_opaque${k}]`;
+          compose = `[bg${k}][_vis${k}]overlay=${ox}:${oy}[seg_v${k}]`;
+          break;
+        case "bars":
+        default:
+          vis = `${mono};[_mono${k}]showfreqs=s=${width}x${visHeight}:mode=bar:fscale=log:ascale=log:colors=${visColor}:win_size=4096[_vis_raw${k}];[_vis_raw${k}]${GLOW}[_vis_opaque${k}]`;
+          compose = `[bg${k}][_vis${k}]overlay=${ox}:${oy}[seg_v${k}]`;
+          break;
+      }
+
+      const applyOpacity = `[_vis_opaque${k}]colorchannelmixer=aa=${visOpacity}[_vis${k}]`;
+
+      // Trim the looped background image to this segment's audio duration
+      const trim = `[seg_v${k}]trim=duration=${audioDur.toFixed(6)},setpts=PTS-STARTPTS[trimv${k}]`;
+      // Trim audio to segment duration and label it
+      const atrim = `[${audioIdx}:a]atrim=duration=${audioDur.toFixed(6)},asetpts=PTS-STARTPTS[seg_a${k}]`;
+
+      filterParts.push(bg, vis, applyOpacity, compose, trim, atrim);
+    }
+
+    // Final concat of all segments
+    const concatInputs = segments
+      .map((_, k) => `[trimv${k}][seg_a${k}]`)
+      .join("");
+    filterParts.push(
+      `${concatInputs}concat=n=${segments.length}:v=1:a=1[vout][aout]`
+    );
+
+    const filterComplex = filterParts.join(";");
+
+    args.push(
+      "-filter_complex", filterComplex,
+      "-map", "[vout]",
+      "-map", "[aout]",
+      "-c:v", config.video.output.codec,
+      "-crf", config.video.output.crf.toString(),
+      "-r", fps.toString(),
+      "-c:a", "aac",
+      "-b:a", "192k",
+      "-progress", "pipe:1",
+      "-nostats",
+      outputFile,
+    );
+
+    log("INFO", `Running FFmpeg multi-book for ${outputFile}`);
+    log("DEBUG", `FFmpeg args: ${args.join(" ")}`);
+
+    await new Promise<void>((resolve, reject) => {
+      const ffmpeg = spawn("ffmpeg", args);
+
+      let stderr = "";
+      ffmpeg.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      ffmpeg.stdout.on("data", (data) => {
+        const lines = data.toString().split("\n");
+        for (const line of lines) {
+          if (line.startsWith("out_time_us=") && totalDuration && onProgress) {
+            const us = parseInt(line.split("=")[1]);
+            const seconds = Math.min(totalDuration, us / 1000000);
+            onProgress({ seconds, totalSeconds: totalDuration });
+          }
+        }
+      });
+
+      ffmpeg.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          log("ERROR", `FFmpeg multi-book failed with code ${code}\n${stderr}`);
+          reject(new Error(`FFmpeg failed with code ${code}`));
+        }
+      });
+
+      ffmpeg.on("error", (e) => {
+        reject(e);
+      });
+    });
+  } finally {
+    // Always clean up all temporary concat list files.
+    for (const p of concatListPaths) {
+      try { fs.unlinkSync(p); } catch { /* ignore */ }
+    }
+  }
+}

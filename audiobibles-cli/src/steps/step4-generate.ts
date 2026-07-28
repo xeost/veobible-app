@@ -1,22 +1,24 @@
 /**
  * Step 4 — Generate Videos.
  *
- * Only processes books that have their JSON metadata file in sources/<versionId>/
- * (i.e., those not deleted after Step 1).
+ * Supports two generation modes set during Step 0:
  *
- * For each filtered, ready book:
- *   1. Collects the sorted list of chapter audio files (.mp3, .m4a).
- *   2. Finds the book thumbnail image.
- *   3. Runs FFmpeg: concat audio → visualizer over static image → MP4 output.
- *   4. Copies the thumbnail to outputs/ with the correct naming.
- *   5. Generates the YouTube upload info .txt file.
- *   6. Updates last-book.log on fully successful completion.
+ *   "book" (original):
+ *     Processes one book at a time, producing one video + thumbnail + upload txt per book.
+ *
+ *   "old-testament" | "new-testament" | "full-bible":
+ *     Concatenates all books in the scope into a single video.
+ *     Each book shows its own background image while its audio plays.
+ *     No thumbnail file is generated.
+ *     The upload txt contains the version description and a book-level chapter list.
+ *
+ * Only processes books that have their JSON metadata file in sources/<versionId>/
+ * (i.e., those not deleted after Step 1) — both in single-book and multi-book modes.
  */
 import fs from "fs";
 import path from "path";
-import { confirm } from "@inquirer/prompts";
 import { readBibleIndex, buildBookUrl, padBookNumber, saveChapterOffsets } from "../bible.js";
-import { printStep, ok, err, info, warn, C, divider, formatDuration } from "../ui.js";
+import { printStep, ok, err, info, warn, C, divider, formatDuration, showNumberedMenu } from "../ui.js";
 import { logStep, log } from "../logger.js";
 import type { SessionState } from "../types.js";
 import {
@@ -26,16 +28,26 @@ import {
   getOutputVideoPath,
   getOutputInfoPath,
   getOutputThumbnailPath,
+  getMultiBookVideoPath,
+  getMultiBookInfoPath,
   saveLastBook,
   checkReadiness,
   filterTargetsByJson,
 } from "../filesystem.js";
-import { runFFmpegAudiobible, getMediaDuration } from "../ffmpeg.js";
-import { generateUploadInfo } from "../youtube.js";
+import { runFFmpegAudiobible, runFFmpegMultiBook, getMediaDuration } from "../ffmpeg.js";
+import type { MultiBookSegment } from "../ffmpeg.js";
+import { generateUploadInfo, generateMultiBookUploadInfo } from "../youtube.js";
 import { config } from "../config.js";
 
 export async function runStep4(session: SessionState): Promise<void> {
   printStep(4, "Generate Videos");
+
+  if (session.mode !== "book") {
+    await runMultiBookGeneration(session);
+    return;
+  }
+
+  // ── Original single-book generation ────────────────────────────────────────
 
   // Only process books that have a JSON metadata file
   const filteredTargets = filterTargetsByJson(session.targets, session.version.id);
@@ -72,12 +84,13 @@ export async function runStep4(session: SessionState): Promise<void> {
 
   info(`Found ${C.accent(String(readyTargets.length))} book(s) ready to process.`);
 
-  const proceed = await confirm({
-    message: C.white("Start video generation?"),
-    default: true,
-  });
+  const proceed = await showNumberedMenu<boolean>(
+    "Start video generation?",
+    [{ label: "Yes, start generation", value: true }],
+    "Cancel"
+  );
 
-  if (!proceed) {
+  if (proceed === null) {
     log("WARN", "Video generation skipped by user.");
     return;
   }
@@ -255,4 +268,202 @@ export async function runStep4(session: SessionState): Promise<void> {
   }
 
   log("INFO", `Step 4 completed: ${doneCount} done, ${skippedCount} skipped, ${errors.length} errors.`);
+}
+
+// ─── Multi-book generation (OT / NT / Full Bible) ─────────────────────────────
+
+async function runMultiBookGeneration(session: SessionState): Promise<void> {
+  const scope = session.mode; // "old-testament" | "new-testament" | "full-bible"
+
+  const scopeLabel =
+    scope === "old-testament" ? "Old Testament" :
+    scope === "new-testament" ? "New Testament" :
+    "Complete Bible";
+
+  info(`Scope: ${C.primary.bold(scopeLabel)}`);
+
+  // Only process books that have a JSON metadata file
+  const filteredTargets = filterTargetsByJson(session.targets, session.version.id);
+
+  if (filteredTargets.length === 0) {
+    warn("No books with JSON metadata files found. Run Step 1 first.");
+    return;
+  }
+
+  const index = readBibleIndex(session.version);
+
+  const chaptersPerBook: Record<string, number> = {};
+  for (const book of index.books) {
+    chaptersPerBook[book.id] = book.chapters;
+  }
+
+  // Check readiness for all included books
+  const readinessResults = checkReadiness(filteredTargets, session.version.id, chaptersPerBook);
+  const readyTargets = readinessResults.filter((r) => r.ready);
+  const notReadyTargets = readinessResults.filter((r) => !r.ready);
+
+  if (notReadyTargets.length > 0) {
+    warn(`${notReadyTargets.length} book(s) not ready and will be skipped:`);
+    for (const r of notReadyTargets) {
+      info(`  ${C.danger("✖")} ${r.label}`);
+    }
+    divider();
+  }
+
+  if (readyTargets.length === 0) {
+    warn("No books are ready for video generation. Run Step 3 to check readiness.");
+    return;
+  }
+
+  info(`Found ${C.accent(String(readyTargets.length))} book(s) ready to include.`);
+
+  const outputVideo = getMultiBookVideoPath(scope, session.version.id);
+  const outputInfo  = getMultiBookInfoPath(scope, session.version.id);
+
+  const skipRendering = config.video.skipRendering;
+  if (skipRendering) {
+    warn("⚠ skipRendering is enabled — FFmpeg encoding will be skipped.");
+    warn("  Only the *-upload.txt metadata file will be (re)generated.");
+    divider();
+  }
+
+  if (!skipRendering && fs.existsSync(outputVideo) && fs.existsSync(outputInfo)) {
+    info(`⏭ Output already exists: ${C.muted(path.basename(outputVideo))}`);
+    const overwrite = await showNumberedMenu<boolean>(
+      `Overwrite existing video ${path.basename(outputVideo)}?`,
+      [{ label: "Yes, overwrite", value: true }],
+      "Cancel"
+    );
+    if (overwrite === null) {
+      log("WARN", "Multi-book video generation skipped by user (already exists).");
+      return;
+    }
+    fs.unlinkSync(outputVideo);
+  }
+
+  const proceed = await showNumberedMenu<boolean>(
+    `Start ${scopeLabel} video generation (${readyTargets.length} books)?`,
+    [{ label: "Yes, start generation", value: true }],
+    "Cancel"
+  );
+
+  if (proceed === null) {
+    log("WARN", "Multi-book video generation skipped by user.");
+    return;
+  }
+
+  logStep(4, `Starting multi-book generation: ${scope} — ${readyTargets.length} books.`);
+  fs.mkdirSync(outputsDir(), { recursive: true });
+
+  // ── Collect segments and probe durations ──────────────────────────────────
+  const segments: MultiBookSegment[] = [];
+  const bookObjects: ReturnType<typeof index.books.find>[] = [];
+  const bookTotalDurations: number[] = [];
+
+  info("Probing audio durations for all books...");
+
+  for (const target of readyTargets) {
+    const bookData = index.books.find((b) => b.id === target.bookId);
+    if (!bookData) {
+      warn(`Book "${target.bookId}" not found in index — skipping.`);
+      continue;
+    }
+
+    const chapterAudioFiles = getExistingChapterAudioFiles(
+      target.bookNumber,
+      target.bookId,
+      session.version.id,
+      bookData.chapters
+    );
+
+    const imageFile = findImageFile(target.bookNumber, target.bookId, session.version.id);
+    if (!imageFile) {
+      warn(`No image found for "${target.bookId}" — skipping.`);
+      continue;
+    }
+
+    // Probe total duration for this book
+    let bookDur = 0;
+    const chapterDurations: number[] = [];
+    for (const f of chapterAudioFiles) {
+      const d = await getMediaDuration(f);
+      const dur = d ?? 0;
+      chapterDurations.push(dur);
+      bookDur += dur;
+    }
+    bookTotalDurations.push(bookDur);
+
+    // Build cumulative chapter offsets and persist them to index.json
+    const chapterOffsets: number[] = [];
+    let runningOffset = 0;
+    for (const dur of chapterDurations) {
+      chapterOffsets.push(Math.floor(runningOffset));
+      runningOffset += dur;
+    }
+    saveChapterOffsets(session.version, target.bookId, chapterOffsets);
+
+    info(`  ${C.white(target.bookName)}: ${C.accent(String(chapterAudioFiles.length))} chapters, ${C.muted(path.basename(imageFile))}`);
+
+    segments.push({ chapterAudioFiles, backgroundImageFile: imageFile });
+    bookObjects.push(bookData);
+  }
+
+  if (segments.length === 0) {
+    warn("No valid segments assembled — nothing to render.");
+    return;
+  }
+
+  const totalDur = bookTotalDurations.reduce((a, b) => a + b, 0);
+  info(`Total audio duration: ${C.accent(formatDuration(totalDur * 1000))}`);
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  const renderStartTime = Date.now();
+
+  if (skipRendering) {
+    info(`⏩ Rendering skipped (skipRendering = true).`);
+  } else {
+    divider();
+    info(`🎬 Starting FFmpeg render for ${C.primary.bold(scopeLabel)}...`);
+
+    await runFFmpegMultiBook({
+      segments,
+      outputFile: outputVideo,
+      onProgress: (p) => {
+        const ratio = p.seconds / p.totalSeconds;
+        const percent = (ratio * 100).toFixed(1);
+        const barWidth = 30;
+        const filledWidth = Math.floor(ratio * barWidth);
+        const bar =
+          C.accent("━".repeat(filledWidth)) +
+          C.muted("━".repeat(barWidth - filledWidth));
+
+        process.stdout.write(
+          `\r  🎬 Rendering: ${C.white("[")}${bar}${C.white("]")} ${C.accent(percent + "%")} [${p.seconds.toFixed(0)}s/${p.totalSeconds.toFixed(0)}s]   `
+        );
+      },
+    });
+    process.stdout.write("\n");
+    ok(`Video rendered: ${C.muted(path.basename(outputVideo))}`);
+  }
+
+  const renderDuration = Date.now() - renderStartTime;
+
+  // ── Generate upload info ────────────────────────────────────────────────────
+  generateMultiBookUploadInfo({
+    infoPath: outputInfo,
+    version: session.version,
+    versionMeta: index.metadata,
+    scope,
+    books: bookObjects.filter((b): b is NonNullable<typeof b> => b !== undefined),
+    bookTotalDurations,
+  });
+  info(`Upload info: ${C.muted(path.basename(outputInfo))}`);
+
+  divider();
+  ok(
+    `${scopeLabel} complete — ${segments.length} books in ${C.accent(formatDuration(renderDuration))}`
+  );
+  info(`Outputs saved to: ${C.muted(outputsDir())}`);
+
+  log("INFO", `Step 4 (multi-book: ${scope}) completed: ${segments.length} books rendered.`);
 }

@@ -3,6 +3,7 @@
  */
 import chalk from "chalk";
 import boxen from "boxen";
+import readline from "readline";
 
 // ─── Brand palette ───────────────────────────────────────────────────────────
 
@@ -147,4 +148,173 @@ export function printReadinessTable(rows: ReadinessRow[]): void {
     console.log(`  ${colLabel}${colAudio}${colImage}${ready}`);
   }
   console.log();
+}
+
+// ─── Generic numbered menu ────────────────────────────────────────────────────
+
+export interface NumberedMenuItem<T> {
+  label: string;
+  value: T;
+}
+
+/**
+ * Renders a numbered list menu in raw TTY mode and returns the selected value.
+ *
+ * Keys handled:
+ *   ↑ / ↓     — move selection
+ *   Enter      — confirm selection
+ *   0–9        — jump to item (if valid) + confirm after 120 ms flash
+ *   Ctrl+C     — exit process
+ *
+ * The zero-item is always the back/cancel action passed as `cancelLabel`.
+ * `cancelLabel` defaults to "Back".
+ *
+ * @param title        - Header line shown above the options.
+ * @param items        - Ordered list of choices (displayed as 1, 2, 3 …).
+ * @param cancelLabel  - Label for the 0 key (back / exit / cancel).
+ * @returns The `.value` of the selected item, or `null` when 0 is pressed.
+ */
+export function showNumberedMenu<T>(
+  title: string,
+  items: NumberedMenuItem<T>[],
+  cancelLabel = "Back"
+): Promise<T | null> {
+  return new Promise((resolve) => {
+    readline.emitKeypressEvents(process.stdin);
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    process.stdin.resume();
+
+    // All entries including the cancel row (at index 0).
+    // Display index 0 = cancel; display index 1…N = items.
+    let selectedDisplay = 1; // 1-based display index (1 = first item)
+
+    function render() {
+      console.log();
+      console.log(C.primary.bold(`  ${title}`));
+      console.log();
+
+      for (let d = 1; d <= items.length; d++) {
+        const selected = d === selectedDisplay;
+        const marker = selected ? C.accent("❯ ") : "  ";
+        const keyStr = C.white.bold(`${d}.`);
+        const labelStr = selected
+          ? C.white.bold(items[d - 1].label)
+          : C.white(items[d - 1].label);
+        console.log(`${marker}${keyStr} ${labelStr}`);
+      }
+
+      // Cancel row (0)
+      const cancelSelected = selectedDisplay === 0;
+      const cancelMarker = cancelSelected ? C.accent("❯ ") : "  ";
+      console.log(
+        `${cancelMarker}${C.danger.bold("0.")} ${cancelSelected ? C.danger.bold(cancelLabel) : C.danger(cancelLabel)}`
+      );
+
+      console.log();
+      console.log(C.muted("  ↑↓ navigate  ·  enter select  ·  0–9 shortcut"));
+    }
+
+    // Save cursor, draw initial menu.
+    process.stdout.write("\x1b7");
+    render();
+
+    function redraw() {
+      process.stdout.write("\x1b8\x1b[J");
+      render();
+    }
+
+    function cleanup() {
+      process.stdin.off("data", onData);
+      if (process.stdin.isTTY) process.stdin.setRawMode(false);
+      process.stdin.pause();
+    }
+
+    function confirm() {
+      // Erase the menu so it does not remain visible behind the step output.
+      process.stdout.write("\x1b8\x1b[J");
+      cleanup();
+      if (selectedDisplay === 0) {
+        resolve(null);
+      } else {
+        resolve(items[selectedDisplay - 1].value);
+      }
+    }
+
+    const onData = (data: Buffer) => {
+      // Arrow up
+      if (data.length === 3 && data[0] === 0x1b && data[1] === 0x5b && data[2] === 0x41) {
+        selectedDisplay = selectedDisplay <= 0
+          ? items.length
+          : selectedDisplay - 1;
+        redraw();
+        return;
+      }
+      // Arrow down
+      if (data.length === 3 && data[0] === 0x1b && data[1] === 0x5b && data[2] === 0x42) {
+        selectedDisplay = selectedDisplay >= items.length
+          ? 0
+          : selectedDisplay + 1;
+        redraw();
+        return;
+      }
+      // Enter
+      if (data[0] === 0x0d || data[0] === 0x0a) {
+        confirm();
+        return;
+      }
+      // Ctrl+C
+      if (data[0] === 0x03) {
+        cleanup();
+        process.stdout.write("\n");
+        process.exit(0);
+      }
+      // Digit 0
+      if (data[0] === 0x30) {
+        selectedDisplay = 0;
+        redraw();
+        setTimeout(confirm, 120);
+        return;
+      }
+      // Digits 1–9
+      if (data[0] >= 0x31 && data[0] <= 0x39) {
+        const d = data[0] - 0x30;
+        if (d <= items.length) {
+          selectedDisplay = d;
+          redraw();
+          setTimeout(confirm, 120);
+        }
+        return;
+      }
+    };
+
+    process.stdin.on("data", onData);
+  });
+}
+
+// ─── Press-any-key gate ───────────────────────────────────────────────
+
+/**
+ * Prints a short prompt and blocks until the user presses any key.
+ * Useful after a step completes so the user can read the output before
+ * the terminal is cleared for the next menu.
+ */
+export function pressAnyKey(
+  msg = "Press any key to return to menu..."
+): Promise<void> {
+  return new Promise((resolve) => {
+    readline.emitKeypressEvents(process.stdin);
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdout.write(C.muted(`  ${msg}`));
+
+    const onData = () => {
+      process.stdin.off("data", onData);
+      if (process.stdin.isTTY) process.stdin.setRawMode(false);
+      process.stdin.pause();
+      process.stdout.write("\n");
+      resolve();
+    };
+
+    process.stdin.once("data", onData);
+  });
 }

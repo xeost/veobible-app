@@ -83,6 +83,15 @@ export interface BookMetadata {
 
 // ─── Session state shared across steps ────────────────────────────────────────
 
+/**
+ * Generation scope selected by the user at setup time.
+ * - "book"           → a single book (original behaviour)
+ * - "old-testament"  → all Old Testament books concatenated into one video
+ * - "new-testament"  → all New Testament books concatenated into one video
+ * - "full-bible"     → all books concatenated into one video
+ */
+export type GenerationMode = "book" | "old-testament" | "new-testament" | "full-bible";
+
 export interface BookTarget {
   /** 1-based position in the Bible (1 = Genesis … 66 = Revelation) */
   bookNumber: number;
@@ -96,4 +105,6 @@ export interface SessionState {
   version: BibleVersion;
   defaultBook: number;
   targets: BookTarget[];
+  /** Generation scope chosen during setup (defaults to "book"). */
+  mode: GenerationMode;
 }

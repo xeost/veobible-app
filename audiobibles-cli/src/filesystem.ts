@@ -88,6 +88,28 @@ export function getOutputThumbnailPath(
   return path.join(outputsDir(), `${getOutputBaseName(bookNumber, bookId, versionId)}-2-thumb${ext}`);
 }
 
+// ─── Multi-book output file name helpers ─────────────────────────────────────
+
+/**
+ * Returns the base name (without extension) for a multi-book output.
+ * Scope values: "old-testament", "new-testament", "full-bible"
+ * Example: "rv1909-old-testament"
+ */
+export function getMultiBookOutputBaseName(
+  scope: string,
+  versionId: string
+): string {
+  return `${versionId}-${scope}`;
+}
+
+export function getMultiBookVideoPath(scope: string, versionId: string): string {
+  return path.join(outputsDir(), `${getMultiBookOutputBaseName(scope, versionId)}-1.mp4`);
+}
+
+export function getMultiBookInfoPath(scope: string, versionId: string): string {
+  return path.join(outputsDir(), `${getMultiBookOutputBaseName(scope, versionId)}-3-upload.txt`);
+}
+
 // ─── Source audio files ───────────────────────────────────────────────────────
 
 /**

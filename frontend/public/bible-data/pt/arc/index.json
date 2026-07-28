@@ -368,7 +368,8 @@
         9997,
         10199,
         10485
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=05XECVCcEfI"
     },
     {
       "id": "deuteronomy",
@@ -449,7 +450,8 @@
         7962,
         8403,
         8664
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=zqJuDOGh32k"
     },
     {
       "id": "joshua",
@@ -510,7 +512,8 @@
         5380,
         5813,
         5994
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=nWZWANccTuc"
     },
     {
       "id": "judges",
@@ -882,7 +885,38 @@
         21,
         30
       ],
-      "description": "Genealogias sagradas e a história detalhada do reinado de Davi focando na adoração e no Templo."
+      "description": "Genealogias sagradas e a história detalhada do reinado de Davi focando na adoração e no Templo.",
+      "chapterOffsets": [
+        0,
+        291,
+        627,
+        789,
+        1117,
+        1362,
+        1865,
+        2188,
+        2399,
+        2754,
+        2881,
+        3230,
+        3584,
+        3711,
+        3842,
+        4108,
+        4420,
+        4671,
+        4822,
+        5036,
+        5129,
+        5422,
+        5627,
+        5876,
+        6084,
+        6302,
+        6575,
+        6859,
+        7129
+      ]
     },
     {
       "id": "2-chronicles",
