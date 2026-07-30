@@ -568,7 +568,8 @@
         5219,
         5563,
         6029
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=tPXxizNVlXk"
     },
     {
       "id": "ruth",
@@ -589,7 +590,8 @@
         217,
         465,
         639
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=UObA9t3Ulko"
     },
     {
       "id": "1-samuel",
@@ -963,7 +965,45 @@
         27,
         23
       ],
-      "description": "O reinado de Salomão, a construção do Templo e a história dos reis de Judá até o exílio."
+      "description": "O reinado de Salomão, a construção do Templo e a história dos reis de Judá até o exílio.",
+      "chapterOffsets": [
+        0,
+        168,
+        376,
+        530,
+        720,
+        880,
+        1329,
+        1564,
+        1744,
+        2034,
+        2228,
+        2414,
+        2584,
+        2805,
+        2953,
+        3124,
+        3281,
+        3434,
+        3797,
+        3924,
+        4309,
+        4514,
+        4664,
+        4900,
+        5194,
+        5504,
+        5745,
+        5827,
+        6120,
+        6498,
+        6786,
+        7048,
+        7396,
+        7639,
+        8021,
+        8333
+      ]
     },
     {
       "id": "ezra",
@@ -984,7 +1024,19 @@
         15,
         44
       ],
-      "description": "O retorno dos exilados judeus da Babilônia para Jerusalém e a reconstrução do Templo sob a liderança de Esdras."
+      "description": "O retorno dos exilados judeus da Babilônia para Jerusalém e a reconstrução do Templo sob a liderança de Esdras.",
+      "chapterOffsets": [
+        0,
+        123,
+        501,
+        682,
+        932,
+        1120,
+        1367,
+        1632,
+        1955,
+        2175
+      ]
     },
     {
       "id": "nehemiah",
@@ -1008,7 +1060,22 @@
         47,
         31
       ],
-      "description": "A reconstrução dos muros de Jerusalém por Neemias e a renovação espiritual do povo."
+      "description": "A reconstrução dos muros de Jerusalém por Neemias e a renovação espiritual do povo.",
+      "chapterOffsets": [
+        0,
+        130,
+        360,
+        663,
+        890,
+        1107,
+        1304,
+        1737,
+        1979,
+        2437,
+        2706,
+        2995,
+        3365
+      ]
     },
     {
       "id": "esther",
@@ -1029,7 +1096,19 @@
         32,
         3
       ],
-      "description": "Como a rainha Ester e seu tio Mordecai salvaram o povo judeu da destruição no império persa."
+      "description": "Como a rainha Ester e seu tio Mordecai salvaram o povo judeu da destruição no império persa.",
+      "chapterOffsets": [
+        0,
+        234,
+        487,
+        678,
+        848,
+        1004,
+        1160,
+        1283,
+        1501,
+        1830
+      ]
     },
     {
       "id": "job",
@@ -1082,7 +1161,51 @@
         34,
         17
       ],
-      "description": "Uma profunda reflexão sobre o sofrimento dos justos, a soberania de Deus e a fé diante das provações."
+      "description": "Uma profunda reflexão sobre o sofrimento dos justos, a soberania de Deus e a fé diante das provações.",
+      "chapterOffsets": [
+        0,
+        214,
+        344,
+        487,
+        614,
+        765,
+        945,
+        1078,
+        1206,
+        1395,
+        1539,
+        1664,
+        1806,
+        1958,
+        2094,
+        2294,
+        2433,
+        2531,
+        2649,
+        2823,
+        2987,
+        3181,
+        3354,
+        3450,
+        3607,
+        3643,
+        3721,
+        3848,
+        4001,
+        4145,
+        4327,
+        4554,
+        4694,
+        4884,
+        5116,
+        5211,
+        5402,
+        5547,
+        5779,
+        5946,
+        6078,
+        6272
+      ]
     },
     {
       "id": "psalms",
