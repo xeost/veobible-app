@@ -73,53 +73,53 @@
         0,
         267,
         460,
-        678,
+        677,
         898,
         1095,
         1288,
         1479,
-        1663,
+        1662,
         1878,
         2082,
-        2319,
-        2489,
-        2634,
-        2853,
-        3011,
-        3158,
-        3392,
-        3678,
-        4016,
-        4186,
-        4441,
-        4662,
-        4832,
-        5389,
-        5645,
-        5928,
-        6321,
-        6513,
-        6773,
-        7099,
-        7543,
-        7802,
-        7967,
-        8210,
-        8431,
-        8754,
-        9061,
-        9325,
-        9528,
-        9717,
-        10179,
-        10490,
-        10788,
-        11062,
-        11302,
-        11591,
-        11902,
-        12115,
-        12381
+        2318,
+        2488,
+        2633,
+        2852,
+        3010,
+        3157,
+        3391,
+        3676,
+        4015,
+        4184,
+        4439,
+        4661,
+        4830,
+        5387,
+        5643,
+        5926,
+        6319,
+        6511,
+        6771,
+        7097,
+        7541,
+        7800,
+        7964,
+        8208,
+        8429,
+        8751,
+        9059,
+        9323,
+        9526,
+        9715,
+        10176,
+        10487,
+        10785,
+        11059,
+        11299,
+        11588,
+        11899,
+        12112,
+        12378
       ]
     },
     {
@@ -175,44 +175,44 @@
       "chapterOffsets": [
         0,
         167,
-        388,
+        387,
         643,
-        933,
+        932,
         1139,
         1410,
         1643,
         1960,
         2273,
-        2584,
+        2583,
         2697,
-        3166,
-        3385,
-        3698,
-        3947,
-        4300,
-        4459,
-        4709,
-        4944,
-        5144,
-        5439,
-        5704,
-        5974,
-        6135,
-        6422,
-        6727,
-        6916,
-        7312,
-        7722,
-        8029,
-        8179,
-        8523,
-        8745,
-        9084,
-        9360,
-        9655,
-        9872,
-        10136,
-        10457
+        3165,
+        3384,
+        3697,
+        3946,
+        4299,
+        4458,
+        4708,
+        4943,
+        5143,
+        5437,
+        5702,
+        5973,
+        6134,
+        6420,
+        6725,
+        6914,
+        7310,
+        7720,
+        8027,
+        8177,
+        8521,
+        8742,
+        9082,
+        9357,
+        9652,
+        9870,
+        10133,
+        10454
       ]
     },
     {
@@ -257,29 +257,29 @@
         159,
         312,
         467,
-        791,
+        790,
         1014,
         1292,
-        1621,
+        1620,
         1928,
-        2126,
-        2342,
+        2125,
+        2341,
         2702,
-        2790,
+        2789,
         3369,
-        3876,
-        4175,
-        4526,
-        4701,
-        4934,
-        5242,
-        5523,
-        5723,
-        6021,
-        6428,
-        6606,
-        7083,
-        7489
+        3875,
+        4174,
+        4525,
+        4700,
+        4933,
+        5241,
+        5521,
+        5722,
+        6020,
+        6426,
+        6604,
+        7081,
+        7487
       ]
     },
     {
@@ -2107,7 +2107,23 @@
         16,
         9
       ],
-      "description": "Hosea's prophetic marriage symbolizing God's unconditional love for his unfaithful people."
+      "description": "Hosea's prophetic marriage symbolizing God's unconditional love for his unfaithful people.",
+      "chapterOffsets": [
+        0,
+        115,
+        322,
+        372,
+        539,
+        661,
+        746,
+        882,
+        998,
+        1164,
+        1314,
+        1416,
+        1525,
+        1666
+      ]
     },
     {
       "id": "joel",
@@ -2121,7 +2137,12 @@
         32,
         21
       ],
-      "description": "A locust plague as a warning of the Day of the Lord and the promise of the outpouring of God's Spirit."
+      "description": "A locust plague as a warning of the Day of the Lord and the promise of the outpouring of God's Spirit.",
+      "chapterOffsets": [
+        0,
+        165,
+        460
+      ]
     },
     {
       "id": "amos",
@@ -2141,7 +2162,18 @@
         14,
         15
       ],
-      "description": "A call to social justice and sincere repentance directed at the northern kingdom of Israel."
+      "description": "A call to social justice and sincere repentance directed at the northern kingdom of Israel.",
+      "chapterOffsets": [
+        0,
+        159,
+        301,
+        425,
+        563,
+        777,
+        903,
+        1061,
+        1189
+      ]
     },
     {
       "id": "obadiah",
@@ -2153,7 +2185,10 @@
       "versesPerChapter": [
         21
       ],
-      "description": "A prophecy of judgment against Edom for its pride and violence against its brother Jacob."
+      "description": "A prophecy of judgment against Edom for its pride and violence against its brother Jacob.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jonah",
@@ -2168,7 +2203,13 @@
         10,
         11
       ],
-      "description": "The prophet Jonah's reluctance to preach to Nineveh and God's universal compassion for the nations."
+      "description": "The prophet Jonah's reluctance to preach to Nineveh and God's universal compassion for the nations.",
+      "chapterOffsets": [
+        0,
+        157,
+        227,
+        313
+      ]
     },
     {
       "id": "micah",
@@ -2186,7 +2227,16 @@
         16,
         20
       ],
-      "description": "Denunciation of leaders' injustice and the promise of a Ruler born in Bethlehem who will bring peace."
+      "description": "Denunciation of leaders' injustice and the promise of a Ruler born in Bethlehem who will bring peace.",
+      "chapterOffsets": [
+        0,
+        151,
+        270,
+        378,
+        519,
+        645,
+        779
+      ]
     },
     {
       "id": "nahum",
@@ -2200,7 +2250,12 @@
         13,
         19
       ],
-      "description": "A declaration of God's judgment on the Assyrian empire and the destruction of the city of Nineveh."
+      "description": "A declaration of God's judgment on the Assyrian empire and the destruction of the city of Nineveh.",
+      "chapterOffsets": [
+        0,
+        136,
+        249
+      ]
     },
     {
       "id": "habakkuk",
@@ -2214,7 +2269,12 @@
         20,
         19
       ],
-      "description": "An honest dialogue between the prophet and God about divine justice, concluding with a triumphant declaration of faith."
+      "description": "An honest dialogue between the prophet and God about divine justice, concluding with a triumphant declaration of faith.",
+      "chapterOffsets": [
+        0,
+        142,
+        319
+      ]
     },
     {
       "id": "zephaniah",
@@ -2228,7 +2288,12 @@
         15,
         20
       ],
-      "description": "The imminence of the Day of the Lord, the purification of a humble remnant, and the promise of restoration."
+      "description": "The imminence of the Day of the Lord, the purification of a humble remnant, and the promise of restoration.",
+      "chapterOffsets": [
+        0,
+        173,
+        329
+      ]
     },
     {
       "id": "haggai",
@@ -2241,7 +2306,11 @@
         15,
         23
       ],
-      "description": "Exhortations to the people returning from exile to prioritize the rebuilding of the House of God."
+      "description": "Exhortations to the people returning from exile to prioritize the rebuilding of the House of God.",
+      "chapterOffsets": [
+        0,
+        151
+      ]
     },
     {
       "id": "zechariah",

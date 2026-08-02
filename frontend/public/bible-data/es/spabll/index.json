@@ -2107,7 +2107,23 @@
         16,
         9
       ],
-      "description": "El matrimonio profético de Oseas simbolizando el amor incondicional de Dios por su pueblo infiel."
+      "description": "El matrimonio profético de Oseas simbolizando el amor incondicional de Dios por su pueblo infiel.",
+      "chapterOffsets": [
+        0,
+        122,
+        368,
+        429,
+        635,
+        795,
+        895,
+        1061,
+        1201,
+        1402,
+        1581,
+        1707,
+        1845,
+        2020
+      ]
     },
     {
       "id": "joel",
@@ -2121,7 +2137,12 @@
         32,
         21
       ],
-      "description": "Una plaga de langostas usada como advertencia del Día del Señor y la promesa del derramamiento del Espíritu de Dios."
+      "description": "Una plaga de langostas usada como advertencia del Día del Señor y la promesa del derramamiento del Espíritu de Dios.",
+      "chapterOffsets": [
+        0,
+        217,
+        615
+      ]
     },
     {
       "id": "amos",
@@ -2141,7 +2162,18 @@
         14,
         15
       ],
-      "description": "El llamado a la justicia social y al arrepentimiento sincero dirigido al reino del norte de Israel."
+      "description": "El llamado a la justicia social y al arrepentimiento sincero dirigido al reino del norte de Israel.",
+      "chapterOffsets": [
+        0,
+        163,
+        316,
+        459,
+        627,
+        866,
+        1030,
+        1208,
+        1364
+      ]
     },
     {
       "id": "obadiah",
@@ -2153,7 +2185,10 @@
       "versesPerChapter": [
         21
       ],
-      "description": "Una profecía de juicio contra Edom por su orgullo y violencia contra su hermano Jacob."
+      "description": "Una profecía de juicio contra Edom por su orgullo y violencia contra su hermano Jacob.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jonah",
@@ -2168,7 +2203,13 @@
         10,
         11
       ],
-      "description": "La renuencia del profeta Jonás a predicar a Nínive y la compasión universal de Dios por las naciones."
+      "description": "La renuencia del profeta Jonás a predicar a Nínive y la compasión universal de Dios por las naciones.",
+      "chapterOffsets": [
+        0,
+        185,
+        266,
+        373
+      ]
     },
     {
       "id": "micah",
@@ -2186,7 +2227,16 @@
         16,
         20
       ],
-      "description": "Denuncia de la injusticia de los líderes y la promesa de un Gobernante nacido en Belén que traerá paz."
+      "description": "Denuncia de la injusticia de los líderes y la promesa de un Gobernante nacido en Belén que traerá paz.",
+      "chapterOffsets": [
+        0,
+        182,
+        348,
+        486,
+        649,
+        809,
+        985
+      ]
     },
     {
       "id": "nahum",
@@ -2200,7 +2250,12 @@
         13,
         19
       ],
-      "description": "Una declaración del juicio de Dios sobre el imperio asirio y la destrucción de la ciudad de Nínive."
+      "description": "Una declaración del juicio de Dios sobre el imperio asirio y la destrucción de la ciudad de Nínive.",
+      "chapterOffsets": [
+        0,
+        165,
+        312
+      ]
     },
     {
       "id": "habakkuk",
@@ -2214,7 +2269,12 @@
         20,
         19
       ],
-      "description": "Un diálogo honesto entre el profeta y Dios sobre la justicia divina, concluyendo con una declaración de fe triunfante."
+      "description": "Un diálogo honesto entre el profeta y Dios sobre la justicia divina, concluyendo con una declaración de fe triunfante.",
+      "chapterOffsets": [
+        0,
+        169,
+        477
+      ]
     },
     {
       "id": "zephaniah",
@@ -2228,7 +2288,12 @@
         15,
         20
       ],
-      "description": "La inminencia del Día del Señor, la purificación de un remanente humilde y la promesa de restauración."
+      "description": "La inminencia del Día del Señor, la purificación de un remanente humilde y la promesa de restauración.",
+      "chapterOffsets": [
+        0,
+        208,
+        389
+      ]
     },
     {
       "id": "haggai",
@@ -2241,7 +2306,11 @@
         15,
         23
       ],
-      "description": "Exhortaciones al pueblo que regresó del exilio para priorizar la reconstrucción de la Casa de Dios."
+      "description": "Exhortaciones al pueblo que regresó del exilio para priorizar la reconstrucción de la Casa de Dios.",
+      "chapterOffsets": [
+        0,
+        164
+      ]
     },
     {
       "id": "zechariah",
@@ -2266,7 +2335,23 @@
         9,
         21
       ],
-      "description": "Visiones proféticas alentadoras sobre la restauración de Jerusalén y profecías mesiánicas sobre el Rey venidero."
+      "description": "Visiones proféticas alentadoras sobre la restauración de Jerusalén y profecías mesiánicas sobre el Rey venidero.",
+      "chapterOffsets": [
+        0,
+        235,
+        358,
+        473,
+        608,
+        725,
+        879,
+        1026,
+        1272,
+        1482,
+        1631,
+        1842,
+        2022,
+        2136
+      ]
     },
     {
       "id": "malachi",
@@ -2281,7 +2366,13 @@
         18,
         6
       ],
-      "description": "El último profeta del Antiguo Testamento reprende la apatía religiosa y anuncia la venida del mensajero del Señor."
+      "description": "El último profeta del Antiguo Testamento reprende la apatía religiosa y anuncia la venida del mensajero del Señor.",
+      "chapterOffsets": [
+        0,
+        212,
+        430,
+        664
+      ]
     },
     {
       "id": "matthew",
@@ -2320,7 +2411,37 @@
         66,
         20
       ],
-      "description": "El Evangelio escrito para demostrar que Jesús es el Mesías prometido en el Antiguo Testamento y el Rey de los judíos."
+      "description": "El Evangelio escrito para demostrar que Jesús es el Mesías prometido en el Antiguo Testamento y el Rey de los judíos.",
+      "chapterOffsets": [
+        0,
+        232,
+        433,
+        597,
+        807,
+        1217,
+        1552,
+        1797,
+        2069,
+        2385,
+        2716,
+        2958,
+        3381,
+        3883,
+        4148,
+        4464,
+        4710,
+        4960,
+        5263,
+        5510,
+        5838,
+        6267,
+        6611,
+        6994,
+        7391,
+        7767,
+        8426,
+        8958
+      ]
     },
     {
       "id": "mark",
@@ -2347,7 +2468,25 @@
         47,
         20
       ],
-      "description": "Un relato dinámico y centrado en la acción que retrata a Jesús como el Siervo Sufriente e Hijo de Dios."
+      "description": "Un relato dinámico y centrado en la acción que retrata a Jesús como el Siervo Sufriente e Hijo de Dios.",
+      "chapterOffsets": [
+        0,
+        340,
+        595,
+        843,
+        1168,
+        1484,
+        1945,
+        2249,
+        2552,
+        2961,
+        3394,
+        3661,
+        4039,
+        4337,
+        4908,
+        5230
+      ]
     },
     {
       "id": "luke",
@@ -2382,7 +2521,33 @@
         56,
         53
       ],
-      "description": "Un relato histórico minucioso del Evangelio que enfatiza la compasión de Jesús por todos los necesitados."
+      "description": "Un relato histórico minucioso del Evangelio que enfatiza la compasión de Jesús por todos los necesitados.",
+      "chapterOffsets": [
+        0,
+        539,
+        995,
+        1313,
+        1660,
+        2002,
+        2418,
+        2830,
+        3336,
+        3821,
+        4184,
+        4655,
+        5128,
+        5437,
+        5723,
+        5987,
+        6266,
+        6530,
+        6859,
+        7216,
+        7576,
+        7877,
+        8409,
+        8842
+      ]
     },
     {
       "id": "john",
@@ -2414,7 +2579,30 @@
         31,
         25
       ],
-      "description": "Un Evangelio profundo centrado en la divinidad de Jesucristo, la Palabra encarnada que concede vida eterna."
+      "description": "Un Evangelio profundo centrado en la divinidad de Jesucristo, la Palabra encarnada que concede vida eterna.",
+      "chapterOffsets": [
+        0,
+        398,
+        593,
+        865,
+        1271,
+        1622,
+        2138,
+        2531,
+        3023,
+        3321,
+        3609,
+        4084,
+        4491,
+        4800,
+        5051,
+        5270,
+        5545,
+        5780,
+        6231,
+        6587,
+        6927
+      ]
     },
     {
       "id": "acts",
@@ -2453,7 +2641,37 @@
         44,
         31
       ],
-      "description": "La historia del nacimiento de la Iglesia y la expansión del Evangelio por el poder del Espíritu Santo de Jerusalén a Roma."
+      "description": "La historia del nacimiento de la Iglesia y la expansión del Evangelio por el poder del Espíritu Santo de Jerusalén a Roma.",
+      "chapterOffsets": [
+        0,
+        258,
+        631,
+        871,
+        1198,
+        1545,
+        1696,
+        2235,
+        2578,
+        2987,
+        3387,
+        3647,
+        3903,
+        4382,
+        4636,
+        5008,
+        5378,
+        5708,
+        5980,
+        6364,
+        6693,
+        7123,
+        7395,
+        7761,
+        8009,
+        8268,
+        8628,
+        9015
+      ]
     },
     {
       "id": "romans",
@@ -2480,7 +2698,25 @@
         33,
         24
       ],
-      "description": "Una exposición sistemática del evangelio, explicando la justificación por la fe, la gracia y la vida en el Espíritu."
+      "description": "Una exposición sistemática del evangelio, explicando la justificación por la fe, la gracia y la vida en el Espíritu.",
+      "chapterOffsets": [
+        0,
+        319,
+        576,
+        812,
+        1032,
+        1240,
+        1447,
+        1683,
+        2029,
+        2293,
+        2469,
+        2767,
+        2955,
+        3104,
+        3327,
+        3618
+      ]
     },
     {
       "id": "1-corinthians",
@@ -2507,7 +2743,25 @@
         58,
         24
       ],
-      "description": "Carta que aborda divisiones en la iglesia, ética cristiana, los dones espirituales y la verdad de la resurrección."
+      "description": "Carta que aborda divisiones en la iglesia, ética cristiana, los dones espirituales y la verdad de la resurrección.",
+      "chapterOffsets": [
+        0,
+        246,
+        405,
+        597,
+        800,
+        934,
+        1128,
+        1481,
+        1608,
+        1858,
+        2125,
+        2392,
+        2648,
+        2771,
+        3115,
+        3536
+      ]
     },
     {
       "id": "2-corinthians",
@@ -2531,7 +2785,22 @@
         21,
         14
       ],
-      "description": "Una defensa apasionada del ministerio apostólico de Pablo, enfatizando la gracia de Dios en la debilidad humana."
+      "description": "Una defensa apasionada del ministerio apostólico de Pablo, enfatizando la gracia de Dios en la debilidad humana.",
+      "chapterOffsets": [
+        0,
+        254,
+        404,
+        573,
+        736,
+        942,
+        1108,
+        1311,
+        1545,
+        1707,
+        1887,
+        2169,
+        2384
+      ]
     },
     {
       "id": "galatians",
@@ -2548,7 +2817,15 @@
         26,
         18
       ],
-      "description": "Defensa de la libertad cristiana y de la justificación solo por la fe, contra el legalismo."
+      "description": "Defensa de la libertad cristiana y de la justificación solo por la fe, contra el legalismo.",
+      "chapterOffsets": [
+        0,
+        203,
+        442,
+        716,
+        968,
+        1191
+      ]
     },
     {
       "id": "ephesians",
@@ -2565,7 +2842,15 @@
         33,
         24
       ],
-      "description": "Explora las bendiciones espirituales en Cristo, la unidad de la Iglesia y la armadura de Dios."
+      "description": "Explora las bendiciones espirituales en Cristo, la unidad de la Iglesia y la armadura de Dios.",
+      "chapterOffsets": [
+        0,
+        206,
+        416,
+        609,
+        874,
+        1125
+      ]
     },
     {
       "id": "philippians",
@@ -2580,7 +2865,13 @@
         21,
         23
       ],
-      "description": "Una carta llena de alegría y gratitud, alentando la humildad, la unidad y la confianza en Cristo."
+      "description": "Una carta llena de alegría y gratitud, alentando la humildad, la unidad y la confianza en Cristo.",
+      "chapterOffsets": [
+        0,
+        300,
+        562,
+        771
+      ]
     },
     {
       "id": "colossians",
@@ -2595,7 +2886,13 @@
         25,
         18
       ],
-      "description": "Destaca la supremacía y suficiencia de Cristo sobre toda la creación y sobre la Iglesia."
+      "description": "Destaca la supremacía y suficiencia de Cristo sobre toda la creación y sobre la Iglesia.",
+      "chapterOffsets": [
+        0,
+        265,
+        463,
+        664
+      ]
     },
     {
       "id": "1-thessalonians",
@@ -2611,7 +2908,14 @@
         18,
         28
       ],
-      "description": "Aliento para vivir una vida santa y enseñanzas sobre la segunda venida de Cristo."
+      "description": "Aliento para vivir una vida santa y enseñanzas sobre la segunda venida de Cristo.",
+      "chapterOffsets": [
+        0,
+        107,
+        323,
+        456,
+        612
+      ]
     },
     {
       "id": "2-thessalonians",
@@ -2625,7 +2929,12 @@
         17,
         18
       ],
-      "description": "Aclaraciones sobre los eventos que preceden al Día del Señor y exhortaciones a la firmeza."
+      "description": "Aclaraciones sobre los eventos que preceden al Día del Señor y exhortaciones a la firmeza.",
+      "chapterOffsets": [
+        0,
+        136,
+        298
+      ]
     },
     {
       "id": "1-timothy",
@@ -2642,7 +2951,15 @@
         25,
         21
       ],
-      "description": "Instrucciones pastorales sobre el gobierno de la iglesia, el liderazgo y la preservación de la sana doctrina."
+      "description": "Instrucciones pastorales sobre el gobierno de la iglesia, el liderazgo y la preservación de la sana doctrina.",
+      "chapterOffsets": [
+        0,
+        191,
+        309,
+        444,
+        584,
+        795
+      ]
     },
     {
       "id": "2-timothy",
@@ -2657,7 +2974,13 @@
         17,
         22
       ],
-      "description": "La última carta de Pablo a Timoteo, exhortándolo a perseverar en el ministerio y a predicar la palabra."
+      "description": "La última carta de Pablo a Timoteo, exhortándolo a perseverar en el ministerio y a predicar la palabra.",
+      "chapterOffsets": [
+        0,
+        175,
+        402,
+        551
+      ]
     },
     {
       "id": "titus",
@@ -2671,7 +2994,12 @@
         15,
         15
       ],
-      "description": "Instrucciones para la organización de las iglesias en Creta, destacando la enseñanza correcta y las buenas obras."
+      "description": "Instrucciones para la organización de las iglesias en Creta, destacando la enseñanza correcta y las buenas obras.",
+      "chapterOffsets": [
+        0,
+        168,
+        291
+      ]
     },
     {
       "id": "philemon",
@@ -2683,7 +3011,10 @@
       "versesPerChapter": [
         25
       ],
-      "description": "Una carta personal pidiendo que un siervo fugitivo, Onésimo, sea recibido como hermano en Cristo."
+      "description": "Una carta personal pidiendo que un siervo fugitivo, Onésimo, sea recibido como hermano en Cristo.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "hebrews",
@@ -2707,7 +3038,22 @@
         29,
         25
       ],
-      "description": "Demuestra la superioridad de Cristo y de su nuevo pacto sobre el antiguo sistema sacrificial."
+      "description": "Demuestra la superioridad de Cristo y de su nuevo pacto sobre el antiguo sistema sacrificial.",
+      "chapterOffsets": [
+        0,
+        137,
+        324,
+        474,
+        634,
+        766,
+        946,
+        1200,
+        1339,
+        1628,
+        1942,
+        2306,
+        2579
+      ]
     },
     {
       "id": "james",
@@ -2723,7 +3069,14 @@
         17,
         20
       ],
-      "description": "Enseñanzas prácticas que muestran que la fe verdadera debe manifestarse en buenas obras y sabiduría."
+      "description": "Enseñanzas prácticas que muestran que la fe verdadera debe manifestarse en buenas obras y sabiduría.",
+      "chapterOffsets": [
+        0,
+        223,
+        453,
+        620,
+        780
+      ]
     },
     {
       "id": "1-peter",
@@ -2739,7 +3092,14 @@
         19,
         14
       ],
-      "description": "Aliento a los cristianos perseguidos para mantenerse firmes en la esperanza y vivir en santidad."
+      "description": "Aliento a los cristianos perseguidos para mantenerse firmes en la esperanza y vivir en santidad.",
+      "chapterOffsets": [
+        0,
+        259,
+        503,
+        724,
+        902
+      ]
     },
     {
       "id": "2-peter",
@@ -2753,7 +3113,12 @@
         22,
         18
       ],
-      "description": "Advertencias contra falsos maestros y exhortaciones al crecimiento en el conocimiento de Cristo."
+      "description": "Advertencias contra falsos maestros y exhortaciones al crecimiento en el conocimiento de Cristo.",
+      "chapterOffsets": [
+        0,
+        218,
+        455
+      ]
     },
     {
       "id": "1-john",
@@ -2769,7 +3134,14 @@
         21,
         21
       ],
-      "description": "Epístola sobre la certeza de la salvación, el mandamiento del amor fraternal y la comunión con Dios."
+      "description": "Epístola sobre la certeza de la salvación, el mandamiento del amor fraternal y la comunión con Dios.",
+      "chapterOffsets": [
+        0,
+        98,
+        369,
+        574,
+        760
+      ]
     },
     {
       "id": "2-john",
@@ -2781,7 +3153,10 @@
       "versesPerChapter": [
         13
       ],
-      "description": "Advertencia contra acoger a falsos maestros que niegan la verdad sobre Jesucristo."
+      "description": "Advertencia contra acoger a falsos maestros que niegan la verdad sobre Jesucristo.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "3-john",
@@ -2793,7 +3168,10 @@
       "versesPerChapter": [
         14
       ],
-      "description": "Elogio de la hospitalidad de Gayo hacia los misioneros y reprensión de actitudes orgullosas."
+      "description": "Elogio de la hospitalidad de Gayo hacia los misioneros y reprensión de actitudes orgullosas.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jude",
@@ -2805,7 +3183,10 @@
       "versesPerChapter": [
         25
       ],
-      "description": "Exhortación urgente a batallar por la fe ante falsos maestros que distorsionan la gracia."
+      "description": "Exhortación urgente a batallar por la fe ante falsos maestros que distorsionan la gracia.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "revelation",
@@ -2838,7 +3219,31 @@
         27,
         21
       ],
-      "description": "Visiones de la victoria final de Cristo sobre el mal, el juicio final y la nueva Jerusalén."
+      "description": "Visiones de la victoria final de Cristo sobre el mal, el juicio final y la nueva Jerusalén.",
+      "chapterOffsets": [
+        0,
+        219,
+        508,
+        843,
+        979,
+        1136,
+        1335,
+        1523,
+        1682,
+        1902,
+        2020,
+        2236,
+        2427,
+        2605,
+        2845,
+        2945,
+        3147,
+        3347,
+        3664,
+        3907,
+        4073,
+        4361
+      ]
     }
   ]
 }
