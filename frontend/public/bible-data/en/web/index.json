@@ -120,7 +120,8 @@
         11899,
         12112,
         12378
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=1CZwx24x6vs"
     },
     {
       "id": "exodus",
@@ -1162,41 +1163,41 @@
         627,
         782,
         957,
-        1093,
-        1212,
-        1405,
+        1092,
+        1211,
+        1404,
         1543,
-        1666,
-        1810,
-        1962,
-        2099,
-        2297,
-        2434,
-        2533,
-        2652,
-        2820,
-        2999,
-        3184,
-        3352,
-        3452,
-        3620,
-        3653,
-        3732,
-        3866,
-        4028,
-        4161,
-        4345,
-        4579,
-        4719,
-        4907,
-        5122,
-        5215,
-        5401,
-        5546,
-        5767,
-        5939,
-        6065,
-        6245
+        1665,
+        1809,
+        1961,
+        2098,
+        2296,
+        2433,
+        2532,
+        2650,
+        2818,
+        2997,
+        3183,
+        3351,
+        3451,
+        3619,
+        3651,
+        3731,
+        3865,
+        4026,
+        4160,
+        4343,
+        4577,
+        4717,
+        4905,
+        5120,
+        5213,
+        5399,
+        5544,
+        5764,
+        5937,
+        6063,
+        6242
       ]
     },
     {
@@ -2792,7 +2793,8 @@
         17,
         20
       ],
-      "description": "Practical teachings showing that genuine faith must manifest itself in good works and wisdom."
+      "description": "Practical teachings showing that genuine faith must manifest itself in good works and wisdom.",
+      "video": "https://www.youtube.com/watch?v=5Ypa2Z1o8Vg"
     },
     {
       "id": "1-peter",
@@ -2907,7 +2909,8 @@
         27,
         21
       ],
-      "description": "Visions of Christ's final victory over evil, the final judgment, and the new Jerusalem."
+      "description": "Visions of Christ's final victory over evil, the final judgment, and the new Jerusalem.",
+      "video": "https://www.youtube.com/watch?v=QC264qZ9Qi0"
     }
   ]
 }

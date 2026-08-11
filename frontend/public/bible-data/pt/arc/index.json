@@ -1214,7 +1214,8 @@
         5946,
         6078,
         6272
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=RozZekC7eWY"
     },
     {
       "id": "psalms",
@@ -1527,7 +1528,8 @@
         15134,
         15214,
         15266
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=WT5xZB9hMgI"
     },
     {
       "id": "proverbs",
@@ -1569,7 +1571,40 @@
         33,
         31
       ],
-      "description": "Sabedoria prática para a vida diária baseada no temor ao Senhor, cobrindo relacionamentos, trabalho e integridade."
+      "description": "Sabedoria prática para a vida diária baseada no temor ao Senhor, cobrindo relacionamentos, trabalho e integridade.",
+      "chapterOffsets": [
+        0,
+        199,
+        316,
+        507,
+        657,
+        790,
+        987,
+        1134,
+        1344,
+        1446,
+        1627,
+        1801,
+        1960,
+        2107,
+        2307,
+        2490,
+        2676,
+        2842,
+        2977,
+        3149,
+        3324,
+        3472,
+        3639,
+        3844,
+        4046,
+        4216,
+        4377,
+        4541,
+        4713,
+        4867,
+        5084
+      ]
     },
     {
       "id": "ecclesiastes",
@@ -1592,7 +1627,21 @@
         10,
         14
       ],
-      "description": "Uma busca pelo sentido da vida sob o sol, concluindo que temer a Deus é o dever supremo do homem."
+      "description": "Uma busca pelo sentido da vida sob o sol, concluindo que temer a Deus é o dever supremo do homem.",
+      "chapterOffsets": [
+        0,
+        137,
+        378,
+        537,
+        644,
+        815,
+        911,
+        1121,
+        1280,
+        1464,
+        1601,
+        1690
+      ]
     },
     {
       "id": "song-of-solomon",
@@ -1611,7 +1660,17 @@
         13,
         14
       ],
-      "description": "Um poema amoroso celebrando a beleza do amor conjugal e o relacionamento entre Deus e seu povo."
+      "description": "Um poema amoroso celebrando a beleza do amor conjugal e o relacionamento entre Deus e seu povo.",
+      "chapterOffsets": [
+        0,
+        119,
+        241,
+        332,
+        470,
+        612,
+        714,
+        816
+      ]
     },
     {
       "id": "isaiah",
@@ -1688,7 +1747,75 @@
         25,
         24
       ],
-      "description": "Profecias sobre o julgamento de Israel e as nações, a promessa do Messias Servo Sofredor e a glória futura."
+      "description": "Profecias sobre o julgamento de Israel e as nações, a promessa do Messias Servo Sofredor e a glória futura.",
+      "chapterOffsets": [
+        0,
+        278,
+        452,
+        651,
+        713,
+        993,
+        1127,
+        1357,
+        1550,
+        1742,
+        2036,
+        2185,
+        2234,
+        2421,
+        2704,
+        2792,
+        2930,
+        3061,
+        3146,
+        3377,
+        3448,
+        3599,
+        3818,
+        3983,
+        4169,
+        4284,
+        4462,
+        4589,
+        4862,
+        5101,
+        5433,
+        5536,
+        5697,
+        5911,
+        6070,
+        6162,
+        6399,
+        6776,
+        6970,
+        7069,
+        7338,
+        7608,
+        7840,
+        8087,
+        8402,
+        8672,
+        8790,
+        8953,
+        9162,
+        9449,
+        9576,
+        9829,
+        9979,
+        10117,
+        10282,
+        10413,
+        10540,
+        10741,
+        10911,
+        11133,
+        11344,
+        11470,
+        11593,
+        11785,
+        11901,
+        12154
+      ]
     },
     {
       "id": "jeremiah",

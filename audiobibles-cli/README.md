@@ -178,7 +178,12 @@ pnpm audiobibles --book 3
 
 ### Step 0 — Session Setup
 
-Runs automatically on launch. Select the Bible version, enter the default book number (the last processed book number is suggested from `last-book-<versionId>.log`), and choose whether to use the same book number for all books or assign numbers individually.
+Runs automatically on launch. Select the Bible version and choose the generation scope:
+- **Specific book**: Enter a specific book number (suggests next book from `last-book-<versionId>.log`) to generate 1 video for that book.
+- **All books (1 video per book)**: Targets all books in the version to generate an individual video for each book with ready source files.
+- **Old Testament (single video)**: Concatenates all Old Testament books into one single video.
+- **New Testament (single video)**: Concatenates all New Testament books into one single video.
+- **Complete Bible (single video)**: Concatenates all books of the Bible into one single video.
 
 ### Step 1 — Create Book JSON Files
 

@@ -1,10 +1,10 @@
 /**
  * Step 4 — Generate Videos.
  *
- * Supports two generation modes set during Step 0:
+ * Supports two main generation workflows set during Step 0:
  *
- *   "book" (original):
- *     Processes one book at a time, producing one video + thumbnail + upload txt per book.
+ *   "book" | "all-books":
+ *     Processes each target book individually, producing one video + thumbnail + upload txt per book.
  *
  *   "old-testament" | "new-testament" | "full-bible":
  *     Concatenates all books in the scope into a single video.
@@ -42,12 +42,12 @@ import { config } from "../config.js";
 export async function runStep4(session: SessionState): Promise<void> {
   printStep(4, "Generate Videos");
 
-  if (session.mode !== "book") {
+  if (session.mode === "old-testament" || session.mode === "new-testament" || session.mode === "full-bible") {
     await runMultiBookGeneration(session);
     return;
   }
 
-  // ── Original single-book generation ────────────────────────────────────────
+  // ── Individual book generation ("book" | "all-books") ─────────────────────
 
   // Only process books that have a JSON metadata file
   const filteredTargets = filterTargetsByJson(session.targets, session.version.id);

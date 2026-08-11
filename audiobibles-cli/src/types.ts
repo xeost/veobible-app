@@ -85,12 +85,13 @@ export interface BookMetadata {
 
 /**
  * Generation scope selected by the user at setup time.
- * - "book"           → a single book (original behaviour)
- * - "old-testament"  → all Old Testament books concatenated into one video
- * - "new-testament"  → all New Testament books concatenated into one video
- * - "full-bible"     → all books concatenated into one video
+ * - "book"           → a single specific book
+ * - "all-books"      → all books, each generated as an individual video (one video per book)
+ * - "old-testament"  → all Old Testament books concatenated into one single video
+ * - "new-testament"  → all New Testament books concatenated into one single video
+ * - "full-bible"     → all books concatenated into one single video
  */
-export type GenerationMode = "book" | "old-testament" | "new-testament" | "full-bible";
+export type GenerationMode = "book" | "all-books" | "old-testament" | "new-testament" | "full-bible";
 
 export interface BookTarget {
   /** 1-based position in the Bible (1 = Genesis … 66 = Revelation) */

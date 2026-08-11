@@ -54,9 +54,10 @@ async function main() {
     const session = await runStep0(defaultBookArg);
 
     const scopeLabel =
-      session.mode === "old-testament" ? "Old Testament" :
-      session.mode === "new-testament" ? "New Testament" :
-      session.mode === "full-bible"    ? "Complete Bible" :
+      session.mode === "all-books"     ? "All Books (1 video per book)" :
+      session.mode === "old-testament" ? "Old Testament (single video)" :
+      session.mode === "new-testament" ? "New Testament (single video)" :
+      session.mode === "full-bible"    ? "Complete Bible (single video)" :
       `Book ${session.defaultBook}`;
 
     let exitRequested = false;

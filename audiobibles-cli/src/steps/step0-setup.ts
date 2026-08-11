@@ -2,9 +2,10 @@
  * Step 0 — Session setup.
  * Selects the Bible version and the generation scope:
  *   - A specific book
- *   - All Old Testament books
- *   - All New Testament books
- *   - The complete Bible
+ *   - All books individually (1 video per book)
+ *   - All Old Testament books (single combined video)
+ *   - All New Testament books (single combined video)
+ *   - The complete Bible (single combined video)
  *
  * Each sub-menu clears the screen and shows the banner so the previous
  * menu is never visible when a new menu appears.
@@ -64,10 +65,11 @@ export async function runStep0(defaultBookArg?: number): Promise<SessionState> {
   const scopeChoice = await showNumberedMenu<GenerationMode>(
     "Select the generation scope:",
     [
-      { label: "Specific book",  value: "book" as GenerationMode },
-      { label: "Old Testament",  value: "old-testament" as GenerationMode },
-      { label: "New Testament",  value: "new-testament" as GenerationMode },
-      { label: "Complete Bible", value: "full-bible" as GenerationMode },
+      { label: "Specific book",                                value: "book" as GenerationMode },
+      { label: "All books (1 video per book)",                 value: "all-books" as GenerationMode },
+      { label: "Old Testament (single video of all OT books)", value: "old-testament" as GenerationMode },
+      { label: "New Testament (single video of all NT books)", value: "new-testament" as GenerationMode },
+      { label: "Complete Bible (single video of all books)",   value: "full-bible" as GenerationMode },
     ],
     "Back (change version)"
   );
@@ -80,6 +82,24 @@ export async function runStep0(defaultBookArg?: number): Promise<SessionState> {
   const mode = scopeChoice;
 
   // ── Build targets based on scope ─────────────────────────────────────────
+  if (mode === "all-books") {
+    const targets = index.books.map((b, i) => ({
+      bookNumber: i + 1,
+      bookId: b.id,
+      bookName: b.name,
+    }));
+
+    ok(`Scope: ${C.primary.bold("All books (1 video per book)")} — ${C.accent(String(targets.length))} books selected.`);
+    logStep(0, `Session configured. Version: ${version.id}. Scope: ${mode}. Books: ${targets.length}`);
+
+    return {
+      version,
+      defaultBook: 1,
+      targets,
+      mode,
+    };
+  }
+
   if (mode === "old-testament" || mode === "new-testament" || mode === "full-bible") {
     const testament = mode === "old-testament" ? "old"
       : mode === "new-testament" ? "new"
@@ -96,9 +116,9 @@ export async function runStep0(defaultBookArg?: number): Promise<SessionState> {
     }));
 
     const scopeLabel =
-      mode === "old-testament" ? "Old Testament" :
-      mode === "new-testament" ? "New Testament" :
-      "Complete Bible";
+      mode === "old-testament" ? "Old Testament (single video)" :
+      mode === "new-testament" ? "New Testament (single video)" :
+      "Complete Bible (single video)";
 
     ok(`Scope: ${C.primary.bold(scopeLabel)} — ${C.accent(String(targets.length))} books selected.`);
     logStep(0, `Session configured. Version: ${version.id}. Scope: ${mode}. Books: ${targets.length}`);
