@@ -1,0 +1,17 @@
+Modify the attached image by seamlessly overlaying an elaborate, magnificent cinematic title treatment. The exact text to render is: "{title_upper}".
+
+CRITICAL LANGUAGE & TEXT ACCURACY:
+- The title text is in {language}: "{title_upper}".
+- Do NOT translate this text into English or any other language under any circumstance.
+- Render the exact text "{title_upper}" verbatim with exact spelling, uppercase capitalization, and all accents intact.
+
+ELABORATE TYPOGRAPHY & CLASSIC LUXURY FRAME:
+- Frame & Backing: Place the title inside a prominent, opulent, classic ornamental luxury frame (similar to a vintage royal emblem or classic premium wedding frame with baroque flourishes). The inside of the frame MUST have a solid, dark, or richly textured backing panel to completely isolate the text from the underlying image background, guaranteeing perfect contrast and readability.
+- Frame Details: Elaborate filigree, intricate gold decorative corner ornaments, and a premium classic aesthetic.
+- Typography Style: Elegant, highly legible serif or classic display typeface. It must read perfectly clearly at a glance while retaining a luxurious and grand aesthetic.
+- Material & Lighting: The text and frame accents should feature a beautiful metallic finish (e.g., burnished antique gold) with realistic specular highlights, smooth drop shadows, and 3D relief to give a tactile, premium feel without looking like a flat sticker.
+- Composition & Placement: Majestically centered in the upper portion of the image. The luxury frame overlays the scene gracefully.
+
+PRESERVATION & RESTRICTIONS:
+- Keep the original background image, environment, colors, lighting, textures, and composition completely intact and unchanged.
+- Strictly avoid: translating the title into English, adding extra words or subtitles, chapter numbers, author names, misspelled words, blurry fonts, flat 2D sticker look, generic modern sans-serif, garish neon colors, harsh solid-black comic outlines, or altering the background art.

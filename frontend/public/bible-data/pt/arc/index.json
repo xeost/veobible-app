@@ -1604,7 +1604,8 @@
         4713,
         4867,
         5084
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=rMNDHGUfLfU"
     },
     {
       "id": "ecclesiastes",
@@ -1641,7 +1642,8 @@
         1464,
         1601,
         1690
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=7DavWQVGIms"
     },
     {
       "id": "song-of-solomon",
@@ -1670,7 +1672,8 @@
         612,
         714,
         816
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=nsx19B2EToc"
     },
     {
       "id": "isaiah",
@@ -2222,7 +2225,13 @@
         10,
         11
       ],
-      "description": "A relutância do profeta Jonas em pregar a Nínive e a compaixão universal de Deus pelas nações."
+      "description": "A relutância do profeta Jonas em pregar a Nínive e a compaixão universal de Deus pelas nações.",
+      "chapterOffsets": [
+        0,
+        176,
+        250,
+        341
+      ]
     },
     {
       "id": "micah",
@@ -2240,7 +2249,16 @@
         16,
         20
       ],
-      "description": "Denúncia da injustiça dos líderes e a promessa de um Governador nascido em Belém que trará paz."
+      "description": "Denúncia da injustiça dos líderes e a promessa de um Governador nascido em Belém que trará paz.",
+      "chapterOffsets": [
+        0,
+        153,
+        286,
+        401,
+        548,
+        679,
+        820
+      ]
     },
     {
       "id": "nahum",
@@ -2254,7 +2272,12 @@
         13,
         19
       ],
-      "description": "Uma declaração do julgamento de Deus sobre o império assírio e a destruição da cidade de Nínive."
+      "description": "Uma declaração do julgamento de Deus sobre o império assírio e a destruição da cidade de Nínive.",
+      "chapterOffsets": [
+        0,
+        134,
+        262
+      ]
     },
     {
       "id": "habakkuk",
@@ -2268,7 +2291,12 @@
         20,
         19
       ],
-      "description": "Um diálogo honesto entre o profeta e Deus sobre a justiça divina, concluindo com uma declaração de fé triunfante."
+      "description": "Um diálogo honesto entre o profeta e Deus sobre a justiça divina, concluindo com uma declaração de fé triunfante.",
+      "chapterOffsets": [
+        0,
+        150,
+        334
+      ]
     },
     {
       "id": "zephaniah",
@@ -2282,7 +2310,12 @@
         15,
         20
       ],
-      "description": "A iminência do Dia do Senhor, a purificação de um remanescente humilde e a promessa de restauração."
+      "description": "A iminência do Dia do Senhor, a purificação de um remanescente humilde e a promessa de restauração.",
+      "chapterOffsets": [
+        0,
+        175,
+        332
+      ]
     },
     {
       "id": "haggai",
@@ -2295,7 +2328,11 @@
         15,
         23
       ],
-      "description": "Exortações ao povo retornado do exílio para priorizar a reconstrução da Casa de Deus."
+      "description": "Exortações ao povo retornado do exílio para priorizar a reconstrução da Casa de Deus.",
+      "chapterOffsets": [
+        0,
+        161
+      ]
     },
     {
       "id": "zechariah",
@@ -2320,7 +2357,23 @@
         9,
         21
       ],
-      "description": "Visões proféticas encorajadoras sobre a restauração de Jerusalém e profecias messiânicas sobre o Rei vindouro."
+      "description": "Visões proféticas encorajadoras sobre a restauração de Jerusalém e profecias messiânicas sobre o Rei vindouro.",
+      "chapterOffsets": [
+        0,
+        218,
+        319,
+        422,
+        548,
+        658,
+        793,
+        927,
+        1157,
+        1324,
+        1442,
+        1606,
+        1754,
+        1860
+      ]
     },
     {
       "id": "malachi",
