@@ -4,8 +4,16 @@ Bible Book Background Prompt Generator for Google Flow
 
 This script reads Bible book metadata from `books-data.json`, renders
 a customizable prompt template from `template.txt` for each book,
-and automatically copies each rendered prompt into your system clipboard
-step-by-step for easy pasting into Google Flow.
+and automatically copies both the prompt and corresponding filename to your clipboard
+in a convenient two-step workflow for generating images in Google Flow.
+
+Workflow per book:
+    1. Step 1: Prompt is automatically rendered and copied to clipboard.
+               -> Paste into Google Flow to generate the image.
+               -> Press [ENTER].
+    2. Step 2: The exact filename without extension (e.g. '01-genesis') is copied to clipboard.
+               -> Paste when saving the generated image file.
+               -> Press [ENTER] to advance to the next book.
 
 Usage:
     python3 generate_prompts.py
@@ -23,7 +31,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_DATA_FILE = SCRIPT_DIR / "books-data.json"
@@ -51,7 +59,6 @@ def copy_to_clipboard(text: str) -> bool:
             subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
             return True
         elif system == "windows":
-            # On Windows, 'clip' works best with UTF-16LE or standard string
             subprocess.run(
                 ["clip"],
                 input=text.encode("utf-16le"),
@@ -120,21 +127,36 @@ def load_template(path: Path) -> str:
         return f.read().strip()
 
 
-def render_prompt(template: str, book: Dict[str, Any]) -> str:
+def get_book_filename(book: Dict[str, Any], index: int = 0) -> str:
+    """
+    Returns the formatted filename without extension for the book.
+    Structure matches standard audiobibles conventions: e.g. '01-genesis', '09-1-samuel', '40-matthew'.
+    """
+    order = book.get("order", index + 1)
+    book_id = str(book.get("id", "")).strip().lower()
+    if not book_id:
+        name = str(book.get("name", f"book-{order}")).strip().lower()
+        book_id = re.sub(r"[^a-z0-9]+", "-", name).strip("-")
+    return f"{int(order):02d}-{book_id}"
+
+
+def render_prompt(template: str, book: Dict[str, Any], index: int = 0) -> str:
     """
     Renders the template with book properties.
-    Placeholders like {name}, {theme}, etc. are replaced.
-    Missing variables are safely replaced with an empty string or warning.
+    Placeholders like {name}, {theme}, {filename}, etc. are replaced.
     """
+    context = dict(book)
+    context["filename"] = get_book_filename(book, index)
+
     def replacer(match: re.Match) -> str:
         key = match.group(1)
-        if key in book:
-            return str(book[key])
+        if key in context:
+            return str(context[key])
         return match.group(0)
 
     # Replace {placeholder} patterns
     rendered = re.sub(r"\{([a-zA-Z0-9_]+)\}", replacer, template)
-    # Clean up any duplicate spaces and strip whitespace
+    # Clean up duplicate spaces and strip whitespace
     rendered = re.sub(r"[ \t]+", " ", rendered).strip()
     return rendered
 
@@ -149,7 +171,7 @@ def find_book_index(books: List[Dict[str, Any]], query: str) -> Optional[int]:
             return num - 1
         return None
 
-    # Search by id or name
+    # Search by id or exact name
     for i, book in enumerate(books):
         book_id = str(book.get("id", "")).lower()
         book_name = str(book.get("name", "")).lower()
@@ -172,16 +194,13 @@ def print_banner() -> None:
     print("=" * 78)
 
 
-def display_book_prompt(
-    index: int, total: int, book: Dict[str, Any], prompt: str, copied: bool
-) -> None:
-    """Prints formatted book information and rendered prompt."""
+def get_book_header(index: int, total: int, book: Dict[str, Any]) -> str:
+    """Returns formatted book header line."""
     name = book.get("name", f"Book #{index + 1}")
     testament = book.get("testament", "")
     category = book.get("category", "")
     chapters = book.get("chapters", "")
 
-    header_info = f"[Book {index + 1}/{total}] {name.upper()}"
     details = []
     if testament:
         details.append(testament)
@@ -191,123 +210,200 @@ def display_book_prompt(
         details.append(f"{chapters} chapters")
 
     details_str = f" ({' · '.join(details)})" if details else ""
+    return f"[Book {index + 1}/{total}] {name.upper()}{details_str}"
+
+
+def display_prompt_step(
+    index: int, total: int, book: Dict[str, Any], prompt: str, filename: str, copied: bool
+) -> None:
+    """Prints step 1: Rendered prompt to copy into Google Flow."""
+    header = get_book_header(index, total, book)
 
     print("\n" + "-" * 78)
-    print(f"{header_info}{details_str}")
+    print(header)
+    print(f"Target Filename: {filename}")
     print("-" * 78)
-    print("\nPrompt for Google Flow:\n")
+    print("\n[STEP 1/2] Prompt for Google Flow:\n")
     print(f"  {prompt}\n")
     print("-" * 78)
 
     if copied:
-        print("  ✓ [COPIED TO CLIPBOARD] Ready to paste into Google Flow!")
+        print("  ✓ [PROMPT COPIED TO CLIPBOARD] Paste into Google Flow to generate image.")
     else:
         print("  ! [NOTE] Could not access clipboard automatically. Please copy the prompt above.")
+    print("-" * 78)
+
+
+def display_filename_step(
+    index: int, total: int, book: Dict[str, Any], filename: str, copied: bool
+) -> None:
+    """Prints step 2: Filename to copy when saving image."""
+    header = get_book_header(index, total, book)
+
+    print("\n" + "-" * 78)
+    print(header)
+    print("-" * 78)
+    print("\n[STEP 2/2] Filename for saving image (without extension):\n")
+    print(f"  {filename}\n")
+    print("-" * 78)
+
+    if copied:
+        print(f"  ✓ [FILENAME COPIED TO CLIPBOARD] '{filename}' is ready to paste when saving file.")
+    else:
+        print("  ! [NOTE] Could not access clipboard automatically. Please copy the filename above.")
     print("-" * 78)
 
 
 def interactive_loop(
     books: List[Dict[str, Any]], template: str, start_index: int = 0
 ) -> None:
-    """Interactive loop to step through books one by one."""
+    """Interactive loop to step through books with 2-step Enter flow."""
     current_index = max(0, min(start_index, len(books) - 1))
     total = len(books)
+    current_step = "prompt"  # "prompt" (Step 1) or "filename" (Step 2)
 
     print_banner()
     print(f"Loaded {total} books from data file.")
-    print("Interactive controls:")
-    print("  • [Enter] / 'n' : Advance to next book (copies next prompt)")
-    print("  • 'b' / 'p'     : Go back to previous book")
-    print("  • 'r'           : Re-copy current prompt to clipboard")
+    print("Workflow per book:")
+    print("  1. [Enter] Copies prompt -> Paste into Google Flow")
+    print("  2. [Enter] Copies filename (e.g. '01-genesis') -> Paste when saving image")
+    print("  3. [Enter] Moves to next book prompt")
+    print("\nNavigation commands at any time:")
+    print("  • 'b' / 'p'     : Go back (to prompt of current book, or previous book)")
+    print("  • 'r'           : Re-copy current item to clipboard")
     print("  • 'g <#|name>'  : Jump directly to a book (e.g. 'g 40' or 'g Matthew')")
     print("  • 'q'           : Quit")
 
     while 0 <= current_index < total:
         book = books[current_index]
-        prompt = render_prompt(template, book)
-        copied = copy_to_clipboard(prompt)
+        filename = get_book_filename(book, current_index)
+        prompt = render_prompt(template, book, current_index)
 
-        display_book_prompt(current_index, total, book, prompt, copied)
+        if current_step == "prompt":
+            copied = copy_to_clipboard(prompt)
+            display_prompt_step(current_index, total, book, prompt, filename, copied)
 
-        if current_index == total - 1:
-            print("\n  🎉 You have reached the final book (Revelation)!")
+            prompt_msg = (
+                f"\n[ENTER] -> Copy filename ('{filename}') | "
+                "b: back, r: recopy, g <#>: jump, q: quit: "
+            )
+        else:  # current_step == "filename"
+            copied = copy_to_clipboard(filename)
+            display_filename_step(current_index, total, book, filename, copied)
+
+            if current_index == total - 1:
+                print("\n  🎉 You are on the final book (Revelation)!")
+                next_desc = "finish"
+            else:
+                next_name = books[current_index + 1].get("name", f"Book #{current_index + 2}")
+                next_desc = f"Next Book ({next_name})"
+
+            prompt_msg = (
+                f"\n[ENTER] -> {next_desc} | "
+                "b: back to prompt, r: recopy, g <#>: jump, q: quit: "
+            )
 
         try:
-            user_input = input(
-                "\nPress [Enter] for next book, or command (b: back, r: recopy, g <#>: jump, q: quit): "
-            ).strip()
+            user_input = input(prompt_msg).strip()
         except (KeyboardInterrupt, EOFError):
             print("\n\nExiting prompt generator. Have a great day!")
             sys.exit(0)
 
         cmd = user_input.lower()
 
+        # ENTER or NEXT
         if cmd in ("", "n", "next"):
-            if current_index < total - 1:
-                current_index += 1
+            if current_step == "prompt":
+                current_step = "filename"
             else:
-                print("\nAll 66 Bible book prompts have been completed!")
-                try:
-                    again = input("Restart from beginning? [y/N]: ").strip().lower()
-                    if again in ("y", "yes"):
-                        current_index = 0
-                    else:
+                if current_index < total - 1:
+                    current_index += 1
+                    current_step = "prompt"
+                else:
+                    print("\nAll 66 Bible book prompts and filenames have been completed!")
+                    try:
+                        again = input("Restart from beginning? [y/N]: ").strip().lower()
+                        if again in ("y", "yes"):
+                            current_index = 0
+                            current_step = "prompt"
+                        else:
+                            break
+                    except (KeyboardInterrupt, EOFError):
                         break
-                except (KeyboardInterrupt, EOFError):
-                    break
 
+        # BACK / PREVIOUS
         elif cmd in ("b", "p", "prev", "previous", "back"):
-            if current_index > 0:
-                current_index -= 1
+            if current_step == "filename":
+                # Go back to Step 1 (prompt) of current book
+                current_step = "prompt"
             else:
-                print("\nAlready at the first book (Genesis).")
+                # Go back to Step 1 of previous book
+                if current_index > 0:
+                    current_index -= 1
+                    current_step = "prompt"
+                else:
+                    print("\nAlready at the first book (Genesis).")
 
+        # RE-COPY
         elif cmd in ("r", "recopy", "copy", "reload"):
-            # Loop will repeat and re-copy
+            # Simply repeat current step and re-copy
             continue
 
+        # QUIT
         elif cmd in ("q", "quit", "exit"):
             print("\nExiting prompt generator. Goodbye!")
             sys.exit(0)
 
+        # JUMP TO BOOK NUMBER OR NAME
         elif cmd.startswith("g ") or cmd.startswith("goto ") or cmd.isdigit():
             query = cmd.split(maxsplit=1)[-1] if not cmd.isdigit() else cmd
             idx = find_book_index(books, query)
             if idx is not None:
                 current_index = idx
+                current_step = "prompt"
             else:
-                print(f"\nCould not find book matching '{query}'. Please enter a valid number (1-{total}) or book name.")
+                print(
+                    f"\nCould not find book matching '{query}'. "
+                    f"Please enter a valid number (1-{total}) or book name."
+                )
 
         else:
             # Check if user typed a book name directly
             idx = find_book_index(books, user_input)
             if idx is not None:
                 current_index = idx
+                current_step = "prompt"
             else:
-                print(f"\nUnrecognized command '{user_input}'. Press Enter for next, 'b' for back, 'r' for recopy, or 'q' to quit.")
+                print(
+                    f"\nUnrecognized command '{user_input}'. "
+                    "Press Enter to continue, 'b' for back, 'r' for recopy, or 'q' to quit."
+                )
 
 
 def list_books(books: List[Dict[str, Any]]) -> None:
-    """Lists all available books in order."""
-    print("=" * 78)
-    print("  KJV BIBLE BOOKS LIST")
-    print("=" * 78)
+    """Lists all available books in order with their target filenames."""
+    print("=" * 88)
+    print("  KJV BIBLE BOOKS LIST & FILENAMES")
+    print("=" * 88)
     for i, book in enumerate(books):
         name = book.get("name", "Unknown")
+        filename = get_book_filename(book, i)
         testament = book.get("testament", "")
         category = book.get("category", "")
         chapters = book.get("chapters", "")
-        print(f"  {i + 1:2d}. {name:<20} | {testament:<14} | {category:<24} | {chapters} ch")
-    print("=" * 78)
+        print(f"  {i + 1:2d}. {name:<20} | {filename:<20} | {testament:<14} | {category:<20} | {chapters} ch")
+    print("=" * 88)
 
 
 def dump_all_prompts(books: List[Dict[str, Any]], template: str) -> None:
-    """Outputs all rendered prompts sequentially."""
+    """Outputs all rendered prompts and filenames sequentially."""
     for i, book in enumerate(books):
         name = book.get("name", f"Book #{i + 1}")
-        prompt = render_prompt(template, book)
+        filename = get_book_filename(book, i)
+        prompt = render_prompt(template, book, i)
         print(f"=== [{i + 1:02d}] {name} ===")
-        print(prompt)
+        print(f"Filename: {filename}")
+        print(f"Prompt:\n{prompt}")
         print()
 
 
@@ -318,11 +414,11 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python3 generate_prompts.py               # Start interactive prompt copier from Genesis
+  python3 generate_prompts.py               # Start interactive 2-step prompt & filename copier
   python3 generate_prompts.py --start 40    # Start at Matthew (book 40)
   python3 generate_prompts.py --book Psalms # Start directly at Psalms
-  python3 generate_prompts.py --list        # List all 66 books with order numbers
-  python3 generate_prompts.py --dump        # Print all rendered prompts
+  python3 generate_prompts.py --list        # List all 66 books and their filenames
+  python3 generate_prompts.py --dump        # Print all rendered prompts and filenames
         """,
     )
 
@@ -358,12 +454,12 @@ Examples:
         "-l",
         "--list",
         action="store_true",
-        help="List all books with their index and info, then exit",
+        help="List all books with their index, filename, and info, then exit",
     )
     parser.add_argument(
         "--dump",
         action="store_true",
-        help="Render and print all 66 prompts to stdout without interactive prompts",
+        help="Render and print all 66 prompts and filenames to stdout without interactive prompts",
     )
 
     args = parser.parse_args()

@@ -1,13 +1,18 @@
 # Bible Book Background Prompt Generator (Google Flow)
 
-A standalone Python tool for generating customized, cinematic background image prompts for all 66 books of the King James Version (KJV) Bible. Each prompt is automatically formatted and copied to your system clipboard one book at a time, making it effortless to paste directly into **Google Flow** to generate background visuals for Bible book videos.
+A standalone Python tool for generating customized, cinematic background image prompts for all 66 books of the King James Version (KJV) Bible. Each prompt and filename is automatically formatted and copied to your system clipboard in a two-step Enter workflow, making it effortless to generate and save images in **Google Flow** for Bible book podcast videos.
 
 ---
 
 ## Features
 
-- **Sequential Clipboard Copying**: Automatically copies each rendered prompt to the clipboard and advances when you press Enter.
+- **2-Step Clipboard Copy Workflow**:
+  - **Step 1**: Copies the rendered prompt for the book to the clipboard -> Paste into Google Flow.
+  - **Step 2 (1st [Enter])**: Copies the standardized filename without extension (e.g. `01-genesis`, `40-matthew`) to the clipboard -> Paste when saving the image file.
+  - **Step 3 (2nd [Enter])**: Advances to the next book prompt.
+- **Consistent File Naming**: Filenames match the standard format `01-genesis`, `02-exodus`, ..., `66-revelation`.
 - **Complete 66 KJV Books Dataset**: Out of the box, `books-data.json` contains curated theological themes, visual settings, key motifs, lighting styles, and color palettes for all 66 books.
+- **Documentary & Historical Realism**: Optimized to produce dignified, grounded, realistic background imagery without fantasy tropes or uncanny faces.
 - **Customizable Template System**: Easily modify `template.txt` using dynamic `{variable}` placeholders.
 - **Interactive CLI Controls**: Jump to specific books, go back, re-copy, or list all books at any time.
 - **Zero External Dependencies**: Works out-of-the-box using standard Python 3 and native OS clipboard tools (`pbcopy` on macOS, `clip` on Windows, `wl-copy`/`xclip` on Linux), with optional `pyperclip` support.
@@ -43,11 +48,13 @@ python3 generate_prompts.py
 
 ### 2. Workflow with Google Flow
 
-1. The script automatically renders and copies the first prompt (**Genesis**) to your clipboard.
-2. Switch to **Google Flow** in your browser and paste (`Cmd+V` / `Ctrl+V`) the prompt to generate your 16:9 background image.
+1. **Step 1 (Prompt)**: The script automatically renders and copies the first prompt (**Genesis**) to your clipboard.
+2. In **Google Flow**, paste (`Cmd+V` / `Ctrl+V`) the prompt and generate the image.
 3. Return to the terminal and press **`[Enter]`**.
-4. The prompt for the next book (**Exodus**) is immediately rendered, displayed, and copied to your clipboard.
-5. Repeat through all 66 books until **Revelation**.
+4. **Step 2 (Filename)**: The script copies the filename (**`01-genesis`**) to your clipboard.
+5. In your browser or file dialog, paste the filename when saving the generated image.
+6. Press **`[Enter]`** again to advance to the next book (**Exodus** prompt copied to clipboard).
+7. Repeat through all 66 books until **Revelation**.
 
 ---
 
@@ -57,9 +64,9 @@ While running interactively, the following controls are available:
 
 | Command | Action |
 | --- | --- |
-| `[Enter]` or `n` | Advance to the **next** book and copy its prompt |
-| `b` or `p` | Go back to the **previous** book and copy its prompt |
-| `r` | **Re-copy** the current book's prompt to the clipboard |
+| `[Enter]` or `n` | **Step 1 -> Step 2**: Copy filename<br>**Step 2 -> Next Book**: Copy next book prompt |
+| `b` or `p` | Go back (from filename back to prompt, or back to previous book) |
+| `r` | **Re-copy** current item (prompt or filename) to clipboard |
 | `g <number>` or `<number>` | **Jump** directly to a book number (e.g. `g 40` or `40` for Matthew) |
 | `g <name>` | **Jump** directly to a book by name (e.g. `g Psalms` or `g Revelation`) |
 | `q` or `exit` | **Quit** the program |
@@ -77,8 +84,8 @@ Options:
   -t, --template PATH   Path to template file (default: template.txt)
   -s, --start NUMBER    Starting book number (1-66, default: 1)
   -b, --book NAME       Start at a specific book name (e.g. 'Matthew', 'Psalms')
-  -l, --list            List all 66 books with order numbers and exit
-  --dump                Render and print all 66 prompts to stdout without interactive prompts
+  -l, --list            List all 66 books with filenames and exit
+  --dump                Render and print all 66 prompts and filenames to stdout without interactive prompts
 ```
 
 ### CLI Examples
@@ -90,10 +97,10 @@ python3 generate_prompts.py --start 40
 # Start directly at Psalms
 python3 generate_prompts.py --book Psalms
 
-# List all 66 books and their order
+# List all 66 books with their target filenames
 python3 generate_prompts.py --list
 
-# Dump all 66 prompts to a text file
+# Dump all 66 prompts and filenames to a text file
 python3 generate_prompts.py --dump > all_prompts.txt
 ```
 
@@ -103,10 +110,10 @@ python3 generate_prompts.py --dump > all_prompts.txt
 
 The file `template.txt` defines how each prompt is constructed for Google Flow. You can edit this file to alter style keywords, aspect ratios, or composition rules.
 
-### Default Template
+### Current Template
 
 ```text
-Cinematic background visual for the biblical book of {name} ({testament} - {category}). Theme: {theme}. Setting: {setting}. Key visual elements: {visual_elements}. Mood & atmosphere: {mood}. Lighting: {lighting}. Color palette: {color_palette}. Style: photorealistic cinematic film still, 8k resolution, epic wide shot, atmospheric depth, volumetric light, sacred and reverent tone, clean landscape background for video, 16:9 aspect ratio, highly detailed texture, no text, no modern elements.
+Realistic cinematic documentary photography. Subject: {visual_elements}. Environment: {setting}, ancient Middle Eastern landscape. Lighting: {lighting}, soft diffused natural sunlight. Color palette: {color_palette}, muted earth tones, matte finish, organic textures. Composition: horizontal 16:9 aspect ratio, minimalist, ample empty negative space for text overlays, shallow depth of field, soft focus background, subtle film grain. Atmosphere: {mood}, reflective, {theme}. Strictly avoid: fantasy, magic, supernatural glows, dramatic god rays, 3D renders, legible text or writing, close-up human faces or crowds, glossy or plastic textures, anachronisms, modern elements.
 ```
 
 ### Available Template Variables
@@ -117,17 +124,18 @@ Any property present in each book object in `books-data.json` can be used as a `
 | --- | --- | --- |
 | `{order}` | Sequential book number (1 to 66) | `1` |
 | `{id}` | Normalized book slug | `genesis` |
+| `{filename}` | Standardized filename without extension | `01-genesis` |
 | `{name}` | Full name of the book | `Genesis` |
 | `{testament}` | Testament division | `Old Testament` / `New Testament` |
 | `{category}` | Literary genre / division | `Pentateuch / Law`, `Gospels`, `Poetry & Wisdom` |
 | `{chapters}` | Number of chapters | `50` |
 | `{author}` | Traditional biblical author | `Moses`, `David`, `Paul`, `John` |
 | `{theme}` | Central theological message & story arc | `Creation, beginnings, fall of humanity, and covenant...` |
-| `{setting}` | Historical and geographical landscape | `Ancient Near East, Garden of Eden, Canaan, Egypt` |
-| `{visual_elements}` | Visual motifs, scenery, objects | `Primordial creation, rivers of Eden, starry skies...` |
-| `{mood}` | Emotional and atmospheric tone | `Sacred, primordial, majestic, reverent` |
-| `{lighting}` | Cinematic lighting style | `Ethereal golden dawn rays breaking through mist` |
-| `{color_palette}` | Harmonic color scheme | `Cosmic indigo, radiant gold, deep emerald green` |
+| `{setting}` | Historical and geographical landscape | `Ancient Near East, Mount Ararat, Canaan, Egypt` |
+| `{visual_elements}` | Visual motifs, scenery, objects | `Vast untouched desert landscape, ancient stone well...` |
+| `{mood}` | Emotional and atmospheric tone | `Serene, contemplative, historical, foundational` |
+| `{lighting}` | Cinematic lighting style | `Soft natural starlight, diffused golden hour sunlight` |
+| `{color_palette}` | Harmonic color scheme | `Muted earth tones, sandstone beige, warm terracotta` |
 | `{description}` | Concise book summary | `The book of beginnings, narrating the creation...` |
 
 ---
@@ -148,19 +156,11 @@ Example entry:
   "chapters": 50,
   "author": "Moses",
   "theme": "Creation, beginnings, fall of humanity, and God's covenant with Abraham, Isaac, and Jacob",
-  "setting": "Ancient Near East, Garden of Eden, Mount Ararat, Mesopotamia, Ur of the Chaldees, Canaan, and Egypt",
-  "visual_elements": "Primordial creation with light piercing cosmic darkness, fertile rivers of Eden, starry night sky over desert tents of Abraham, stone altars in rugged Canaanite hills, ancient Nile riverbanks of Egypt",
-  "mood": "Sacred, primordial, majestic, reverent, mysterious, dawn of existence",
-  "lighting": "Ethereal golden dawn rays breaking through cosmic mist, warm amber sunset over desert dunes",
-  "color_palette": "Cosmic indigo, radiant gold, deep emerald green, warm terracotta and desert sand",
+  "setting": "Ancient Near East, Mount Ararat, Mesopotamia, Ur of the Chaldees, Canaan, and Egypt",
+  "visual_elements": "Vast untouched desert landscape, ancient stone well, nomadic tents in the distant horizon, starry night sky",
+  "mood": "Serene, contemplative, historical, foundational, quiet",
+  "lighting": "Soft natural starlight, diffused golden hour sunlight over sand dunes",
+  "color_palette": "Muted earth tones, sandstone beige, warm terracotta, deep indigo, olive drab",
   "description": "The book of beginnings, narrating the creation of the world, the fall of man, and the origins of the nation of Israel through the patriarchs."
 }
 ```
-
----
-
-## Tips for Google Flow Background Generation
-
-1. **Aspect Ratio**: Keep `16:9 aspect ratio` in the prompt to match standard video resolution (1920x1080 / 4K).
-2. **Negative / Restrictive Prompts**: Including `clean landscape background for video, no text, no modern elements` ensures the generated image leaves ample clean space for chapter titles and scripture text overlays.
-3. **Volumetric Lighting**: Keywords like `volumetric light`, `atmospheric depth`, and `cinematic film still` produce rich textures suitable for slow panning and zoom video animations.

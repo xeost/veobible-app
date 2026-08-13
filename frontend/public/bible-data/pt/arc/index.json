@@ -2014,7 +2014,57 @@
         23,
         35
       ],
-      "description": "Visões proféticas dramáticas da glória de Deus, o julgamento de Judá e a restauração futura do Templo e do povo."
+      "description": "Visões proféticas dramáticas da glória de Deus, o julgamento de Judá e a restauração futura do Templo e do povo.",
+      "chapterOffsets": [
+        0,
+        285,
+        375,
+        633,
+        798,
+        996,
+        1154,
+        1392,
+        1597,
+        1731,
+        1938,
+        2178,
+        2436,
+        2679,
+        2927,
+        2998,
+        3604,
+        3863,
+        4170,
+        4288,
+        4798,
+        5116,
+        5392,
+        5844,
+        6087,
+        6254,
+        6477,
+        6797,
+        7054,
+        7275,
+        7503,
+        7714,
+        8043,
+        8394,
+        8699,
+        8830,
+        9218,
+        9503,
+        9760,
+        10045,
+        10512,
+        10771,
+        10965,
+        11235,
+        11561,
+        11833,
+        12095,
+        12336
+      ]
     },
     {
       "id": "daniel",
@@ -2037,7 +2087,21 @@
         45,
         13
       ],
-      "description": "Histórias de fidelidade a Deus no exílio babilônico e visões apocalípticas do reino eterno de Deus."
+      "description": "Histórias de fidelidade a Deus no exílio babilônico e visões apocalípticas do reino eterno de Deus.",
+      "chapterOffsets": [
+        0,
+        201,
+        695,
+        1065,
+        1487,
+        1834,
+        2141,
+        2449,
+        2716,
+        3051,
+        3265,
+        3708
+      ]
     },
     {
       "id": "hosea",
@@ -2062,7 +2126,23 @@
         16,
         9
       ],
-      "description": "O casamento profético de Oseias simbolizando o amor incondicional de Deus por seu povo infiel."
+      "description": "O casamento profético de Oseias simbolizando o amor incondicional de Deus por seu povo infiel.",
+      "chapterOffsets": [
+        0,
+        112,
+        317,
+        367,
+        536,
+        661,
+        749,
+        882,
+        995,
+        1155,
+        1306,
+        1407,
+        1513,
+        1652
+      ]
     },
     {
       "id": "joel",
@@ -2076,7 +2156,12 @@
         32,
         21
       ],
-      "description": "Uma praga de gafanhotos usada como aviso do Dia do Senhor e a promessa do derramamento do Espírito de Deus."
+      "description": "Uma praga de gafanhotos usada como aviso do Dia do Senhor e a promessa do derramamento do Espírito de Deus.",
+      "chapterOffsets": [
+        0,
+        176,
+        478
+      ]
     },
     {
       "id": "amos",
@@ -2096,7 +2181,18 @@
         14,
         15
       ],
-      "description": "O chamado à justiça social e ao arrependimento sincero dirigido ao reino do norte de Israel."
+      "description": "O chamado à justiça social e ao arrependimento sincero dirigido ao reino do norte de Israel.",
+      "chapterOffsets": [
+        0,
+        144,
+        282,
+        415,
+        568,
+        787,
+        918,
+        1082,
+        1222
+      ]
     },
     {
       "id": "obadiah",
@@ -2108,7 +2204,10 @@
       "versesPerChapter": [
         21
       ],
-      "description": "Uma profecia de julgamento contra Edom por seu orgulho e violência contra seu irmão Jacó."
+      "description": "Uma profecia de julgamento contra Edom por seu orgulho e violência contra seu irmão Jacó.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jonah",
