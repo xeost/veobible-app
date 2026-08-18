@@ -6,13 +6,14 @@ Each video corresponds to one book of the Bible in a specific version (e.g. Gene
 
 ## Key Features
 
-1. **Interactive Menu:** Elegant CLI that guides you through every production step.
-2. **Bible Version & Multi-language Content Support:** Works with any Bible version registered in `src/config.ts`. Automatically generates localized YouTube titles, descriptions, and Gemini cover prompts based on version locale (`es`, `en`, `pt`, easily extensible via `src/i18n.ts`). Currently includes RV 1909 (Spanish), KJV (English), and ARC (Portuguese).
-3. **Multi-chapter Audio Concat:** Automatically concatenates all chapter audio files (`.mp3`, `.m4a`) in the correct order using FFmpeg's concat demuxer.
-4. **JSON Filter Workflow:** Same filtering mechanism as `podcasts-cli` — run Step 1 to generate metadata files, delete the books you want to skip, proceed with Steps 2–4.
-5. **Clipboard Handling:** Copies image-generation prompts in the version's language to clipboard and opens Gemini automatically.
-6. **Validation:** Verifies that all chapter audios and the book image are present before rendering.
-7. **Scheduled Dates & Per-version Overrides:** Calculates the YouTube upload date based on global schedule defaults or per-version schedule overrides.
+1. **Interactive Menu with Back Navigation:** Elegant CLI that guides you through every production step, with consistent "Back" navigation in every screen and prompt.
+2. **Direct Index Integration:** Reads book definitions, chapters, and metadata directly from the central Bible index without needing intermediate JSON files.
+3. **Contiguous Book Continuation:** In "Specific book" mode, optionally continue automatically with subsequent contiguous books ($N+1, N+2\dots$) as long as their required source files exist, stopping immediately at the first missing book.
+4. **Bible Version & Multi-language Content Support:** Works with any Bible version registered in `src/config.ts`. Automatically generates localized YouTube titles, descriptions, and Gemini cover prompts based on version locale (`es`, `en`, `pt`, easily extensible via `src/i18n.ts`).
+5. **Multi-chapter Audio Concat:** Automatically concatenates all chapter audio files (`.mp3`, `.m4a`) in the correct order using FFmpeg's concat demuxer.
+6. **Clipboard Handling:** Copies image-generation prompts in the version's language to clipboard and opens Gemini automatically.
+7. **Validation:** Verifies that all chapter audios and the book image are present before rendering.
+8. **Scheduled Dates & Per-version Overrides:** Calculates the YouTube upload date based on global schedule defaults or per-version schedule overrides.
 
 ## Prerequisites
 
@@ -39,10 +40,6 @@ The **working directory** must follow this structure:
 ```text
 <workingDir>/
   sources/
-    metadata/
-      <versionId>/           ← JSON metadata files (created by Step 1)
-        01-genesis.json
-    audios/
     audios/
       <versionId>/           ← Chapter audio files (.mp3, .m4a)
         01-genesis-1.mp3
@@ -139,7 +136,7 @@ Customize the audio visualizer and output quality in `src/config.ts`:
 
 ### 6. Gemini Chat URL
 
-The single Gemini URL opened during Step 2 is configurable:
+The single Gemini URL opened during Step 1 is configurable:
 
 ```typescript
 geminiChatUrl: "https://gemini.google.com/app",
@@ -153,7 +150,6 @@ Source and output files follow these patterns:
 | --- | --- | --- |
 | Chapter audio | `sources/audios/<versionId>/<NN>-<bookId>-<chapter>.<ext>` | `01-genesis-1.mp3` or `.m4a` |
 | Book image | `sources/images/<versionId>/<NN>-<bookId>.<ext>` | `01-genesis.jpeg` |
-| JSON metadata | `sources/metadata/<versionId>/<NN>-<bookId>.json` | `01-genesis.json` |
 | Output video | `outputs/<versionId>-<NN>-<bookId>-1.mp4` | `rv1909-01-genesis-1.mp4` |
 | Thumbnail copy | `outputs/<versionId>-<NN>-<bookId>-2-thumb.<ext>` | `rv1909-01-genesis-2-thumb.jpeg` |
 | Upload info | `outputs/<versionId>-<NN>-<bookId>-3-upload.txt` | `rv1909-01-genesis-3-upload.txt` |
@@ -179,21 +175,15 @@ pnpm audiobibles --book 3
 ### Step 0 — Session Setup
 
 Runs automatically on launch. Select the Bible version and choose the generation scope:
-- **Specific book**: Enter a specific book number (suggests next book from `last-book-<versionId>.log`) to generate 1 video for that book.
+- **Specific book**: Enter a specific book number (suggests next book from `last-book-<versionId>.log`) and choose between single book or contiguous continuation mode ($N, N+1, N+2\dots$ while source files exist).
 - **All books (1 video per book)**: Targets all books in the version to generate an individual video for each book with ready source files.
 - **Old Testament (single video)**: Concatenates all Old Testament books into one single video.
 - **New Testament (single video)**: Concatenates all New Testament books into one single video.
 - **Complete Bible (single video)**: Concatenates all books of the Bible into one single video.
 
-### Step 1 — Create Book JSON Files
+### Step 1 — Copy Image Prompts (Gemini)
 
-Writes one `.json` metadata file per targeted book to `sources/metadata/<versionId>/`. Each file contains the book name, description, version info, chapter count, and veobible.com URL.
-
-**Filtering trick:** After Step 1, you can manually delete the `.json` files of books you do _not_ want to process that day. Steps 2–4 will automatically skip books without a `.json` file.
-
-### Step 2 — Copy Image Prompts (Gemini)
-
-For each book with a `.json` file (and no image yet):
+For each targeted book (with no image yet):
 
 1. Generates a rich image-creation prompt in the version's language and copies it to the clipboard.
 2. Opens the configured Gemini URL in the browser.
@@ -201,11 +191,11 @@ For each book with a `.json` file (and no image yet):
 
 Save thumbnails to: `sources/images/<versionId>/<NN>-<bookId>.<ext>`
 
-### Step 3 — Verify Source Files
+### Step 2 — Verify Source Files
 
-Checks that all chapter MP3 files and the thumbnail image are present for each targeted book. Displays a readiness table and shows which chapters are missing. Loops until all files are present or you cancel.
+Checks that all chapter MP3/M4A files and the thumbnail image are present for each targeted book. Displays a readiness table and shows which chapters are missing. In contiguous mode, indicates which book stopped the chain. Loops until all files are present or you cancel.
 
-### Step 4 — Generate Videos (FFmpeg)
+### Step 3 — Generate Videos (FFmpeg)
 
 For each ready book:
 
@@ -213,6 +203,10 @@ For each ready book:
 2. Renders a video with the audio visualizer over the static thumbnail.
 3. Writes the `.mp4`, thumbnail copy, and upload info `.txt` to `outputs/`.
 4. Saves the last processed book number to `logs/last-book-<versionId>.log`.
+
+### Step 4 — Normalize Audio Filenames
+
+Scans and normalizes audio filenames to canonical format (`[NN]-[text]-[N].<ext>`). Supports dry-run preview and apply modes.
 
 ### Upload Info Format (`.txt`)
 

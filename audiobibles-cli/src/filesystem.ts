@@ -15,7 +15,7 @@ import path from "path";
 import { config } from "./config.js";
 import { log } from "./logger.js";
 import { padBookNumber } from "./bible.js";
-import type { BibleVersion, BookMetadata } from "./types.js";
+import type { BibleVersion, BookMetadata, BibleBook, BookTarget } from "./types.js";
 
 // ─── Directory paths ─────────────────────────────────────────────────────────
 
@@ -38,7 +38,6 @@ export const logsDir = () =>
 
 export function ensureWorkingDirs(versionId: string): void {
   for (const dir of [
-    sourcesJsonDir(versionId),
     sourcesAudiosDir(versionId),
     sourcesImagesDir(versionId),
     outputsDir(),
@@ -228,6 +227,63 @@ export function checkReadiness(
       ready,
     };
   });
+}
+
+// ─── Contiguous book resolution ──────────────────────────────────────────────
+
+/**
+ * Resolves a contiguous list of book targets starting from `startBookNumber`.
+ *
+ * Rules:
+ *   1. Always includes the starting book (1-indexed).
+ *   2. Iterates sequentially through subsequent books (startBookNumber + 1, + 2, ...).
+ *   3. A subsequent book is included ONLY if ALL its required source files are present:
+ *      - All chapter audio files (matching total chapters in index)
+ *      - The book thumbnail image
+ *   4. As soon as a book is encountered with missing source files, the iteration STOPS immediately.
+ *      It never skips a missing book to include a later book (strict contiguity).
+ */
+export function resolveContiguousTargets(
+  versionId: string,
+  allBooks: BibleBook[],
+  startBookNumber: number
+): BookTarget[] {
+  const targets: BookTarget[] = [];
+  const startIndex = startBookNumber - 1;
+
+  if (startIndex < 0 || startIndex >= allBooks.length) {
+    return targets;
+  }
+
+  const startBook = allBooks[startIndex];
+  targets.push({
+    bookNumber: startBookNumber,
+    bookId: startBook.id,
+    bookName: startBook.name,
+  });
+
+  for (let i = startIndex + 1; i < allBooks.length; i++) {
+    const book = allBooks[i];
+    const bookNum = i + 1;
+
+    const totalChapters = book.chapters;
+    const existingAudios = getExistingChapterAudioFiles(bookNum, book.id, versionId, totalChapters);
+    const hasAllAudios = existingAudios.length === totalChapters && totalChapters > 0;
+    const hasImage = findImageFile(bookNum, book.id, versionId) !== null;
+
+    if (hasAllAudios && hasImage) {
+      targets.push({
+        bookNumber: bookNum,
+        bookId: book.id,
+        bookName: book.name,
+      });
+    } else {
+      // First book that is NOT ready breaks the sequence immediately.
+      break;
+    }
+  }
+
+  return targets;
 }
 
 // ─── Source JSON metadata files ──────────────────────────────────────────

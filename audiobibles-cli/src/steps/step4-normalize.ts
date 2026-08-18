@@ -1,5 +1,5 @@
 /**
- * Step 5 — Normalize Audio Filenames.
+ * Step 4 — Normalize Audio Filenames.
  *
  * Recursively traverses the audio directory of the current version and renames
  * any audio file (.mp3, .m4a) whose name does not exactly match the canonical format:
@@ -37,8 +37,8 @@ interface ProcessStats {
   errors: number;
 }
 
-export async function runStep5(session: SessionState): Promise<void> {
-  printStep(5, "Normalize Audio Filenames");
+export async function runStep4(session: SessionState): Promise<void> {
+  printStep(4, "Normalize Audio Filenames");
 
   const rootDir = sourcesAudiosDir(session.version.id);
 
@@ -55,7 +55,7 @@ export async function runStep5(session: SessionState): Promise<void> {
       { label: "Dry-run — preview changes without renaming", value: true },
       { label: "Apply   — rename files on disk",            value: false },
     ],
-    "Cancel"
+    "Back to Main Menu"
   );
 
   if (modeChoice === null) {
@@ -170,7 +170,7 @@ export async function runStep5(session: SessionState): Promise<void> {
   info(`Errors            : ${stats.errors}`);
 
   logStep(
-    5,
+    4,
     `Filename normalization completed: ${stats.alreadyOk} already ok, ${stats.renamed} renamed, ${stats.skipped} skipped, ${stats.errors} errors.`
   );
 }

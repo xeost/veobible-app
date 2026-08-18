@@ -1,7 +1,7 @@
 /**
  * Step 0 — Session setup.
  * Selects the Bible version and the generation scope:
- *   - A specific book
+ *   - A specific book (with optional contiguous book continuation)
  *   - All books individually (1 video per book)
  *   - All Old Testament books (single combined video)
  *   - All New Testament books (single combined video)
@@ -14,9 +14,9 @@ import { input } from "@inquirer/prompts";
 import { readBibleIndex } from "../bible.js";
 import { clearScreen, printBanner, info, ok, warn, C, showNumberedMenu } from "../ui.js";
 import { logStep } from "../logger.js";
-import { getLastBook, ensureWorkingDirs } from "../filesystem.js";
+import { getLastBook, ensureWorkingDirs, resolveContiguousTargets } from "../filesystem.js";
 import { config } from "../config.js";
-import type { SessionState, BibleVersion, GenerationMode } from "../types.js";
+import type { SessionState, BibleVersion, GenerationMode, BookTarget } from "../types.js";
 
 // ── Shared header renderer ────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ export async function runStep0(defaultBookArg?: number): Promise<SessionState> {
       label: `${v.label} (${v.shortLabel})`,
       value: v as BibleVersion,
     })),
-    "Exit"
+    "Exit program"
   );
 
   if (versionChoice === null) {
@@ -83,7 +83,7 @@ export async function runStep0(defaultBookArg?: number): Promise<SessionState> {
 
   // ── Build targets based on scope ─────────────────────────────────────────
   if (mode === "all-books") {
-    const targets = index.books.map((b, i) => ({
+    const targets: BookTarget[] = index.books.map((b, i) => ({
       bookNumber: i + 1,
       bookId: b.id,
       bookName: b.name,
@@ -109,7 +109,7 @@ export async function runStep0(defaultBookArg?: number): Promise<SessionState> {
       ? index.books.filter((b) => b.testament === testament)
       : index.books;
 
-    const targets = filteredBooks.map((b) => ({
+    const targets: BookTarget[] = filteredBooks.map((b) => ({
       bookNumber: index.books.indexOf(b) + 1,
       bookId: b.id,
       bookName: b.name,
@@ -132,48 +132,115 @@ export async function runStep0(defaultBookArg?: number): Promise<SessionState> {
   }
 
   // ── Specific book ─────────────────────────────────────────────────────────
-  let bookNumber: number;
-  if (defaultBookArg !== undefined) {
-    bookNumber = defaultBookArg;
-    info(`Using --book ${bookNumber} from command-line argument.`);
-  } else {
-    const lastBook = getLastBook(version.id);
-    const suggested = lastBook !== null ? lastBook + 1 : 1;
+  while (true) {
+    let bookNumber: number;
+    if (defaultBookArg !== undefined) {
+      bookNumber = defaultBookArg;
+      info(`Using --book ${bookNumber} from command-line argument.`);
+    } else {
+      const lastBook = getLastBook(version.id);
+      const suggested = lastBook !== null ? lastBook + 1 : 1;
 
-    const raw = await input({
-      message: C.white(`Book number to process (1–${totalBooks}):`),
-      default: suggested.toString(),
-      validate: (v) => {
-        const n = parseInt(v, 10);
-        if (!Number.isInteger(n) || n < 1 || n > totalBooks) {
-          return `Please enter a number between 1 and ${totalBooks}.`;
-        }
-        return true;
-      },
-    });
-    bookNumber = parseInt(raw, 10);
+      const raw = await input({
+        message: C.white(`Book number to process (1–${totalBooks}) [0 to go back]:`),
+        default: suggested <= totalBooks ? suggested.toString() : "1",
+        validate: (v) => {
+          const trimmed = v.trim().toLowerCase();
+          if (trimmed === "0" || trimmed === "b" || trimmed === "back") {
+            return true;
+          }
+          const n = parseInt(v, 10);
+          if (!Number.isInteger(n) || n < 1 || n > totalBooks) {
+            return `Please enter a number between 1 and ${totalBooks}, or 0 to go back.`;
+          }
+          return true;
+        },
+      });
+
+      const trimmed = raw.trim().toLowerCase();
+      if (trimmed === "0" || trimmed === "b" || trimmed === "back") {
+        // Return to scope selection
+        return runStep0();
+      }
+
+      bookNumber = parseInt(raw, 10);
+    }
+
+    // Verify book exists in the index
+    const bookData = index.books[bookNumber - 1];
+    if (!bookData) {
+      throw new Error(`Book number ${bookNumber} is out of range (${totalBooks} books available).`);
+    }
+
+    printSetupHeader(`Version: ${version.label} — Book ${bookNumber}. ${bookData.name}`);
+
+    const continueChoice = await showNumberedMenu<boolean>(
+      `Continuation mode for Book ${bookNumber} (${bookData.name}):`,
+      [
+        {
+          label: `Single book only (process Book ${bookNumber} only)`,
+          value: false,
+        },
+        {
+          label: `Contiguous mode (process Book ${bookNumber} and continue with ${bookNumber + 1}, ${bookNumber + 2}… while source files exist)`,
+          value: true,
+        },
+      ],
+      "Back (change book number)"
+    );
+
+    if (continueChoice === null) {
+      if (defaultBookArg !== undefined) {
+        return runStep0();
+      }
+      continue;
+    }
+
+    const continueContiguous = continueChoice;
+    let targets: BookTarget[];
+
+    if (continueContiguous) {
+      targets = resolveContiguousTargets(version.id, index.books, bookNumber);
+      const readyCount = targets.length;
+      ok(
+        `Selected: ${C.primary.bold(`${String(bookNumber).padStart(2, "0")}. ${bookData.name}`)} + contiguous continuation.`
+      );
+      if (readyCount > 1) {
+        const lastTarget = targets[targets.length - 1];
+        info(
+          `Found ${C.accent(String(readyCount))} contiguous ready book(s): ${C.primary.bold(
+            `${String(bookNumber).padStart(2, "0")}. ${bookData.name}`
+          )} → ${C.primary.bold(
+            `${String(lastTarget.bookNumber).padStart(2, "0")}. ${lastTarget.bookName}`
+          )}`
+        );
+      } else {
+        info(`Currently only Book ${bookNumber} is targeted (subsequent books will be checked dynamically).`);
+      }
+    } else {
+      targets = [
+        {
+          bookNumber,
+          bookId: bookData.id,
+          bookName: bookData.name,
+        },
+      ];
+      ok(
+        `Selected: ${C.primary.bold(`${String(bookNumber).padStart(2, "0")}. ${bookData.name}`)} (${bookData.chapters} chapters) [Single book mode]`
+      );
+    }
+
+    logStep(
+      0,
+      `Session configured. Version: ${version.id}. Book: ${bookNumber} — ${bookData.name} (continueContiguous: ${continueContiguous})`
+    );
+
+    return {
+      version,
+      defaultBook: bookNumber,
+      targets,
+      mode: "book",
+      continueContiguous,
+    };
   }
-
-  // Verify book exists in the index
-  const bookData = index.books[bookNumber - 1];
-  if (!bookData) {
-    throw new Error(`Book number ${bookNumber} is out of range (${totalBooks} books available).`);
-  }
-
-  ok(`Selected: ${C.primary.bold(`${String(bookNumber).padStart(2, "0")}. ${bookData.name}`)} (${bookData.chapters} chapters)`);
-
-  logStep(0, `Session configured. Version: ${version.id}. Book: ${bookNumber} — ${bookData.name}`);
-
-  return {
-    version,
-    defaultBook: bookNumber,
-    targets: [
-      {
-        bookNumber,
-        bookId: bookData.id,
-        bookName: bookData.name,
-      },
-    ],
-    mode: "book",
-  };
 }

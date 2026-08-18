@@ -2070,7 +2070,8 @@
         11833,
         12095,
         12336
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=Sxv2ZBVjrvU"
     },
     {
       "id": "daniel",
@@ -2107,7 +2108,8 @@
         3051,
         3265,
         3708
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=QUX4_IKS6Gg"
     },
     {
       "id": "hosea",
@@ -2810,7 +2812,22 @@
         21,
         13
       ],
-      "description": "Uma defesa apaixonada do ministério apostólico de Paulo, enfatizando a graça de Deus na fraqueza humana."
+      "description": "Uma defesa apaixonada do ministério apostólico de Paulo, enfatizando a graça de Deus na fraqueza humana.",
+      "chapterOffsets": [
+        0,
+        242,
+        388,
+        548,
+        716,
+        905,
+        1062,
+        1239,
+        1456,
+        1613,
+        1789,
+        2085,
+        2310
+      ]
     },
     {
       "id": "galatians",
@@ -2827,7 +2844,15 @@
         26,
         18
       ],
-      "description": "Defesa da liberdade cristã e da justificação somente pela fé, contra o legalismo."
+      "description": "Defesa da liberdade cristã e da justificação somente pela fé, contra o legalismo.",
+      "chapterOffsets": [
+        0,
+        183,
+        400,
+        656,
+        895,
+        1099
+      ]
     },
     {
       "id": "ephesians",
@@ -2844,7 +2869,15 @@
         33,
         24
       ],
-      "description": "Explora as bênçãos espiritual em Cristo, a unidade da Igreja e a armadura de Deus."
+      "description": "Explora as bênçãos espiritual em Cristo, a unidade da Igreja e a armadura de Deus.",
+      "chapterOffsets": [
+        0,
+        195,
+        372,
+        529,
+        768,
+        986
+      ]
     },
     {
       "id": "philippians",
@@ -2859,7 +2892,13 @@
         21,
         23
       ],
-      "description": "Uma carta cheia de alegria e gratidão, incentivando a humildade, unidade e confiança em Cristo."
+      "description": "Uma carta cheia de alegria e gratidão, incentivando a humildade, unidade e confiança em Cristo.",
+      "chapterOffsets": [
+        0,
+        251,
+        483,
+        664
+      ]
     },
     {
       "id": "colossians",
@@ -2874,7 +2913,13 @@
         25,
         18
       ],
-      "description": "Destaca a supremacia e suficiência de Cristo sobre toda a criação e sobre a Igreja."
+      "description": "Destaca a supremacia e suficiência de Cristo sobre toda a criação e sobre a Igreja.",
+      "chapterOffsets": [
+        0,
+        258,
+        457,
+        657
+      ]
     },
     {
       "id": "1-thessalonians",
@@ -2890,7 +2935,14 @@
         18,
         28
       ],
-      "description": "Encorajamento para viver uma vida santa e ensinamentos sobre a segunda vinda de Cristo."
+      "description": "Encorajamento para viver uma vida santa e ensinamentos sobre a segunda vinda de Cristo.",
+      "chapterOffsets": [
+        0,
+        110,
+        312,
+        424,
+        579
+      ]
     },
     {
       "id": "2-thessalonians",
@@ -2904,7 +2956,12 @@
         17,
         18
       ],
-      "description": "Esclarecimentos sobre os eventos que precedem o Dia do Senhor e exortações à firmeza."
+      "description": "Esclarecimentos sobre os eventos que precedem o Dia do Senhor e exortações à firmeza.",
+      "chapterOffsets": [
+        0,
+        120,
+        265
+      ]
     },
     {
       "id": "1-timothy",
@@ -2921,7 +2978,15 @@
         25,
         21
       ],
-      "description": "Instruções pastorais sobre o governo da igreja, a liderança e a preservação da sã doutrina."
+      "description": "Instruções pastorais sobre o governo da igreja, a liderança e a preservação da sã doutrina.",
+      "chapterOffsets": [
+        0,
+        181,
+        290,
+        412,
+        543,
+        736
+      ]
     },
     {
       "id": "2-timothy",
@@ -2936,7 +3001,13 @@
         17,
         22
       ],
-      "description": "A última carta de Paulo a Timóteo, exortando-o a perseverar no ministério e a pregar a palavra."
+      "description": "A última carta de Paulo a Timóteo, exortando-o a perseverar no ministério e a pregar a palavra.",
+      "chapterOffsets": [
+        0,
+        159,
+        361,
+        511
+      ]
     },
     {
       "id": "titus",
@@ -2950,7 +3021,12 @@
         15,
         15
       ],
-      "description": "Instruções para a organização das igrejas em Creta, destacando o ensino correto e as boas obras."
+      "description": "Instruções para a organização das igrejas em Creta, destacando o ensino correto e as boas obras.",
+      "chapterOffsets": [
+        0,
+        159,
+        283
+      ]
     },
     {
       "id": "philemon",
@@ -2962,7 +3038,10 @@
       "versesPerChapter": [
         25
       ],
-      "description": "Uma carta pessoal pedindo que um servo fugitivo, Onésimo, seja acolhido como irmão em Cristo."
+      "description": "Uma carta pessoal pedindo que um servo fugitivo, Onésimo, seja acolhido como irmão em Cristo.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "hebrews",
@@ -2986,7 +3065,22 @@
         29,
         25
       ],
-      "description": "Demonstra a superioridade de Cristo e de sua nova aliança sobre o antigo sistema sacrificial."
+      "description": "Demonstra a superioridade de Cristo e de sua nova aliança sobre o antigo sistema sacrificial.",
+      "chapterOffsets": [
+        0,
+        132,
+        303,
+        450,
+        605,
+        733,
+        908,
+        1165,
+        1304,
+        1561,
+        1862,
+        2209,
+        2468
+      ]
     },
     {
       "id": "james",
@@ -3002,7 +3096,14 @@
         17,
         20
       ],
-      "description": "Ensinamentos práticos mostrando que a fé verdadeira deve se manifestar em boas obras e sabedoria."
+      "description": "Ensinamentos práticos mostrando que a fé verdadeira deve se manifestar em boas obras e sabedoria.",
+      "chapterOffsets": [
+        0,
+        209,
+        424,
+        581,
+        733
+      ]
     },
     {
       "id": "1-peter",
@@ -3018,7 +3119,14 @@
         19,
         14
       ],
-      "description": "Encorajamento aos cristãos perseguidos para permanecerem firmes na esperança e viverem em santidade."
+      "description": "Encorajamento aos cristãos perseguidos para permanecerem firmes na esperança e viverem em santidade.",
+      "chapterOffsets": [
+        0,
+        242,
+        471,
+        683,
+        869
+      ]
     },
     {
       "id": "2-peter",
@@ -3032,7 +3140,12 @@
         22,
         18
       ],
-      "description": "Alertas contra falsos mestres e exortações ao crescimento no conhecimento de Cristo."
+      "description": "Alertas contra falsos mestres e exortações ao crescimento no conhecimento de Cristo.",
+      "chapterOffsets": [
+        0,
+        200,
+        423
+      ]
     },
     {
       "id": "1-john",
@@ -3048,7 +3161,14 @@
         21,
         21
       ],
-      "description": "Epístola sobre a certeza da salvação, o mandamento do amor fraternal e a comunhão com Deus."
+      "description": "Epístola sobre a certeza da salvação, o mandamento do amor fraternal e a comunhão com Deus.",
+      "chapterOffsets": [
+        0,
+        92,
+        340,
+        540,
+        715
+      ]
     },
     {
       "id": "2-john",

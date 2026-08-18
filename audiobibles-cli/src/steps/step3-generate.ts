@@ -1,26 +1,25 @@
 /**
- * Step 4 — Generate Videos.
+ * Step 3 — Generate Videos.
  *
  * Supports two main generation workflows set during Step 0:
  *
  *   "book" | "all-books":
  *     Processes each target book individually, producing one video + thumbnail + upload txt per book.
+ *     In "book" mode with contiguous continuation enabled, processes the start book and continues
+ *     automatically with subsequent contiguous books that have all source files present.
  *
  *   "old-testament" | "new-testament" | "full-bible":
  *     Concatenates all books in the scope into a single video.
  *     Each book shows its own background image while its audio plays.
  *     No thumbnail file is generated.
  *     The upload txt contains the version description and a book-level chapter list.
- *
- * Only processes books that have their JSON metadata file in sources/<versionId>/
- * (i.e., those not deleted after Step 1) — both in single-book and multi-book modes.
  */
 import fs from "fs";
 import path from "path";
 import { readBibleIndex, buildBookUrl, padBookNumber, saveChapterOffsets } from "../bible.js";
 import { printStep, ok, err, info, warn, C, divider, formatDuration, showNumberedMenu } from "../ui.js";
 import { logStep, log } from "../logger.js";
-import type { SessionState } from "../types.js";
+import type { SessionState, BookTarget } from "../types.js";
 import {
   getExistingChapterAudioFiles,
   findImageFile,
@@ -32,15 +31,15 @@ import {
   getMultiBookInfoPath,
   saveLastBook,
   checkReadiness,
-  filterTargetsByJson,
+  resolveContiguousTargets,
 } from "../filesystem.js";
 import { runFFmpegAudiobible, runFFmpegMultiBook, getMediaDuration } from "../ffmpeg.js";
 import type { MultiBookSegment } from "../ffmpeg.js";
 import { generateUploadInfo, generateMultiBookUploadInfo } from "../youtube.js";
 import { config } from "../config.js";
 
-export async function runStep4(session: SessionState): Promise<void> {
-  printStep(4, "Generate Videos");
+export async function runStep3(session: SessionState): Promise<void> {
+  printStep(3, "Generate Videos");
 
   if (session.mode === "old-testament" || session.mode === "new-testament" || session.mode === "full-bible") {
     await runMultiBookGeneration(session);
@@ -49,14 +48,6 @@ export async function runStep4(session: SessionState): Promise<void> {
 
   // ── Individual book generation ("book" | "all-books") ─────────────────────
 
-  // Only process books that have a JSON metadata file
-  const filteredTargets = filterTargetsByJson(session.targets, session.version.id);
-
-  if (filteredTargets.length === 0) {
-    warn("No books with JSON metadata files found. Run Step 1 first.");
-    return;
-  }
-
   const index = readBibleIndex(session.version);
 
   const chaptersPerBook: Record<string, number> = {};
@@ -64,8 +55,22 @@ export async function runStep4(session: SessionState): Promise<void> {
     chaptersPerBook[book.id] = book.chapters;
   }
 
+  let activeTargets: BookTarget[];
+
+  if (session.mode === "book" && session.continueContiguous) {
+    activeTargets = resolveContiguousTargets(session.version.id, index.books, session.defaultBook);
+    session.targets = activeTargets;
+  } else {
+    activeTargets = session.targets;
+  }
+
+  if (activeTargets.length === 0) {
+    warn("No target books configured for current session.");
+    return;
+  }
+
   // Filter to only ready targets
-  const readinessResults = checkReadiness(filteredTargets, session.version.id, chaptersPerBook);
+  const readinessResults = checkReadiness(activeTargets, session.version.id, chaptersPerBook);
   const readyTargets = readinessResults.filter((r) => r.ready);
   const notReadyTargets = readinessResults.filter((r) => !r.ready);
 
@@ -78,16 +83,23 @@ export async function runStep4(session: SessionState): Promise<void> {
   }
 
   if (readyTargets.length === 0) {
-    warn("No books are ready for video generation. Run Step 3 to check readiness.");
+    warn("No books are ready for video generation. Run Step 2 to check readiness.");
     return;
   }
 
-  info(`Found ${C.accent(String(readyTargets.length))} book(s) ready to process.`);
+  if (session.mode === "book" && session.continueContiguous) {
+    info(
+      `Contiguous mode: ${C.accent(String(readyTargets.length))} ready book(s) queued for generation ` +
+      `(${readyTargets.map((t) => `${String(t.bookNumber).padStart(2, "0")}. ${t.bookName}`).join(", ")})`
+    );
+  } else {
+    info(`Found ${C.accent(String(readyTargets.length))} book(s) ready to process.`);
+  }
 
   const proceed = await showNumberedMenu<boolean>(
-    "Start video generation?",
+    `Start video generation (${readyTargets.length} book(s))?`,
     [{ label: "Yes, start generation", value: true }],
-    "Cancel"
+    "Back to Main Menu"
   );
 
   if (proceed === null) {
@@ -95,7 +107,7 @@ export async function runStep4(session: SessionState): Promise<void> {
     return;
   }
 
-  logStep(4, `Starting generation of ${readyTargets.length} video(s)...`);
+  logStep(3, `Starting generation of ${readyTargets.length} video(s)...`);
 
   const skipRendering = config.video.skipRendering;
   if (skipRendering) {
@@ -154,8 +166,7 @@ export async function runStep4(session: SessionState): Promise<void> {
       info(`  Chapters: ${C.accent(String(chapterAudioFiles.length))}/${bookData.chapters} audio files`);
       info(`  Image: ${C.muted(path.basename(imageFile))}`);
 
-      // Probe per-chapter durations (needed for the YouTube chapters list in the
-      // upload info file and, in normal mode, for FFmpeg progress reporting).
+      // Probe per-chapter durations (needed for YouTube chapter list and progress reporting).
       info(`  Probing chapter durations...`);
       const chapterDurations: number[] = [];
       let totalAudioDur = 0;
@@ -167,8 +178,6 @@ export async function runStep4(session: SessionState): Promise<void> {
       }
 
       // Build cumulative chapter offsets (start second of each chapter).
-      // Chapter 1 always starts at 0; each subsequent chapter starts after
-      // the sum of all previous chapters' durations.
       const chapterOffsets: number[] = [];
       let runningOffset = 0;
       for (const dur of chapterDurations) {
@@ -176,9 +185,7 @@ export async function runStep4(session: SessionState): Promise<void> {
         runningOffset += dur;
       }
 
-      // Persist the chapter offsets into the version's index.json so the
-      // web app can build YouTube deep-link URLs like:
-      //   https://www.youtube.com/watch?v=VIDEO_ID&t=351s
+      // Persist the chapter offsets into index.json
       saveChapterOffsets(session.version, target.bookId, chapterOffsets);
       info(`  Chapter offsets saved to index.json (${chapterOffsets.length} chapters).`);
 
@@ -267,7 +274,7 @@ export async function runStep4(session: SessionState): Promise<void> {
     log("INFO", `Saved last book (${lastBookNum}) for ${session.version.id} to last-book.log`);
   }
 
-  log("INFO", `Step 4 completed: ${doneCount} done, ${skippedCount} skipped, ${errors.length} errors.`);
+  log("INFO", `Step 3 completed: ${doneCount} done, ${skippedCount} skipped, ${errors.length} errors.`);
 }
 
 // ─── Multi-book generation (OT / NT / Full Bible) ─────────────────────────────
@@ -282,14 +289,6 @@ async function runMultiBookGeneration(session: SessionState): Promise<void> {
 
   info(`Scope: ${C.primary.bold(scopeLabel)}`);
 
-  // Only process books that have a JSON metadata file
-  const filteredTargets = filterTargetsByJson(session.targets, session.version.id);
-
-  if (filteredTargets.length === 0) {
-    warn("No books with JSON metadata files found. Run Step 1 first.");
-    return;
-  }
-
   const index = readBibleIndex(session.version);
 
   const chaptersPerBook: Record<string, number> = {};
@@ -298,7 +297,7 @@ async function runMultiBookGeneration(session: SessionState): Promise<void> {
   }
 
   // Check readiness for all included books
-  const readinessResults = checkReadiness(filteredTargets, session.version.id, chaptersPerBook);
+  const readinessResults = checkReadiness(session.targets, session.version.id, chaptersPerBook);
   const readyTargets = readinessResults.filter((r) => r.ready);
   const notReadyTargets = readinessResults.filter((r) => !r.ready);
 
@@ -311,7 +310,7 @@ async function runMultiBookGeneration(session: SessionState): Promise<void> {
   }
 
   if (readyTargets.length === 0) {
-    warn("No books are ready for video generation. Run Step 3 to check readiness.");
+    warn("No books are ready for video generation. Run Step 2 to check readiness.");
     return;
   }
 
@@ -332,7 +331,7 @@ async function runMultiBookGeneration(session: SessionState): Promise<void> {
     const overwrite = await showNumberedMenu<boolean>(
       `Overwrite existing video ${path.basename(outputVideo)}?`,
       [{ label: "Yes, overwrite", value: true }],
-      "Cancel"
+      "Back to Main Menu"
     );
     if (overwrite === null) {
       log("WARN", "Multi-book video generation skipped by user (already exists).");
@@ -344,7 +343,7 @@ async function runMultiBookGeneration(session: SessionState): Promise<void> {
   const proceed = await showNumberedMenu<boolean>(
     `Start ${scopeLabel} video generation (${readyTargets.length} books)?`,
     [{ label: "Yes, start generation", value: true }],
-    "Cancel"
+    "Back to Main Menu"
   );
 
   if (proceed === null) {
@@ -352,7 +351,7 @@ async function runMultiBookGeneration(session: SessionState): Promise<void> {
     return;
   }
 
-  logStep(4, `Starting multi-book generation: ${scope} — ${readyTargets.length} books.`);
+  logStep(3, `Starting multi-book generation: ${scope} — ${readyTargets.length} books.`);
   fs.mkdirSync(outputsDir(), { recursive: true });
 
   // ── Collect segments and probe durations ──────────────────────────────────
@@ -465,5 +464,5 @@ async function runMultiBookGeneration(session: SessionState): Promise<void> {
   );
   info(`Outputs saved to: ${C.muted(outputsDir())}`);
 
-  log("INFO", `Step 4 (multi-book: ${scope}) completed: ${segments.length} books rendered.`);
+  log("INFO", `Step 3 (multi-book: ${scope}) completed: ${segments.length} books rendered.`);
 }

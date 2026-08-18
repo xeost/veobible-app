@@ -1,32 +1,21 @@
 /**
- * Step 3 — Verify that all source files are ready.
+ * Step 2 — Verify that all source files are ready.
  *
- * Only checks books that have their JSON metadata file in sources/metadata/<versionId>/
- * (i.e., those not deleted after Step 1).
- *
- * For each filtered book, checks:
- *   - All chapter MP3 audio files (by count from the Bible index)
+ * For each targeted book, checks:
+ *   - All chapter MP3/M4A audio files (by count from the Bible index)
  *   - The book thumbnail image
  *
  * Displays a readiness table and loops until all files are present
  * or the user cancels.
  */
 import { readBibleIndex } from "../bible.js";
-import { checkReadiness, filterTargetsByJson } from "../filesystem.js";
-import { printStep, printReadinessTable, ok, warn, C, showNumberedMenu } from "../ui.js";
+import { checkReadiness, resolveContiguousTargets } from "../filesystem.js";
+import { printStep, printReadinessTable, ok, warn, info, C, showNumberedMenu } from "../ui.js";
 import { logStep, log } from "../logger.js";
 import type { SessionState } from "../types.js";
 
-export async function runStep3(session: SessionState): Promise<void> {
-  printStep(3, "Verify Source Files");
-
-  // Only check books that have a JSON metadata file
-  const filteredTargets = filterTargetsByJson(session.targets, session.version.id);
-
-  if (filteredTargets.length === 0) {
-    warn("No books with JSON metadata files found. Run Step 1 first.");
-    return;
-  }
+export async function runStep2(session: SessionState): Promise<void> {
+  printStep(2, "Verify Source Files");
 
   const index = readBibleIndex(session.version);
 
@@ -36,14 +25,38 @@ export async function runStep3(session: SessionState): Promise<void> {
   }
 
   while (true) {
-    const results = checkReadiness(filteredTargets, session.version.id, chaptersPerBook);
+    // If in contiguous book mode, dynamically re-resolve targets from the filesystem
+    let activeTargets = session.targets;
+    if (session.mode === "book" && session.continueContiguous) {
+      activeTargets = resolveContiguousTargets(session.version.id, index.books, session.defaultBook);
+      session.targets = activeTargets;
+    }
+
+    if (activeTargets.length === 0) {
+      warn("No target books configured.");
+      return;
+    }
+
+    const results = checkReadiness(activeTargets, session.version.id, chaptersPerBook);
     printReadinessTable(results);
 
     const allReady = results.every((r) => r.ready);
 
+    if (session.mode === "book" && session.continueContiguous) {
+      const nextBookNum = session.defaultBook + activeTargets.length;
+      if (nextBookNum <= index.books.length) {
+        const nextBook = index.books[nextBookNum - 1];
+        info(
+          `Contiguous scan halted at ${C.primary.bold(
+            `${String(nextBookNum).padStart(2, "0")}. ${nextBook.name}`
+          )} (missing source files).`
+        );
+      }
+    }
+
     if (allReady) {
       ok("All source files are present and ready for video generation.");
-      logStep(3, "Readiness check passed. All files present.");
+      logStep(2, "Readiness check passed. All files present.");
       break;
     }
 
@@ -81,7 +94,7 @@ export async function runStep3(session: SessionState): Promise<void> {
     const retry = await showNumberedMenu<boolean>(
       "Re-check the directory?",
       [{ label: "Re-check source files", value: true }],
-      "Cancel"
+      "Back to Main Menu"
     );
 
     if (retry === null) {

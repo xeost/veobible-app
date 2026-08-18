@@ -108,4 +108,6 @@ export interface SessionState {
   targets: BookTarget[];
   /** Generation scope chosen during setup (defaults to "book"). */
   mode: GenerationMode;
+  /** When in "book" mode, whether to continue with contiguous subsequent books if source files exist. */
+  continueContiguous?: boolean;
 }

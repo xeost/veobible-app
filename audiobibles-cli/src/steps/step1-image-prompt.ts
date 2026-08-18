@@ -1,10 +1,7 @@
 /**
- * Step 2 — Copy Image Prompt and open Gemini chat.
+ * Step 1 — Copy Image Prompt and open Gemini chat.
  *
- * Only acts on books that have their JSON metadata file in sources/metadata/<versionId>/
- * (i.e., those not deleted after Step 1).
- *
- * For each filtered book:
+ * For each targeted book without an existing image:
  *   1. Renders an image creation prompt (book name + version info).
  *   2. Copies it to the clipboard.
  *   3. Opens the configured Gemini chat URL in the browser.
@@ -19,7 +16,7 @@ import { readBibleIndex, padBookNumber } from "../bible.js";
 import { config } from "../config.js";
 import { printStep, ok, info, warn, clipboardNotice, divider, C, showNumberedMenu } from "../ui.js";
 import { logStep, log } from "../logger.js";
-import { findImageFile, filterTargetsByJson } from "../filesystem.js";
+import { findImageFile } from "../filesystem.js";
 import { getLocaleConfig } from "../i18n.js";
 import type { SessionState } from "../types.js";
 
@@ -36,24 +33,21 @@ function buildImagePrompt(
   return l.imagePrompt({ bookName, bookDescription, versionLabel });
 }
 
-export async function runStep2(session: SessionState): Promise<void> {
-  printStep(2, "Copy Image Prompts + Open Gemini");
+export async function runStep1(session: SessionState): Promise<void> {
+  printStep(1, "Copy Image Prompts + Open Gemini");
   info("An image prompt will be copied to your clipboard and Gemini will");
   info("open in the browser. Paste the prompt to generate the thumbnail.");
   info(`Save the result to: ${C.primary("sources/images/<versionId>/<NN>-<bookId>.<ext>")}`);
   divider();
 
-  // Only process books that have a JSON metadata file (not deleted after Step 1)
-  const filteredTargets = filterTargetsByJson(session.targets, session.version.id);
-
-  if (filteredTargets.length === 0) {
-    warn("No books with JSON metadata files found. Run Step 1 first.");
+  if (session.targets.length === 0) {
+    warn("No books targeted in current session.");
     return;
   }
 
   const index = readBibleIndex(session.version);
 
-  for (const target of filteredTargets) {
+  for (const target of session.targets) {
     const bookData = index.books.find((b) => b.id === target.bookId);
     if (!bookData) {
       warn(`Book "${target.bookId}" not found in index — skipping.`);
@@ -94,7 +88,7 @@ export async function runStep2(session: SessionState): Promise<void> {
     const proceed = await showNumberedMenu<boolean>(
       "Paste the prompt in Gemini, generate and save the image, then continue:",
       [{ label: "Image saved — continue to next book", value: true }],
-      "Cancel remaining books"
+      "Back to Main Menu"
     );
 
     if (proceed === null) {
@@ -105,6 +99,6 @@ export async function runStep2(session: SessionState): Promise<void> {
     divider();
   }
 
-  logStep(2, "Image prompts done.");
+  logStep(1, "Image prompts done.");
   ok("All image prompts copied.");
 }
