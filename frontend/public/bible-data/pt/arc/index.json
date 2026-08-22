@@ -2150,7 +2150,8 @@
         1407,
         1513,
         1652
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=DsaLgGlsURw"
     },
     {
       "id": "joel",
@@ -2169,7 +2170,8 @@
         0,
         176,
         478
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=TyUnsUSIgkE"
     },
     {
       "id": "amos",
@@ -2200,7 +2202,8 @@
         918,
         1082,
         1222
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=5KcA56RV8AU"
     },
     {
       "id": "obadiah",
@@ -2215,7 +2218,8 @@
       "description": "Uma profecia de julgamento contra Edom por seu orgulho e violência contra seu irmão Jacó.",
       "chapterOffsets": [
         0
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=bQmvjN_UTrk"
     },
     {
       "id": "jonah",
@@ -3180,7 +3184,10 @@
       "versesPerChapter": [
         13
       ],
-      "description": "Alerta contra acolher falsos mestres que negam a verdade sobre Jesus Cristo."
+      "description": "Alerta contra acolher falsos mestres que negam a verdade sobre Jesus Cristo.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "3-john",
@@ -3192,7 +3199,10 @@
       "versesPerChapter": [
         14
       ],
-      "description": "Elogio à hospitalidade de Gayo para com os missionários e repreensão a atitudes orgulhosas."
+      "description": "Elogio à hospitalidade de Gayo para com os missionários e repreensão a atitudes orgulhosas.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jude",
@@ -3204,7 +3214,10 @@
       "versesPerChapter": [
         25
       ],
-      "description": "Exortação urgente para batalhar pela fé diante de falsos mestres que distorcem a graça."
+      "description": "Exortação urgente para batalhar pela fé diante de falsos mestres que distorcem a graça.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "revelation",
@@ -3237,7 +3250,31 @@
         27,
         21
       ],
-      "description": "Visões da vitória final de Cristo sobre o mal, o julgamento final e a nova Jerusalém."
+      "description": "Visões da vitória final de Cristo sobre o mal, o julgamento final e a nova Jerusalém.",
+      "chapterOffsets": [
+        0,
+        221,
+        508,
+        742,
+        887,
+        1044,
+        1228,
+        1418,
+        1563,
+        1778,
+        1890,
+        2102,
+        2275,
+        2462,
+        2690,
+        2780,
+        2985,
+        3180,
+        3466,
+        3696,
+        3854,
+        4129
+      ]
     }
   ]
 }
