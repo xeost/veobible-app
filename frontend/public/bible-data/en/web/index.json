@@ -1008,7 +1008,8 @@
         8044,
         8449,
         8782
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=7pup8cJbJ3w"
     },
     {
       "id": "ezra",
@@ -1041,7 +1042,8 @@
         1735,
         2095,
         2305
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=KdXabE122k4"
     },
     {
       "id": "nehemiah",
@@ -1080,7 +1082,8 @@
         2859,
         3161,
         3565
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=cy9n0GiPYxg"
     },
     {
       "id": "esther",
@@ -1113,7 +1116,8 @@
         1366,
         1591,
         1916
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=ppbRWqMhB1A"
     },
     {
       "id": "job",
@@ -1210,7 +1214,8 @@
         5937,
         6063,
         6242
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=ZZlqCrf1iu8"
     },
     {
       "id": "psalms",
@@ -1523,7 +1528,8 @@
         15398,
         15472,
         15527
-      ]
+      ],
+      "video": "https://www.youtube.com/watch?v=LDMBvwRk9tw"
     },
     {
       "id": "proverbs",
@@ -1946,7 +1952,7 @@
       "chapterOffsets": [
         0,
         271,
-        548,
+        547,
         834,
         1029
       ]
@@ -2012,52 +2018,52 @@
       "chapterOffsets": [
         0,
         284,
-        381,
+        380,
         648,
         818,
         1025,
-        1183,
+        1182,
         1444,
         1658,
         1797,
-        2015,
-        2253,
-        2522,
-        2774,
-        3020,
-        3091,
-        3733,
-        4010,
-        4334,
-        4464,
-        4999,
-        5333,
-        5611,
-        6085,
-        6346,
-        6529,
-        6769,
-        7097,
-        7372,
-        7606,
-        7866,
-        8096,
-        8461,
-        8823,
-        9154,
-        9294,
-        9698,
-        9994,
-        10266,
-        10579,
-        11085,
-        11360,
-        11553,
-        11834,
-        12168,
-        12455,
-        12723,
-        12990
+        2014,
+        2252,
+        2521,
+        2773,
+        3019,
+        3090,
+        3732,
+        4009,
+        4332,
+        4463,
+        4998,
+        5332,
+        5610,
+        6084,
+        6344,
+        6527,
+        6768,
+        7096,
+        7370,
+        7604,
+        7864,
+        8094,
+        8459,
+        8821,
+        9152,
+        9292,
+        9696,
+        9992,
+        10263,
+        10576,
+        11082,
+        11357,
+        11550,
+        11831,
+        12166,
+        12452,
+        12720,
+        12987
       ]
     },
     {
@@ -2089,12 +2095,12 @@
         1064,
         1495,
         1831,
-        2138,
-        2445,
-        2735,
-        3060,
-        3270,
-        3773
+        2137,
+        2444,
+        2734,
+        3059,
+        3269,
+        3772
       ]
     },
     {
@@ -2129,13 +2135,13 @@
         539,
         661,
         746,
-        882,
-        998,
-        1164,
-        1314,
-        1416,
-        1525,
-        1666
+        881,
+        997,
+        1163,
+        1313,
+        1415,
+        1524,
+        1665
       ]
     },
     {
@@ -2184,8 +2190,8 @@
         563,
         777,
         903,
-        1061,
-        1189
+        1060,
+        1188
       ]
     },
     {
@@ -2220,8 +2226,8 @@
       "chapterOffsets": [
         0,
         157,
-        227,
-        313
+        226,
+        312
       ]
     },
     {
@@ -2243,7 +2249,7 @@
       "description": "Denunciation of leaders' injustice and the promise of a Ruler born in Bethlehem who will bring peace.",
       "chapterOffsets": [
         0,
-        151,
+        150,
         270,
         378,
         519,
@@ -2266,7 +2272,7 @@
       "description": "A declaration of God's judgment on the Assyrian empire and the destruction of the city of Nineveh.",
       "chapterOffsets": [
         0,
-        136,
+        135,
         249
       ]
     },
@@ -2305,7 +2311,7 @@
       "chapterOffsets": [
         0,
         173,
-        329
+        328
       ]
     },
     {
@@ -2348,7 +2354,23 @@
         9,
         21
       ],
-      "description": "Encouraging prophetic visions about the restoration of Jerusalem and messianic prophecies about the coming King."
+      "description": "Encouraging prophetic visions about the restoration of Jerusalem and messianic prophecies about the coming King.",
+      "chapterOffsets": [
+        0,
+        200,
+        296,
+        391,
+        503,
+        611,
+        744,
+        864,
+        1078,
+        1254,
+        1379,
+        1539,
+        1690,
+        1793
+      ]
     },
     {
       "id": "malachi",
@@ -2363,7 +2385,13 @@
         18,
         6
       ],
-      "description": "The last prophet of the Old Testament rebukes religious apathy and announces the coming of the Lord's messenger."
+      "description": "The last prophet of the Old Testament rebukes religious apathy and announces the coming of the Lord's messenger.",
+      "chapterOffsets": [
+        0,
+        156,
+        323,
+        494
+      ]
     },
     {
       "id": "matthew",
@@ -2402,7 +2430,37 @@
         66,
         20
       ],
-      "description": "The Gospel written to demonstrate that Jesus is the Messiah promised in the Old Testament and the King of the Jews."
+      "description": "The Gospel written to demonstrate that Jesus is the Messiah promised in the Old Testament and the King of the Jews.",
+      "chapterOffsets": [
+        0,
+        208,
+        407,
+        539,
+        718,
+        1052,
+        1313,
+        1503,
+        1741,
+        2005,
+        2284,
+        2488,
+        2824,
+        3231,
+        3461,
+        3716,
+        3923,
+        4131,
+        4401,
+        4632,
+        4874,
+        5229,
+        5502,
+        5783,
+        6109,
+        6418,
+        6931,
+        7372
+      ]
     },
     {
       "id": "mark",
@@ -2429,7 +2487,25 @@
         47,
         20
       ],
-      "description": "A dynamic, action-focused account portraying Jesus as the Suffering Servant and Son of God."
+      "description": "A dynamic, action-focused account portraying Jesus as the Suffering Servant and Son of God.",
+      "chapterOffsets": [
+        0,
+        298,
+        514,
+        727,
+        996,
+        1269,
+        1646,
+        1895,
+        2145,
+        2470,
+        2828,
+        3046,
+        3368,
+        3617,
+        4109,
+        4397
+      ]
     },
     {
       "id": "luke",
@@ -2464,7 +2540,33 @@
         56,
         53
       ],
-      "description": "A meticulous historical account of the Gospel emphasizing Jesus' compassion for all who are in need."
+      "description": "A meticulous historical account of the Gospel emphasizing Jesus' compassion for all who are in need.",
+      "chapterOffsets": [
+        0,
+        479,
+        821,
+        1125,
+        1443,
+        1732,
+        2094,
+        2455,
+        2879,
+        3326,
+        3640,
+        4048,
+        4459,
+        4719,
+        4959,
+        5174,
+        5421,
+        5656,
+        5939,
+        6243,
+        6535,
+        6778,
+        7221,
+        7571
+      ]
     },
     {
       "id": "john",
@@ -2496,7 +2598,30 @@
         31,
         25
       ],
-      "description": "A profound Gospel focused on the divinity of Jesus Christ, the incarnate Word who grants eternal life."
+      "description": "A profound Gospel focused on the divinity of Jesus Christ, the incarnate Word who grants eternal life.",
+      "chapterOffsets": [
+        0,
+        329,
+        489,
+        726,
+        1067,
+        1372,
+        1836,
+        2159,
+        2573,
+        2838,
+        3086,
+        3460,
+        3805,
+        4079,
+        4307,
+        4498,
+        4741,
+        4936,
+        5256,
+        5602,
+        5842
+      ]
     },
     {
       "id": "acts",
@@ -2535,7 +2660,37 @@
         44,
         31
       ],
-      "description": "The story of the birth of the Church and the spread of the Gospel by the power of the Holy Spirit from Jerusalem to Rome."
+      "description": "The story of the birth of the Church and the spread of the Gospel by the power of the Holy Spirit from Jerusalem to Rome.",
+      "chapterOffsets": [
+        0,
+        202,
+        503,
+        682,
+        928,
+        1212,
+        1320,
+        1727,
+        1975,
+        2266,
+        2592,
+        2780,
+        2964,
+        3329,
+        3514,
+        3793,
+        4072,
+        4330,
+        4529,
+        4820,
+        5081,
+        5382,
+        5597,
+        5859,
+        6044,
+        6258,
+        6488,
+        6789
+      ]
     },
     {
       "id": "romans",
@@ -2562,7 +2717,25 @@
         33,
         24
       ],
-      "description": "A systematic exposition of the gospel, explaining justification by faith, grace, and life in the Spirit."
+      "description": "A systematic exposition of the gospel, explaining justification by faith, grace, and life in the Spirit.",
+      "chapterOffsets": [
+        0,
+        245,
+        438,
+        629,
+        809,
+        968,
+        1127,
+        1310,
+        1590,
+        1810,
+        1945,
+        2196,
+        2332,
+        2450,
+        2618,
+        2858
+      ]
     },
     {
       "id": "1-corinthians",
@@ -2589,7 +2762,25 @@
         58,
         24
       ],
-      "description": "A letter addressing divisions in the church, Christian ethics, spiritual gifts, and the truth of the resurrection."
+      "description": "A letter addressing divisions in the church, Christian ethics, spiritual gifts, and the truth of the resurrection.",
+      "chapterOffsets": [
+        0,
+        210,
+        325,
+        472,
+        625,
+        730,
+        882,
+        1186,
+        1282,
+        1484,
+        1692,
+        1913,
+        2112,
+        2210,
+        2501,
+        2884
+      ]
     },
     {
       "id": "2-corinthians",
@@ -2613,7 +2804,22 @@
         21,
         14
       ],
-      "description": "A passionate defense of Paul's apostolic ministry, emphasizing God's grace in human weakness."
+      "description": "A passionate defense of Paul's apostolic ministry, emphasizing God's grace in human weakness.",
+      "chapterOffsets": [
+        0,
+        177,
+        324,
+        448,
+        581,
+        741,
+        866,
+        1011,
+        1183,
+        1309,
+        1455,
+        1691,
+        1884
+      ]
     },
     {
       "id": "galatians",
@@ -2630,7 +2836,15 @@
         26,
         18
       ],
-      "description": "A defense of Christian freedom and justification by faith alone, against legalism."
+      "description": "A defense of Christian freedom and justification by faith alone, against legalism.",
+      "chapterOffsets": [
+        0,
+        151,
+        325,
+        524,
+        717,
+        871
+      ]
     },
     {
       "id": "ephesians",
@@ -2647,7 +2861,15 @@
         33,
         24
       ],
-      "description": "Explores spiritual blessings in Christ, the unity of the Church, and the armor of God."
+      "description": "Explores spiritual blessings in Christ, the unity of the Church, and the armor of God.",
+      "chapterOffsets": [
+        0,
+        164,
+        309,
+        441,
+        639,
+        827
+      ]
     },
     {
       "id": "philippians",
@@ -2662,7 +2884,13 @@
         21,
         23
       ],
-      "description": "A letter full of joy and gratitude, encouraging humility, unity, and confidence in Christ."
+      "description": "A letter full of joy and gratitude, encouraging humility, unity, and confidence in Christ.",
+      "chapterOffsets": [
+        0,
+        207,
+        400,
+        569
+      ]
     },
     {
       "id": "colossians",
@@ -2677,7 +2905,13 @@
         25,
         18
       ],
-      "description": "Highlights the supremacy and sufficiency of Christ over all creation and over the Church."
+      "description": "Highlights the supremacy and sufficiency of Christ over all creation and over the Church.",
+      "chapterOffsets": [
+        0,
+        227,
+        401,
+        564
+      ]
     },
     {
       "id": "1-thessalonians",
@@ -2693,7 +2927,14 @@
         18,
         28
       ],
-      "description": "Encouragement to live a holy life and teachings about the second coming of Christ."
+      "description": "Encouragement to live a holy life and teachings about the second coming of Christ.",
+      "chapterOffsets": [
+        0,
+        81,
+        234,
+        328,
+        450
+      ]
     },
     {
       "id": "2-thessalonians",
@@ -2707,7 +2948,12 @@
         17,
         18
       ],
-      "description": "Clarifications about events preceding the Day of the Lord and exhortations to steadfastness."
+      "description": "Clarifications about events preceding the Day of the Lord and exhortations to steadfastness.",
+      "chapterOffsets": [
+        0,
+        97,
+        221
+      ]
     },
     {
       "id": "1-timothy",
@@ -2724,7 +2970,15 @@
         25,
         21
       ],
-      "description": "Pastoral instructions on church governance, leadership, and the preservation of sound doctrine."
+      "description": "Pastoral instructions on church governance, leadership, and the preservation of sound doctrine.",
+      "chapterOffsets": [
+        0,
+        162,
+        256,
+        369,
+        480,
+        646
+      ]
     },
     {
       "id": "2-timothy",
@@ -2739,7 +2993,13 @@
         17,
         22
       ],
-      "description": "Paul's final letter to Timothy, urging him to persevere in ministry and to preach the word."
+      "description": "Paul's final letter to Timothy, urging him to persevere in ministry and to preach the word.",
+      "chapterOffsets": [
+        0,
+        142,
+        317,
+        433
+      ]
     },
     {
       "id": "titus",
@@ -2753,7 +3013,12 @@
         15,
         15
       ],
-      "description": "Instructions for organizing churches in Crete, emphasizing correct teaching and good works."
+      "description": "Instructions for organizing churches in Crete, emphasizing correct teaching and good works.",
+      "chapterOffsets": [
+        0,
+        125,
+        225
+      ]
     },
     {
       "id": "philemon",
@@ -2765,7 +3030,10 @@
       "versesPerChapter": [
         25
       ],
-      "description": "A personal letter asking that a runaway servant, Onesimus, be received back as a brother in Christ."
+      "description": "A personal letter asking that a runaway servant, Onesimus, be received back as a brother in Christ.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "hebrews",
@@ -2789,7 +3057,22 @@
         29,
         25
       ],
-      "description": "Demonstrates the superiority of Christ and his new covenant over the old sacrificial system."
+      "description": "Demonstrates the superiority of Christ and his new covenant over the old sacrificial system.",
+      "chapterOffsets": [
+        0,
+        102,
+        238,
+        349,
+        472,
+        567,
+        699,
+        893,
+        1004,
+        1215,
+        1451,
+        1740,
+        1960
+      ]
     },
     {
       "id": "james",
@@ -2806,7 +3089,14 @@
         20
       ],
       "description": "Practical teachings showing that genuine faith must manifest itself in good works and wisdom.",
-      "video": "https://www.youtube.com/watch?v=5Ypa2Z1o8Vg"
+      "video": "https://www.youtube.com/watch?v=5Ypa2Z1o8Vg",
+      "chapterOffsets": [
+        0,
+        180,
+        349,
+        477,
+        591
+      ]
     },
     {
       "id": "1-peter",
@@ -2822,7 +3112,14 @@
         19,
         14
       ],
-      "description": "Encouragement to persecuted Christians to remain firm in hope and to live in holiness."
+      "description": "Encouragement to persecuted Christians to remain firm in hope and to live in holiness.",
+      "chapterOffsets": [
+        0,
+        215,
+        413,
+        592,
+        751
+      ]
     },
     {
       "id": "2-peter",
@@ -2836,7 +3133,12 @@
         22,
         18
       ],
-      "description": "Warnings against false teachers and exhortations to grow in the knowledge of Christ."
+      "description": "Warnings against false teachers and exhortations to grow in the knowledge of Christ.",
+      "chapterOffsets": [
+        0,
+        166,
+        364
+      ]
     },
     {
       "id": "1-john",
@@ -2852,7 +3154,14 @@
         21,
         21
       ],
-      "description": "An epistle about assurance of salvation, the commandment of brotherly love, and fellowship with God."
+      "description": "An epistle about assurance of salvation, the commandment of brotherly love, and fellowship with God.",
+      "chapterOffsets": [
+        0,
+        75,
+        305,
+        489,
+        653
+      ]
     },
     {
       "id": "2-john",
@@ -2864,7 +3173,10 @@
       "versesPerChapter": [
         13
       ],
-      "description": "A warning against welcoming false teachers who deny the truth about Jesus Christ."
+      "description": "A warning against welcoming false teachers who deny the truth about Jesus Christ.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "3-john",
@@ -2876,7 +3188,10 @@
       "versesPerChapter": [
         14
       ],
-      "description": "Commendation of Gaius' hospitality toward missionaries and a rebuke of prideful attitudes."
+      "description": "Commendation of Gaius' hospitality toward missionaries and a rebuke of prideful attitudes.",
+      "chapterOffsets": [
+        0
+      ]
     },
     {
       "id": "jude",
@@ -2888,7 +3203,11 @@
       "versesPerChapter": [
         25
       ],
-      "description": "An urgent exhortation to contend for the faith against false teachers who distort grace."
+      "description": "An urgent exhortation to contend for the faith against false teachers who distort grace.",
+      "chapterOffsets": [
+        0
+      ],
+      "video": "https://www.youtube.com/watch?v=p-m_vhm9aCU"
     },
     {
       "id": "revelation",
@@ -2922,7 +3241,31 @@
         21
       ],
       "description": "Visions of Christ's final victory over evil, the final judgment, and the new Jerusalem.",
-      "video": "https://www.youtube.com/watch?v=QC264qZ9Qi0"
+      "video": "https://www.youtube.com/watch?v=QC264qZ9Qi0",
+      "chapterOffsets": [
+        0,
+        173,
+        415,
+        612,
+        719,
+        843,
+        986,
+        1133,
+        1245,
+        1411,
+        1502,
+        1668,
+        1813,
+        1964,
+        2153,
+        2225,
+        2388,
+        2550,
+        2781,
+        2969,
+        3102,
+        3320
+      ]
     }
   ]
 }
