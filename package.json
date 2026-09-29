@@ -2,6 +2,7 @@
   "name": "veobible-app-root",
   "private": true,
   "scripts": {
-    "audiobibles": "cd audiobibles-cli && pnpm start"
+    "audiobibles": "cd audiobibles-cli && pnpm start",
+    "shorts": "cd tools/veobible-shorts && pnpm start"
   }
 }

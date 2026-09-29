@@ -1,0 +1,22 @@
+{
+  "name": "veobible-shorts-cli",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.5.2",
+    "boxen": "^8.0.1",
+    "chalk": "^5.4.1",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.4",
+    "typescript": "^5"
+  }
+}

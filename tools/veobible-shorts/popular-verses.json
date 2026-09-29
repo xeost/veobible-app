@@ -1,0 +1,122 @@
+[
+  {
+    "id": "john-3-16",
+    "book": "john",
+    "start": {
+      "chapter": 3,
+      "verse": 16
+    },
+    "end": {
+      "chapter": 3,
+      "verse": 16
+    }
+  },
+  {
+    "id": "psalms-23-1-6",
+    "book": "psalms",
+    "start": {
+      "chapter": 23,
+      "verse": 1
+    },
+    "end": {
+      "chapter": 23,
+      "verse": 6
+    }
+  },
+  {
+    "id": "philippians-4-13",
+    "book": "philippians",
+    "start": {
+      "chapter": 4,
+      "verse": 13
+    },
+    "end": {
+      "chapter": 4,
+      "verse": 13
+    }
+  },
+  {
+    "id": "jeremiah-29-11",
+    "book": "jeremiah",
+    "start": {
+      "chapter": 29,
+      "verse": 11
+    },
+    "end": {
+      "chapter": 29,
+      "verse": 11
+    }
+  },
+  {
+    "id": "romans-8-28",
+    "book": "romans",
+    "start": {
+      "chapter": 8,
+      "verse": 28
+    },
+    "end": {
+      "chapter": 8,
+      "verse": 28
+    }
+  },
+  {
+    "id": "proverbs-3-5-6",
+    "book": "proverbs",
+    "start": {
+      "chapter": 3,
+      "verse": 5
+    },
+    "end": {
+      "chapter": 3,
+      "verse": 6
+    }
+  },
+  {
+    "id": "isaiah-41-10",
+    "book": "isaiah",
+    "start": {
+      "chapter": 41,
+      "verse": 10
+    },
+    "end": {
+      "chapter": 41,
+      "verse": 10
+    }
+  },
+  {
+    "id": "matthew-11-28-30",
+    "book": "matthew",
+    "start": {
+      "chapter": 11,
+      "verse": 28
+    },
+    "end": {
+      "chapter": 11,
+      "verse": 30
+    }
+  },
+  {
+    "id": "1-corinthians-13-4-7",
+    "book": "1-corinthians",
+    "start": {
+      "chapter": 13,
+      "verse": 4
+    },
+    "end": {
+      "chapter": 13,
+      "verse": 7
+    }
+  },
+  {
+    "id": "psalms-46-1",
+    "book": "psalms",
+    "start": {
+      "chapter": 46,
+      "verse": 1
+    },
+    "end": {
+      "chapter": 46,
+      "verse": 1
+    }
+  }
+]
