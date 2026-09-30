@@ -4,13 +4,15 @@ Herramienta Python genérica para sintetizar pistas de voz con Chatterbox. Recib
 
 ## Instalación
 
-Requiere Python 3.12, `ffmpeg` en `PATH` y los paquetes de [requirements.txt](requirements.txt). Puedes usar el entorno virtual existente de `/Users/fabian/Documents/CodeTrying/kokoro/chatterbox/.venv` si ya tiene Chatterbox instalado, o crear uno nuevo:
+Requiere Python 3.12, `ffmpeg` en `PATH` y los paquetes de [requirements.txt](requirements.txt). Crea el entorno virtual dentro de `tools/veobible-voice`:
 
 ```bash
 cd tools/veobible-voice
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
+
+`veobible-shorts` usa este intérprete de forma predeterminada para generar voces locales.
 
 La primera carga del modelo puede descargar pesos desde Hugging Face. Chatterbox multilingüe admite español, inglés y portugués, entre otros idiomas. El modelo `latam` usa el checkpoint `ResembleAI/Chatterbox-Multilingual-es-mx-latam` y solo admite español. Si usas Hugging Face con autenticación, exporta `HF_TOKEN`.
 
@@ -28,10 +30,10 @@ Crea un JSON que asigne nombres de pista a textos, por ejemplo:
 Después ejecuta:
 
 ```bash
-python cli.py --scripts /ruta/a/guiones.json --language es --output-dir /ruta/a/salida --dry-run
-python cli.py --scripts /ruta/a/guiones.json --language es --output-dir /ruta/a/salida
+.venv/bin/python cli.py --scripts /ruta/a/guiones.json --language es --output-dir /ruta/a/salida --dry-run
+.venv/bin/python cli.py --scripts /ruta/a/guiones.json --language es --output-dir /ruta/a/salida
 ```
 
-`--dry-run` valida y muestra los textos sin cargar el modelo ni escribir archivos. `--force` reemplaza pistas existentes. `--model latam` selecciona el modelo latinoamericano; el valor predeterminado es `multilingual`. `--device` admite `auto`, `mps`, `cuda` o `cpu`. `--voice-prompt` acepta una muestra WAV/MP3 para clonar voz. `--exaggeration` y `--cfg-weight` controlan la generación; ambos valen `0.5` por defecto.
+`--dry-run` valida y muestra los textos sin cargar el modelo ni escribir archivos. `--force` reemplaza pistas existentes. `--model latam` selecciona el modelo latinoamericano; el valor predeterminado es `multilingual`. `--device` admite `auto`, `mps`, `cuda` o `cpu`. `--voice-prompt` acepta una muestra WAV/MP3 común para todas las pistas. `--voice-prompts` acepta un JSON que asigna nombres de pista a rutas de muestras específicas; cada ruta prevalece sobre la muestra común. `--exaggeration` y `--cfg-weight` controlan la generación; ambos valen `0.5` por defecto.
 
 Los nombres de pista admiten letras minúsculas, números, guiones y guiones bajos, y deben comenzar con una letra. Una invocación genera todas las pistas con el modelo cargado una sola vez. `veobible-shorts` usa esta interfaz para sus intros y outros, con sus propias [plantillas](../veobible-shorts/voice-templates.json).

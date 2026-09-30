@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { numberToWords, renderVoiceScripts, spokenReference, voiceContext } from "./voice.js";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { generateVoice, numberToWords, renderVoiceScripts, resolveVoicePrompts, spokenReference, voiceContext } from "./voice.js";
 import { config } from "./config.js";
 import type { Passage } from "./shorts.js";
 
@@ -43,4 +47,113 @@ test("los libros numerados, versículos únicos y rangos entre capítulos no con
   assert.equal(spokenReference("es", "Juan", cross), "Juan, desde el capítulo tres versículo treinta y seis hasta el capítulo cuatro versículo dos");
   assert.doesNotMatch(spokenReference("en", "John", cross), /\d/);
   assert.doesNotMatch(spokenReference("pt", "João", cross), /\d/);
+});
+
+test("Chatterbox prefiere muestras de intro y outro y recurre a la voz del idioma", async () => {
+  const workingDir = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-voice-prompts-test-"));
+  const voicesDir = path.join(workingDir, "voices");
+  const originalWorkingDir = config.workingDir;
+  const originalFallbacks = { ...config.ttsVoicePrompts };
+  const originalTracks = structuredClone(config.ttsTrackVoicePrompts);
+  try {
+    await fs.mkdir(voicesDir);
+    Object.assign(config, { workingDir });
+    for (const locale of ["es", "en", "pt"] as const) {
+      const fallback = path.join(voicesDir, `${locale}.mp3`);
+      const intro = path.join(voicesDir, `${locale}-intro.wav`);
+      const outro = path.join(voicesDir, `${locale}-outro.mp3`);
+      Object.assign(config.ttsVoicePrompts, { [locale]: fallback });
+      Object.assign(config.ttsTrackVoicePrompts[locale], { intro: undefined, outro: undefined });
+      await Promise.all([fallback, intro, outro].map(filename => fs.writeFile(filename, "sample")));
+      assert.deepEqual(await resolveVoicePrompts(locale), { intro, outro });
+      await fs.rm(fallback);
+      assert.deepEqual(await resolveVoicePrompts(locale), { intro, outro });
+      await fs.writeFile(fallback, "sample");
+      await fs.rm(outro);
+      assert.deepEqual(await resolveVoicePrompts(locale), { intro, outro: fallback });
+      await fs.rm(fallback);
+      const wavFallback = path.join(voicesDir, `${locale}.wav`);
+      await fs.writeFile(wavFallback, "sample");
+      assert.deepEqual(await resolveVoicePrompts(locale), { intro, outro: wavFallback });
+    }
+    const custom = path.join(voicesDir, "custom-intro.mp3");
+    await fs.writeFile(custom, "sample");
+    Object.assign(config.ttsTrackVoicePrompts.es, { intro: custom, outro: "" });
+    assert.deepEqual(await resolveVoicePrompts("es"), { intro: custom, outro: null });
+  } finally {
+    Object.assign(config, { workingDir: originalWorkingDir });
+    Object.assign(config.ttsVoicePrompts, originalFallbacks);
+    for (const locale of ["es", "en", "pt"] as const) Object.assign(config.ttsTrackVoicePrompts[locale], originalTracks[locale]);
+    await fs.rm(workingDir, { recursive: true, force: true });
+  }
+});
+
+test("la salida de Chatterbox muestra etapas y oculta los mensajes técnicos", async () => {
+  const output = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-quiet-voice-test-"));
+  const fakePython = path.join(output, "fake-python");
+  const original = {
+    provider: config.ttsProvider,
+    python: config.ttsPython,
+    prompt: config.ttsVoicePrompts.es,
+    tracks: { ...config.ttsTrackVoicePrompts.es }
+  };
+  const originalLog = console.log;
+  const messages: string[] = [];
+  try {
+    await fs.writeFile(fakePython, "#!/bin/sh\nprintf 'Stage: Loading model\\nStage: Generating intro\\nStage: Generating outro\\n'\nprintf 'Fetching 6 files: 100%%\\nFutureWarning: noise\\n' >&2\n", { mode: 0o755 });
+    Object.assign(config, { ttsProvider: "chatterbox", ttsPython: fakePython });
+    Object.assign(config.ttsVoicePrompts, { es: "" });
+    Object.assign(config.ttsTrackVoicePrompts.es, { intro: "", outro: "" });
+    console.log = (...values: unknown[]) => { messages.push(values.join(" ")); };
+    const version = config.versions.find(value => value.locale === "es")!;
+    await generateVoice(output, voiceContext(version, range, "Juan", "Reina Valera"));
+    assert.ok(messages.some(message => message.includes("Generating intro")));
+    assert.ok(messages.some(message => message.includes("Generating outro")));
+    assert.doesNotMatch(messages.join("\n"), /Fetching|FutureWarning|Esta es tu dosis/);
+    await fs.writeFile(fakePython, "#!/bin/sh\nprintf 'Stage: Loading model\\n'\nprintf 'Error: broken model\\n' >&2\nexit 1\n", { mode: 0o755 });
+    await assert.rejects(generateVoice(output, voiceContext(version, range, "Juan", "Reina Valera")), /broken model/);
+  } finally {
+    console.log = originalLog;
+    Object.assign(config, { ttsProvider: original.provider, ttsPython: original.python });
+    Object.assign(config.ttsVoicePrompts, { es: original.prompt });
+    Object.assign(config.ttsTrackVoicePrompts.es, original.tracks);
+    await fs.rm(output, { recursive: true, force: true });
+  }
+});
+
+test("ElevenLabs usa la voz del idioma y genera los seis archivos sin usar Chatterbox", async () => {
+  const output = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-elevenlabs-test-"));
+  const originalFetch = globalThis.fetch;
+  const original = {
+    provider: config.ttsProvider,
+    key: config.elevenLabsApiKey,
+    voice: config.elevenLabsVoices.es
+  };
+  try {
+    const mp3 = path.join(output, "sample.mp3");
+    execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.1", "-y", mp3]);
+    const audio = await fs.readFile(mp3);
+    Object.assign(config, { ttsProvider: "elevenlabs", elevenLabsApiKey: "test-key" });
+    Object.assign(config.elevenLabsVoices, { es: "spanish-voice" });
+    const requests: Array<{ url: string; text: string }> = [];
+    globalThis.fetch = async (input, init) => {
+      assert.match(String(input), /\/spanish-voice\?output_format=mp3_44100_128$/);
+      assert.equal((init?.headers as Record<string, string>)["xi-api-key"], "test-key");
+      requests.push({ url: String(input), text: JSON.parse(String(init?.body)).text });
+      return new Response(audio, { status: 200, headers: { "Content-Type": "audio/mpeg" } });
+    };
+    const version = config.versions.find(value => value.locale === "es")!;
+    await generateVoice(output, voiceContext(version, range, "Juan", "Reina Valera"));
+    assert.equal(requests.length, 2);
+    for (const part of ["intro", "outro"]) {
+      for (const extension of ["txt", "wav", "aiff"]) assert.ok((await fs.stat(path.join(output, `${part}.${extension}`))).size > 0);
+    }
+    await assert.rejects(generateVoice(output, voiceContext(version, range, "Juan", "Reina Valera")), /Audio or text files already exist/);
+    assert.equal(requests.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    Object.assign(config, { ttsProvider: original.provider, elevenLabsApiKey: original.key });
+    Object.assign(config.elevenLabsVoices, { es: original.voice });
+    await fs.rm(output, { recursive: true, force: true });
+  }
 });

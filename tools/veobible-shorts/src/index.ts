@@ -9,9 +9,9 @@ import { generateAudioFormatsForExisting, getBook, loadCatalog, markUsed, prepar
 import { generateVoice, voiceContext } from "./voice.js";
 
 const languages = [
-  { name: "Español", value: "es" },
+  { name: "Spanish", value: "es" },
   { name: "English", value: "en" },
-  { name: "Português", value: "pt" }
+  { name: "Portuguese", value: "pt" }
 ] as const;
 
 function startAtTopPreservingHistory(): void {
@@ -34,72 +34,72 @@ async function main(): Promise<void> {
   banner();
   const catalog = await loadCatalog();
   while (true) {
-    const locale = await select({ message: "Selecciona un idioma:", choices: [
+    const locale = await select({ message: "Select a language:", choices: [
       ...languages.map(language => ({ name: language.name, value: language.value })),
-      { name: "Salir", value: "exit" }
+      { name: "Exit", value: "exit" }
     ] });
     if (locale === "exit") return;
-    const version = await select({ message: "Selecciona una versión de la Biblia:", choices: [
+    const version = await select({ message: "Select a Bible version:", choices: [
       ...config.versions.filter(v => v.locale === locale).map(v => ({ name: v.label, value: v.id })),
-      { name: "Volver", value: "back" }
+      { name: "Back", value: "back" }
     ] });
     if (version === "back") continue;
     const selectedVersion = config.versions.find(v => v.id === version)!;
     try {
       const index = await readIndex(selectedVersion);
       const status = await readStatus();
-      const passageId = await select({ message: "Selecciona un versículo o rango:", pageSize: 12, choices: [
+      const passageId = await select({ message: "Select a verse or passage:", pageSize: 12, choices: [
         ...catalog.map(p => {
           let label: string;
-          try { label = reference(getBook(index, p).book.name, p); } catch { label = p.id + " (no disponible)"; }
-          return { name: `${status[p.id] ? chalk.yellow("✓ Usado · ") : ""}${label}`, value: p.id };
+          try { label = reference(getBook(index, p).book.name, p); } catch { label = p.id + " (unavailable)"; }
+          return { name: `${status[p.id] ? chalk.yellow("✓ Used · ") : ""}${label}`, value: p.id };
         }),
-        { name: "Volver", value: "back" }
+        { name: "Back", value: "back" }
       ] });
       if (passageId === "back") continue;
       const passage = catalog.find(p => p.id === passageId)!;
       const existingOutput = path.join(config.outputDir, selectedVersion.id, passage.id);
       const isPrepared = await fs.access(existingOutput).then(() => true, () => false);
       const action = await select({ message: reference(getBook(index, passage).book.name, passage), choices: [
-        ...(!isPrepared ? [{ name: "Preparar audios, voz, texto y metadata", value: "prepare" }] : []),
-        ...(isPrepared ? [{ name: "Generar WAV y AIFF de 48 kHz", value: "audio" }] : []),
-        ...(isPrepared ? [{ name: "Generar voz de intro y outro con Chatterbox", value: "voice" }] : []),
-        ...(isPrepared ? [{ name: "Actualizar tiempos en metadata", value: "timings" }] : []),
-        ...(isPrepared && !status[passage.id] ? [{ name: "Marcar como utilizado", value: "mark" }] : []),
-        ...(isPrepared ? [{ name: `Ver salida: ${existingOutput}`, value: "show" }] : []),
-        { name: "Volver", value: "back" }
+        ...(!isPrepared ? [{ name: "Prepare audio, voice, text, and metadata", value: "prepare" }] : []),
+        ...(isPrepared ? [{ name: "Generate 48 kHz WAV and AIFF", value: "audio" }] : []),
+        ...(isPrepared ? [{ name: `Generate intro and outro voice with ${config.ttsProvider === "elevenlabs" ? "ElevenLabs" : "Chatterbox"}`, value: "voice" }] : []),
+        ...(isPrepared ? [{ name: "Update timings in metadata", value: "timings" }] : []),
+        ...(isPrepared && !status[passage.id] ? [{ name: "Mark as used", value: "mark" }] : []),
+        ...(isPrepared ? [{ name: `Show output: ${existingOutput}`, value: "show" }] : []),
+        { name: "Back", value: "back" }
       ] });
       if (action === "back") continue;
       if (action === "show") { console.log(existingOutput); continue; }
       if (action === "audio") {
         const output = await generateAudioFormatsForExisting(selectedVersion, passage);
-        console.log(chalk.green(`✔ WAV y AIFF de 48 kHz generados en ${output}`));
+        console.log(chalk.green(`✔ 48 kHz WAV and AIFF generated in ${output}`));
         continue;
       }
       if (action === "voice") {
         const book = getBook(index, passage).book;
         await generateVoice(existingOutput, voiceContext(selectedVersion, passage, book.name, index.metadata.name), true);
-        console.log(chalk.green(`✔ Voz de intro y outro generada en ${existingOutput}`));
+        console.log(chalk.green(`✔ Intro and outro voice generated in ${existingOutput}`));
         continue;
       }
       if (action === "timings") {
         const metadataPath = await refreshMetadataTimings(selectedVersion, passage);
-        console.log(chalk.green(`✔ Tiempos actualizados en ${metadataPath}`));
+        console.log(chalk.green(`✔ Timings updated in ${metadataPath}`));
         continue;
       }
       if (action === "mark") {
-        if (await confirm({ message: "¿Marcar este rango como utilizado?", default: false })) {
+        if (await confirm({ message: "Mark this passage as used?", default: false })) {
           await markUsed(passage, selectedVersion, existingOutput);
-          console.log(chalk.green("✔ Rango marcado como utilizado en status.json"));
+          console.log(chalk.green("✔ Passage marked as used in status.json"));
         }
         continue;
       }
       const output = await prepareShort(selectedVersion, passage);
-      console.log(chalk.green(`✔ Archivos preparados en ${output}`));
-      console.log(chalk.yellow("  Los originales contienen capítulos completos; WAV y AIFF contienen el rango con hasta 5 s de margen."));
-      if (!status[passage.id] && await confirm({ message: "¿Marcar este rango como utilizado ahora?", default: false })) {
+      console.log(chalk.green(`✔ Files prepared in ${output}`));
+      console.log(chalk.yellow("  Originals contain full chapters; WAV and AIFF contain the passage with up to 5 seconds of padding."));
+      if (!status[passage.id] && await confirm({ message: "Mark this passage as used now?", default: false })) {
         await markUsed(passage, selectedVersion, output);
-        console.log(chalk.green("✔ Rango marcado como utilizado en status.json"));
+        console.log(chalk.green("✔ Passage marked as used in status.json"));
       }
     } catch (error) {
       console.error(chalk.red(`✖ ${error instanceof Error ? error.message : String(error)}`));

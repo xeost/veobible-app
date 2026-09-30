@@ -27,13 +27,18 @@ Copia `.env.example` a `.env` dentro de `tools/veobible-shorts` y ajusta las rut
 | `VEOBIBLE_SHORTS_OUTPUT_DIR` | `<workingDir>/outputs` |
 | `VEOBIBLE_SHORTS_AUDIO_DIR` | `/Users/fabian/Documents/audiobibles/sources/audios` |
 | `VEOBIBLE_SHORTS_BIBLE_DATA_DIR` | `<raíz del repositorio>/frontend/public/bible-data` |
-| `VEOBIBLE_SHORTS_TTS_PYTHON` | `/Users/fabian/Documents/CodeTrying/kokoro/chatterbox/.venv/bin/python` |
+| `VEOBIBLE_SHORTS_TTS_PROVIDER` | `chatterbox`; también admite `elevenlabs` |
+| `VEOBIBLE_SHORTS_ELEVENLABS_API_KEY` | Vacío; obligatorio para ElevenLabs |
+| `VEOBIBLE_SHORTS_ELEVENLABS_MODEL` | `eleven_multilingual_v2` |
+| `VEOBIBLE_SHORTS_ELEVENLABS_VOICE_ES`, `_EN`, `_PT` | Vacío; ID de voz obligatorio para el idioma seleccionado con ElevenLabs |
+| `VEOBIBLE_SHORTS_TTS_PYTHON` | `<raíz del repositorio>/tools/veobible-voice/.venv/bin/python` |
 | `VEOBIBLE_SHORTS_TTS_MODEL` | `multilingual` (`latam` solo para español) |
 | `VEOBIBLE_SHORTS_TTS_MODEL_ES`, `_EN`, `_PT` | Modelo del idioma; si falta, usa `VEOBIBLE_SHORTS_TTS_MODEL` |
 | `VEOBIBLE_SHORTS_TTS_DEVICE` | `auto` |
 | `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_ES` | `<workingDir>/voices/es.mp3` |
 | `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_EN` | `<workingDir>/voices/en.mp3` |
 | `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_PT` | `<workingDir>/voices/pt.mp3` |
+| `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_ES_INTRO`, `_ES_OUTRO` (y equivalentes `_EN_*`, `_PT_*`) | Rutas opcionales para cada pista; si faltan, busca `<workingDir>/voices/<idioma>-<pista>.mp3` o `.wav` |
 | `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT` | Vacío; muestra compartida que sustituye los valores predeterminados cuando no hay ruta por idioma |
 | `VEOBIBLE_SHORTS_TTS_TEMPLATES` | `tools/veobible-shorts/voice-templates.json` |
 
@@ -55,17 +60,21 @@ Para una salida ya preparada, selecciona el mismo rango y elige **Generar WAV y 
 
 ## Voz de intro y outro
 
-Al preparar un rango, la CLI también genera la intro y el outro: `intro.txt`, `outro.txt`, `intro.wav`, `outro.wav`, `intro.aiff` y `outro.aiff` quedan junto a los audios bíblicos, el texto y la metadata. Si falla la síntesis, se cancela esa preparación sin dejar una salida incompleta. Para una salida ya preparada, **Generar voz de intro y outro con Chatterbox** permite actualizar las locuciones después de cambiar una plantilla o una voz.
+Al preparar un rango, la CLI también genera la intro y el outro: `intro.txt`, `outro.txt`, `intro.wav`, `outro.wav`, `intro.aiff` y `outro.aiff` quedan junto a los audios bíblicos, el texto y la metadata. Si falla la síntesis, se cancela esa preparación sin dejar una salida incompleta. Para una salida ya preparada, **Generar voz de intro y outro** permite actualizar las locuciones después de cambiar una plantilla o una voz. El proveedor se elige en `.env`.
 
 Las plantillas de español, inglés y portugués se editan en [voice-templates.json](voice-templates.json), dentro de esta herramienta. Admiten `{reference}`, `{version}`, `{book}`, `{start}`, `{end}` y `{passage_id}`. Los valores provienen del rango y la versión elegidos; `veobible-shorts` entrega los guiones completos a [VeoBible Voice](../veobible-voice/README.md), que solo sintetiza el texto recibido.
 
-En las locuciones, `{reference}` escribe los números con letras (por ejemplo, «Juan capítulo tres versículos catorce al diecinueve»). También convierte los números de libros como «1 Juan» a «Primera de Juan». `metadata.txt` conserva la referencia escrita «Juan 3:14-19». Después de editar las plantillas, usa **Generar voz de intro y outro con Chatterbox** en una salida existente para actualizar sus audios y guiones.
+En las locuciones, `{reference}` escribe los números con letras (por ejemplo, «Juan capítulo tres versículos catorce al diecinueve»). También convierte los números de libros como «1 Juan» a «Primera de Juan». `metadata.txt` conserva la referencia escrita «Juan 3:14-19». Después de editar las plantillas, usa **Generar voz de intro y outro** en una salida existente para actualizar sus audios y guiones.
 
-Configura `VEOBIBLE_SHORTS_TTS_PYTHON` con el ejecutable del entorno Python que tenga instalado `chatterbox-tts`. La plantilla `.env.example` apunta al entorno del experimento local. Puedes seleccionar `latam` solo para español con `VEOBIBLE_SHORTS_TTS_MODEL_ES` o usar otro JSON de plantillas con `VEOBIBLE_SHORTS_TTS_TEMPLATES`. Los WAV y AIFF finales son PCM de 24 bits a 48 kHz.
+### Chatterbox local
+
+Instala primero las dependencias en el entorno propio de [VeoBible Voice](../veobible-voice/README.md). `veobible-shorts` usa automáticamente `tools/veobible-voice/.venv/bin/python` y ejecuta su `cli.py`; no necesita configurar `VEOBIBLE_SHORTS_TTS_PYTHON` salvo que uses otra ubicación para ese entorno. Puedes seleccionar `latam` solo para español con `VEOBIBLE_SHORTS_TTS_MODEL_ES` o usar otro JSON de plantillas con `VEOBIBLE_SHORTS_TTS_TEMPLATES`. Los WAV y AIFF finales son PCM de 24 bits a 48 kHz.
+
+Durante la generación local, la terminal muestra la etapa actual y el tiempo transcurrido. Los mensajes de descarga, avisos y barras internas de Chatterbox se ocultan; si falla la generación, se muestran los detalles técnicos del error.
 
 ### Muestras de voz por idioma
 
-Las muestras actuales están fuera del repositorio, en `/Users/fabian/Documents/veobible-shorts/voices/` como `es.mp3`, `en.mp3` y `pt.mp3`. Son las rutas predeterminadas si no defines otras en `.env`. Para cambiarlas, añade las rutas absolutas a `tools/veobible-shorts/.env`:
+Las muestras están fuera del repositorio, en `<workingDir>/voices/`. Para cada idioma se busca primero una muestra dedicada a la pista: `es-intro.mp3` y `es-outro.mp3`, `en-intro.mp3` y `en-outro.mp3`, o `pt-intro.mp3` y `pt-outro.mp3`. También se aceptan archivos `.wav`. Si falta una muestra dedicada, se usa la muestra general de ese idioma (`es.mp3`, `en.mp3` o `pt.mp3`; también `.wav`). Puedes cambiar las rutas generales en `tools/veobible-shorts/.env`:
 
 ```dotenv
 VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_ES=/Users/fabian/Documents/veobible-shorts/voices/es.mp3
@@ -73,6 +82,12 @@ VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_EN=/Users/fabian/Documents/veobible-shorts/voic
 VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_PT=/Users/fabian/Documents/veobible-shorts/voices/pt.mp3
 ```
 
-Cada muestra debe contener idealmente **5–10 segundos de voz clara**, sin música ni ruido de fondo, en el idioma correspondiente. Se aceptan WAV o MP3. La misma muestra se usa para la intro y el outro de ese idioma. Si una variable por idioma está ausente, se usa `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT` si existe; de lo contrario, se usa el MP3 predeterminado de ese idioma. Una variable por idioma definida como vacía desactiva la muestra y deja la voz predeterminada del modelo. La CLI comprueba que la ruta configurada exista antes de sintetizar.
+Cada muestra debe contener idealmente **5–10 segundos de voz clara**, sin música ni ruido de fondo, en el idioma correspondiente. Se aceptan WAV o MP3. Para rutas dedicadas personalizadas, usa `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_ES_INTRO` y `_ES_OUTRO` (o sus equivalentes para EN/PT). Si una variable por idioma está ausente, se usa `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT` si existe; de lo contrario, se busca el archivo general predeterminado. Una variable dedicada definida como vacía usa la voz predeterminada del modelo para esa pista; una variable general vacía desactiva solo el respaldo. La CLI comprueba que las rutas seleccionadas existan antes de sintetizar.
 
-Chatterbox multilingüe admite portugués con `language_id="pt"`. Resemble AI también publica modelos dedicados para [portugués de Brasil](https://huggingface.co/ResembleAI/Chatterbox-Multilingual-pt-br) y [portugués de Portugal](https://huggingface.co/ResembleAI/Chatterbox-Multilingual-pt-pt). Esta integración usa actualmente el modelo multilingüe para portugués y aplica `pt.mp3` como muestra de voz. Para español latinoamericano, puedes definir `VEOBIBLE_SHORTS_TTS_MODEL_ES=latam` sin cambiar el modelo de inglés ni el de portugués.
+Chatterbox multilingüe admite portugués con `language_id="pt"`. Resemble AI también publica modelos dedicados para [portugués de Brasil](https://huggingface.co/ResembleAI/Chatterbox-Multilingual-pt-br) y [portugués de Portugal](https://huggingface.co/ResembleAI/Chatterbox-Multilingual-pt-pt). Esta integración usa actualmente el modelo multilingüe para portugués; si no encuentra una muestra dedicada, aplica `pt.mp3` como respaldo. Para español latinoamericano, puedes definir `VEOBIBLE_SHORTS_TTS_MODEL_ES=latam` sin cambiar el modelo de inglés ni el de portugués.
+
+### ElevenLabs
+
+Para usar la API, define `VEOBIBLE_SHORTS_TTS_PROVIDER=elevenlabs`, `VEOBIBLE_SHORTS_ELEVENLABS_API_KEY` y los IDs `VEOBIBLE_SHORTS_ELEVENLABS_VOICE_ES`, `_EN` y `_PT` en `.env`. Solo es obligatorio el ID del idioma que vas a generar. El modelo predeterminado es `eleven_multilingual_v2`; puedes cambiarlo con `VEOBIBLE_SHORTS_ELEVENLABS_MODEL`. Busca los IDs de voz en tu [biblioteca de voces de ElevenLabs](https://elevenlabs.io/app/voice-library). Cada intro y outro hace una petición a la API. La respuesta MP3 se convierte con `ffmpeg` a los mismos WAV y AIFF PCM de 24 bits a 48 kHz que usa la salida local. No necesitas instalar Chatterbox para esta opción.
+
+Al cambiar de proveedor, puedes regenerar las locuciones de una salida existente desde el menú.

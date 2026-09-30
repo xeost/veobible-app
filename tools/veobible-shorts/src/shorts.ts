@@ -33,10 +33,10 @@ async function audioDurationSeconds(file: string): Promise<number> {
   try {
     ({ stdout } = await execFileAsync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file]));
   } catch (error) {
-    throw new Error(`No se pudo obtener la duración de ${file} con ffprobe: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Could not get the duration of ${file} with ffprobe: ${error instanceof Error ? error.message : String(error)}`);
   }
   const duration = Number(stdout.trim());
-  if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Duración de audio inválida: ${file}`);
+  if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Invalid audio duration: ${file}`);
   return duration;
 }
 
@@ -56,7 +56,7 @@ async function convertToWav(source: string, target: string, clipStart: number, c
       "-c:a", "pcm_s24le", "-ar", "48000", target
     ], { maxBuffer: 1024 * 1024 });
   } catch (error) {
-    throw new Error(`No se pudo convertir ${source} a WAV: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Could not convert ${source} to WAV: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -75,13 +75,13 @@ async function convertWavToAiff(source: string, target: string): Promise<void> {
       "-map", "0:a:0", "-vn", "-c:a", "pcm_s24be", "-ar", "48000", target
     ], { maxBuffer: 1024 * 1024 });
   } catch (error) {
-    throw new Error(`No se pudo convertir ${source} a AIFF: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Could not convert ${source} to AIFF: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 function estimateAudioRange(verses: Verse[], first: number, last: number, duration: number): { start: number; end: number } {
   const total = verses.reduce((sum, verse) => sum + wordCount(verse.text), 0);
-  if (total === 0) throw new Error("No hay palabras para estimar los tiempos del audio");
+  if (total === 0) throw new Error("No words available to estimate audio timings");
   const before = verses.filter(verse => verse.verse < first).reduce((sum, verse) => sum + wordCount(verse.text), 0);
   const through = verses.filter(verse => verse.verse <= last).reduce((sum, verse) => sum + wordCount(verse.text), 0);
   return { start: duration * before / total, end: duration * through / total };
@@ -95,26 +95,26 @@ function clipBounds(start: number, end: number, duration: number): { clipStart: 
 }
 
 function assertPoint(value: unknown, label: string): asserts value is Point {
-  if (!value || typeof value !== "object") throw new Error(`${label}: capítulo y versículo requeridos`);
+  if (!value || typeof value !== "object") throw new Error(`${label}: chapter and verse are required`);
   const point = value as Point;
   if (!Number.isSafeInteger(point.chapter) || point.chapter < 1 || !Number.isSafeInteger(point.verse) || point.verse < 1) {
-    throw new Error(`${label}: capítulo y versículo deben ser enteros positivos`);
+    throw new Error(`${label}: chapter and verse must be positive integers`);
   }
 }
 
 export async function loadCatalog(): Promise<Passage[]> {
   const raw: unknown = JSON.parse(await fs.readFile(catalogPath, "utf8"));
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error("El catálogo debe ser una lista no vacía");
+  if (!Array.isArray(raw) || raw.length === 0) throw new Error("The catalog must be a non-empty list");
   const ids = new Set<string>();
   return raw.map((entry: unknown, index) => {
-    if (!entry || typeof entry !== "object") throw new Error(`Entrada ${index + 1} inválida`);
+    if (!entry || typeof entry !== "object") throw new Error(`Invalid entry ${index + 1}`);
     const passage = entry as Passage;
-    if (!safeId.test(passage.id) || !safeId.test(passage.book) || ids.has(passage.id)) throw new Error(`ID o libro inválido/repetido en entrada ${index + 1}`);
+    if (!safeId.test(passage.id) || !safeId.test(passage.book) || ids.has(passage.id)) throw new Error(`Invalid or duplicate ID/book in entry ${index + 1}`);
     ids.add(passage.id);
     assertPoint(passage.start, `${passage.id}.start`);
     assertPoint(passage.end, `${passage.id}.end`);
     if (passage.start.chapter > passage.end.chapter || (passage.start.chapter === passage.end.chapter && passage.start.verse > passage.end.verse)) {
-      throw new Error(`Rango invertido: ${passage.id}`);
+      throw new Error(`Reversed passage range: ${passage.id}`);
     }
     return passage;
   });
@@ -131,11 +131,11 @@ export async function readIndex(version: Version): Promise<BibleIndex> {
 
 export function getBook(index: BibleIndex, passage: Passage): { book: Book; number: number } {
   const number = index.books.findIndex(book => book.id === passage.book) + 1;
-  if (!number) throw new Error(`Libro ${passage.book} no disponible en esta versión`);
+  if (!number) throw new Error(`Book ${passage.book} is unavailable in this version`);
   const book = index.books[number - 1];
   for (const point of [passage.start, passage.end]) {
     if (point.chapter > book.chapters || point.verse > (book.versesPerChapter[point.chapter - 1] ?? 0)) {
-      throw new Error(`Versículo fuera de rango: ${reference(book.name, passage)}`);
+      throw new Error(`Verse out of range: ${reference(book.name, passage)}`);
     }
   }
   return { book, number };
@@ -146,7 +146,7 @@ async function versesForChapter(version: Version, book: Book, chapter: number): 
   const file = path.join(root, book.id, `${chapter}.json`);
   const parsed: unknown = JSON.parse(await fs.readFile(file, "utf8"));
   if (!Array.isArray(parsed) || !parsed.every(item => item && Number.isSafeInteger(item.verse) && typeof item.text === "string")) {
-    throw new Error(`Formato de versículos inválido: ${file}`);
+    throw new Error(`Invalid verse format: ${file}`);
   }
   return parsed as Verse[];
 }
@@ -159,7 +159,7 @@ async function findChapterAudio(dir: string, book: Book, number: number, chapter
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
   }
-  throw new Error(`Falta el audio del capítulo ${chapter}: ${path.join(dir, prefix)}.{mp3,m4a}`);
+  throw new Error(`Missing audio for chapter ${chapter}: ${path.join(dir, prefix)}.{mp3,m4a}`);
 }
 
 async function chapterAudio(version: Version, book: Book, number: number, chapter: number): Promise<string> {
@@ -187,14 +187,14 @@ export async function prepareShort(version: Version, passage: Passage): Promise<
     const last = chapter === passage.end.chapter ? passage.end.verse : book.versesPerChapter[chapter - 1];
     const all = await versesForChapter(version, book, chapter);
     const selected = all.filter(v => v.verse >= first && v.verse <= last);
-    if (selected.length !== last - first + 1 || selected.some((v, i) => v.verse !== first + i)) throw new Error(`Faltan versículos de ${book.name} ${chapter}:${first}-${last}`);
+    if (selected.length !== last - first + 1 || selected.some((v, i) => v.verse !== first + i)) throw new Error(`Missing verses from ${book.name} ${chapter}:${first}-${last}`);
     lines.push(...selected.map(v => `${chapter}:${v.verse} ${v.text}`));
     const source = await chapterAudio(version, book, number, chapter);
     audios.push({ chapter, source, first, last, verses: all });
   }
 
   const destination = path.join(config.outputDir, version.id, passage.id);
-  try { await fs.access(destination); throw new Error(`La salida ya existe: ${destination}`); } catch (error) {
+  try { await fs.access(destination); throw new Error(`Output already exists: ${destination}`); } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   await fs.mkdir(path.dirname(destination), { recursive: true });
@@ -286,7 +286,7 @@ export async function refreshMetadataTimings(version: Version, passage: Passage)
       const expectedClippedDuration = bounds.clipEnd - bounds.clipStart;
       const isClipped = Math.abs(pcmDuration - expectedClippedDuration) < 1;
       const isFull = Math.abs(pcmDuration - sourceDuration) < 1;
-      if (!isClipped && !isFull) throw new Error(`Duración ${format} inesperada en ${pcmPath}; vuelve a generar los audios`);
+      if (!isClipped && !isFull) throw new Error(`Unexpected ${format} duration in ${pcmPath}; regenerate the audio files`);
       if (isFull && !isClipped) hasFullLengthPcm = true;
       const clipStart = isClipped ? bounds.clipStart : 0;
       const clipEnd = isClipped ? bounds.clipEnd : sourceDuration;
@@ -302,7 +302,7 @@ export async function refreshMetadataTimings(version: Version, passage: Passage)
   const previousStart = lines.findIndex(line => line.startsWith("Tiempos estimados por archivo"));
   if (previousStart !== -1) {
     const previousEnd = lines.findIndex((line, index) => index > previousStart && line.startsWith("Cálculo:"));
-    if (previousEnd === -1) throw new Error(`Sección de tiempos incompleta: ${metadataPath}`);
+    if (previousEnd === -1) throw new Error(`Incomplete timings section: ${metadataPath}`);
     lines.splice(previousStart, previousEnd - previousStart + 1);
   }
   const previousWav = lines.findIndex(line => line.startsWith(wavHeader) || line.startsWith(legacyWavHeader));
@@ -377,7 +377,7 @@ const statusPath = () => path.join(config.outputDir, "status.json");
 export async function readStatus(): Promise<Status> {
   try {
     const parsed: unknown = JSON.parse(await fs.readFile(statusPath(), "utf8"));
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("status.json inválido");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid status.json");
     return parsed as Status;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
@@ -387,7 +387,7 @@ export async function readStatus(): Promise<Status> {
 
 export async function markUsed(passage: Passage, version: Version, output: string): Promise<void> {
   const status = await readStatus();
-  if (status[passage.id]) throw new Error(`El rango ${passage.id} ya está marcado como utilizado`);
+  if (status[passage.id]) throw new Error(`Passage ${passage.id} is already marked as used`);
   status[passage.id] = { usedAt: new Date().toISOString(), locale: version.locale, version: version.id, output };
   await fs.mkdir(config.outputDir, { recursive: true });
   const temp = path.join(config.outputDir, `.status-${process.pid}-${Date.now()}.json`);
