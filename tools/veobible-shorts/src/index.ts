@@ -78,7 +78,7 @@ async function main(): Promise<void> {
       }
       if (action === "voice") {
         const book = getBook(index, passage).book;
-        await generateVoice(existingOutput, voiceContext(selectedVersion, passage, book.name, index.metadata.name, reference(book.name, passage)), true);
+        await generateVoice(existingOutput, voiceContext(selectedVersion, passage, book.name, index.metadata.name), true);
         console.log(chalk.green(`✔ Voz de intro y outro generada en ${existingOutput}`));
         continue;
       }

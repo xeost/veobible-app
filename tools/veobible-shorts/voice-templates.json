@@ -1,14 +1,14 @@
 {
   "es": {
-    "intro": "Hoy escucharemos {reference}, en la versión {version}.",
-    "outro": "Este fue {reference}. Si este pasaje te inspiró, compártelo y sigue a VeoBible para escuchar más."
+    "intro": "Esta es tu dosis diaria de la palabra de Dios. Hoy escucharemos {reference}.",
+    "outro": "Acabas de escuchar {reference}. Si este pasaje te inspiró, compártelo y síguenos para escuchar más."
   },
   "en": {
-    "intro": "Today we will hear {reference}, from the {version}.",
-    "outro": "That was {reference}. If this passage inspired you, share it and follow VeoBible for more."
+    "intro": "This is your daily dose of the word of God. Today we will hear {reference}.",
+    "outro": "You just heard {reference}. If this passage inspired you, share it and follow us to hear more."
   },
   "pt": {
-    "intro": "Hoje vamos ouvir {reference}, na versão {version}.",
-    "outro": "Essa foi a passagem de {reference}. Se ela inspirou você, compartilhe e siga a VeoBible para ouvir mais."
+    "intro": "Esta é a sua dose diária da palavra de Deus. Hoje vamos ouvir {reference}.",
+    "outro": "Você acabou de ouvir {reference}. Se esta passagem inspirou você, compartilhe e siga-nos para ouvir mais."
   }
 }

@@ -59,6 +59,8 @@ Al preparar un rango, la CLI también genera la intro y el outro: `intro.txt`, `
 
 Las plantillas de español, inglés y portugués se editan en [voice-templates.json](voice-templates.json), dentro de esta herramienta. Admiten `{reference}`, `{version}`, `{book}`, `{start}`, `{end}` y `{passage_id}`. Los valores provienen del rango y la versión elegidos; `veobible-shorts` entrega los guiones completos a [VeoBible Voice](../veobible-voice/README.md), que solo sintetiza el texto recibido.
 
+En las locuciones, `{reference}` escribe los números con letras (por ejemplo, «Juan capítulo tres versículos catorce al diecinueve»). También convierte los números de libros como «1 Juan» a «Primera de Juan». `metadata.txt` conserva la referencia escrita «Juan 3:14-19». Después de editar las plantillas, usa **Generar voz de intro y outro con Chatterbox** en una salida existente para actualizar sus audios y guiones.
+
 Configura `VEOBIBLE_SHORTS_TTS_PYTHON` con el ejecutable del entorno Python que tenga instalado `chatterbox-tts`. La plantilla `.env.example` apunta al entorno del experimento local. Puedes seleccionar `latam` solo para español con `VEOBIBLE_SHORTS_TTS_MODEL_ES` o usar otro JSON de plantillas con `VEOBIBLE_SHORTS_TTS_TEMPLATES`. Los WAV y AIFF finales son PCM de 24 bits a 48 kHz.
 
 ### Muestras de voz por idioma

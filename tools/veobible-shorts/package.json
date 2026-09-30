@@ -6,7 +6,8 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "build": "tsc",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test src/voice.test.ts"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.5.2",

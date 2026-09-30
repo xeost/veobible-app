@@ -246,7 +246,7 @@ export async function prepareShort(version: Version, passage: Passage): Promise<
       `Texto: versiculos.txt`,
       ""
     ].join("\n"), "utf8");
-    await generateVoice(temp, voiceContext(version, passage, book.name, index.metadata.name, label));
+    await generateVoice(temp, voiceContext(version, passage, book.name, index.metadata.name));
     await fs.rename(temp, destination);
   } catch (error) {
     await fs.rm(temp, { recursive: true, force: true });
