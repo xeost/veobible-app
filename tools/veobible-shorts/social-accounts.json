@@ -1,0 +1,20 @@
+{
+  "es": {
+    "youtube": "@veobible-es",
+    "x": "@ejemplo-es-x",
+    "instagram": "@ejemplo-es-instagram",
+    "tiktok": "@ejemplo-es-tiktok"
+  },
+  "en": {
+    "youtube": "@veobible",
+    "x": "@example-en-x",
+    "instagram": "@example-en-instagram",
+    "tiktok": "@example-en-tiktok"
+  },
+  "pt": {
+    "youtube": "@veobible-pt",
+    "x": "@exemplo-pt-x",
+    "instagram": "@exemplo-pt-instagram",
+    "tiktok": "@exemplo-pt-tiktok"
+  }
+}

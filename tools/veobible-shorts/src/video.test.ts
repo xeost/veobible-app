@@ -7,8 +7,10 @@ import { execFileSync } from "node:child_process";
 import { backgroundVideos, renderShortVideo, wrapIntroTitle } from "./video.js";
 import { config } from "./config.js";
 import { canReuseVoiceTracks, introTitle, prepareShort, refineAudioRange, type Passage } from "./shorts.js";
+import { outroTitle } from "./social.js";
 
 const testTitle = { title: "Daily word", reference: "John 3:14-19", version: "Test Bible" };
+const testOutro = { title: "Follow us", highlight: "to hear more", channel: "VeoBible in English", social: [{ platform: "YouTube", handle: "@veobible" }, { platform: "X", handle: "@example" }], website: "veobible.com" };
 
 test("intro titles use the selected language, reference, and version", () => {
   assert.deepEqual(introTitle("es", "Juan 3:14-19", "Reina Valera 1909"), {
@@ -17,6 +19,18 @@ test("intro titles use the selected language, reference, and version", () => {
   assert.match(introTitle("en", "John 3:14-19", "King James Version").title, /daily dose/);
   assert.match(introTitle("pt", "João 3:14-19", "Almeida Revista e Corrigida").title, /dose diária/);
   assert.equal(wrapIntroTitle("Esta es tu dosis diaria de la palabra de Dios"), "Esta es tu dosis diaria\nde la palabra de Dios");
+});
+
+test("outro uses localized titles and configured accounts", async () => {
+  const es = await outroTitle("es");
+  const en = await outroTitle("en");
+  const pt = await outroTitle("pt");
+  assert.equal(`${es.title} ${es.highlight}`, "Síguenos para escuchar más");
+  assert.equal(en.channel, "VeoBible in English");
+  assert.equal(pt.channel, "VeoBible em Português");
+  assert.deepEqual(es.social.map(row => row.platform), ["YouTube", "X", "Instagram", "TikTok"]);
+  assert.equal(es.social[0].handle, "@veobible-es");
+  assert.equal(en.website, "veobible.com");
 });
 
 function audioFrequency(file: string, start: number, length = 0.2): number {
@@ -80,11 +94,11 @@ test("creates a complete video with a looped boomerang and the passage audio", {
     assert.deepEqual(await backgroundVideos(videos), [path.join(videos, "bg-0.mp4")]);
     const reading = path.join(root, "reading.wav");
     execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=880:duration=1", "-y", reading]);
-    const result = await renderShortVideo(output, [{ file: reading, start: 0.1, end: 0.5 }, { file: reading, start: 0.5, end: 0.9 }], videos, testTitle);
+    const result = await renderShortVideo(output, [{ file: reading, start: 0.1, end: 0.5 }, { file: reading, start: 0.5, end: 0.9 }], videos, testTitle, testOutro);
     assert.equal(result.background, "bg-0.mp4");
     assert.equal(result.readingDuration, 0.8);
     const probe = JSON.parse(execFileSync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration:stream=codec_type,width,height", "-of", "json", output], { encoding: "utf8" })) as { format: { duration: string }; streams: Array<{ codec_type: string; width?: number; height?: number }> };
-    assert.ok(Math.abs(Number(probe.format.duration) - 4.8) < 0.15);
+    assert.ok(Math.abs(Number(probe.format.duration) - 5.8) < 0.15, `Rendered duration: ${probe.format.duration} s`);
     assert.ok(probe.streams.some(stream => stream.codec_type === "video" && stream.width === 160 && stream.height === 284));
     assert.ok(probe.streams.some(stream => stream.codec_type === "audio"));
     const titlePanel = frameRgb(output, 0.5, 14, 142);
@@ -100,6 +114,8 @@ test("creates a complete video with a looped boomerang and the passage audio", {
     assert.ok(audioPeak(output, 1.7) < 0.02);
     assert.ok(Math.abs(audioFrequency(output, 2.1) - 880) < 35);
     assert.ok(audioPeak(output, 3) < 0.02);
+    assert.ok(audioPeak(output, 3.8) < 0.02);
+    assert.ok(Math.abs(audioFrequency(output, 4.45) - 440) < 35);
     assert.deepEqual((await fs.readdir(root)).sort(), ["reading.wav", "short.mp4", "videos"]);
     const introVoice = path.join(root, "intro.wav");
     const outroVoice = path.join(root, "outro.wav");
@@ -107,13 +123,14 @@ test("creates a complete video with a looped boomerang and the passage audio", {
     execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=660:duration=0.8", "-y", outroVoice]);
     for (const mode of ["voice", "mix"] as const) {
       const voicedOutput = path.join(root, `${mode}.mp4`);
-      const voiced = await renderShortVideo(voicedOutput, [{ file: reading, start: 0.1, end: 0.5 }], videos, testTitle, { intro: introVoice, outro: outroVoice, mode });
-      assert.ok(Math.abs(voiced.duration - 5) < 0.01);
+      const voiced = await renderShortVideo(voicedOutput, [{ file: reading, start: 0.1, end: 0.5 }], videos, testTitle, testOutro, { intro: introVoice, outro: outroVoice, mode });
+      assert.ok(Math.abs(voiced.duration - 6) < 0.01);
       const actual = Number(execFileSync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", voicedOutput], { encoding: "utf8" }).trim());
-      assert.ok(Math.abs(actual - 5) < 0.25, `Rendered duration: ${actual} s`);
+      assert.ok(Math.abs(actual - 6) < 0.25, `Rendered duration: ${actual} s`);
       if (mode === "voice") {
         assert.ok(Math.abs(audioFrequency(voicedOutput, 0.1) - 660) < 35);
-        assert.ok(Math.abs(audioFrequency(voicedOutput, 3.55) - 660) < 35);
+        assert.ok(audioPeak(voicedOutput, 3.55) < 0.02);
+        assert.ok(Math.abs(audioFrequency(voicedOutput, 4.55) - 660) < 35);
       }
     }
     const silentVideos = path.join(root, "silent-videos");
@@ -123,7 +140,7 @@ test("creates a complete video with a looped boomerang and the passage audio", {
       execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-i", path.join(videos, name), "-an", "-c:v", "copy", "-y", path.join(silentVideos, name)]);
     }
     const silentOutput = path.join(root, "silent.mp4");
-    await renderShortVideo(silentOutput, [{ file: reading, start: 0.1, end: 0.5 }], silentVideos, testTitle, { intro: introVoice, outro: outroVoice, mode: "voice" });
+    await renderShortVideo(silentOutput, [{ file: reading, start: 0.1, end: 0.5 }], silentVideos, testTitle, testOutro, { intro: introVoice, outro: outroVoice, mode: "voice" });
     assert.ok(Math.abs(audioFrequency(silentOutput, 0.1) - 660) < 35);
   } finally {
     await fs.rm(root, { recursive: true, force: true });

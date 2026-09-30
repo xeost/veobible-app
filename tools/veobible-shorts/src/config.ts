@@ -24,6 +24,7 @@ export const config = {
   workingDir,
   outputDir: process.env.VEOBIBLE_SHORTS_OUTPUT_DIR ?? path.join(workingDir, "outputs"),
   videosDir: process.env.VEOBIBLE_SHORTS_VIDEOS_DIR ?? path.join(workingDir, "material", "videos"),
+  socialAccounts: process.env.VEOBIBLE_SHORTS_SOCIAL_ACCOUNTS ?? path.join(toolRoot, "social-accounts.json"),
   ffmpegBin,
   ffprobeBin: ffmpegBin === "ffmpeg" ? "ffprobe" : path.join(path.dirname(ffmpegBin), "ffprobe"),
   clipAudioMode: process.env.VEOBIBLE_SHORTS_CLIP_AUDIO_MODE ?? "voice",

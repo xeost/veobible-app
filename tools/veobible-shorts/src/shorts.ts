@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { config, type Version } from "./config.js";
 import { generateVoice, voiceContext } from "./voice.js";
 import { renderShortVideo, type AudioSection, type IntroTitle, type VoiceTracks } from "./video.js";
+import { outroTitle } from "./social.js";
 
 export interface Point { chapter: number; verse: number }
 export interface Passage { id: string; book: string; start: Point; end: Point }
@@ -292,7 +293,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       }
       voices = { intro: path.join(temp, "intro.wav"), outro: path.join(temp, "outro.wav"), mode: config.clipAudioMode as "voice" | "mix" };
     }
-    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, introTitle(version.locale, label, index.metadata.name), voices);
+    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, introTitle(version.locale, label, index.metadata.name), await outroTitle(version.locale), voices);
     await fs.writeFile(path.join(temp, "metadata.txt"), [
       `Referencia: ${label}`,
       `ID del pasaje: ${passage.id}`,
