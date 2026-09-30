@@ -5,13 +5,21 @@ import { select, confirm } from "@inquirer/prompts";
 import boxen from "boxen";
 import chalk from "chalk";
 import { config } from "./config.js";
-import { getBook, loadCatalog, markUsed, prepareShort, readIndex, readStatus, reference } from "./shorts.js";
+import { generateAudioFormatsForExisting, getBook, loadCatalog, markUsed, prepareShort, readIndex, readStatus, reference, refreshMetadataTimings } from "./shorts.js";
 
 const languages = [
   { name: "Español", value: "es" },
   { name: "English", value: "en" },
   { name: "Português", value: "pt" }
 ] as const;
+
+function startAtTopPreservingHistory(): void {
+  if (!process.stdout.isTTY) return;
+  const rows = process.stdout.rows || 24;
+  // Scroll the current viewport into the terminal history, then move to its
+  // first row. Clearing the screen here would discard visible prior output.
+  process.stdout.write(`\x1b[${rows};1H${"\n".repeat(rows)}\x1b[H`);
+}
 
 function banner(): void {
   console.log(boxen(`${chalk.hex("#C4B5FD").bold("Short Video Production Assistant")}\n${chalk.hex("#6D28D9")("━".repeat(32))}\n${chalk.hex("#34D399")("veobible.com")}${chalk.gray("  ·  Professional Tools")}`, {
@@ -21,6 +29,7 @@ function banner(): void {
 }
 
 async function main(): Promise<void> {
+  startAtTopPreservingHistory();
   banner();
   const catalog = await loadCatalog();
   while (true) {
@@ -52,12 +61,24 @@ async function main(): Promise<void> {
       const isPrepared = await fs.access(existingOutput).then(() => true, () => false);
       const action = await select({ message: reference(getBook(index, passage).book.name, passage), choices: [
         ...(!isPrepared ? [{ name: "Preparar audios, texto y metadata", value: "prepare" }] : []),
+        ...(isPrepared ? [{ name: "Generar WAV y AIFF de 48 kHz", value: "audio" }] : []),
+        ...(isPrepared ? [{ name: "Actualizar tiempos en metadata", value: "timings" }] : []),
         ...(isPrepared && !status[passage.id] ? [{ name: "Marcar como utilizado", value: "mark" }] : []),
         ...(isPrepared ? [{ name: `Ver salida: ${existingOutput}`, value: "show" }] : []),
         { name: "Volver", value: "back" }
       ] });
       if (action === "back") continue;
       if (action === "show") { console.log(existingOutput); continue; }
+      if (action === "audio") {
+        const output = await generateAudioFormatsForExisting(selectedVersion, passage);
+        console.log(chalk.green(`✔ WAV y AIFF de 48 kHz generados en ${output}`));
+        continue;
+      }
+      if (action === "timings") {
+        const metadataPath = await refreshMetadataTimings(selectedVersion, passage);
+        console.log(chalk.green(`✔ Tiempos actualizados en ${metadataPath}`));
+        continue;
+      }
       if (action === "mark") {
         if (await confirm({ message: "¿Marcar este rango como utilizado?", default: false })) {
           await markUsed(passage, selectedVersion, existingOutput);
@@ -67,7 +88,7 @@ async function main(): Promise<void> {
       }
       const output = await prepareShort(selectedVersion, passage);
       console.log(chalk.green(`✔ Archivos preparados en ${output}`));
-      console.log(chalk.yellow("  Los audios contienen capítulos completos; el TXT contiene solo el rango elegido."));
+      console.log(chalk.yellow("  Los originales contienen capítulos completos; WAV y AIFF contienen el rango con hasta 5 s de margen."));
       if (!status[passage.id] && await confirm({ message: "¿Marcar este rango como utilizado ahora?", default: false })) {
         await markUsed(passage, selectedVersion, output);
         console.log(chalk.green("✔ Rango marcado como utilizado en status.json"));
