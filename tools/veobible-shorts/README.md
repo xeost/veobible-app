@@ -4,7 +4,25 @@ Asistente interactivo para crear vídeos completos de pasajes bíblicos populare
 
 ## Instalación y ejecución
 
-Requiere Node.js 18+, pnpm, `ffmpeg` y `ffprobe` (incluidos en FFmpeg) disponibles en `PATH`.
+Requiere Node.js 18+, pnpm, `ffmpeg` y `ffprobe` (incluidos en FFmpeg) disponibles en `PATH`. El título de la intro se dibuja con el filtro `drawtext`: la compilación de FFmpeg debe incluir `libfreetype`, `libharfbuzz` y `libfontconfig`.
+
+En macOS, instala [ffmpeg-full de Homebrew](https://formulae.brew.sh/formula/ffmpeg-full). Es una fórmula independiente de `ffmpeg` y no se añade automáticamente al `PATH`. La CLI detecta su ejecutable en los prefijos habituales de Homebrew, por lo que no necesitas reemplazar el FFmpeg del sistema:
+
+```bash
+brew install ffmpeg-full
+"$(brew --prefix ffmpeg-full)/bin/ffmpeg" -hide_banner -filters | grep -E 'drawtext|drawbox|xfade|acrossfade|silencedetect'
+```
+
+Si instalaste `ffmpeg-full` en otro prefijo, configura `VEOBIBLE_SHORTS_FFMPEG` en `.env` con la ruta completa a su ejecutable; `ffprobe` se buscará en el mismo directorio. Si prefieres usarlo también desde la terminal, añade `export PATH="$(brew --prefix ffmpeg-full)/bin:$PATH"` a tu configuración de shell (por ejemplo, `~/.zshrc`). La CLI informa qué filtros faltan antes de renderizar.
+
+Filtros usados por el montaje:
+
+| Función | Filtros |
+| --- | --- |
+| Título y composición | `drawtext`, `drawbox`, `vignette`, `color`, `fade`, `overlay`, `format`, `fps`, `scale`, `crop` |
+| Boomerang y duración | `split`, `reverse`, `concat`, `trim`, `tpad`, `setpts`, `settb` |
+| Audio y transiciones | `atrim`, `asetpts`, `aresample`, `aformat`, `anull`, `adelay`, `apad`, `amix`, `volume`, `acrossfade`, `xfade` |
+| Ajuste del corte | `silencedetect` |
 
 ```bash
 cd tools/veobible-shorts
@@ -26,6 +44,7 @@ Copia `.env.example` a `.env` dentro de `tools/veobible-shorts` y ajusta las rut
 | `VEOBIBLE_SHORTS_WORKING_DIR` | `/Users/fabian/Documents/veobible-shorts` |
 | `VEOBIBLE_SHORTS_OUTPUT_DIR` | `<workingDir>/outputs` |
 | `VEOBIBLE_SHORTS_VIDEOS_DIR` | `<workingDir>/material/videos` |
+| `VEOBIBLE_SHORTS_FFMPEG` | `ffmpeg-full` de Homebrew en macOS si está instalado; en otro caso, `ffmpeg` del `PATH` |
 | `VEOBIBLE_SHORTS_CLIP_AUDIO_MODE` | `voice`; también admite `mix` y `video` |
 | `VEOBIBLE_SHORTS_AUDIO_DIR` | `/Users/fabian/Documents/audiobibles/sources/audios` |
 | `VEOBIBLE_SHORTS_BIBLE_DATA_DIR` | `<raíz del repositorio>/frontend/public/bible-data` |
@@ -57,6 +76,8 @@ Los archivos se guardan en `<outputDir>/<versionId>/<id>/`. `status.json` se gua
 ## Montaje del vídeo
 
 Coloca en `<workingDir>/material/videos/` los clips `0-intro.mp4`, `0-outro.mp4` y uno o más fondos llamados `bg-0.mp4`, `bg-1.mp4`, etc. Si usas otra carpeta, configúrala con `VEOBIBLE_SHORTS_VIDEOS_DIR`. La CLI elige un fondo al azar, crea una secuencia que lo reproduce hacia adelante y en reversa, y la repite durante la lectura. `ffmpeg` monta intro, lectura y outro en `short.mp4` con un fundido cruzado de imagen y audio de 0,5 segundos en cada unión. El audio del fondo elegido no se utiliza.
+
+La intro muestra un título localizado en español, inglés o portugués, seguido de la referencia del pasaje y el nombre de la versión bíblica seleccionada. FFmpeg dibuja una composición editorial sobre `0-intro.mp4`: viñeta suave, panel oscuro con esquinas doradas, emblema, título en dos estilos tipográficos y referencia destacada. Se usan las fuentes Georgia y Avenir cuando están disponibles; `fontconfig` elige una alternativa si faltan. El panel aparece suavemente; las líneas del título, la referencia y la versión entran de forma escalonada con un leve desplazamiento vertical. Antes de la transición hacia la lectura desaparecen en orden inverso. Los tiempos se ajustan a la duración de la intro.
 
 Los audios bíblicos originales siguen divididos por capítulo. La CLI estima el inicio y el final del pasaje según la proporción de palabras de cada versículo y usa `ffmpeg` para ajustar cada límite a una pausa cercana cuando la detecta. Después concatena los fragmentos necesarios si el pasaje cruza capítulos. El segmento de lectura tiene un segundo de silencio antes y después del audio bíblico; 0,5 segundos de cada margen se solapan con el fundido correspondiente. Las pausas no identifican por sí solas los versículos, así que **comprueba el inicio y el final escuchando el vídeo generado**. `metadata.txt` guarda los límites antes y después de los ajustes y el nombre del fondo seleccionado.
 

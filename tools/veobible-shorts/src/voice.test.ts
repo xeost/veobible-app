@@ -159,7 +159,7 @@ test("ElevenLabs usa la voz del idioma y genera WAV y guiones sin usar Chatterbo
   };
   try {
     const mp3 = path.join(output, "sample.mp3");
-    execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.1", "-y", mp3]);
+    execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.1", "-y", mp3]);
     const audio = await fs.readFile(mp3);
     Object.assign(config, { ttsProvider: "elevenlabs", elevenLabsApiKey: "test-key" });
     Object.assign(config.elevenLabsVoices, { es: "spanish-voice" });

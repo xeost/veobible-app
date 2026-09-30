@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import { config as loadEnv } from "dotenv";
 
 const toolRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -13,12 +14,18 @@ const workingDir = process.env.VEOBIBLE_SHORTS_WORKING_DIR ?? "/Users/fabian/Doc
 const sharedVoicePrompt = process.env.VEOBIBLE_SHORTS_TTS_VOICE_PROMPT ?? "";
 const sharedTtsModel = process.env.VEOBIBLE_SHORTS_TTS_MODEL ?? "multilingual";
 const voiceDir = path.join(workingDir, "material", "voices");
+const homebrewFull = process.platform === "darwin"
+  ? ["/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg", "/usr/local/opt/ffmpeg-full/bin/ffmpeg"].find(existsSync)
+  : undefined;
+const ffmpegBin = process.env.VEOBIBLE_SHORTS_FFMPEG || homebrewFull || "ffmpeg";
 
 /** Paths can be set in .env, overridden by process environment variables. */
 export const config = {
   workingDir,
   outputDir: process.env.VEOBIBLE_SHORTS_OUTPUT_DIR ?? path.join(workingDir, "outputs"),
   videosDir: process.env.VEOBIBLE_SHORTS_VIDEOS_DIR ?? path.join(workingDir, "material", "videos"),
+  ffmpegBin,
+  ffprobeBin: ffmpegBin === "ffmpeg" ? "ffprobe" : path.join(path.dirname(ffmpegBin), "ffprobe"),
   clipAudioMode: process.env.VEOBIBLE_SHORTS_CLIP_AUDIO_MODE ?? "voice",
   audioDir: process.env.VEOBIBLE_SHORTS_AUDIO_DIR ?? "/Users/fabian/Documents/audiobibles/sources/audios",
   bibleDataDir: process.env.VEOBIBLE_SHORTS_BIBLE_DATA_DIR ?? path.join(projectRoot, "frontend/public/bible-data"),

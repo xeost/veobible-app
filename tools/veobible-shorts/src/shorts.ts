@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { config, type Version } from "./config.js";
 import { generateVoice, voiceContext } from "./voice.js";
-import { renderShortVideo, type AudioSection, type VoiceTracks } from "./video.js";
+import { renderShortVideo, type AudioSection, type IntroTitle, type VoiceTracks } from "./video.js";
 
 export interface Point { chapter: number; verse: number }
 export interface Passage { id: string; book: string; start: Point; end: Point }
@@ -33,7 +33,7 @@ function wordCount(text: string): number {
 async function audioDurationSeconds(file: string): Promise<number> {
   let stdout: string;
   try {
-    ({ stdout } = await execFileAsync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file]));
+    ({ stdout } = await execFileAsync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file]));
   } catch (error) {
     throw new Error(`Could not get the duration of ${file} with ffprobe: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -55,7 +55,7 @@ export async function refineAudioRange(source: string, estimate: { start: number
   if (estimate.start === 0 && estimate.end === duration) return estimate;
   let stderr: string;
   try {
-    ({ stderr } = await execFileAsync("ffmpeg", ["-hide_banner", "-nostats", "-nostdin", "-i", source, "-vn", "-af", "silencedetect=noise=-35dB:d=0.18", "-f", "null", "-"], { maxBuffer: 4 * 1024 * 1024 }));
+    ({ stderr } = await execFileAsync(config.ffmpegBin, ["-hide_banner", "-nostats", "-nostdin", "-i", source, "-vn", "-af", "silencedetect=noise=-35dB:d=0.18", "-f", "null", "-"], { maxBuffer: 4 * 1024 * 1024 }));
   } catch {
     console.log(`Could not analyze pauses in ${path.basename(source)}; using word-based timing.`);
     return estimate;
@@ -133,6 +133,15 @@ export async function loadCatalog(): Promise<Passage[]> {
 export function reference(bookName: string, passage: Passage): string {
   const a = passage.start, b = passage.end;
   return `${bookName} ${a.chapter}:${a.verse}${a.chapter === b.chapter && a.verse === b.verse ? "" : a.chapter === b.chapter ? `-${b.verse}` : `-${b.chapter}:${b.verse}`}`;
+}
+
+export function introTitle(locale: Version["locale"], passageReference: string, versionName: string): IntroTitle {
+  const titles: Record<Version["locale"], string> = {
+    es: "Esta es tu dosis diaria de la palabra de Dios",
+    en: "This is your daily dose of the word of God",
+    pt: "Esta é a sua dose diária da palavra de Deus"
+  };
+  return { title: titles[locale], reference: passageReference, version: versionName };
 }
 
 export async function readIndex(version: Version): Promise<BibleIndex> {
@@ -283,7 +292,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       }
       voices = { intro: path.join(temp, "intro.wav"), outro: path.join(temp, "outro.wav"), mode: config.clipAudioMode as "voice" | "mix" };
     }
-    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, voices);
+    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, introTitle(version.locale, label, index.metadata.name), voices);
     await fs.writeFile(path.join(temp, "metadata.txt"), [
       `Referencia: ${label}`,
       `ID del pasaje: ${passage.id}`,

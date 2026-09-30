@@ -139,7 +139,7 @@ export async function resolveVoicePrompts(locale: VoiceContext["locale"]): Promi
 
 async function runFfmpeg(source: string, target: string, codec: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const child = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", source, "-map", "0:a:0", "-vn", "-c:a", codec, "-ar", "48000", target], { stdio: ["ignore", "ignore", "pipe"] });
+    const child = spawn(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", source, "-map", "0:a:0", "-vn", "-c:a", codec, "-ar", "48000", target], { stdio: ["ignore", "ignore", "pipe"] });
     let errors = "";
     child.stderr.on("data", (chunk: Buffer) => { errors += chunk.toString(); });
     child.once("error", reject);
