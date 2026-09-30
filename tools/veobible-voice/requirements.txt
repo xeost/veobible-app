@@ -1,0 +1,5 @@
+setuptools<70
+chatterbox-tts>=0.1.7
+torchaudio
+huggingface-hub
+safetensors

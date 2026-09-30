@@ -6,6 +6,7 @@ import boxen from "boxen";
 import chalk from "chalk";
 import { config } from "./config.js";
 import { generateAudioFormatsForExisting, getBook, loadCatalog, markUsed, prepareShort, readIndex, readStatus, reference, refreshMetadataTimings } from "./shorts.js";
+import { generateVoice, voiceContext } from "./voice.js";
 
 const languages = [
   { name: "Español", value: "es" },
@@ -60,8 +61,9 @@ async function main(): Promise<void> {
       const existingOutput = path.join(config.outputDir, selectedVersion.id, passage.id);
       const isPrepared = await fs.access(existingOutput).then(() => true, () => false);
       const action = await select({ message: reference(getBook(index, passage).book.name, passage), choices: [
-        ...(!isPrepared ? [{ name: "Preparar audios, texto y metadata", value: "prepare" }] : []),
+        ...(!isPrepared ? [{ name: "Preparar audios, voz, texto y metadata", value: "prepare" }] : []),
         ...(isPrepared ? [{ name: "Generar WAV y AIFF de 48 kHz", value: "audio" }] : []),
+        ...(isPrepared ? [{ name: "Generar voz de intro y outro con Chatterbox", value: "voice" }] : []),
         ...(isPrepared ? [{ name: "Actualizar tiempos en metadata", value: "timings" }] : []),
         ...(isPrepared && !status[passage.id] ? [{ name: "Marcar como utilizado", value: "mark" }] : []),
         ...(isPrepared ? [{ name: `Ver salida: ${existingOutput}`, value: "show" }] : []),
@@ -72,6 +74,12 @@ async function main(): Promise<void> {
       if (action === "audio") {
         const output = await generateAudioFormatsForExisting(selectedVersion, passage);
         console.log(chalk.green(`✔ WAV y AIFF de 48 kHz generados en ${output}`));
+        continue;
+      }
+      if (action === "voice") {
+        const book = getBook(index, passage).book;
+        await generateVoice(existingOutput, voiceContext(selectedVersion, passage, book.name, index.metadata.name, reference(book.name, passage)), true);
+        console.log(chalk.green(`✔ Voz de intro y outro generada en ${existingOutput}`));
         continue;
       }
       if (action === "timings") {

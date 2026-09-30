@@ -1,0 +1,14 @@
+{
+  "es": {
+    "intro": "Hoy escucharemos {reference}, en la versión {version}.",
+    "outro": "Este fue {reference}. Si este pasaje te inspiró, compártelo y sigue a VeoBible para escuchar más."
+  },
+  "en": {
+    "intro": "Today we will hear {reference}, from the {version}.",
+    "outro": "That was {reference}. If this passage inspired you, share it and follow VeoBible for more."
+  },
+  "pt": {
+    "intro": "Hoje vamos ouvir {reference}, na versão {version}.",
+    "outro": "Essa foi a passagem de {reference}. Se ela inspirou você, compartilhe e siga a VeoBible para ouvir mais."
+  }
+}

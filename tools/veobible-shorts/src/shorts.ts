@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { config, type Version } from "./config.js";
+import { generateVoice, voiceContext } from "./voice.js";
 
 export interface Point { chapter: number; verse: number }
 export interface Passage { id: string; book: string; start: Point; end: Point }
@@ -237,12 +238,15 @@ export async function prepareShort(version: Version, passage: Passage): Promise<
       `Archivos de audio originales: ${filenames.join(", ")}`,
       `${wavHeader} ${wavFilenames.join(", ")}`,
       `${aiffHeader} ${aiffFilenames.join(", ")}`,
+      `Locuciones: intro.wav, intro.aiff, outro.wav, outro.aiff`,
+      `Guiones de locución: intro.txt, outro.txt`,
       timingHeader,
       ...audioLines,
       timingExplanation,
       `Texto: versiculos.txt`,
       ""
     ].join("\n"), "utf8");
+    await generateVoice(temp, voiceContext(version, passage, book.name, index.metadata.name, label));
     await fs.rename(temp, destination);
   } catch (error) {
     await fs.rm(temp, { recursive: true, force: true });

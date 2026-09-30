@@ -10,6 +10,9 @@ const projectRoot = path.resolve(toolRoot, "../..");
 loadEnv({ path: path.join(toolRoot, ".env"), quiet: true });
 
 const workingDir = process.env.VEOBIBLE_SHORTS_WORKING_DIR ?? "/Users/fabian/Documents/veobible-shorts";
+const sharedVoicePrompt = process.env.VEOBIBLE_SHORTS_TTS_VOICE_PROMPT ?? "";
+const sharedTtsModel = process.env.VEOBIBLE_SHORTS_TTS_MODEL ?? "multilingual";
+const voiceDir = path.join(workingDir, "voices");
 
 /** Paths can be set in .env, overridden by process environment variables. */
 export const config = {
@@ -17,6 +20,19 @@ export const config = {
   outputDir: process.env.VEOBIBLE_SHORTS_OUTPUT_DIR ?? path.join(workingDir, "outputs"),
   audioDir: process.env.VEOBIBLE_SHORTS_AUDIO_DIR ?? "/Users/fabian/Documents/audiobibles/sources/audios",
   bibleDataDir: process.env.VEOBIBLE_SHORTS_BIBLE_DATA_DIR ?? path.join(projectRoot, "frontend/public/bible-data"),
+  ttsPython: process.env.VEOBIBLE_SHORTS_TTS_PYTHON ?? "/Users/fabian/Documents/CodeTrying/kokoro/chatterbox/.venv/bin/python",
+  ttsModels: {
+    es: process.env.VEOBIBLE_SHORTS_TTS_MODEL_ES ?? sharedTtsModel,
+    en: process.env.VEOBIBLE_SHORTS_TTS_MODEL_EN ?? sharedTtsModel,
+    pt: process.env.VEOBIBLE_SHORTS_TTS_MODEL_PT ?? sharedTtsModel
+  },
+  ttsDevice: process.env.VEOBIBLE_SHORTS_TTS_DEVICE ?? "auto",
+  ttsVoicePrompts: {
+    es: process.env.VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_ES ?? (sharedVoicePrompt || path.join(voiceDir, "es.mp3")),
+    en: process.env.VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_EN ?? (sharedVoicePrompt || path.join(voiceDir, "en.mp3")),
+    pt: process.env.VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_PT ?? (sharedVoicePrompt || path.join(voiceDir, "pt.mp3"))
+  },
+  ttsTemplates: process.env.VEOBIBLE_SHORTS_TTS_TEMPLATES ?? path.join(toolRoot, "voice-templates.json"),
   versions: [
     { locale: "es", id: "rv1909", label: "Reina Valera 1909" },
     { locale: "es", id: "spabll", label: "Santa Biblia Libre Latinoamericana" },
