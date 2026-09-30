@@ -149,7 +149,7 @@ test("la salida de Chatterbox muestra etapas y oculta los mensajes técnicos", a
   }
 });
 
-test("ElevenLabs usa la voz del idioma y genera los seis archivos sin usar Chatterbox", async () => {
+test("ElevenLabs usa la voz del idioma y genera WAV y guiones sin usar Chatterbox", async () => {
   const output = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-elevenlabs-test-"));
   const originalFetch = globalThis.fetch;
   const original = {
@@ -174,10 +174,15 @@ test("ElevenLabs usa la voz del idioma y genera los seis archivos sin usar Chatt
     await generateVoice(output, voiceContext(version, passage, "Juan", "Reina Valera"));
     assert.equal(requests.length, 2);
     for (const part of ["intro", "outro"]) {
-      for (const extension of ["txt", "wav", "aiff"]) assert.ok((await fs.stat(path.join(output, `${part}.${extension}`))).size > 0);
+      for (const extension of ["txt", "wav"]) assert.ok((await fs.stat(path.join(output, `${part}.${extension}`))).size > 0);
+      await assert.rejects(fs.access(path.join(output, `${part}.aiff`)));
     }
     await assert.rejects(generateVoice(output, voiceContext(version, passage, "Juan", "Reina Valera")), /Audio or text files already exist/);
     assert.equal(requests.length, 2);
+    await Promise.all(["intro", "outro"].map(part => fs.writeFile(path.join(output, `${part}.aiff`), "old format")));
+    await generateVoice(output, voiceContext(version, passage, "Juan", "Reina Valera"), true);
+    assert.equal(requests.length, 4);
+    for (const part of ["intro", "outro"]) await assert.rejects(fs.access(path.join(output, `${part}.aiff`)));
   } finally {
     globalThis.fetch = originalFetch;
     Object.assign(config, { ttsProvider: original.provider, elevenLabsApiKey: original.key });

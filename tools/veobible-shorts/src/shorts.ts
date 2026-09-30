@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { config, type Version } from "./config.js";
 import { generateVoice, voiceContext } from "./voice.js";
+import { renderShortVideo, type AudioSection, type VoiceTracks } from "./video.js";
 
 export interface Point { chapter: number; verse: number }
 export interface Passage { id: string; book: string; start: Point; end: Point }
@@ -14,6 +15,7 @@ interface BibleIndex { metadata: { name: string }; books: Book[] }
 interface Verse { verse: number; text: string }
 export interface UsedRecord { usedAt: string; locale: string; version: string; output: string }
 export type Status = Record<string, UsedRecord>;
+export interface PassageOffsets { startSeconds: number; endSeconds: number }
 
 /** Keep editorial order within each group while moving used passages to the end. */
 export function orderPassagesByUsage(catalog: readonly Passage[], status: Status): Passage[] {
@@ -23,12 +25,6 @@ export function orderPassagesByUsage(catalog: readonly Passage[], status: Status
 const catalogPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../popular-verses.json");
 const safeId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const execFileAsync = promisify(execFile);
-const timingHeader = "Tiempos estimados por archivo (segundos desde el inicio del original, WAV y AIFF):";
-const timingExplanation = "Cálculo: duración medida con ffprobe y límites estimados por la proporción de palabras. Cada WAV y AIFF incluye hasta 5 segundos antes y después del pasaje, sin superar los límites del capítulo. Verificar escuchando antes de cortar.";
-const wavHeader = "Archivos WAV recortados para DaVinci Resolve:";
-const aiffHeader = "Archivos AIFF recortados para DaVinci Resolve:";
-const legacyWavHeader = "Archivos WAV para DaVinci Resolve:";
-const marginSeconds = 5;
 
 function wordCount(text: string): number {
   return text.replace(/\(H\d+-\d+\)/g, "").split(/\s+/u).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
@@ -46,45 +42,6 @@ async function audioDurationSeconds(file: string): Promise<number> {
   return duration;
 }
 
-async function convertToWav(source: string, target: string, clipStart: number, clipEnd: number): Promise<void> {
-  const clipDuration = clipEnd - clipStart;
-  const fadeDuration = Math.min(0.02, clipDuration / 4);
-  const fadeOutStart = clipDuration - fadeDuration;
-  try {
-    await execFileAsync("ffmpeg", [
-      "-hide_banner", "-loglevel", "error", "-nostdin", "-n", "-i", source,
-      "-map", "0:a:0", "-vn", "-af", [
-        `atrim=start=${clipStart.toFixed(6)}:end=${clipEnd.toFixed(6)}`,
-        "asetpts=PTS-STARTPTS",
-        `afade=t=in:st=0:d=${fadeDuration.toFixed(6)}`,
-        `afade=t=out:st=${fadeOutStart.toFixed(6)}:d=${fadeDuration.toFixed(6)}`
-      ].join(","),
-      "-c:a", "pcm_s24le", "-ar", "48000", target
-    ], { maxBuffer: 1024 * 1024 });
-  } catch (error) {
-    throw new Error(`Could not convert ${source} to WAV: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-function wavFilename(source: string): string {
-  return `${path.basename(source, path.extname(source))}.wav`;
-}
-
-function aiffFilename(source: string): string {
-  return `${path.basename(source, path.extname(source))}.aiff`;
-}
-
-async function convertWavToAiff(source: string, target: string): Promise<void> {
-  try {
-    await execFileAsync("ffmpeg", [
-      "-hide_banner", "-loglevel", "error", "-nostdin", "-n", "-i", source,
-      "-map", "0:a:0", "-vn", "-c:a", "pcm_s24be", "-ar", "48000", target
-    ], { maxBuffer: 1024 * 1024 });
-  } catch (error) {
-    throw new Error(`Could not convert ${source} to AIFF: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
 function estimateAudioRange(verses: Verse[], first: number, last: number, duration: number): { start: number; end: number } {
   const total = verses.reduce((sum, verse) => sum + wordCount(verse.text), 0);
   if (total === 0) throw new Error("No words available to estimate audio timings");
@@ -93,11 +50,58 @@ function estimateAudioRange(verses: Verse[], first: number, last: number, durati
   return { start: duration * before / total, end: duration * through / total };
 }
 
-function clipBounds(start: number, end: number, duration: number): { clipStart: number; clipEnd: number } {
-  return {
-    clipStart: Math.max(0, start - marginSeconds),
-    clipEnd: Math.min(duration, end + marginSeconds)
+/** Snap approximate verse edges to nearby pauses; FFmpeg cannot identify verse words. */
+export async function refineAudioRange(source: string, estimate: { start: number; end: number }, duration: number): Promise<{ start: number; end: number }> {
+  if (estimate.start === 0 && estimate.end === duration) return estimate;
+  let stderr: string;
+  try {
+    ({ stderr } = await execFileAsync("ffmpeg", ["-hide_banner", "-nostats", "-nostdin", "-i", source, "-vn", "-af", "silencedetect=noise=-35dB:d=0.18", "-f", "null", "-"], { maxBuffer: 4 * 1024 * 1024 }));
+  } catch {
+    console.log(`Could not analyze pauses in ${path.basename(source)}; using word-based timing.`);
+    return estimate;
+  }
+  const pauses: Array<{ start: number; end: number }> = [];
+  let pauseStart: number | undefined;
+  for (const line of stderr.split(/\r?\n/)) {
+    const start = /silence_start:\s*([\d.]+)/.exec(line);
+    if (start) pauseStart = Number(start[1]);
+    const end = /silence_end:\s*([\d.]+)/.exec(line);
+    if (end && pauseStart !== undefined) {
+      pauses.push({ start: pauseStart, end: Number(end[1]) });
+      pauseStart = undefined;
+    }
+  }
+  if (pauseStart !== undefined) pauses.push({ start: pauseStart, end: duration });
+  const nearest = (target: number, edge: "start" | "end"): number | undefined => {
+    const candidates = pauses.map(pause => edge === "start" ? Math.max(0, pause.end - 0.04) : Math.min(duration, pause.start + 0.08));
+    const close = candidates.filter(candidate => Math.abs(candidate - target) <= 3);
+    return close.sort((a, b) => Math.abs(a - target) - Math.abs(b - target))[0];
   };
+  const start = estimate.start > 0 ? nearest(estimate.start, "start") ?? estimate.start : 0;
+  const end = estimate.end < duration ? nearest(estimate.end, "end") ?? estimate.end : duration;
+  return end > start ? { start, end } : estimate;
+}
+
+async function readPassageOffsets(outputDir: string, replaceExisting: boolean): Promise<{ values: PassageOffsets; text: string }> {
+  const file = path.join(outputDir, "offsets.json");
+  let text = '{\n  "startSeconds": 0,\n  "endSeconds": 0\n}\n';
+  if (replaceExisting) {
+    try {
+      text = await fs.readFile(file, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(`Invalid JSON in ${file}`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(`Invalid offsets in ${file}`);
+  const values = parsed as PassageOffsets;
+  if (!Number.isFinite(values.startSeconds) || !Number.isFinite(values.endSeconds)) throw new Error(`Offsets must contain numeric startSeconds and endSeconds: ${file}`);
+  return { values, text };
 }
 
 function assertPoint(value: unknown, label: string): asserts value is Point {
@@ -172,16 +176,6 @@ async function chapterAudio(version: Version, book: Book, number: number, chapte
   return findChapterAudio(path.join(config.audioDir, version.id), book, number, chapter);
 }
 
-function formatAudioTiming(filename: string, chapter: number, first: number, last: number, sourceStart: number, sourceEnd: number, sourceDuration: number, pcmDuration?: number, clipStart = 0, clipEnd = sourceDuration, format = "WAV"): string {
-  const sourceTimes = `origen: ${sourceStart.toFixed(1)}–${sourceEnd.toFixed(1)} s`;
-  if (pcmDuration === undefined) {
-    return `  ${filename} | ${chapter}:${first}-${last} | ${sourceTimes} | duración original ${sourceDuration.toFixed(1)} s`;
-  }
-  const pcmStart = Math.max(0, sourceStart - clipStart);
-  const pcmEnd = Math.min(pcmDuration, sourceEnd - clipStart);
-  return `  ${filename} | ${chapter}:${first}-${last} | ${sourceTimes} | recorte del original: ${clipStart.toFixed(1)}–${clipEnd.toFixed(1)} s | en ${format}: ${pcmStart.toFixed(1)}–${pcmEnd.toFixed(1)} s | duración ${format} ${pcmDuration.toFixed(1)} s`;
-}
-
 /** Swap a fully prepared directory into place, restoring the old one if installation fails. */
 export async function installPreparedOutput(staging: string, destination: string, replaceExisting: boolean): Promise<void> {
   if (!replaceExisting) {
@@ -203,12 +197,38 @@ export async function installPreparedOutput(staging: string, destination: string
   await fs.rm(backup, { recursive: true, force: true });
 }
 
-export async function prepareShort(version: Version, passage: Passage, replaceExisting = false): Promise<string> {
+/** Existing WAV tracks and scripts can be reused without loading the voice model or calling the API. */
+export async function canReuseVoiceTracks(outputDir: string): Promise<boolean> {
+  for (const part of ["intro", "outro"] as const) {
+    const file = path.join(outputDir, `${part}.wav`);
+    try {
+      const stat = await fs.stat(file);
+      if (!stat.isFile() || stat.size === 0) return false;
+      await audioDurationSeconds(file);
+      const script = await fs.stat(path.join(outputDir, `${part}.txt`));
+      if (!script.isFile() || script.size === 0) return false;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT" || error instanceof Error && /^(Invalid audio duration:|Could not get the duration of )/.test(error.message)) return false;
+      throw error;
+    }
+  }
+  return true;
+}
+
+async function copyVoiceTracks(previousOutput: string, staging: string): Promise<void> {
+  for (const part of ["intro", "outro"] as const) {
+    await fs.copyFile(path.join(previousOutput, `${part}.wav`), path.join(staging, `${part}.wav`));
+    await fs.copyFile(path.join(previousOutput, `${part}.txt`), path.join(staging, `${part}.txt`));
+  }
+}
+
+export async function prepareShort(version: Version, passage: Passage, replaceExisting = false, reuseVoices = false): Promise<string> {
   const index = await readIndex(version);
   const { book, number } = getBook(index, passage);
   const label = reference(book.name, passage);
   const lines: string[] = [];
-  const audios: { chapter: number; source: string; first: number; last: number; verses: Verse[] }[] = [];
+  const sections: AudioSection[] = [];
+  const sourceDurations: number[] = [];
   for (let chapter = passage.start.chapter; chapter <= passage.end.chapter; chapter++) {
     const first = chapter === passage.start.chapter ? passage.start.verse : 1;
     const last = chapter === passage.end.chapter ? passage.end.verse : book.versesPerChapter[chapter - 1];
@@ -217,7 +237,11 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
     if (selected.length !== last - first + 1 || selected.some((v, i) => v.verse !== first + i)) throw new Error(`Missing verses from ${book.name} ${chapter}:${first}-${last}`);
     lines.push(...selected.map(v => `${chapter}:${v.verse} ${v.text}`));
     const source = await chapterAudio(version, book, number, chapter);
-    audios.push({ chapter, source, first, last, verses: all });
+    const sourceDuration = await audioDurationSeconds(source);
+    const estimate = estimateAudioRange(all, first, last, sourceDuration);
+    const { start, end } = await refineAudioRange(source, estimate, sourceDuration);
+    sections.push({ file: source, start, end });
+    sourceDurations.push(sourceDuration);
   }
 
   const destination = path.join(config.outputDir, version.id, passage.id);
@@ -230,35 +254,36 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
   }
   if (destinationExists && !replaceExisting) throw new Error(`Output already exists: ${destination}`);
   if (!destinationExists && replaceExisting) throw new Error(`Output no longer exists: ${destination}`);
+  const offsets = await readPassageOffsets(destination, replaceExisting);
+  const baseSections = sections.map(section => ({ ...section }));
+  sections[0].start += offsets.values.startSeconds;
+  sections[sections.length - 1].end += offsets.values.endSeconds;
+  for (let index = 0; index < sections.length; index++) {
+    const section = sections[index];
+    if (section.start < 0 || section.end > sourceDurations[index] || section.end <= section.start) {
+      throw new Error(`Offsets in ${path.join(destination, "offsets.json")} produce an invalid audio cut for ${path.basename(section.file)}`);
+    }
+  }
+  if (reuseVoices && (!replaceExisting || config.clipAudioMode === "video" || !await canReuseVoiceTracks(destination))) {
+    throw new Error(`Reusable intro/outro WAV and text files are unavailable in ${destination}`);
+  }
   await fs.mkdir(path.dirname(destination), { recursive: true });
   const temp = await fs.mkdtemp(path.join(path.dirname(destination), `.short-${passage.id}-`));
   try {
-    const filenames: string[] = [];
-    const wavFilenames: string[] = [];
-    const aiffFilenames: string[] = [];
-    const audioLines: string[] = [];
-    for (const { chapter, source, first, last, verses } of audios) {
-      const filename = `${String(number).padStart(2, "0")}-${book.id}-${chapter}${path.extname(source)}`;
-      const copiedAudio = path.join(temp, filename);
-      const wav = wavFilename(filename);
-      const wavPath = path.join(temp, wav);
-      const aiff = aiffFilename(filename);
-      const aiffPath = path.join(temp, aiff);
-      await fs.copyFile(source, copiedAudio);
-      const sourceDuration = await audioDurationSeconds(copiedAudio);
-      const { start, end } = estimateAudioRange(verses, first, last, sourceDuration);
-      const { clipStart, clipEnd } = clipBounds(start, end, sourceDuration);
-      await convertToWav(copiedAudio, wavPath, clipStart, clipEnd);
-      await convertWavToAiff(wavPath, aiffPath);
-      const wavDuration = await audioDurationSeconds(wavPath);
-      const aiffDuration = await audioDurationSeconds(aiffPath);
-      filenames.push(filename);
-      wavFilenames.push(wav);
-      aiffFilenames.push(aiff);
-      audioLines.push(formatAudioTiming(wav, chapter, first, last, start, end, sourceDuration, wavDuration, clipStart, clipEnd));
-      audioLines.push(formatAudioTiming(aiff, chapter, first, last, start, end, sourceDuration, aiffDuration, clipStart, clipEnd, "AIFF"));
-    }
+    await fs.writeFile(path.join(temp, "offsets.json"), offsets.text, "utf8");
     await fs.writeFile(path.join(temp, "versiculos.txt"), `${label} — ${index.metadata.name}\n\n${lines.join("\n")}\n`, "utf8");
+    if (!["video", "voice", "mix"].includes(config.clipAudioMode)) throw new Error(`Invalid VEOBIBLE_SHORTS_CLIP_AUDIO_MODE: ${config.clipAudioMode}`);
+    let voices: VoiceTracks | undefined;
+    if (config.clipAudioMode !== "video") {
+      if (reuseVoices) {
+        console.log("Reusing existing intro and outro audio...");
+        await copyVoiceTracks(destination, temp);
+      } else {
+        await generateVoice(temp, voiceContext(version, passage, book.name, index.metadata.name));
+      }
+      voices = { intro: path.join(temp, "intro.wav"), outro: path.join(temp, "outro.wav"), mode: config.clipAudioMode as "voice" | "mix" };
+    }
+    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, voices);
     await fs.writeFile(path.join(temp, "metadata.txt"), [
       `Referencia: ${label}`,
       `ID del pasaje: ${passage.id}`,
@@ -267,143 +292,25 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       `Libro: ${book.name} (${book.id})`,
       `Inicio: ${passage.start.chapter}:${passage.start.verse}`,
       `Fin: ${passage.end.chapter}:${passage.end.verse}`,
-      `Audio: originales completos por capítulo; WAV y AIFF recortados con hasta 5 s de margen a cada lado`,
-      `Archivos de audio originales: ${filenames.join(", ")}`,
-      `${wavHeader} ${wavFilenames.join(", ")}`,
-      `${aiffHeader} ${aiffFilenames.join(", ")}`,
-      `Locuciones: intro.wav, intro.aiff, outro.wav, outro.aiff`,
-      `Guiones de locución: intro.txt, outro.txt`,
-      timingHeader,
-      ...audioLines,
-      timingExplanation,
+      `Vídeo final: short.mp4`,
+      `Vídeos: 0-intro.mp4, ${video.background} (boomerang en bucle), 0-outro.mp4`,
+      `Audio de intro y outro: ${config.clipAudioMode}`,
+      `Locuciones reutilizadas: ${reuseVoices ? "sí" : "no"}`,
+      `Duración estimada de la lectura: ${video.readingDuration.toFixed(2)} s`,
+      `Duración estimada del vídeo: ${video.duration.toFixed(2)} s`,
+      `Límites base antes de offsets: ${baseSections.map(section => `${path.basename(section.file)} [${section.start.toFixed(2)}–${section.end.toFixed(2)} s]`).join(", ")}`,
+      `Offsets aplicados: inicio ${offsets.values.startSeconds.toFixed(2)} s; fin ${offsets.values.endSeconds.toFixed(2)} s`,
+      `Audio bíblico: ${sections.map(section => `${path.basename(section.file)} [${section.start.toFixed(2)}–${section.end.toFixed(2)} s]`).join(", ")}`,
+      `Cálculo: proporción de palabras ajustada a pausas cercanas detectadas con ffmpeg; comprueba el corte escuchando el vídeo.`,
+      `Ajustes manuales: offsets.json`,
       `Texto: versiculos.txt`,
       ""
     ].join("\n"), "utf8");
-    await generateVoice(temp, voiceContext(version, passage, book.name, index.metadata.name));
     await installPreparedOutput(temp, destination, replaceExisting);
   } catch (error) {
     await fs.rm(temp, { recursive: true, force: true });
     throw error;
   }
-  return destination;
-}
-
-/** Recalculates timing lines for an existing export without touching its audio or verse text. */
-export async function refreshMetadataTimings(version: Version, passage: Passage): Promise<string> {
-  const index = await readIndex(version);
-  const { book, number } = getBook(index, passage);
-  const destination = path.join(config.outputDir, version.id, passage.id);
-  const metadataPath = path.join(destination, "metadata.txt");
-  const original = await fs.readFile(metadataPath, "utf8");
-  const audioLines: string[] = [];
-  const wavFilenames: string[] = [];
-  const aiffFilenames: string[] = [];
-  let hasFullLengthPcm = false;
-  for (let chapter = passage.start.chapter; chapter <= passage.end.chapter; chapter++) {
-    const first = chapter === passage.start.chapter ? passage.start.verse : 1;
-    const last = chapter === passage.end.chapter ? passage.end.verse : book.versesPerChapter[chapter - 1];
-    const all = await versesForChapter(version, book, chapter);
-    const source = await findChapterAudio(destination, book, number, chapter);
-    const sourceDuration = await audioDurationSeconds(source);
-    const { start, end } = estimateAudioRange(all, first, last, sourceDuration);
-    const bounds = clipBounds(start, end, sourceDuration);
-    let hasConvertedAudio = false;
-    for (const [format, filename, filenames] of [
-      ["WAV", wavFilename(source), wavFilenames],
-      ["AIFF", aiffFilename(source), aiffFilenames]
-    ] as const) {
-      const pcmPath = path.join(destination, filename);
-      if (!(await fs.access(pcmPath).then(() => true, () => false))) continue;
-      hasConvertedAudio = true;
-      const pcmDuration = await audioDurationSeconds(pcmPath);
-      const expectedClippedDuration = bounds.clipEnd - bounds.clipStart;
-      const isClipped = Math.abs(pcmDuration - expectedClippedDuration) < 1;
-      const isFull = Math.abs(pcmDuration - sourceDuration) < 1;
-      if (!isClipped && !isFull) throw new Error(`Unexpected ${format} duration in ${pcmPath}; regenerate the audio files`);
-      if (isFull && !isClipped) hasFullLengthPcm = true;
-      const clipStart = isClipped ? bounds.clipStart : 0;
-      const clipEnd = isClipped ? bounds.clipEnd : sourceDuration;
-      filenames.push(filename);
-      audioLines.push(formatAudioTiming(filename, chapter, first, last, start, end, sourceDuration, pcmDuration, clipStart, clipEnd, format));
-    }
-    if (!hasConvertedAudio) {
-      audioLines.push(formatAudioTiming(path.basename(source), chapter, first, last, start, end, sourceDuration));
-    }
-  }
-
-  const lines = original.trimEnd().split("\n");
-  const legacyPassageId = lines.findIndex(line => line.startsWith("ID del rango:"));
-  if (legacyPassageId !== -1) lines[legacyPassageId] = lines[legacyPassageId].replace("ID del rango:", "ID del pasaje:");
-  const previousStart = lines.findIndex(line => line.startsWith("Tiempos estimados por archivo"));
-  if (previousStart !== -1) {
-    const previousEnd = lines.findIndex((line, index) => index > previousStart && line.startsWith("Cálculo:"));
-    if (previousEnd === -1) throw new Error(`Incomplete timings section: ${metadataPath}`);
-    lines.splice(previousStart, previousEnd - previousStart + 1);
-  }
-  const previousWav = lines.findIndex(line => line.startsWith(wavHeader) || line.startsWith(legacyWavHeader));
-  if (previousWav !== -1) lines.splice(previousWav, 1);
-  const previousAiff = lines.findIndex(line => line.startsWith(aiffHeader));
-  if (previousAiff !== -1) lines.splice(previousAiff, 1);
-  const originals = lines.findIndex(line => line.startsWith("Archivos de audio:") || line.startsWith("Archivos de audio originales:"));
-  const formatLines = [
-    ...(wavFilenames.length ? [`${hasFullLengthPcm ? legacyWavHeader : wavHeader} ${wavFilenames.join(", ")}`] : []),
-    ...(aiffFilenames.length ? [`${aiffHeader} ${aiffFilenames.join(", ")}`] : [])
-  ];
-  lines.splice(originals === -1 ? lines.length : originals + 1, 0, ...formatLines);
-  const audioDescription = lines.findIndex(line => line.startsWith("Audio:"));
-  if (audioDescription !== -1 && formatLines.length) {
-    const formats = [wavFilenames.length ? "WAV" : "", aiffFilenames.length ? "AIFF" : ""].filter(Boolean).join(" y ");
-    lines[audioDescription] = hasFullLengthPcm
-      ? `Audio: originales completos por capítulo; hay ${formats} completos anteriores que puedes recortar con Generar WAV y AIFF de 48 kHz`
-      : `Audio: originales completos por capítulo; ${formats} recortados con hasta 5 s de margen a cada lado`;
-  }
-  const insertAt = lines.findIndex(line => line.startsWith("Texto:"));
-  const explanation = hasFullLengthPcm
-    ? "Cálculo: límites estimados por la proporción de palabras. Algunos audios aún están completos; usa Generar WAV y AIFF de 48 kHz para aplicar el margen de 5 segundos."
-    : timingExplanation;
-  lines.splice(insertAt === -1 ? lines.length : insertAt, 0, timingHeader, ...audioLines, explanation);
-  const temp = path.join(destination, `.metadata-${process.pid}-${Date.now()}.txt`);
-  try {
-    await fs.writeFile(temp, `${lines.join("\n")}\n`, { encoding: "utf8", flag: "wx" });
-    await fs.rename(temp, metadataPath);
-  } catch (error) {
-    await fs.rm(temp, { force: true });
-    throw error;
-  }
-  return metadataPath;
-}
-
-/** Adds WAV and AIFF copies to an existing export, then updates its metadata. */
-export async function generateAudioFormatsForExisting(version: Version, passage: Passage): Promise<string> {
-  const index = await readIndex(version);
-  const { book, number } = getBook(index, passage);
-  const destination = path.join(config.outputDir, version.id, passage.id);
-  await fs.access(path.join(destination, "metadata.txt"));
-  const staging = await fs.mkdtemp(path.join(destination, ".audio-"));
-  const converted: string[] = [];
-  try {
-    for (let chapter = passage.start.chapter; chapter <= passage.end.chapter; chapter++) {
-      const original = await findChapterAudio(destination, book, number, chapter);
-      const wav = wavFilename(original);
-      const aiff = aiffFilename(original);
-      const first = chapter === passage.start.chapter ? passage.start.verse : 1;
-      const last = chapter === passage.end.chapter ? passage.end.verse : book.versesPerChapter[chapter - 1];
-      const verses = await versesForChapter(version, book, chapter);
-      const duration = await audioDurationSeconds(original);
-      const { start, end } = estimateAudioRange(verses, first, last, duration);
-      const { clipStart, clipEnd } = clipBounds(start, end, duration);
-      const wavPath = path.join(staging, wav);
-      await convertToWav(original, wavPath, clipStart, clipEnd);
-      await convertWavToAiff(wavPath, path.join(staging, aiff));
-      converted.push(wav, aiff);
-    }
-    for (const filename of converted) {
-      await fs.rename(path.join(staging, filename), path.join(destination, filename));
-    }
-  } finally {
-    await fs.rm(staging, { recursive: true, force: true });
-  }
-  await refreshMetadataTimings(version, passage);
   return destination;
 }
 

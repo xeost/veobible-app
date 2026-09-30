@@ -1,6 +1,6 @@
 # VeoBible Voice
 
-Herramienta Python genérica para sintetizar pistas de voz con Chatterbox. Recibe un JSON de guiones, un idioma y un directorio de salida. Por cada pista produce `<nombre>.txt`, `<nombre>.wav` y `<nombre>.aiff`. Los audios finales son PCM de 24 bits a 48 kHz; el AIFF se convierte desde el WAV.
+Herramienta Python genérica para sintetizar pistas de voz con Chatterbox. Recibe un JSON de guiones, un idioma y un directorio de salida. Por cada pista produce `<nombre>.txt` y `<nombre>.wav`. Los audios finales son WAV PCM de 24 bits a 48 kHz.
 
 ## Instalación
 

@@ -118,7 +118,7 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
         raise ValueError(f"Voice prompt does not exist: {args.voice_prompt}")
     if args.model == "latam" and args.language != "es":
         raise ValueError("The latam model only supports Spanish; use multilingual for English or Portuguese")
-    output_names = [f"{name}.{extension}" for name in scripts for extension in ("txt", "wav", "aiff")]
+    output_names = [f"{name}.{extension}" for name in scripts for extension in ("txt", "wav")]
     if not args.force and any((args.output_dir / name).exists() for name in output_names):
         raise FileExistsError("Audio or text files already exist; use --force to replace them")
 
@@ -143,10 +143,12 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
             native = staging / f"{track}-native.wav"
             torchaudio.save(str(native), waveform.cpu(), model.sr)
             convert_audio(native, staging / f"{track}.wav", "pcm_s24le")
-            convert_audio(staging / f"{track}.wav", staging / f"{track}.aiff", "pcm_s24be")
             (staging / f"{track}.txt").write_text(script + "\n", encoding="utf-8")
         for name in output_names:
             (staging / name).replace(args.output_dir / name)
+        if args.force:
+            for track in scripts:
+                (args.output_dir / f"{track}.aiff").unlink(missing_ok=True)
     print(f"Tracks saved in {args.output_dir}", flush=True)
 
 

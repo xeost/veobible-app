@@ -5,8 +5,7 @@ import { select, confirm } from "@inquirer/prompts";
 import boxen from "boxen";
 import chalk from "chalk";
 import { config } from "./config.js";
-import { generateAudioFormatsForExisting, getBook, loadCatalog, markUsed, orderPassagesByUsage, prepareShort, readIndex, readStatus, reference, refreshMetadataTimings } from "./shorts.js";
-import { generateVoice, voiceContext } from "./voice.js";
+import { canReuseVoiceTracks, getBook, loadCatalog, markUsed, orderPassagesByUsage, prepareShort, readIndex, readStatus, reference } from "./shorts.js";
 
 const languages = [
   { name: "Spanish", value: "es" },
@@ -83,11 +82,8 @@ async function main(): Promise<void> {
       const existingOutput = path.join(config.outputDir, selectedVersion.id, passage.id);
       const isPrepared = await fs.access(existingOutput).then(() => true, () => false);
       const action = await promptAtTopOnBackspace(signal => select({ message: reference(getBook(index, passage).book.name, passage), choices: [
-        ...(!isPrepared ? [{ name: "Prepare audio, voice, text, and metadata", value: "prepare" }] : []),
-        ...(isPrepared ? [{ name: "Reprocess entire passage", value: "reprocess" }] : []),
-        ...(isPrepared ? [{ name: "Generate 48 kHz WAV and AIFF", value: "audio" }] : []),
-        ...(isPrepared ? [{ name: `Generate intro and outro voice with ${config.ttsProvider === "elevenlabs" ? "ElevenLabs" : "Chatterbox"}`, value: "voice" }] : []),
-        ...(isPrepared ? [{ name: "Update timings in metadata", value: "timings" }] : []),
+        ...(!isPrepared ? [{ name: "Create complete video", value: "prepare" }] : []),
+        ...(isPrepared ? [{ name: "Reprocess complete video", value: "reprocess" }] : []),
         ...(isPrepared && !status[passage.id] ? [{ name: "Mark as used", value: "mark" }] : []),
         ...(isPrepared ? [{ name: `Show output: ${existingOutput}`, value: "show" }] : []),
         { name: "Back", value: "back" }
@@ -95,25 +91,12 @@ async function main(): Promise<void> {
       if (action === "back") continue;
       if (action === "show") { console.log(existingOutput); continue; }
       if (action === "reprocess") {
-        if (!await promptAtTopOnBackspace(signal => confirm({ message: "Replace all files in this passage's output folder?", default: false }, { signal }))) continue;
-        const output = await prepareShort(selectedVersion, passage, true);
-        console.log(chalk.green(`✔ Passage fully reprocessed in ${output}`));
-        continue;
-      }
-      if (action === "audio") {
-        const output = await generateAudioFormatsForExisting(selectedVersion, passage);
-        console.log(chalk.green(`✔ 48 kHz WAV and AIFF generated in ${output}`));
-        continue;
-      }
-      if (action === "voice") {
-        const book = getBook(index, passage).book;
-        await generateVoice(existingOutput, voiceContext(selectedVersion, passage, book.name, index.metadata.name), true);
-        console.log(chalk.green(`✔ Intro and outro voice generated in ${existingOutput}`));
-        continue;
-      }
-      if (action === "timings") {
-        const metadataPath = await refreshMetadataTimings(selectedVersion, passage);
-        console.log(chalk.green(`✔ Timings updated in ${metadataPath}`));
+        if (!await promptAtTopOnBackspace(signal => confirm({ message: "Replace all files in this passage's output folder?", default: true }, { signal }))) continue;
+        const reuseVoices = config.clipAudioMode !== "video" && await canReuseVoiceTracks(existingOutput)
+          ? await promptAtTopOnBackspace(signal => confirm({ message: "Reuse the existing intro and outro audio?", default: true }, { signal }))
+          : false;
+        const output = await prepareShort(selectedVersion, passage, true, reuseVoices);
+        console.log(chalk.green(`✔ Complete video reprocessed: ${path.join(output, "short.mp4")}`));
         continue;
       }
       if (action === "mark") {
@@ -124,8 +107,7 @@ async function main(): Promise<void> {
         continue;
       }
       const output = await prepareShort(selectedVersion, passage);
-      console.log(chalk.green(`✔ Files prepared in ${output}`));
-      console.log(chalk.yellow("  Originals contain full chapters; WAV and AIFF contain the passage with up to 5 seconds of padding."));
+      console.log(chalk.green(`✔ Complete video created: ${path.join(output, "short.mp4")}`));
       if (!status[passage.id] && await promptAtTopOnBackspace(signal => confirm({ message: "Mark this passage as used now?", default: false }, { signal }))) {
         await markUsed(passage, selectedVersion, output);
         console.log(chalk.green("✔ Passage marked as used in status.json"));

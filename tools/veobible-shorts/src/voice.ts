@@ -153,7 +153,7 @@ async function generateElevenLabsVoice(outputDir: string, locale: VoiceContext["
   if (!apiKey) throw new Error("VEOBIBLE_SHORTS_ELEVENLABS_API_KEY is missing from .env");
   if (!voiceId) throw new Error(`VEOBIBLE_SHORTS_ELEVENLABS_VOICE_${locale.toUpperCase()} is missing from .env`);
   if (!config.elevenLabsModel.trim()) throw new Error("VEOBIBLE_SHORTS_ELEVENLABS_MODEL is missing from .env");
-  const names = (["intro", "outro"] as const).flatMap(part => ["txt", "wav", "aiff"].map(extension => `${part}.${extension}`));
+  const names = (["intro", "outro"] as const).flatMap(part => ["txt", "wav"].map(extension => `${part}.${extension}`));
   if (!force && (await Promise.all(names.map(name => fs.access(path.join(outputDir, name)).then(() => true, () => false)))).some(Boolean)) {
     throw new Error("Audio or text files already exist; use the regenerate option to replace them");
   }
@@ -176,10 +176,12 @@ async function generateElevenLabsVoice(outputDir: string, locale: VoiceContext["
       const wav = path.join(staging, `${part}.wav`);
       await fs.writeFile(mp3, audio);
       await runFfmpeg(mp3, wav, "pcm_s24le");
-      await runFfmpeg(wav, path.join(staging, `${part}.aiff`), "pcm_s24be");
       await fs.writeFile(path.join(staging, `${part}.txt`), `${scripts[part]}\n`, "utf8");
     }
     for (const name of names) await fs.rename(path.join(staging, name), path.join(outputDir, name));
+    if (force) {
+      for (const part of ["intro", "outro"] as const) await fs.rm(path.join(outputDir, `${part}.aiff`), { force: true });
+    }
   } finally {
     await fs.rm(staging, { recursive: true, force: true });
   }

@@ -18,6 +18,8 @@ const voiceDir = path.join(workingDir, "material", "voices");
 export const config = {
   workingDir,
   outputDir: process.env.VEOBIBLE_SHORTS_OUTPUT_DIR ?? path.join(workingDir, "outputs"),
+  videosDir: process.env.VEOBIBLE_SHORTS_VIDEOS_DIR ?? path.join(workingDir, "material", "videos"),
+  clipAudioMode: process.env.VEOBIBLE_SHORTS_CLIP_AUDIO_MODE ?? "voice",
   audioDir: process.env.VEOBIBLE_SHORTS_AUDIO_DIR ?? "/Users/fabian/Documents/audiobibles/sources/audios",
   bibleDataDir: process.env.VEOBIBLE_SHORTS_BIBLE_DATA_DIR ?? path.join(projectRoot, "frontend/public/bible-data"),
   ttsProvider: process.env.VEOBIBLE_SHORTS_TTS_PROVIDER ?? "chatterbox",
