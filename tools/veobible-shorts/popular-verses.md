@@ -1,16 +1,16 @@
 # Catálogo de 100 pasajes para shorts
 
-El archivo `popular-verses.json` contiene 100 rangos distintos, con al menos uno de cada uno de los 66 libros. La selección combina pasajes conocidos con relatos y temas de interés para videos breves: esperanza, ansiedad, amor, perdón, propósito, justicia, fe y resiliencia. El orden es una propuesta editorial para comenzar a publicar; no representa un ranking medido de rendimiento en redes sociales ni una garantía de viralidad.
+El archivo `popular-verses.json` contiene 100 pasajes distintos, con al menos uno de cada uno de los 66 libros. La selección combina pasajes conocidos con relatos y temas de interés para videos breves: esperanza, ansiedad, amor, perdón, propósito, justicia, fe y resiliencia. El orden es una propuesta editorial para comenzar a publicar; no representa un ranking medido de rendimiento en redes sociales ni una garantía de viralidad.
 
-Como señales de interés se consultaron el [resumen de lecturas de Bible Gateway de 2025](https://www.biblegateway.com/learn/bible-verses/top-verses-2025-year-in-review/) y el [versículo del año 2025 de YouVersion](https://www.youversion.com/pt/news/youversion-announces-2025-verse-of-the-year). Esas fuentes describen uso de sus plataformas; la cobertura de los 66 libros, las ampliaciones a rangos y su orden son decisiones editoriales de este catálogo.
+Como señales de interés se consultaron el [resumen de lecturas de Bible Gateway de 2025](https://www.biblegateway.com/learn/bible-verses/top-verses-2025-year-in-review/) y el [versículo del año 2025 de YouVersion](https://www.youversion.com/pt/news/youversion-announces-2025-verse-of-the-year). Esas fuentes describen uso de sus plataformas; la cobertura de los 66 libros, la selección de pasajes más extensos y su orden son decisiones editoriales de este catálogo.
 
 ## Extensión y duración
 
-Los 100 rangos cumplen **130–150 palabras en Reina Valera 1909**, usando los textos locales de `frontend/public/bible-data/es/rv1909`. Se cuentan unidades separadas por espacios que contienen letras o números, sin añadir la referencia, el nombre del libro ni los números de versículo. Se excluyen las marcas editoriales de numeración hebrea como `(H2-2)` presentes en Jonás. No se corta ningún versículo ni se altera el texto bíblico.
+Los 100 pasajes cumplen **130–150 palabras en Reina Valera 1909**, usando los textos locales de `frontend/public/bible-data/es/rv1909`. Se cuentan unidades separadas por espacios que contienen letras o números, sin añadir la referencia, el nombre del libro ni los números de versículo. Se excluyen las marcas editoriales de numeración hebrea como `(H2-2)` presentes en Jonás. No se corta ningún versículo ni se altera el texto bíblico.
 
 A una velocidad de 130 palabras por minuto, esa extensión equivale a unos **60–69 segundos**. Las pausas y la velocidad de la grabación pueden cambiar el resultado: hay que medir el audio final para confirmar el límite. La CLI sigue copiando capítulos completos, que requieren recorte al editar el video.
 
-Las mismas referencias están disponibles en las cinco versiones. **El límite de palabras se aplica únicamente a RV1909**; los otros conteos se incluyen para planificar las adaptaciones. Los conteos corresponden al contenido actual del repositorio y deben recalcularse si cambian esos textos o los límites de un rango. Pasajes muy breves, como el Salmo 23 completo, no se han rellenado con texto ajeno solo para llegar al mínimo.
+Las mismas referencias están disponibles en las cinco versiones. **El límite de palabras se aplica únicamente a RV1909**; los otros conteos se incluyen para planificar las adaptaciones. Los conteos corresponden al contenido actual del repositorio y deben recalcularse si cambian esos textos o los límites de un pasaje. Pasajes muy breves, como el Salmo 23 completo, no se han rellenado con texto ajeno solo para llegar al mínimo.
 
 ## Lista y conteos
 

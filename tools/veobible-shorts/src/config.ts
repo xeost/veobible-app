@@ -12,7 +12,7 @@ loadEnv({ path: path.join(toolRoot, ".env"), quiet: true });
 const workingDir = process.env.VEOBIBLE_SHORTS_WORKING_DIR ?? "/Users/fabian/Documents/veobible-shorts";
 const sharedVoicePrompt = process.env.VEOBIBLE_SHORTS_TTS_VOICE_PROMPT ?? "";
 const sharedTtsModel = process.env.VEOBIBLE_SHORTS_TTS_MODEL ?? "multilingual";
-const voiceDir = path.join(workingDir, "voices");
+const voiceDir = path.join(workingDir, "material", "voices");
 
 /** Paths can be set in .env, overridden by process environment variables. */
 export const config = {

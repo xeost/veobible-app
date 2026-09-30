@@ -111,7 +111,7 @@ async function isFile(filename: string): Promise<boolean> {
 
 /** Pick a dedicated sample for each track, then the language-wide sample. */
 export async function resolveVoicePrompts(locale: VoiceContext["locale"]): Promise<Record<"intro" | "outro", string | null>> {
-  const voiceDir = path.join(config.workingDir, "voices");
+  const voiceDir = path.join(config.workingDir, "material", "voices");
   const fallback = config.ttsVoicePrompts[locale];
   const result = {} as Record<"intro" | "outro", string | null>;
   for (const part of ["intro", "outro"] as const) {

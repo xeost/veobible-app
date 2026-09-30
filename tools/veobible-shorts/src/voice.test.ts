@@ -6,11 +6,39 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { generateVoice, numberToWords, renderVoiceScripts, resolveVoicePrompts, spokenReference, voiceContext } from "./voice.js";
 import { config } from "./config.js";
-import type { Passage } from "./shorts.js";
+import { installPreparedOutput, orderPassagesByUsage, type Passage, type Status } from "./shorts.js";
 
-const range: Passage = { id: "john-3-14-19", book: "john", start: { chapter: 3, verse: 14 }, end: { chapter: 3, verse: 19 } };
+const passage: Passage = { id: "john-3-14-19", book: "john", start: { chapter: 3, verse: 14 }, end: { chapter: 3, verse: 19 } };
 
-test("las referencias del rango se escriben con palabras en los tres idiomas", async () => {
+test("used passages move to the end without changing editorial order", () => {
+  const catalog = ["a", "b", "c", "d"].map(id => ({ ...passage, id }));
+  const used = { usedAt: "2026-01-01T00:00:00Z", locale: "es", version: "rv1909", output: "/tmp" };
+  const status: Status = { b: used, d: used };
+  assert.deepEqual(orderPassagesByUsage(catalog, status).map(item => item.id), ["a", "c", "b", "d"]);
+  assert.deepEqual(catalog.map(item => item.id), ["a", "b", "c", "d"]);
+});
+
+test("reprocessing replaces the complete output and restores it if installation fails", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-reprocess-test-"));
+  const destination = path.join(root, "passage");
+  const staging = path.join(root, "staging");
+  try {
+    await fs.mkdir(destination);
+    await fs.mkdir(staging);
+    await fs.writeFile(path.join(destination, "old.txt"), "previous output");
+    await fs.writeFile(path.join(staging, "new.txt"), "new output");
+    await installPreparedOutput(staging, destination, true);
+    assert.equal(await fs.readFile(path.join(destination, "new.txt"), "utf8"), "new output");
+    await assert.rejects(fs.access(path.join(destination, "old.txt")));
+    await assert.rejects(installPreparedOutput(staging, destination, true));
+    assert.equal(await fs.readFile(path.join(destination, "new.txt"), "utf8"), "new output");
+    assert.deepEqual(await fs.readdir(root), ["passage"]);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("las referencias del pasaje se escriben con palabras en los tres idiomas", async () => {
   const examples = [
     { locale: "es", book: "Juan", reference: "Juan capítulo tres versículos catorce al diecinueve" },
     { locale: "en", book: "John", reference: "John chapter three verses fourteen to nineteen" },
@@ -18,7 +46,7 @@ test("las referencias del rango se escriben con palabras en los tres idiomas", a
   ] as const;
   for (const example of examples) {
     const version = config.versions.find(value => value.locale === example.locale)!;
-    const context = voiceContext(version, range, example.book, "Versión de prueba");
+    const context = voiceContext(version, passage, example.book, "Versión de prueba");
     assert.equal(context.reference, example.reference);
     const scripts = await renderVoiceScripts(context);
     assert.ok(scripts.intro.includes(example.reference));
@@ -38,9 +66,9 @@ test("los números compuestos y las centenas se pronuncian correctamente", () =>
   assert.equal(numberToWords("pt", 119), "cento e dezenove");
 });
 
-test("los libros numerados, versículos únicos y rangos entre capítulos no conservan cifras", () => {
-  const single: Passage = { ...range, start: { chapter: 1, verse: 21 }, end: { chapter: 1, verse: 21 } };
-  const cross: Passage = { ...range, start: { chapter: 3, verse: 36 }, end: { chapter: 4, verse: 2 } };
+test("los libros numerados, versículos únicos y pasajes entre capítulos no conservan cifras", () => {
+  const single: Passage = { ...passage, start: { chapter: 1, verse: 21 }, end: { chapter: 1, verse: 21 } };
+  const cross: Passage = { ...passage, start: { chapter: 3, verse: 36 }, end: { chapter: 4, verse: 2 } };
   assert.equal(spokenReference("es", "1 Juan", single), "Primera de Juan capítulo uno versículo veintiuno");
   assert.equal(spokenReference("en", "2 John", single), "Second John chapter one verse twenty-one");
   assert.equal(spokenReference("pt", "3 João", single), "Terceira de João capítulo um versículo vinte e um");
@@ -51,12 +79,12 @@ test("los libros numerados, versículos únicos y rangos entre capítulos no con
 
 test("Chatterbox prefiere muestras de intro y outro y recurre a la voz del idioma", async () => {
   const workingDir = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-voice-prompts-test-"));
-  const voicesDir = path.join(workingDir, "voices");
+  const voicesDir = path.join(workingDir, "material", "voices");
   const originalWorkingDir = config.workingDir;
   const originalFallbacks = { ...config.ttsVoicePrompts };
   const originalTracks = structuredClone(config.ttsTrackVoicePrompts);
   try {
-    await fs.mkdir(voicesDir);
+    await fs.mkdir(voicesDir, { recursive: true });
     Object.assign(config, { workingDir });
     for (const locale of ["es", "en", "pt"] as const) {
       const fallback = path.join(voicesDir, `${locale}.mp3`);
@@ -106,12 +134,12 @@ test("la salida de Chatterbox muestra etapas y oculta los mensajes técnicos", a
     Object.assign(config.ttsTrackVoicePrompts.es, { intro: "", outro: "" });
     console.log = (...values: unknown[]) => { messages.push(values.join(" ")); };
     const version = config.versions.find(value => value.locale === "es")!;
-    await generateVoice(output, voiceContext(version, range, "Juan", "Reina Valera"));
+    await generateVoice(output, voiceContext(version, passage, "Juan", "Reina Valera"));
     assert.ok(messages.some(message => message.includes("Generating intro")));
     assert.ok(messages.some(message => message.includes("Generating outro")));
     assert.doesNotMatch(messages.join("\n"), /Fetching|FutureWarning|Esta es tu dosis/);
     await fs.writeFile(fakePython, "#!/bin/sh\nprintf 'Stage: Loading model\\n'\nprintf 'Error: broken model\\n' >&2\nexit 1\n", { mode: 0o755 });
-    await assert.rejects(generateVoice(output, voiceContext(version, range, "Juan", "Reina Valera")), /broken model/);
+    await assert.rejects(generateVoice(output, voiceContext(version, passage, "Juan", "Reina Valera")), /broken model/);
   } finally {
     console.log = originalLog;
     Object.assign(config, { ttsProvider: original.provider, ttsPython: original.python });
@@ -143,12 +171,12 @@ test("ElevenLabs usa la voz del idioma y genera los seis archivos sin usar Chatt
       return new Response(audio, { status: 200, headers: { "Content-Type": "audio/mpeg" } });
     };
     const version = config.versions.find(value => value.locale === "es")!;
-    await generateVoice(output, voiceContext(version, range, "Juan", "Reina Valera"));
+    await generateVoice(output, voiceContext(version, passage, "Juan", "Reina Valera"));
     assert.equal(requests.length, 2);
     for (const part of ["intro", "outro"]) {
       for (const extension of ["txt", "wav", "aiff"]) assert.ok((await fs.stat(path.join(output, `${part}.${extension}`))).size > 0);
     }
-    await assert.rejects(generateVoice(output, voiceContext(version, range, "Juan", "Reina Valera")), /Audio or text files already exist/);
+    await assert.rejects(generateVoice(output, voiceContext(version, passage, "Juan", "Reina Valera")), /Audio or text files already exist/);
     assert.equal(requests.length, 2);
   } finally {
     globalThis.fetch = originalFetch;

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { randomUUID } from "node:crypto";
 import { config, type Version } from "./config.js";
 import { generateVoice, voiceContext } from "./voice.js";
 
@@ -14,11 +15,16 @@ interface Verse { verse: number; text: string }
 export interface UsedRecord { usedAt: string; locale: string; version: string; output: string }
 export type Status = Record<string, UsedRecord>;
 
+/** Keep editorial order within each group while moving used passages to the end. */
+export function orderPassagesByUsage(catalog: readonly Passage[], status: Status): Passage[] {
+  return [...catalog.filter(passage => !status[passage.id]), ...catalog.filter(passage => Boolean(status[passage.id]))];
+}
+
 const catalogPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../popular-verses.json");
 const safeId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const execFileAsync = promisify(execFile);
 const timingHeader = "Tiempos estimados por archivo (segundos desde el inicio del original, WAV y AIFF):";
-const timingExplanation = "Cálculo: duración medida con ffprobe y límites estimados por la proporción de palabras. Cada WAV y AIFF incluye hasta 5 segundos antes y después del rango, sin superar los límites del capítulo. Verificar escuchando antes de cortar.";
+const timingExplanation = "Cálculo: duración medida con ffprobe y límites estimados por la proporción de palabras. Cada WAV y AIFF incluye hasta 5 segundos antes y después del pasaje, sin superar los límites del capítulo. Verificar escuchando antes de cortar.";
 const wavHeader = "Archivos WAV recortados para DaVinci Resolve:";
 const aiffHeader = "Archivos AIFF recortados para DaVinci Resolve:";
 const legacyWavHeader = "Archivos WAV para DaVinci Resolve:";
@@ -114,7 +120,7 @@ export async function loadCatalog(): Promise<Passage[]> {
     assertPoint(passage.start, `${passage.id}.start`);
     assertPoint(passage.end, `${passage.id}.end`);
     if (passage.start.chapter > passage.end.chapter || (passage.start.chapter === passage.end.chapter && passage.start.verse > passage.end.verse)) {
-      throw new Error(`Reversed passage range: ${passage.id}`);
+      throw new Error(`Passage start must come before its end: ${passage.id}`);
     }
     return passage;
   });
@@ -176,7 +182,28 @@ function formatAudioTiming(filename: string, chapter: number, first: number, las
   return `  ${filename} | ${chapter}:${first}-${last} | ${sourceTimes} | recorte del original: ${clipStart.toFixed(1)}–${clipEnd.toFixed(1)} s | en ${format}: ${pcmStart.toFixed(1)}–${pcmEnd.toFixed(1)} s | duración ${format} ${pcmDuration.toFixed(1)} s`;
 }
 
-export async function prepareShort(version: Version, passage: Passage): Promise<string> {
+/** Swap a fully prepared directory into place, restoring the old one if installation fails. */
+export async function installPreparedOutput(staging: string, destination: string, replaceExisting: boolean): Promise<void> {
+  if (!replaceExisting) {
+    await fs.rename(staging, destination);
+    return;
+  }
+  const backup = `${destination}.backup-${randomUUID()}`;
+  await fs.rename(destination, backup);
+  try {
+    await fs.rename(staging, destination);
+  } catch (error) {
+    try {
+      await fs.rename(backup, destination);
+    } catch (restoreError) {
+      throw new AggregateError([error, restoreError], `Could not replace ${destination}; previous output remains at ${backup}`);
+    }
+    throw error;
+  }
+  await fs.rm(backup, { recursive: true, force: true });
+}
+
+export async function prepareShort(version: Version, passage: Passage, replaceExisting = false): Promise<string> {
   const index = await readIndex(version);
   const { book, number } = getBook(index, passage);
   const label = reference(book.name, passage);
@@ -194,9 +221,15 @@ export async function prepareShort(version: Version, passage: Passage): Promise<
   }
 
   const destination = path.join(config.outputDir, version.id, passage.id);
-  try { await fs.access(destination); throw new Error(`Output already exists: ${destination}`); } catch (error) {
+  let destinationExists = false;
+  try {
+    await fs.lstat(destination);
+    destinationExists = true;
+  } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  if (destinationExists && !replaceExisting) throw new Error(`Output already exists: ${destination}`);
+  if (!destinationExists && replaceExisting) throw new Error(`Output no longer exists: ${destination}`);
   await fs.mkdir(path.dirname(destination), { recursive: true });
   const temp = await fs.mkdtemp(path.join(path.dirname(destination), `.short-${passage.id}-`));
   try {
@@ -228,7 +261,7 @@ export async function prepareShort(version: Version, passage: Passage): Promise<
     await fs.writeFile(path.join(temp, "versiculos.txt"), `${label} — ${index.metadata.name}\n\n${lines.join("\n")}\n`, "utf8");
     await fs.writeFile(path.join(temp, "metadata.txt"), [
       `Referencia: ${label}`,
-      `ID del rango: ${passage.id}`,
+      `ID del pasaje: ${passage.id}`,
       `Idioma: ${version.locale}`,
       `Versión: ${index.metadata.name} (${version.id})`,
       `Libro: ${book.name} (${book.id})`,
@@ -247,7 +280,7 @@ export async function prepareShort(version: Version, passage: Passage): Promise<
       ""
     ].join("\n"), "utf8");
     await generateVoice(temp, voiceContext(version, passage, book.name, index.metadata.name));
-    await fs.rename(temp, destination);
+    await installPreparedOutput(temp, destination, replaceExisting);
   } catch (error) {
     await fs.rm(temp, { recursive: true, force: true });
     throw error;
@@ -299,6 +332,8 @@ export async function refreshMetadataTimings(version: Version, passage: Passage)
   }
 
   const lines = original.trimEnd().split("\n");
+  const legacyPassageId = lines.findIndex(line => line.startsWith("ID del rango:"));
+  if (legacyPassageId !== -1) lines[legacyPassageId] = lines[legacyPassageId].replace("ID del rango:", "ID del pasaje:");
   const previousStart = lines.findIndex(line => line.startsWith("Tiempos estimados por archivo"));
   if (previousStart !== -1) {
     const previousEnd = lines.findIndex((line, index) => index > previousStart && line.startsWith("Cálculo:"));
