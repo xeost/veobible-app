@@ -7,6 +7,7 @@ import type { VerseCue } from "./verse-timing.js";
 // Layout coordinates describe a 1080 × 1920 artboard. Keep text inside the
 // central safe area, clear of the usual short-video controls and captions.
 const palette = { paper: "0xFFF8EA", gold: "0xE8C68A", muted: "0xCFD4D0", ink: "0x101B1C" };
+const overlayLift = 140;
 const italicFile = "/System/Library/Fonts/Supplemental/Georgia Italic.ttf";
 const italic = existsSync(italicFile) ? `fontfile='${italicFile}'` : "font=Georgia";
 const serif = "font=Georgia";
@@ -82,6 +83,7 @@ class Graphics {
   constructor(private width: number, private height: number, private directory: string) {}
   x(value: number): number { return Math.round(value * this.width / 1080); }
   y(value: number): number { return Math.round(value * this.height / 1920); }
+  positionY(value: number): number { return this.y(value - overlayLift); }
 
   async text(value: string, x: number, y: number, size: number, font: string, color: string, phase: Phase, travel = 42, width = 800): Promise<string> {
     const file = path.join(this.directory, `design-${this.serial++}.txt`);
@@ -89,7 +91,7 @@ class Graphics {
     const enter = progress(phase.start, phase.duration);
     const exit = progress(phase.exit, phase.exitDuration);
     const alpha = escapeExpression(`${smooth(enter)}*(1-${smooth(exit)})`);
-    const position = escapeExpression(`${this.y(y)}+${this.y(travel)}*(1-${easeOut(enter)})-${this.y(18)}*${easeIn(exit)}`);
+    const position = escapeExpression(`${this.positionY(y)}+${this.y(travel)}*(1-${easeOut(enter)})-${this.y(18)}*${easeIn(exit)}`);
     const pixels = Math.max(1, Math.round(fit(value, size, width) * this.width / 1080));
     return `drawtext=${font}:textfile='${file}':expansion=none:fontsize=${pixels}:fontcolor=${color}:x=${this.x(x)}:y='${position}':alpha='${alpha}':shadowcolor=0x07100D@0.28:shadowx=0:shadowy=${Math.max(1, this.y(2))}`;
   }
@@ -99,9 +101,10 @@ class Graphics {
   scrim(): string[] {
     const count = 256;
     return Array.from({ length: count }, (_, index) => {
-      const t = (index + 0.5) / count;
+      const t = (index + 0.5) / count + overlayLift / 1920;
       const top = Math.min(1, Math.max(0, (t - 0.09) / 0.16));
-      const bottom = Math.min(1, Math.max(0, (0.87 - t) / 0.18));
+      // Clear the book in the bottom quarter, including the soft gradient tail.
+      const bottom = Math.min(1, Math.max(0, (0.81 - t) / 0.18));
       const opacity = 0.8 * (top * top * (3 - 2 * top)) * (bottom * bottom * (3 - 2 * bottom));
       return `drawbox=x=0:y=${index}:w=iw:h=1:color=${palette.ink}@${opacity.toFixed(4)}:t=fill:replace=1`;
     });
@@ -123,7 +126,7 @@ class Graphics {
       `color=c=black@0:s=${pixels}x${thickness}:r=${rate}:d=${length.toFixed(6)},format=rgba[${label}mask]`,
       `color=c=${palette.gold}:s=${pixels}x${thickness}:r=${rate}:d=${length.toFixed(6)},format=rgba[${label}fill]`,
       `[${label}mask][${label}fill]overlay=x='${position}':y=0:format=auto:shortest=1,fade=t=in:st=${phase.start.toFixed(5)}:d=${phase.duration.toFixed(5)}:alpha=1,fade=t=out:st=${phase.exit.toFixed(5)}:d=${phase.exitDuration.toFixed(5)}:alpha=1[${label}stroke]`,
-      `[${input}][${label}stroke]overlay=x=${this.x(x)}:y=${this.y(y)}:format=auto:shortest=1,format=yuv420p[${label}]`
+      `[${input}][${label}stroke]overlay=x=${this.x(x)}:y=${this.positionY(y)}:format=auto:shortest=1,format=yuv420p[${label}]`
     ];
   }
 }
@@ -169,7 +172,7 @@ export async function createStageGraphics(options: {
       readingText.push(await g.text(lines[index], 116, top + index * lineHeight, layout.fontSize, serif, palette.paper, phase(0.16 + index * 0.055, (lines.length - index - 1) * 0.015), 34));
     }
   }
-  readingText.push(await g.text("V E O B I B L E", 116, 1510, 21, sans, "0xCFD4D0@0.75", readingPhase, 10));
+  readingText.push(await g.text("V E O B I B L E", 116, 1510, 21, sans, "0xFFFFFF", readingPhase, 10));
   const readingGraph = [
     ...g.base("v1base", "readingDesign", readingLength, rate, readingPhase),
     ...g.rule("readingDesignbase", "readingRule", readingLength, rate, 116, 551, 96, readingPhase),
