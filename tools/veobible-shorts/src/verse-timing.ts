@@ -11,7 +11,7 @@ const execFileAsync = promisify(execFile);
 export interface VerseCue { reference: string; text: string; start: number; end: number }
 export interface VerseTimingInput { chapter: number; bookName: string; verses: Array<{ verse: number; text: string }>; section: AudioSection }
 interface Pause { start: number; end: number }
-interface VerseOffset { reference: string; startOffsetSeconds: number; endOffsetSeconds: number }
+export interface VerseOffset { reference: string; startOffsetSeconds: number; endOffsetSeconds: number }
 
 function speakingWeight(text: string): number {
   const clean = text.replace(/\(H\d+-\d+\)/g, "");
@@ -86,10 +86,10 @@ export async function estimateVerseCues(inputs: VerseTimingInput[]): Promise<Ver
 }
 
 /** Preserve only manual offsets; recalculate the displayed estimates on every render. */
-export async function applyVerseOffsets(outputDir: string, replaceExisting: boolean, estimates: VerseCue[]): Promise<{ cues: VerseCue[]; text: string }> {
+export async function applyVerseOffsets(outputDir: string, replaceExisting: boolean, estimates: VerseCue[], overrides?: VerseOffset[]): Promise<{ cues: VerseCue[]; text: string }> {
   const file = await existingInternalFile(outputDir, "verse-offsets.json");
-  let previous: VerseOffset[] = [];
-  if (replaceExisting) {
+  let previous: VerseOffset[] = overrides ?? [];
+  if (replaceExisting && overrides === undefined) {
     try {
       const parsed: unknown = JSON.parse(await fs.readFile(file, "utf8"));
       if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { verses?: unknown }).verses)) throw new Error("verses must be an array");

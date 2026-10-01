@@ -5,12 +5,13 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { config, type Version } from "./config.js";
-import { generateVoice, voiceContext } from "./voice.js";
+import { generateVoice, voiceContext, type VoicePart } from "./voice.js";
 import { renderShortVideo, generateThumbnail, type AudioSection, type IntroTitle, type VoiceTracks } from "./video.js";
 import { outroTitle } from "./social.js";
-import { applyVerseOffsets, estimateVerseCues, type VerseTimingInput } from "./verse-timing.js";
+import { applyVerseOffsets, estimateVerseCues, type VerseTimingInput, type VerseOffset } from "./verse-timing.js";
 import { existingInternalFile, internalFilename } from "./output-files.js";
 import { publicationDescriptions } from "./publication.js";
+import { readReadingAudioSettings, ensureDefaultVersionSettings } from "./reading-audio.js";
 
 export interface Point { chapter: number; verse: number }
 export interface Passage { id: string; book: string; start: Point; end: Point }
@@ -20,6 +21,7 @@ interface Verse { verse: number; text: string }
 export interface UsedRecord { usedAt: string; locale: string; version: string; output: string }
 export type Status = Record<string, UsedRecord>;
 export interface PassageOffsets { startSeconds: number; endSeconds: number }
+export interface TimingAdjustments { passageOffsets: PassageOffsets; verseOffsets: VerseOffset[] }
 
 /** Keep editorial order within each group while moving used passages to the end. */
 export function orderPassagesByUsage(catalog: readonly Passage[], status: Status): Passage[] {
@@ -86,7 +88,7 @@ export async function refineAudioRange(source: string, estimate: { start: number
   return end > start ? { start, end } : estimate;
 }
 
-async function readPassageOffsets(outputDir: string, replaceExisting: boolean): Promise<{ values: PassageOffsets; text: string }> {
+export async function readPassageOffsets(outputDir: string, replaceExisting: boolean): Promise<{ values: PassageOffsets; text: string }> {
   const file = await existingInternalFile(outputDir, "offsets.json");
   let text = '{\n  "startSeconds": 0,\n  "endSeconds": 0\n}\n';
   if (replaceExisting) {
@@ -235,7 +237,43 @@ async function copyVoiceTracks(previousOutput: string, staging: string): Promise
   }
 }
 
-export async function prepareShort(version: Version, passage: Passage, replaceExisting = false, reuseVoices = false): Promise<string> {
+/** Generate only the requested track, leaving the other voice and rendered video intact. */
+export async function regenerateVoiceTrack(version: Version, passage: Passage, part: VoicePart): Promise<string> {
+  const destination = path.join(config.outputDir, version.id, passage.id);
+  await fs.access(destination);
+  const index = await readIndex(version);
+  const { book } = getBook(index, passage);
+  const internal = path.join(destination, "_internal");
+  await fs.mkdir(internal, { recursive: true });
+  const staging = await fs.mkdtemp(path.join(internal, ".regenerate-voice-"));
+  const installed: Array<{ target: string; backup?: string }> = [];
+  try {
+    await generateVoice(staging, voiceContext(version, passage, book.name, index.metadata.name), false, part);
+    await audioDurationSeconds(path.join(staging, `${part}.wav`));
+    for (const extension of ["wav", "txt"]) {
+      const name = `${part}.${extension}`;
+      const target = path.join(internal, internalFilename(name));
+      const backup = path.join(staging, `previous-${name}`);
+      let exists = true;
+      try { await fs.copyFile(target, backup); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; exists = false; }
+      await fs.rename(path.join(staging, name), target);
+      installed.push({ target, backup: exists ? backup : undefined });
+    }
+    return path.join(internal, internalFilename(`${part}.wav`));
+  } catch (error) {
+    for (const item of installed.reverse()) {
+      if (item.backup) await fs.rename(item.backup, item.target);
+      else await fs.rm(item.target, { force: true });
+    }
+    throw error;
+  } finally {
+    await fs.rm(staging, { recursive: true, force: true });
+  }
+}
+
+/** Shared analysis for rendering and the interactive timing editor. */
+export async function analyzePassageAudio(version: Version, passage: Passage) {
   const index = await readIndex(version);
   const { book, number } = getBook(index, passage);
   const label = reference(book.name, passage);
@@ -260,6 +298,27 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
     sourceDurations.push(sourceDuration);
   }
 
+  return { index, book, label, lines, sections, timingInputs, sourceDurations };
+}
+
+export function applyPassageAudioOffsets(sections: AudioSection[], sourceDurations: number[], offsets: PassageOffsets): AudioSection[] {
+  if (!sections.length || sourceDurations.length !== sections.length) throw new Error("Missing audio sections or source durations");
+  if (!Number.isFinite(offsets.startSeconds) || !Number.isFinite(offsets.endSeconds)) throw new Error("Audio offsets must be finite numbers");
+  const adjusted = sections.map(section => ({ ...section }));
+  adjusted[0].start += offsets.startSeconds;
+  adjusted[adjusted.length - 1].end += offsets.endSeconds;
+  for (let index = 0; index < adjusted.length; index++) {
+    const section = adjusted[index];
+    if (section.start < 0 || section.end > sourceDurations[index] || section.end <= section.start) {
+      throw new Error(`Audio offsets produce an invalid audio cut for ${path.basename(section.file)}`);
+    }
+  }
+  return adjusted;
+}
+
+export async function prepareShort(version: Version, passage: Passage, replaceExisting = false, reuseVoices = false, adjustments?: TimingAdjustments, volumeMultiplier?: number): Promise<string> {
+  const { index, book, label, lines, sections: baseSections, timingInputs, sourceDurations } = await analyzePassageAudio(version, passage);
+
   const destination = path.join(config.outputDir, version.id, passage.id);
   let destinationExists = false;
   try {
@@ -270,17 +329,13 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
   }
   if (destinationExists && !replaceExisting) throw new Error(`Output already exists: ${destination}`);
   if (!destinationExists && replaceExisting) throw new Error(`Output no longer exists: ${destination}`);
-  const offsets = await readPassageOffsets(destination, replaceExisting);
-  const baseSections = sections.map(section => ({ ...section }));
-  sections[0].start += offsets.values.startSeconds;
-  sections[sections.length - 1].end += offsets.values.endSeconds;
-  for (let index = 0; index < sections.length; index++) {
-    const section = sections[index];
-    if (section.start < 0 || section.end > sourceDurations[index] || section.end <= section.start) {
-      throw new Error(`Offsets in ${await existingInternalFile(destination, "offsets.json")} produce an invalid audio cut for ${path.basename(section.file)}`);
-    }
-  }
-  const verseTimings = await applyVerseOffsets(destination, replaceExisting, await estimateVerseCues(timingInputs));
+  const offsets = adjustments
+    ? { values: adjustments.passageOffsets, text: JSON.stringify(adjustments.passageOffsets, null, 2) + "\n" }
+    : await readPassageOffsets(destination, replaceExisting);
+  const readingSettings = await readReadingAudioSettings(destination, replaceExisting, volumeMultiplier);
+  const sections = applyPassageAudioOffsets(baseSections, sourceDurations, offsets.values);
+  const adjustedInputs = timingInputs.map((input, index) => ({ ...input, section: sections[index] }));
+  const verseTimings = await applyVerseOffsets(destination, replaceExisting, await estimateVerseCues(adjustedInputs), adjustments?.verseOffsets);
   if (reuseVoices && (!replaceExisting || config.clipAudioMode === "video" || !await canReuseVoiceTracks(destination))) {
     throw new Error(`Reusable intro/outro WAV and text files are unavailable in ${destination}`);
   }
@@ -291,6 +346,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
     await fs.mkdir(internal);
     await fs.copyFile(fileURLToPath(new URL("../internal-readme.md", import.meta.url)), path.join(internal, "README.md"));
     await fs.writeFile(path.join(internal, internalFilename("offsets.json")), offsets.text, "utf8");
+    await fs.writeFile(path.join(internal, internalFilename("reading-audio.json")), readingSettings.text, "utf8");
     await fs.writeFile(path.join(internal, internalFilename("verse-offsets.json")), verseTimings.text, "utf8");
     await fs.writeFile(path.join(internal, internalFilename("versiculos.txt")), `${label} — ${index.metadata.name}\n\n${lines.join("\n")}\n`, "utf8");
     if (!["video", "voice", "mix"].includes(config.clipAudioMode)) throw new Error(`Invalid VEOBIBLE_SHORTS_CLIP_AUDIO_MODE: ${config.clipAudioMode}`);
@@ -308,7 +364,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       voices = { intro: path.join(internal, internalFilename("intro.wav")), outro: path.join(internal, internalFilename("outro.wav")), mode: config.clipAudioMode as "voice" | "mix" };
     }
     const title = introTitle(version.locale, label, index.metadata.name);
-    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, title, await outroTitle(version.locale), verseTimings.cues, voices, internal);
+    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, title, await outroTitle(version.locale), verseTimings.cues, voices, internal, readingSettings.volumeMultiplier);
     await generateThumbnail(path.join(temp, "short.mp4"), path.join(temp, "thumbnail.jpg"), video.thumbnailTime);
     for (const [name, text] of Object.entries(publicationDescriptions(version.locale, title, lines))) {
       await fs.writeFile(path.join(temp, name), text, "utf8");
@@ -325,6 +381,8 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       `Miniatura: ../thumbnail.jpg (fotograma en ${video.thumbnailTime.toFixed(6)} s)`,
       `Vídeos: 0-intro.mp4, ${video.background} (boomerang en bucle), 0-outro.mp4`,
       `Audio de intro y outro: ${config.clipAudioMode}`,
+      `Volumen de la lectura: ${readingSettings.volumeMultiplier}x`,
+      `Configuración del audio de lectura: ${internalFilename("reading-audio.json")}`,
       `Locuciones reutilizadas: ${reuseVoices ? "sí" : "no"}`,
       `Duración estimada de la lectura: ${video.readingDuration.toFixed(2)} s`,
       `Duración estimada del vídeo: ${video.duration.toFixed(2)} s`,
@@ -338,6 +396,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       ""
     ].join("\n"), "utf8");
     await installPreparedOutput(temp, destination, replaceExisting);
+    await ensureDefaultVersionSettings(destination, readingSettings.volumeMultiplier);
   } catch (error) {
     await fs.rm(temp, { recursive: true, force: true });
     throw error;

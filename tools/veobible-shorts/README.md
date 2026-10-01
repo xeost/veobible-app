@@ -21,7 +21,7 @@ Filtros usados por el montaje:
 | --- | --- |
 | Título y composición | `drawtext`, `drawbox`, `geq`, `vignette`, `color`, `fade`, `overlay`, `format`, `fps`, `scale`, `crop` |
 | Boomerang y duración | `split`, `reverse`, `concat`, `trim`, `tpad`, `setpts`, `settb` |
-| Audio y transiciones | `atrim`, `asetpts`, `aresample`, `aformat`, `anull`, `adelay`, `apad`, `amix`, `volume`, `acrossfade`, `xfade` |
+| Audio y transiciones | `atrim`, `asetpts`, `aresample`, `aformat`, `anull`, `adelay`, `apad`, `amix`, `volume`, `alimiter`, `acrossfade`, `xfade` |
 | Ajuste del corte | `silencedetect` |
 
 ```bash
@@ -33,7 +33,7 @@ pnpm start
 
 También se puede iniciar desde la raíz con `pnpm shorts`.
 
-Al iniciar la CLI en una terminal interactiva, la interfaz comienza en la parte superior de la pantalla. Pulsa **Backspace** para volver a mostrar el menú actual desde arriba. El contenido anterior queda disponible al desplazarse por el historial de la terminal.
+Los menús muestran una lista de opciones con orden y numeración fijos. Selecciona con **↑/↓** o escribiendo el número, y pulsa **Enter** para elegir. Las flechas se detienen en los extremos de la lista, sin volver al otro extremo. En listas largas se desplaza la ventana visible para mantener el banner en pantalla. Cada vez que se abre un menú, aparece en la parte superior de la terminal con el banner de VeoBible encima. Pulsa **Backspace** para volver a mostrar el menú actual desde arriba. El contenido anterior queda disponible al desplazarse por el historial de la terminal.
 
 ## Configuración
 
@@ -73,6 +73,22 @@ El catálogo incluido contiene **100 pasajes de los 66 libros**, todos verificad
 
 Los archivos se guardan en `<outputDir>/<versionId>/<id>/`. `status.json` se guarda directamente en `<outputDir>` y marca los pasajes globalmente por `id`, independientemente de idioma y versión. En la lista, los pasajes usados aparecen al final con la marca **✓ Used**. Crear el vídeo no lo marca automáticamente; el asistente lo pregunta al final. Si se omite, el pasaje se puede marcar más tarde desde su menú.
 
+## Ajuste interactivo de audio y texto
+
+En el menú de cada pasaje, **Adjust audio and verse timings** aparece antes de **Create complete video** o **Reprocess complete video**. Funciona también antes de generar el primer vídeo; no ejecuta Chatterbox ni renderiza el vídeo para escuchar los ajustes.
+
+Todos los menús recuerdan la última opción utilizada durante la sesión, incluidos los del editor de tiempos. Al volver a un menú, esa opción aparece seleccionada si sigue disponible: pulsa **Enter** para repetirla o cambia la selección con las flechas o un número. La memoria es independiente por menú y contexto (idioma, versión y pasaje) y se reinicia al cerrar la CLI.
+
+1. **Audio cut**: escucha el pasaje completo, sus primeros cinco segundos o sus últimos cinco segundos. Escribe offsets decimales mediante **Set start offset…** y **Set end offset…** para ajustar el inicio y el final. Repite la escucha hasta que el corte contenga exactamente la lectura deseada.
+2. **Verse text**: elige un versículo y escucha su audio con un segundo de contexto a cada lado, o reproduce todo el pasaje con el texto mostrado en la terminal. Ajusta su aparición y desaparición. Mover el final de un versículo mueve también el inicio del siguiente; mover su inicio mueve también el final del anterior. El primero y el último tienen un solo vecino. La vista previa muestra los intervalos de texto; las animaciones de entrada y salida se aplican al renderizar el vídeo.
+3. **Use these timings — keep in memory**: vuelve al menú del pasaje y crea o reprocesa el vídeo. Solo entonces se guardan los offsets en los JSON de `_internal/`.
+
+En el vídeo, el 100 % de la transición entre versículos ocurre antes del límite configurado, dentro del tiempo del versículo saliente. Primero se retira suavemente el texto anterior y después entra suavemente el siguiente, sin solapar los textos. Todas las líneas del nuevo versículo ya están completamente visibles cuando comienza su audio. La entrada conserva su duración natural, sin comprimirla al 10 %. La transición se acorta para versículos breves. Los offsets siguen indicando los límites del audio; no hace falta compensar las animaciones manualmente.
+
+Los JSON existentes se cargan al iniciar el editor, incluidos los nombres de formatos anteriores. Si ya ajustaste ese pasaje durante la sesión, se usan primero sus valores en memoria. Puedes volver al corte del audio desde el ajuste de versículos; sus tiempos automáticos se recalculan para el nuevo corte. Si los offsets anteriores dejan de ser válidos, el editor permite volver al corte o elegir las estimaciones automáticas. Los ajustes descartados no modifican archivos ni la sesión guardada. **Cerrar la CLI antes de generar el vídeo pierde los cambios que solo estaban en memoria.**
+
+Durante la reproducción: **Enter/Esc** detiene, **R** repite y **Space** pausa o continúa en macOS/Linux. **Backspace** vuelve al menú desde la parte superior; **Ctrl+C** sale. La reproducción usa `afplay`, incluido en macOS; en Linux/Windows requiere `ffplay` instalado con FFmpeg y una terminal interactiva. Los WAV de previsualización son temporales y se eliminan al salir del editor. Se escucha el volumen configurado para la lectura; si está silenciada con `volumeMultiplier: 0`, la previsualización usa el volumen original para poder ajustar los tiempos.
+
 ## Archivos de salida para publicación
 
 La carpeta de cada pasaje queda organizada así:
@@ -90,6 +106,7 @@ john-3-14-19/
     ├── 1-intro.txt
     ├── 1-intro.wav
     ├── 2-passage-audio-offsets.json
+    ├── 2-passage-audio-settings.json
     ├── 2-verse-text-offsets.json
     ├── 2-versiculos.txt
     ├── 3-outro.txt
@@ -126,6 +143,22 @@ Cada salida incluye un `_internal/2-passage-audio-offsets.json` editable, inicia
 Cada salida también incluye `_internal/2-verse-text-offsets.json`. Su lista `verses` contiene la referencia, `estimatedStartSeconds` y `estimatedEndSeconds` para cada versículo, medidos **desde el inicio del audio bíblico recortado**, sin contar el segundo de silencio inicial de la lectura. Ajusta `startOffsetSeconds` y `endOffsetSeconds` para adelantar (valor negativo) o retrasar (valor positivo) la aparición y desaparición de un versículo. Por ejemplo, si el versículo siguiente debe entrar 0,2 segundos antes, cambia su `startOffsetSeconds` a `-0.2` y el `endOffsetSeconds` del anterior a `-0.2`. Los tiempos deben ser positivos, mantener cada versículo con duración mayor que cero y evitar superposiciones. Al reprocesar, la CLI conserva los offsets editados y recalcula los tiempos estimados, incluso si cambiaste los offsets globales en `_internal/2-passage-audio-offsets.json`.
 
 Para volver a generar un vídeo existente, elige **Reprocess complete video** y confirma el reemplazo. Si la salida anterior contiene `1-intro.wav`, `3-outro.wav`, `1-intro.txt` y `3-outro.txt` dentro de `_internal/` (o sus nombres anteriores en `internal/` o en la raíz), la CLI pregunta si quieres reutilizarlos; **Yes** es la respuesta predeterminada. Los cuatro archivos se copian al nuevo directorio `_internal/` y se evita volver a ejecutar Chatterbox o llamar a ElevenLabs. Si quieres actualizar la voz, sus muestras o sus guiones, responde **No** para generarlos de nuevo. La CLI prepara la salida en una carpeta temporal y conserva la anterior si falla la generación. La marca del pasaje en `status.json` se conserva. Esta opción también convierte salidas del formato anterior al nuevo vídeo completo.
+
+Antes de **Reprocess complete video** aparecen **Regenerate intro audio** y **Regenerate outro audio**. Cada opción genera solo la locución elegida con Chatterbox o ElevenLabs según `.env`, usando las plantillas y muestras actuales, y reemplaza su WAV y TXT en `_internal/`. Conserva la otra locución y los archivos anteriores si la generación falla. Después elige **Reprocess complete video** y **Yes** para reutilizar los audios e incorporar la nueva pista al vídeo (en modos `voice` o `mix`).
+
+El volumen de la lectura se configura por pasaje en `_internal/2-passage-audio-settings.json`: `{"volumeMultiplier": 1}` conserva el volumen original. Admite números de `0` a `4`, incluidos decimales; `0` silencia, `1.5` multiplica la amplitud por 1,5 y `2` la duplica. Por encima de `1`, el filtro `alimiter` limita los picos para evitar saturación. El archivo se conserva al reprocesar y solo modifica el audio de la lectura. La guía `_internal/README.md` incluye todos los valores permitidos y ejemplos.
+
+Cada versión tiene sus valores iniciales en `<outputDir>/<versionId>/default-version-settings.json`, actualmente con esta estructura:
+
+```json
+{
+  "volumeMultiplier": 1.5
+}
+```
+
+El archivo se crea después del primer renderizado correcto (también al reprocesar un vídeo existente), si todavía no existe, con el volumen usado en ese vídeo. Los renders posteriores conservan el archivo. Edítalo para definir el volumen inicial de los nuevos pasajes de esa versión; admite el mismo rango de `0` a `4`. Los pasajes con un JSON propio mantienen su volumen al reprocesar. La opción de ajuste y las previsualizaciones también usan el valor de la versión cuando el pasaje aún no tiene configuración.
+
+También puedes elegir **Adjust reading volume**, justo debajo de **Adjust audio and verse timings**, tanto antes de crear como de reprocesar. El valor inicial es el último ajuste de la sesión, el del JSON del pasaje, el de la versión o `1` si ninguno existe. Enter conserva el valor mostrado. El ajuste permanece en memoria, se usa en las previsualizaciones de tiempos y se guarda en el JSON al crear o reprocesar el vídeo; cerrar la CLI antes de renderizar pierde los cambios pendientes.
 
 ## Voz de intro y outro
 

@@ -1,15 +1,15 @@
 {
   "es": {
-    "youtube": "@veobible-es",
-    "x": "@ejemplo-es-x",
-    "instagram": "@ejemplo-es-instagram",
-    "tiktok": "@ejemplo-es-tiktok"
+    "youtube": "@veobible_es",
+    "x": "@veobible_es",
+    "instagram": "@veobible_es",
+    "tiktok": "@veobible_es"
   },
   "en": {
     "youtube": "@veobible",
-    "x": "@example-en-x",
-    "instagram": "@example-en-instagram",
-    "tiktok": "@example-en-tiktok"
+    "x": "@veobible",
+    "instagram": "@veobible",
+    "tiktok": "@veobible_en"
   },
   "pt": {
     "youtube": "@veobible-pt",

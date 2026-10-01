@@ -7,6 +7,7 @@ const names: Record<string, string> = {
   "intro.txt": "1-intro.txt",
   "versiculos.txt": "2-versiculos.txt",
   "offsets.json": "2-passage-audio-offsets.json",
+  "reading-audio.json": "2-passage-audio-settings.json",
   "verse-offsets.json": "2-verse-text-offsets.json",
   "outro.wav": "3-outro.wav",
   "outro.txt": "3-outro.txt"

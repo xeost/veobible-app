@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import type { VerseCue } from "./verse-timing.js";
 import { createStageGraphics, introAnimationEnd } from "./motion-design.js";
 import { extractBackgroundPalette } from "./background-palette.js";
+import { validateReadingVolume } from "./reading-audio.js";
 export { layoutVerse, wrapIntroTitle } from "./motion-design.js";
 
 const execFileAsync = promisify(execFile);
@@ -19,7 +20,7 @@ export interface VoiceTracks { intro: string; outro: string; mode: "voice" | "mi
 export interface IntroTitle { title: string; reference: string; version: string }
 export interface OutroTitle { title: string; highlight: string; channel: string; social: Array<{ platform: string; handle: string }>; website: string }
 
-const requiredVideoFilters = ["drawtext", "drawbox", "geq", "vignette", "color", "fade", "overlay", "xfade", "acrossfade", "reverse", "concat", "silencedetect"];
+const requiredVideoFilters = ["drawtext", "drawbox", "geq", "vignette", "color", "fade", "overlay", "xfade", "acrossfade", "reverse", "concat", "silencedetect", "volume", "alimiter"];
 
 export async function requireVideoFilters(): Promise<void> {
   const { stdout } = await execFileAsync(config.ffmpegBin, ["-hide_banner", "-filters"]);
@@ -93,7 +94,8 @@ export async function generateThumbnail(video: string, output: string, at: numbe
 }
 
 /** Build one forward-and-reverse cycle, then loop it only for the reading. */
-export async function renderShortVideo(output: string, sections: AudioSection[], videosDir: string, title: IntroTitle, outroTitle: OutroTitle, verseCues: VerseCue[], voices?: VoiceTracks, workDir = path.dirname(output)): Promise<VideoResult> {
+export async function renderShortVideo(output: string, sections: AudioSection[], videosDir: string, title: IntroTitle, outroTitle: OutroTitle, verseCues: VerseCue[], voices?: VoiceTracks, workDir = path.dirname(output), volumeMultiplier = 1): Promise<VideoResult> {
+  validateReadingVolume(volumeMultiplier);
   if (!sections.length || sections.some(section => !Number.isFinite(section.start) || !Number.isFinite(section.end) || section.start < 0 || section.end <= section.start)) {
     throw new Error("The passage needs at least one valid audio section");
   }
@@ -138,6 +140,7 @@ export async function renderShortVideo(output: string, sections: AudioSection[],
     const readingAudio = sections.length === 1
       ? "[part0]anull[reading]"
       : `${sections.map((_, index) => `[part${index}]`).join("")}concat=n=${sections.length}:v=0:a=1[reading]`;
+    const readingGain = volumeMultiplier === 1 ? "" : `volume=${volumeMultiplier}${volumeMultiplier > 1 ? ",alimiter=limit=0.95:level=0:latency=1" : ""},`;
     const clipAudio = (videoInput: number, voiceInput: number, length: number, label: string, leadSilence = 0): string[] => {
       const delay = leadSilence ? `,adelay=${leadSilence * 1000}:all=1` : "";
       const clip = `[${videoInput}:a:0]aresample=48000,aformat=channel_layouts=stereo${delay},apad,atrim=duration=${length.toFixed(6)},asetpts=PTS-STARTPTS`;
@@ -164,7 +167,7 @@ export async function renderShortVideo(output: string, sections: AudioSection[],
       ...graphics.reading,
       ...audioParts,
       readingAudio,
-      `[reading]adelay=${readingSilence * 1000}:all=1,apad,atrim=duration=${readingLength.toFixed(6)},asetpts=PTS-STARTPTS[a1]`,
+      `[reading]${readingGain}adelay=${readingSilence * 1000}:all=1,apad,atrim=duration=${readingLength.toFixed(6)},asetpts=PTS-STARTPTS[a1]`,
       `${pictureFilter(2, width, height, frameRate)},vignette=angle=PI/5${outroLength > outroDuration ? `,tpad=stop_mode=clone:stop_duration=${(outroLength - outroDuration).toFixed(6)}` : ""},trim=duration=${outroLength.toFixed(6)},setpts=PTS-STARTPTS,settb=AVTB[v2base]`,
       ...graphics.outro,
       ...clipAudio(2, firstVoiceInput + 1, outroLength, "a2", 1),

@@ -24,6 +24,37 @@ const smooth = (p: string) => `(${p}*${p}*(3-2*${p}))`;
 
 interface Phase { start: number; duration: number; exit: number; exitDuration: number }
 
+/** Complete both smooth animation phases before the next verse's audio starts. */
+export function verseTextPhases(cues: readonly VerseCue[], lineCounts: readonly number[], index: number, readingSilence: number): Phase[] {
+  const cue = cues[index];
+  const count = lineCounts[index];
+  const scale = Math.min(1, (cue.end - cue.start) / 2.5);
+  const entranceSpan = (lines: number) => 0.46 + 0.16 + (lines - 1) * 0.055;
+  const exitSpan = (lines: number) => 0.32 + (lines - 1) * 0.015;
+  const transition = (outgoing: number, incoming: number) => {
+    const shortest = Math.min(cues[outgoing].end - cues[outgoing].start, cues[incoming].end - cues[incoming].start);
+    const outSpan = exitSpan(lineCounts[outgoing]);
+    const inSpan = entranceSpan(lineCounts[incoming]);
+    const duration = Math.min(shortest / 2, (outSpan + inSpan) * Math.min(1, shortest / 2.5));
+    return { duration, outgoing: duration * outSpan / (outSpan + inSpan), incoming: duration * inSpan / (outSpan + inSpan) };
+  };
+  const incoming = index > 0 ? transition(index - 1, index) : undefined;
+  const outgoing = index < cues.length - 1 ? transition(index, index + 1) : undefined;
+  const incomingTime = incoming?.incoming ?? entranceSpan(count) * scale;
+  const outgoingTime = outgoing?.outgoing ?? exitSpan(count) * scale;
+  const enterScale = incomingTime / entranceSpan(count);
+  const exitScale = outgoingTime / exitSpan(count);
+  const delays = [0, 0.09, ...Array.from({ length: count }, (_, row) => 0.16 + row * 0.055)];
+  const orders = [0, 0, ...Array.from({ length: count }, (_, row) => (count - row - 1) * 0.015)];
+  const maxOrder = (count - 1) * 0.015;
+  return delays.map((delay, row) => ({
+    start: readingSilence + cue.start - (incoming ? incomingTime : 0) + delay * enterScale,
+    duration: 0.46 * enterScale,
+    exit: readingSilence + cue.end - (outgoing?.duration ?? outgoingTime) + (maxOrder - orders[row]) * exitScale,
+    exitDuration: 0.32 * exitScale
+  }));
+}
+
 /** Approximate optical widths, rather than counting all letters equally. */
 function textWidth(text: string, size: number): number {
   return [...text].reduce((sum, char) => sum + (
@@ -109,21 +140,21 @@ class Graphics {
 
   // Build the alpha ramp at 2 × 256, then interpolate it to the artboard. Drawing
   // wide bands directly at output resolution would leave visible steps.
-  scrim(): string[] {
+  scrim(maxOpacity: number): string[] {
     const count = 256;
     return Array.from({ length: count }, (_, index) => {
       const t = (index + 0.5) / count + overlayLift / 1920;
       const top = Math.min(1, Math.max(0, (t - 0.09) / 0.16));
       // Clear the book in the bottom quarter, including the soft gradient tail.
       const bottom = Math.min(1, Math.max(0, (0.81 - t) / 0.18));
-      const opacity = 0.8 * (top * top * (3 - 2 * top)) * (bottom * bottom * (3 - 2 * bottom));
+      const opacity = maxOpacity * (top * top * (3 - 2 * top)) * (bottom * bottom * (3 - 2 * bottom));
       return `drawbox=x=0:y=${index}:w=iw:h=1:color=${palette.ink}@${opacity.toFixed(4)}:t=fill:replace=1`;
     });
   }
 
-  base(input: string, label: string, length: number, rate: string, phase: Phase): string[] {
+  base(input: string, label: string, length: number, rate: string, phase: Phase, maxOpacity = 0.5): string[] {
     return [
-      `color=c=black@0.0:s=2x256:r=${rate}:d=${length.toFixed(6)},format=rgba,${this.scrim().join(",")},scale=${this.width}:${this.height}:flags=bilinear,setsar=1,fade=t=in:st=${phase.start.toFixed(5)}:d=${phase.duration.toFixed(5)}:alpha=1,fade=t=out:st=${phase.exit.toFixed(5)}:d=${phase.exitDuration.toFixed(5)}:alpha=1[${label}scrim]`,
+      `color=c=black@0.0:s=2x256:r=${rate}:d=${length.toFixed(6)},format=rgba,${this.scrim(maxOpacity).join(",")},scale=${this.width}:${this.height}:flags=bilinear,setsar=1,fade=t=in:st=${phase.start.toFixed(5)}:d=${phase.duration.toFixed(5)}:alpha=1,fade=t=out:st=${phase.exit.toFixed(5)}:d=${phase.exitDuration.toFixed(5)}:alpha=1[${label}scrim]`,
       `[${input}][${label}scrim]overlay=0:0:format=auto:shortest=1,format=yuv420p[${label}base]`
     ];
   }
@@ -182,27 +213,25 @@ export async function createStageGraphics(options: {
     g.text(intro.version, 116, 1180, 31, sans, palette.muted, introPhase(introVersionDelay, 0.22))
   ]);
   const introGraph = [
-    ...g.base("v0base", "introDesign", introLength, rate, introPhase(0)),
+    ...g.base("v0base", "introDesign", introLength, rate, introPhase(0), 0.35),
     ...g.rule("introDesignbase", "introRule", introLength, rate, 116, 984, 108, introPhase(0.6, 0.1)),
     `[introRule]${introText.join(",")}[v0]`
   ];
 
   const readingPhase: Phase = { start: Math.max(0, readingSilence - 0.3), duration: 0.45, exit: readingLength - readingSilence, exitDuration: 0.4 };
   const readingText: string[] = [];
-  for (const cue of cues) {
-    const length = cue.end - cue.start;
-    const scale = Math.min(1, length / 2.5);
-    const start = readingSilence + cue.start;
-    const end = readingSilence + cue.end;
-    const layout = layoutVerse(cue.text);
+  const layouts = cues.map(cue => layoutVerse(cue.text));
+  const lineCounts = layouts.map(layout => layout.text.split("\n").length);
+  for (const [cueIndex, cue] of cues.entries()) {
+    const layout = layouts[cueIndex];
     const lines = layout.text.split("\n");
     const lineHeight = layout.fontSize * 1.28;
     const top = 695 + (720 - lines.length * lineHeight) / 2;
-    const phase = (delay: number, order = 0): Phase => ({ start: start + delay * scale, duration: 0.46 * scale, exit: end - (0.38 + order) * scale, exitDuration: 0.32 * scale });
-    readingText.push(await g.text(cue.reference, 116, 476, 36, sans, readingInk.accent, phase(0), 24, 800, 0));
-    readingText.push(await g.text("“", 106, 619, 106, serif, readingInk.accent, phase(0.09), 20, 800, 0));
+    const phases = verseTextPhases(cues, lineCounts, cueIndex, readingSilence);
+    readingText.push(await g.text(cue.reference, 116, 476, 36, sans, readingInk.accent, phases[0], 24, 800, 0));
+    readingText.push(await g.text("“", 106, 619, 106, serif, readingInk.accent, phases[1], 20, 800, 0));
     for (let index = 0; index < lines.length; index++) {
-      readingText.push(await g.text(lines[index], 116, top + index * lineHeight, layout.fontSize, serif, readingInk.body, phase(0.16 + index * 0.055, (lines.length - index - 1) * 0.015), 34, 800, 0));
+      readingText.push(await g.text(lines[index], 116, top + index * lineHeight, layout.fontSize, serif, readingInk.body, phases[index + 2], 34, 800, 0));
     }
   }
   readingText.push(await g.text("V E O B I B L E . C O M", 116, 1510, 24, sansSemibold, readingInk.body, readingPhase, 10, 800, 0));

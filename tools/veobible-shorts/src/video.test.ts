@@ -36,7 +36,8 @@ test("outro uses localized titles and configured accounts", async () => {
   assert.equal(en.channel, "VeoBible in English");
   assert.equal(pt.channel, "VeoBible em Português");
   assert.deepEqual(es.social.map(row => row.platform), ["YouTube", "X", "Instagram", "TikTok"]);
-  assert.equal(es.social[0].handle, "@veobible-es");
+  const configured = JSON.parse(await fs.readFile(config.socialAccounts, "utf8")).es.youtube.trim();
+  assert.equal(es.social[0].handle, configured.startsWith("@") ? configured : `@${configured}`);
   assert.equal(en.website, "veobible.com");
 });
 
@@ -72,11 +73,27 @@ function audioFrequency(file: string, start: number, length = 0.2): number {
   return crossings / (samples.length / 4 / 44100);
 }
 
-function audioPeak(file: string, start: number): number {
-  const samples = execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-i", file, "-ss", String(start), "-t", "0.15", "-vn", "-ac", "1", "-ar", "44100", "-f", "f32le", "-"]);
+function audioPeak(file: string, start: number, channels = 1): number {
+  const samples = execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-i", file, "-ss", String(start), "-t", "0.15", "-vn", "-ac", String(channels), "-ar", "44100", "-f", "f32le", "-"]);
   let peak = 0;
   for (let offset = 0; offset < samples.length; offset += 4) peak = Math.max(peak, Math.abs(samples.readFloatLE(offset)));
   return peak;
+}
+
+/** Identify the test reading tone across the audio, rather than assuming a seek point. */
+function audioTonePeak(file: string, frequency: number): number {
+  const samples = execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-i", file, "-vn", "-ac", "1", "-ar", "44100", "-f", "f32le", "-"], { maxBuffer: 16 * 1024 * 1024 });
+  let result = 0;
+  for (let first = 0; first + 4410 < samples.length / 4; first += 2205) {
+    let crossings = 0, peak = 0;
+    for (let i = first + 1; i < first + 4410; i++) {
+      const value = samples.readFloatLE(i * 4);
+      if (samples.readFloatLE((i - 1) * 4) <= 0 && value > 0) crossings++;
+      peak = Math.max(peak, Math.abs(value));
+    }
+    if (Math.abs(crossings * 10 - frequency) < 35) result = Math.max(result, peak);
+  }
+  return result;
 }
 
 function frameRgb(file: string, at: number, x = 0, y = 0): [number, number, number] {
@@ -172,6 +189,20 @@ test("creates a complete video with a looped boomerang and the passage audio", {
     const silentOutput = path.join(root, "silent.mp4");
     await renderShortVideo(silentOutput, [{ file: reading, start: 0.1, end: 0.5 }], silentVideos, testTitle, testOutro, [{ ...twoVerseCues[0] }], { intro: introVoice, outro: outroVoice, mode: "voice" });
     assert.ok(Math.abs(audioFrequency(silentOutput, 0.1) - 660) < 35);
+    const loudReading = path.join(root, "loud-reading.wav");
+    execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=880:duration=1", "-af", "volume=6", "-y", loudReading]);
+    for (const gain of [0, 4]) {
+      const gainedOutput = path.join(root, `gain-${gain}.mp4`);
+      const gained = await renderShortVideo(gainedOutput, [{ file: loudReading, start: 0.1, end: 0.9 }], silentVideos, testTitle, testOutro, [{ ...twoVerseCues[0], end: 0.8 }], { intro: introVoice, outro: outroVoice, mode: "voice" }, root, gain);
+      assert.ok(Math.abs(gained.duration - 6.4) < 0.01);
+      assert.ok(Math.abs(audioFrequency(gainedOutput, 0.1) - 660) < 35);
+      const peak = audioPeak(gainedOutput, 2.5, 2);
+      if (!gain) assert.ok(peak < 0.001, "Zero multiplier silences only the reading");
+      else {
+        assert.ok(Math.abs(audioFrequency(gainedOutput, 2.5) - 880) < 35);
+        assert.ok(peak > 0.8 && peak < 1, `Boosted peaks are limited: ${peak}`);
+      }
+    }
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -209,12 +240,14 @@ test("reprocessing can reuse WAV voices without invoking Chatterbox", { timeout:
     Object.assign(config, { videosDir, audioDir, bibleDataDir, outputDir, ttsProvider: "chatterbox", ttsPython: path.join(root, "missing-python"), clipAudioMode: "voice" });
     assert.equal(await canReuseVoiceTracks(destination), true);
     await prepareShort(version, passage, true, true);
+    const versionSettingsFile = path.join(outputDir, version.id, "default-version-settings.json");
+    assert.deepEqual(JSON.parse(await fs.readFile(versionSettingsFile, "utf8")), { volumeMultiplier: 1 });
     assert.deepEqual(await fs.readFile(path.join(destination, "_internal", "1-intro.wav")), oldIntro);
     assert.equal(await fs.readFile(path.join(destination, "_internal", "1-intro.txt"), "utf8"), "intro from previous run\n");
     assert.equal(await fs.readFile(path.join(destination, "_internal", "3-outro.txt"), "utf8"), "outro from previous run\n");
     assert.ok((await fs.stat(path.join(destination, "short.mp4"))).size > 0);
     assert.deepEqual((await fs.readdir(destination)).sort(), ["_internal", "instagram.txt", "short.mp4", "thumbnail.jpg", "tiktok.txt", "x.txt", "youtube.txt"]);
-    assert.deepEqual((await fs.readdir(path.join(destination, "_internal"))).sort(), ["0-metadata.txt", "1-intro.txt", "1-intro.wav", "2-passage-audio-offsets.json", "2-verse-text-offsets.json", "2-versiculos.txt", "3-outro.txt", "3-outro.wav", "README.md"]);
+    assert.deepEqual((await fs.readdir(path.join(destination, "_internal"))).sort(), ["0-metadata.txt", "1-intro.txt", "1-intro.wav", "2-passage-audio-offsets.json", "2-passage-audio-settings.json", "2-verse-text-offsets.json", "2-versiculos.txt", "3-outro.txt", "3-outro.wav", "README.md"]);
     const guide = await fs.readFile(path.join(destination, "_internal", "README.md"), "utf8");
     assert.ok(guide.includes("2-passage-audio-offsets.json"));
     assert.ok(guide.includes("2-verse-text-offsets.json"));
@@ -234,6 +267,13 @@ test("reprocessing can reuse WAV voices without invoking Chatterbox", { timeout:
     const initialVerses = JSON.parse(await fs.readFile(verseOffsetFile, "utf8"));
     assert.deepEqual(initialVerses.verses.map((item: { reference: string }) => item.reference), ["John 1:1", "John 1:2"]);
     assert.equal(initialVerses.verses[0].endOffsetSeconds, 0);
+    const audioSettingsFile = path.join(destination, "_internal", "2-passage-audio-settings.json");
+    assert.deepEqual(JSON.parse(await fs.readFile(audioSettingsFile, "utf8")), { volumeMultiplier: 1 });
+    const originalReadingPeak = audioTonePeak(path.join(destination, "short.mp4"), 880);
+    assert.ok(originalReadingPeak > 0.05, "The reading tone is audible");
+    const originalIntroPeak = audioPeak(path.join(destination, "short.mp4"), 0.1);
+    const editedAudioSettings = '{"volumeMultiplier": 2}\n';
+    await fs.writeFile(audioSettingsFile, editedAudioSettings);
     const initialReadingDuration = Number(/Duración estimada de la lectura: ([\d.]+)/.exec(initialMetadata)![1]);
     const editedOffsets = '{\n  "startSeconds": 0.1,\n  "endSeconds": -0.1\n}\n';
     await fs.writeFile(path.join(destination, "_internal", "2-passage-audio-offsets.json"), editedOffsets);
@@ -242,6 +282,11 @@ test("reprocessing can reuse WAV voices without invoking Chatterbox", { timeout:
     await fs.writeFile(verseOffsetFile, JSON.stringify(initialVerses, null, 2) + "\n");
     await prepareShort(version, passage, true, true);
     assert.equal(await fs.readFile(path.join(destination, "_internal", "2-passage-audio-offsets.json"), "utf8"), editedOffsets);
+    assert.equal(await fs.readFile(audioSettingsFile, "utf8"), editedAudioSettings);
+    const boostedPeak = audioTonePeak(path.join(destination, "short.mp4"), 880);
+    const readingRatio = boostedPeak / originalReadingPeak;
+    assert.ok(readingRatio > 1.85 && readingRatio < 2.15, `Reading gain: ${readingRatio}, before=${originalReadingPeak}, after=${boostedPeak}, duration=${initialReadingDuration}`);
+    assert.ok(Math.abs(audioPeak(path.join(destination, "short.mp4"), 0.1) / originalIntroPeak - 1) < 0.03, "Intro volume stays unchanged");
     const adjustedVerses = JSON.parse(await fs.readFile(verseOffsetFile, "utf8"));
     assert.equal(adjustedVerses.verses[0].endOffsetSeconds, -0.05);
     assert.equal(adjustedVerses.verses[1].startOffsetSeconds, -0.05);
@@ -251,6 +296,27 @@ test("reprocessing can reuse WAV voices without invoking Chatterbox", { timeout:
     assert.ok(Math.abs(initialReadingDuration - adjustedReadingDuration - 0.1) < 0.02);
     await assert.rejects(fs.access(path.join(destination, "old.txt")));
     await assert.rejects(fs.access(path.join(destination, "intro.aiff")));
+    const sessionTimings = {
+      passageOffsets: { startSeconds: 0.12, endSeconds: -0.12 },
+      verseOffsets: [{ reference: "John 1:1", startOffsetSeconds: 0, endOffsetSeconds: 0.02 }, { reference: "John 1:2", startOffsetSeconds: 0.02, endOffsetSeconds: 0 }]
+    };
+    await fs.writeFile(versionSettingsFile, '{"volumeMultiplier":1.75}\n');
+    await prepareShort(version, passage, true, true, sessionTimings);
+    assert.equal(JSON.parse(await fs.readFile(audioSettingsFile, "utf8")).volumeMultiplier, 2, "Reprocessing preserves passage settings over edited version defaults");
+    assert.deepEqual(JSON.parse(await fs.readFile(path.join(destination, "_internal", "2-passage-audio-offsets.json"), "utf8")), sessionTimings.passageOffsets);
+    const sessionVerses = JSON.parse(await fs.readFile(verseOffsetFile, "utf8")).verses;
+    assert.equal(sessionVerses[0].endOffsetSeconds, 0.02);
+    assert.equal(sessionVerses[1].startOffsetSeconds, 0.02);
+    assert.deepEqual(await fs.readFile(path.join(destination, "_internal", "1-intro.wav")), oldIntro);
+    Object.assign(config, { clipAudioMode: "video" });
+    const newOutput = await prepareShort(version, { ...passage, id: "john-1-1-2-new" }, false, false, sessionTimings);
+    assert.equal(JSON.parse(await fs.readFile(path.join(newOutput, "_internal", "2-passage-audio-settings.json"), "utf8")).volumeMultiplier, 1.75);
+    assert.equal(await fs.readFile(versionSettingsFile, "utf8"), '{"volumeMultiplier":1.75}\n');
+    Object.assign(config, { clipAudioMode: "voice" });
+    assert.deepEqual(JSON.parse(await fs.readFile(path.join(newOutput, "_internal", "2-passage-audio-offsets.json"), "utf8")), sessionTimings.passageOffsets);
+    const newVerseOffsets = JSON.parse(await fs.readFile(path.join(newOutput, "_internal", "2-verse-text-offsets.json"), "utf8")).verses;
+    assert.equal(newVerseOffsets[0].endOffsetSeconds, 0.02);
+    assert.equal(newVerseOffsets[1].startOffsetSeconds, 0.02);
     await fs.rm(path.join(destination, "_internal", "1-intro.txt"));
     assert.equal(await canReuseVoiceTracks(destination), false);
     await fs.writeFile(path.join(destination, "_internal", "1-intro.txt"), "restored script\n");

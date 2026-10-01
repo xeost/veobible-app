@@ -7,6 +7,8 @@ import type { Passage } from "./shorts.js";
 
 const script = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../veobible-voice/cli.py");
 const templateFields = new Set(["reference", "version", "book", "start", "end", "passage_id"]);
+export type VoicePart = "intro" | "outro";
+const allParts: readonly VoicePart[] = ["intro", "outro"];
 
 const esSmall = ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
 const enSmall = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
@@ -110,11 +112,11 @@ async function isFile(filename: string): Promise<boolean> {
 }
 
 /** Pick a dedicated sample for each track, then the language-wide sample. */
-export async function resolveVoicePrompts(locale: VoiceContext["locale"]): Promise<Record<"intro" | "outro", string | null>> {
+export async function resolveVoicePrompts(locale: VoiceContext["locale"], parts: readonly VoicePart[] = allParts): Promise<Record<"intro" | "outro", string | null>> {
   const voiceDir = path.join(config.workingDir, "material", "voices");
   const fallback = config.ttsVoicePrompts[locale];
-  const result = {} as Record<"intro" | "outro", string | null>;
-  for (const part of ["intro", "outro"] as const) {
+  const result: Record<VoicePart, string | null> = { intro: null, outro: null };
+  for (const part of parts) {
     const explicit = config.ttsTrackVoicePrompts[locale][part];
     if (explicit !== undefined) {
       if (explicit && !(await isFile(explicit))) throw new Error(`Voice prompt for ${locale}-${part} does not exist: ${explicit}`);
@@ -147,19 +149,19 @@ async function runFfmpeg(source: string, target: string, codec: string): Promise
   });
 }
 
-async function generateElevenLabsVoice(outputDir: string, locale: VoiceContext["locale"], scripts: Record<"intro" | "outro", string>, force: boolean): Promise<void> {
+async function generateElevenLabsVoice(outputDir: string, locale: VoiceContext["locale"], scripts: Partial<Record<VoicePart, string>>, force: boolean, parts: readonly VoicePart[]): Promise<void> {
   const apiKey = config.elevenLabsApiKey.trim();
   const voiceId = config.elevenLabsVoices[locale].trim();
   if (!apiKey) throw new Error("VEOBIBLE_SHORTS_ELEVENLABS_API_KEY is missing from .env");
   if (!voiceId) throw new Error(`VEOBIBLE_SHORTS_ELEVENLABS_VOICE_${locale.toUpperCase()} is missing from .env`);
   if (!config.elevenLabsModel.trim()) throw new Error("VEOBIBLE_SHORTS_ELEVENLABS_MODEL is missing from .env");
-  const names = (["intro", "outro"] as const).flatMap(part => ["txt", "wav"].map(extension => `${part}.${extension}`));
+  const names = parts.flatMap(part => ["txt", "wav"].map(extension => `${part}.${extension}`));
   if (!force && (await Promise.all(names.map(name => fs.access(path.join(outputDir, name)).then(() => true, () => false)))).some(Boolean)) {
     throw new Error("Audio or text files already exist; use the regenerate option to replace them");
   }
   const staging = await fs.mkdtemp(path.join(outputDir, ".voice-elevenlabs-"));
   try {
-    for (const part of ["intro", "outro"] as const) {
+    for (const part of parts) {
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
         method: "POST",
         headers: { "xi-api-key": apiKey, "Content-Type": "application/json", Accept: "audio/mpeg" },
@@ -180,7 +182,7 @@ async function generateElevenLabsVoice(outputDir: string, locale: VoiceContext["
     }
     for (const name of names) await fs.rename(path.join(staging, name), path.join(outputDir, name));
     if (force) {
-      for (const part of ["intro", "outro"] as const) await fs.rm(path.join(outputDir, `${part}.aiff`), { force: true });
+      for (const part of parts) await fs.rm(path.join(outputDir, `${part}.aiff`), { force: true });
     }
   } finally {
     await fs.rm(staging, { recursive: true, force: true });
@@ -188,10 +190,12 @@ async function generateElevenLabsVoice(outputDir: string, locale: VoiceContext["
 }
 
 /** Generate named voice tracks in a prepared or temporary short output. */
-export async function generateVoice(outputDir: string, context: VoiceContext, force = false): Promise<void> {
-  const scripts = await renderVoiceScripts(context);
+export async function generateVoice(outputDir: string, context: VoiceContext, force = false, part?: VoicePart): Promise<void> {
+  const parts = part ? [part] : allParts;
+  const rendered = await renderVoiceScripts(context);
+  const scripts = Object.fromEntries(parts.map(name => [name, rendered[name]]));
   if (config.ttsProvider === "elevenlabs") {
-    await generateElevenLabsVoice(outputDir, context.locale, scripts, force);
+    await generateElevenLabsVoice(outputDir, context.locale, scripts, force, parts);
     return;
   }
   if (config.ttsProvider !== "chatterbox") throw new Error(`Unknown voice provider: ${config.ttsProvider}. Use chatterbox or elevenlabs`);
@@ -200,7 +204,7 @@ export async function generateVoice(outputDir: string, context: VoiceContext, fo
     const scriptsPath = path.join(staging, "scripts.json");
     await fs.writeFile(scriptsPath, JSON.stringify(scripts, null, 2) + "\n", "utf8");
     const args = [script, "--scripts", scriptsPath, "--language", context.locale, "--output-dir", outputDir, "--model", config.ttsModels[context.locale], "--device", config.ttsDevice];
-    const voicePrompts = await resolveVoicePrompts(context.locale);
+    const voicePrompts = await resolveVoicePrompts(context.locale, parts);
     const promptsPath = path.join(staging, "voice-prompts.json");
     await fs.writeFile(promptsPath, JSON.stringify(Object.fromEntries(Object.entries(voicePrompts).filter(([, filename]) => filename)), null, 2) + "\n", "utf8");
     args.push("--voice-prompts", promptsPath);
