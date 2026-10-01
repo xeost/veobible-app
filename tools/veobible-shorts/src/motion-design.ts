@@ -3,15 +3,18 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import type { IntroTitle, OutroTitle } from "./video.js";
 import type { VerseCue } from "./verse-timing.js";
+import type { RGB } from "./background-palette.js";
 
 // Layout coordinates describe a 1080 × 1920 artboard. Keep text inside the
 // central safe area, clear of the usual short-video controls and captions.
 const palette = { paper: "0xFFF8EA", gold: "0xE8C68A", muted: "0xCFD4D0", ink: "0x101B1C" };
+const readingInk = { body: "0x182320", accent: "0x493A29" };
 const overlayLift = 140;
 const italicFile = "/System/Library/Fonts/Supplemental/Georgia Italic.ttf";
 const italic = existsSync(italicFile) ? `fontfile='${italicFile}'` : "font=Georgia";
 const serif = "font=Georgia";
 const sans = "font=Avenir";
+const sansSemibold = "font='Avenir Next Demi Bold'";
 const number = (value: number) => Number(value.toFixed(5));
 const escapeExpression = (value: string) => value.replaceAll(",", "\\,");
 const progress = (start: number, duration: number) => `clip((t-${number(start)})/${number(Math.max(0.001, duration))},0,1)`;
@@ -85,7 +88,7 @@ class Graphics {
   y(value: number): number { return Math.round(value * this.height / 1920); }
   positionY(value: number): number { return this.y(value - overlayLift); }
 
-  async text(value: string, x: number, y: number, size: number, font: string, color: string, phase: Phase, travel = 42, width = 800): Promise<string> {
+  async text(value: string, x: number, y: number, size: number, font: string, color: string, phase: Phase, travel = 42, width = 800, shadow = 0.28): Promise<string> {
     const file = path.join(this.directory, `design-${this.serial++}.txt`);
     await fs.writeFile(file, value, "utf8");
     const enter = progress(phase.start, phase.duration);
@@ -93,7 +96,7 @@ class Graphics {
     const alpha = escapeExpression(`${smooth(enter)}*(1-${smooth(exit)})`);
     const position = escapeExpression(`${this.positionY(y)}+${this.y(travel)}*(1-${easeOut(enter)})-${this.y(18)}*${easeIn(exit)}`);
     const pixels = Math.max(1, Math.round(fit(value, size, width) * this.width / 1080));
-    return `drawtext=${font}:textfile='${file}':expansion=none:fontsize=${pixels}:fontcolor=${color}:x=${this.x(x)}:y='${position}':alpha='${alpha}':shadowcolor=0x07100D@0.28:shadowx=0:shadowy=${Math.max(1, this.y(2))}`;
+    return `drawtext=${font}:textfile='${file}':expansion=none:fontsize=${pixels}:fontcolor=${color}:x=${this.x(x)}:y='${position}':alpha='${alpha}':shadowcolor=0x07100D@${shadow}:shadowx=0:shadowy=${Math.max(1, this.y(2))}`;
   }
 
   // Build the alpha ramp at 2 × 256, then interpolate it to the artboard. Drawing
@@ -117,14 +120,35 @@ class Graphics {
     ];
   }
 
+  /** Drifting elliptical fields blend sampled hues without linear gradient bands. */
+  chromaticBase(input: string, label: string, length: number, rate: string, phase: Phase, colors: RGB[]): string[] {
+    const fields = [
+      [0.18, 0.28, 0.5, 0.28, 0], [0.8, 0.35, 0.46, 0.32, 1.7],
+      [0.28, 0.64, 0.48, 0.3, 3.1], [0.82, 0.7, 0.52, 0.26, 4.8]
+    ].map(([x, y, sx, sy, offset]) =>
+      `exp(-2*(pow((X/W-(${x}+0.14*sin(T/13+${offset})))/${sx},2)+pow((Y/H-(${y}+0.09*cos(T/17+${offset})))/${sy},2)))`
+    );
+    const total = `(${fields.join("+")})`;
+    const channel = (index: number) => `(${fields.map((field, i) => `${colors[i % colors.length][index]}*${field}`).join("+")})/${total}`;
+    // Cover the entire frame: strongest behind the text and footer, with
+    // smooth ramps to a faint tint at both edges instead of transparent gaps.
+    const top = `clip(Y/H/0.17,0,1)`;
+    const bottom = `clip((1-Y/H)/0.26,0,1)`;
+    const alpha = `255*0.60*(0.20+0.80*${smooth(top)}*${smooth(bottom)})`;
+    return [
+      `color=c=black@0:s=96x160:r=${rate}:d=${length.toFixed(6)},format=gbrap,geq=r='${channel(0)}':g='${channel(1)}':b='${channel(2)}':a='${alpha}',format=rgba,scale=${this.width}:${this.height}:flags=bilinear,setsar=1,fade=t=in:st=${phase.start.toFixed(5)}:d=${phase.duration.toFixed(5)}:alpha=1,fade=t=out:st=${phase.exit.toFixed(5)}:d=${phase.exitDuration.toFixed(5)}:alpha=1[${label}scrim]`,
+      `[${input}][${label}scrim]overlay=0:0:format=auto:shortest=1,format=yuv420p[${label}base]`
+    ];
+  }
+
   /** The gold stroke draws itself from the left, then retracts during exit. */
-  rule(input: string, label: string, length: number, rate: string, x: number, y: number, width: number, phase: Phase): string[] {
+  rule(input: string, label: string, length: number, rate: string, x: number, y: number, width: number, phase: Phase, color = palette.gold): string[] {
     const pixels = Math.max(2, this.x(width));
     const position = escapeExpression(`-${pixels}+${pixels}*${easeOut(progress(phase.start, phase.duration))}*(1-${easeIn(progress(phase.exit, phase.exitDuration))})`);
     const thickness = Math.max(2, this.y(3));
     return [
       `color=c=black@0:s=${pixels}x${thickness}:r=${rate}:d=${length.toFixed(6)},format=rgba[${label}mask]`,
-      `color=c=${palette.gold}:s=${pixels}x${thickness}:r=${rate}:d=${length.toFixed(6)},format=rgba[${label}fill]`,
+      `color=c=${color}:s=${pixels}x${thickness}:r=${rate}:d=${length.toFixed(6)},format=rgba[${label}fill]`,
       `[${label}mask][${label}fill]overlay=x='${position}':y=0:format=auto:shortest=1,fade=t=in:st=${phase.start.toFixed(5)}:d=${phase.duration.toFixed(5)}:alpha=1,fade=t=out:st=${phase.exit.toFixed(5)}:d=${phase.exitDuration.toFixed(5)}:alpha=1[${label}stroke]`,
       `[${input}][${label}stroke]overlay=x=${this.x(x)}:y=${this.positionY(y)}:format=auto:shortest=1,format=yuv420p[${label}]`
     ];
@@ -135,6 +159,7 @@ export async function createStageGraphics(options: {
   width: number; height: number; rate: string; staging: string;
   intro: IntroTitle; outro: OutroTitle; cues: VerseCue[];
   introLength: number; readingLength: number; outroLength: number; readingSilence: number;
+  readingPalette?: RGB[];
 }): Promise<{ intro: string[]; reading: string[]; outro: string[] }> {
   const { width, height, rate, staging, intro, outro, cues, introLength, readingLength, outroLength, readingSilence } = options;
   const g = new Graphics(width, height, staging);
@@ -166,16 +191,16 @@ export async function createStageGraphics(options: {
     const lineHeight = layout.fontSize * 1.28;
     const top = 695 + (720 - lines.length * lineHeight) / 2;
     const phase = (delay: number, order = 0): Phase => ({ start: start + delay * scale, duration: 0.46 * scale, exit: end - (0.38 + order) * scale, exitDuration: 0.32 * scale });
-    readingText.push(await g.text(cue.reference, 116, 476, 36, sans, palette.gold, phase(0), 24));
-    readingText.push(await g.text("“", 106, 619, 106, serif, "0xE8C68A@0.55", phase(0.09), 20));
+    readingText.push(await g.text(cue.reference, 116, 476, 36, sans, readingInk.accent, phase(0), 24, 800, 0));
+    readingText.push(await g.text("“", 106, 619, 106, serif, readingInk.accent, phase(0.09), 20, 800, 0));
     for (let index = 0; index < lines.length; index++) {
-      readingText.push(await g.text(lines[index], 116, top + index * lineHeight, layout.fontSize, serif, palette.paper, phase(0.16 + index * 0.055, (lines.length - index - 1) * 0.015), 34));
+      readingText.push(await g.text(lines[index], 116, top + index * lineHeight, layout.fontSize, serif, readingInk.body, phase(0.16 + index * 0.055, (lines.length - index - 1) * 0.015), 34, 800, 0));
     }
   }
-  readingText.push(await g.text("V E O B I B L E", 116, 1510, 21, sans, "0xFFFFFF", readingPhase, 10));
+  readingText.push(await g.text("V E O B I B L E . C O M", 116, 1510, 24, sansSemibold, readingInk.body, readingPhase, 10, 800, 0));
   const readingGraph = [
-    ...g.base("v1base", "readingDesign", readingLength, rate, readingPhase),
-    ...g.rule("readingDesignbase", "readingRule", readingLength, rate, 116, 551, 96, readingPhase),
+    ...g.chromaticBase("v1base", "readingDesign", readingLength, rate, readingPhase, options.readingPalette?.length ? options.readingPalette : [[246, 236, 216], [222, 236, 226], [240, 224, 210], [220, 232, 242]]),
+    ...g.rule("readingDesignbase", "readingRule", readingLength, rate, 116, 551, 96, readingPhase, readingInk.accent),
     `[readingRule]${readingText.join(",")}[v1]`
   ];
 

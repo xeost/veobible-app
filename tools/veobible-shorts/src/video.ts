@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { config } from "./config.js";
 import type { VerseCue } from "./verse-timing.js";
 import { createStageGraphics } from "./motion-design.js";
+import { extractBackgroundPalette } from "./background-palette.js";
 export { layoutVerse, wrapIntroTitle } from "./motion-design.js";
 
 const execFileAsync = promisify(execFile);
@@ -18,7 +19,7 @@ export interface VoiceTracks { intro: string; outro: string; mode: "voice" | "mi
 export interface IntroTitle { title: string; reference: string; version: string }
 export interface OutroTitle { title: string; highlight: string; channel: string; social: Array<{ platform: string; handle: string }>; website: string }
 
-const requiredVideoFilters = ["drawtext", "drawbox", "vignette", "color", "fade", "overlay", "xfade", "acrossfade", "reverse", "concat", "silencedetect"];
+const requiredVideoFilters = ["drawtext", "drawbox", "geq", "vignette", "color", "fade", "overlay", "xfade", "acrossfade", "reverse", "concat", "silencedetect"];
 
 export async function requireVideoFilters(): Promise<void> {
   const { stdout } = await execFileAsync(config.ffmpegBin, ["-hide_banner", "-filters"]);
@@ -135,7 +136,8 @@ export async function renderShortVideo(output: string, sections: AudioSection[],
     const readingLength = readingDuration + readingSilence * 2;
     const firstTransitionOffset = introLength - transitionDuration;
     const secondTransitionOffset = introLength + readingLength - transitionDuration * 2;
-    const graphics = await createStageGraphics({ width, height, rate: frameRate, staging, intro: title, outro: outroTitle, cues: verseCues, introLength, readingLength, outroLength, readingSilence });
+    const readingPalette = await extractBackgroundPalette(background, duration(backgroundInfo, background));
+    const graphics = await createStageGraphics({ width, height, rate: frameRate, staging, intro: title, outro: outroTitle, cues: verseCues, introLength, readingLength, outroLength, readingSilence, readingPalette });
     const filters = [
       `${pictureFilter(0, width, height, frameRate)},vignette=angle=PI/5${introLength > introDuration ? `,tpad=stop_mode=clone:stop_duration=${(introLength - introDuration).toFixed(6)}` : ""},trim=duration=${introLength.toFixed(6)},setpts=PTS-STARTPTS,settb=AVTB[v0base]`,
       ...graphics.intro,

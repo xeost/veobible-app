@@ -10,7 +10,7 @@ En macOS, instala [ffmpeg-full de Homebrew](https://formulae.brew.sh/formula/ffm
 
 ```bash
 brew install ffmpeg-full
-"$(brew --prefix ffmpeg-full)/bin/ffmpeg" -hide_banner -filters | grep -E 'drawtext|drawbox|xfade|acrossfade|silencedetect'
+"$(brew --prefix ffmpeg-full)/bin/ffmpeg" -hide_banner -filters | grep -E 'drawtext|drawbox|geq|xfade|acrossfade|silencedetect'
 ```
 
 Si instalaste `ffmpeg-full` en otro prefijo, configura `VEOBIBLE_SHORTS_FFMPEG` en `.env` con la ruta completa a su ejecutable; `ffprobe` se buscará en el mismo directorio. Si prefieres usarlo también desde la terminal, añade `export PATH="$(brew --prefix ffmpeg-full)/bin:$PATH"` a tu configuración de shell (por ejemplo, `~/.zshrc`). La CLI informa qué filtros faltan antes de renderizar.
@@ -19,7 +19,7 @@ Filtros usados por el montaje:
 
 | Función | Filtros |
 | --- | --- |
-| Título y composición | `drawtext`, `drawbox`, `vignette`, `color`, `fade`, `overlay`, `format`, `fps`, `scale`, `crop` |
+| Título y composición | `drawtext`, `drawbox`, `geq`, `vignette`, `color`, `fade`, `overlay`, `format`, `fps`, `scale`, `crop` |
 | Boomerang y duración | `split`, `reverse`, `concat`, `trim`, `tpad`, `setpts`, `settb` |
 | Audio y transiciones | `atrim`, `asetpts`, `aresample`, `aformat`, `anull`, `adelay`, `apad`, `amix`, `volume`, `acrossfade`, `xfade` |
 | Ajuste del corte | `silencedetect` |
@@ -77,7 +77,9 @@ Los archivos se guardan en `<outputDir>/<versionId>/<id>/`. `status.json` se gua
 
 Coloca en `<workingDir>/material/videos/` los clips `0-intro.mp4`, `0-outro.mp4` y uno o más fondos llamados `bg-0.mp4`, `bg-1.mp4`, etc. Si usas otra carpeta, configúrala con `VEOBIBLE_SHORTS_VIDEOS_DIR`. La CLI elige un fondo al azar, crea una secuencia que lo reproduce hacia adelante y en reversa, y la repite durante la lectura. `ffmpeg` monta intro, lectura y outro en `short.mp4` con un fundido cruzado de imagen y audio de 0,5 segundos en cada unión. El audio del fondo elegido no se utiliza.
 
-Las tres etapas comparten una identidad editorial en marfil y oro suave, con composición alineada a la izquierda y márgenes amplios para las interfaces de vídeos cortos. Un sombreado transparente y gradual aporta contraste sin encerrar el contenido en un recuadro. La intro destaca «dosis diaria» (o su equivalente en inglés y portugués) en cursiva de gran tamaño; debajo aparecen la referencia del pasaje y la versión. La lectura compone el versículo en líneas equilibradas y adapta el tamaño a su longitud. La outro presenta el título, el canal, las cuentas sociales en filas y el sitio web. Se usan Georgia y Avenir; `fontconfig` elige alternativas cuando no están disponibles.
+Las tres etapas comparten una composición editorial alineada a la izquierda y márgenes amplios para las interfaces de vídeos cortos. La intro y la outro usan marfil y oro suave; la lectura invierte el contraste con un fondo claro y tinta oscura. Un sombreado transparente y gradual aporta contraste sin encerrar el contenido en un recuadro. La intro destaca «dosis diaria» (o su equivalente en inglés y portugués) en cursiva de gran tamaño; debajo aparecen la referencia del pasaje y la versión. La lectura compone el versículo en líneas equilibradas y adapta el tamaño a su longitud. La outro presenta el título, el canal, las cuentas sociales en filas y el sitio web. Se usan Georgia y Avenir; `fontconfig` elige alternativas cuando no están disponibles.
+
+En la lectura, el sombreado adapta automáticamente su paleta al fondo elegido: FFmpeg toma ocho muestras repartidas por el clip y agrupa sus colores en cuatro tonos representativos. Se aclaran hasta obtener tonos de papel teñido que mantienen el contraste del texto oscuro y se mezclan en campos elípticos con degradados no lineales que se desplazan lentamente. La superficie clara cubre todo el vídeo: tiene un 60 % de opacidad detrás del texto y de la marca «V E O B I B L E . C O M» en semibold, y se degrada suavemente hasta un 12 % en los bordes superior e inferior. El filtro `geq`, incluido en `ffmpeg-full`, genera esta animación; no requiere archivos gráficos adicionales ni configuración manual.
 
 Las animaciones se generan con FFmpeg: los textos entran por líneas con desaceleración suave, los trazos dorados se dibujan desde la izquierda y las salidas combinan desplazamiento breve con desvanecimiento. Las fases se adaptan a la duración disponible y a los tiempos de cada versículo. El diseño solo afecta a las capas superpuestas; conserva los clips de fondo, las voces, los cortes y las duraciones del montaje.
 
