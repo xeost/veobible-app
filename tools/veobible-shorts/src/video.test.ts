@@ -4,13 +4,15 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { backgroundVideos, renderShortVideo, wrapIntroTitle } from "./video.js";
+import { backgroundVideos, layoutVerse, renderShortVideo, wrapIntroTitle } from "./video.js";
 import { config } from "./config.js";
 import { canReuseVoiceTracks, introTitle, prepareShort, refineAudioRange, type Passage } from "./shorts.js";
 import { outroTitle } from "./social.js";
+import { applyVerseOffsets, estimateChapterCues } from "./verse-timing.js";
 
 const testTitle = { title: "Daily word", reference: "John 3:14-19", version: "Test Bible" };
 const testOutro = { title: "Follow us", highlight: "to hear more", channel: "VeoBible in English", social: [{ platform: "YouTube", handle: "@veobible" }, { platform: "X", handle: "@example" }], website: "veobible.com" };
+const twoVerseCues = [{ reference: "John 3:14", text: "The first verse is shown alone", start: 0, end: 0.4 }, { reference: "John 3:15", text: "The next verse follows", start: 0.4, end: 0.8 }];
 
 test("intro titles use the selected language, reference, and version", () => {
   assert.deepEqual(introTitle("es", "Juan 3:14-19", "Reina Valera 1909"), {
@@ -18,7 +20,12 @@ test("intro titles use the selected language, reference, and version", () => {
   });
   assert.match(introTitle("en", "John 3:14-19", "King James Version").title, /daily dose/);
   assert.match(introTitle("pt", "João 3:14-19", "Almeida Revista e Corrigida").title, /dose diária/);
-  assert.equal(wrapIntroTitle("Esta es tu dosis diaria de la palabra de Dios"), "Esta es tu dosis diaria\nde la palabra de Dios");
+  assert.equal(wrapIntroTitle("Esta es tu dosis diaria de la palabra de Dios"), "Esta es tu\ndosis diaria\nde la palabra de Dios");
+  for (const locale of ["es", "en", "pt"] as const) {
+    const title = introTitle(locale, "", "").title;
+    assert.equal(wrapIntroTitle(title).replaceAll("\n", " "), title);
+  }
+  assert.ok(layoutVerse("Long text ".repeat(70)).fontSize < 64);
 });
 
 test("outro uses localized titles and configured accounts", async () => {
@@ -31,6 +38,29 @@ test("outro uses localized titles and configured accounts", async () => {
   assert.deepEqual(es.social.map(row => row.platform), ["YouTube", "X", "Instagram", "TikTok"]);
   assert.equal(es.social[0].handle, "@veobible-es");
   assert.equal(en.website, "veobible.com");
+});
+
+test("verse timings follow nearby pauses and preserve edited offsets", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-verse-timing-"));
+  try {
+    const estimates = estimateChapterCues({ chapter: 3, bookName: "John", verses: [{ verse: 14, text: "First phrase" }, { verse: 15, text: "Second phrase" }], section: { file: "chapter.mp3", start: 0, end: 1.3 } }, [{ start: 0.5, end: 0.8 }]);
+    assert.ok(Math.abs(estimates[0].end - 0.77) < 0.001);
+    assert.equal(estimates[0].end, estimates[1].start);
+    const initial = await applyVerseOffsets(root, false, estimates);
+    const parsed = JSON.parse(initial.text);
+    assert.equal(parsed.verses[0].startOffsetSeconds, 0);
+    parsed.verses[0].endOffsetSeconds = -0.1;
+    parsed.verses[1].startOffsetSeconds = -0.1;
+    await fs.writeFile(path.join(root, "verse-offsets.json"), JSON.stringify(parsed));
+    const adjusted = await applyVerseOffsets(root, true, estimates);
+    assert.ok(Math.abs(adjusted.cues[0].end - 0.67) < 0.001);
+    assert.ok(Math.abs(adjusted.cues[1].start - 0.67) < 0.001);
+    parsed.verses[1].startOffsetSeconds = -0.2;
+    await fs.writeFile(path.join(root, "verse-offsets.json"), JSON.stringify(parsed));
+    await assert.rejects(applyVerseOffsets(root, true, estimates), /overlapping or invalid/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
 
 function audioFrequency(file: string, start: number, length = 0.2): number {
@@ -94,7 +124,7 @@ test("creates a complete video with a looped boomerang and the passage audio", {
     assert.deepEqual(await backgroundVideos(videos), [path.join(videos, "bg-0.mp4")]);
     const reading = path.join(root, "reading.wav");
     execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=880:duration=1", "-y", reading]);
-    const result = await renderShortVideo(output, [{ file: reading, start: 0.1, end: 0.5 }, { file: reading, start: 0.5, end: 0.9 }], videos, testTitle, testOutro);
+    const result = await renderShortVideo(output, [{ file: reading, start: 0.1, end: 0.5 }, { file: reading, start: 0.5, end: 0.9 }], videos, testTitle, testOutro, twoVerseCues);
     assert.equal(result.background, "bg-0.mp4");
     assert.equal(result.readingDuration, 0.8);
     const probe = JSON.parse(execFileSync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration:stream=codec_type,width,height", "-of", "json", output], { encoding: "utf8" })) as { format: { duration: string }; streams: Array<{ codec_type: string; width?: number; height?: number }> };
@@ -123,7 +153,7 @@ test("creates a complete video with a looped boomerang and the passage audio", {
     execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=660:duration=0.8", "-y", outroVoice]);
     for (const mode of ["voice", "mix"] as const) {
       const voicedOutput = path.join(root, `${mode}.mp4`);
-      const voiced = await renderShortVideo(voicedOutput, [{ file: reading, start: 0.1, end: 0.5 }], videos, testTitle, testOutro, { intro: introVoice, outro: outroVoice, mode });
+      const voiced = await renderShortVideo(voicedOutput, [{ file: reading, start: 0.1, end: 0.5 }], videos, testTitle, testOutro, [{ ...twoVerseCues[0] }], { intro: introVoice, outro: outroVoice, mode });
       assert.ok(Math.abs(voiced.duration - 6) < 0.01);
       const actual = Number(execFileSync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", voicedOutput], { encoding: "utf8" }).trim());
       assert.ok(Math.abs(actual - 6) < 0.25, `Rendered duration: ${actual} s`);
@@ -140,7 +170,7 @@ test("creates a complete video with a looped boomerang and the passage audio", {
       execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-i", path.join(videos, name), "-an", "-c:v", "copy", "-y", path.join(silentVideos, name)]);
     }
     const silentOutput = path.join(root, "silent.mp4");
-    await renderShortVideo(silentOutput, [{ file: reading, start: 0.1, end: 0.5 }], silentVideos, testTitle, testOutro, { intro: introVoice, outro: outroVoice, mode: "voice" });
+    await renderShortVideo(silentOutput, [{ file: reading, start: 0.1, end: 0.5 }], silentVideos, testTitle, testOutro, [{ ...twoVerseCues[0] }], { intro: introVoice, outro: outroVoice, mode: "voice" });
     assert.ok(Math.abs(audioFrequency(silentOutput, 0.1) - 660) < 35);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
@@ -185,11 +215,22 @@ test("reprocessing can reuse WAV voices without invoking Chatterbox", { timeout:
     const initialMetadata = await fs.readFile(path.join(destination, "metadata.txt"), "utf8");
     assert.match(initialMetadata, /Locuciones reutilizadas: sí/);
     assert.deepEqual(JSON.parse(await fs.readFile(path.join(destination, "offsets.json"), "utf8")), { startSeconds: 0, endSeconds: 0 });
+    const verseOffsetFile = path.join(destination, "verse-offsets.json");
+    const initialVerses = JSON.parse(await fs.readFile(verseOffsetFile, "utf8"));
+    assert.deepEqual(initialVerses.verses.map((item: { reference: string }) => item.reference), ["John 1:1", "John 1:2"]);
+    assert.equal(initialVerses.verses[0].endOffsetSeconds, 0);
     const initialReadingDuration = Number(/Duración estimada de la lectura: ([\d.]+)/.exec(initialMetadata)![1]);
     const editedOffsets = '{\n  "startSeconds": 0.1,\n  "endSeconds": -0.1\n}\n';
     await fs.writeFile(path.join(destination, "offsets.json"), editedOffsets);
+    initialVerses.verses[0].endOffsetSeconds = -0.05;
+    initialVerses.verses[1].startOffsetSeconds = -0.05;
+    await fs.writeFile(verseOffsetFile, JSON.stringify(initialVerses, null, 2) + "\n");
     await prepareShort(version, passage, true, true);
     assert.equal(await fs.readFile(path.join(destination, "offsets.json"), "utf8"), editedOffsets);
+    const adjustedVerses = JSON.parse(await fs.readFile(verseOffsetFile, "utf8"));
+    assert.equal(adjustedVerses.verses[0].endOffsetSeconds, -0.05);
+    assert.equal(adjustedVerses.verses[1].startOffsetSeconds, -0.05);
+    assert.ok(adjustedVerses.verses[0].estimatedEndSeconds !== initialVerses.verses[0].estimatedEndSeconds);
     const adjustedMetadata = await fs.readFile(path.join(destination, "metadata.txt"), "utf8");
     const adjustedReadingDuration = Number(/Duración estimada de la lectura: ([\d.]+)/.exec(adjustedMetadata)![1]);
     assert.ok(Math.abs(initialReadingDuration - adjustedReadingDuration - 0.2) < 0.02);

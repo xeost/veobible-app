@@ -8,6 +8,7 @@ import { config, type Version } from "./config.js";
 import { generateVoice, voiceContext } from "./voice.js";
 import { renderShortVideo, type AudioSection, type IntroTitle, type VoiceTracks } from "./video.js";
 import { outroTitle } from "./social.js";
+import { applyVerseOffsets, estimateVerseCues, type VerseTimingInput } from "./verse-timing.js";
 
 export interface Point { chapter: number; verse: number }
 export interface Passage { id: string; book: string; start: Point; end: Point }
@@ -238,6 +239,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
   const label = reference(book.name, passage);
   const lines: string[] = [];
   const sections: AudioSection[] = [];
+  const timingInputs: VerseTimingInput[] = [];
   const sourceDurations: number[] = [];
   for (let chapter = passage.start.chapter; chapter <= passage.end.chapter; chapter++) {
     const first = chapter === passage.start.chapter ? passage.start.verse : 1;
@@ -250,7 +252,9 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
     const sourceDuration = await audioDurationSeconds(source);
     const estimate = estimateAudioRange(all, first, last, sourceDuration);
     const { start, end } = await refineAudioRange(source, estimate, sourceDuration);
-    sections.push({ file: source, start, end });
+    const section = { file: source, start, end };
+    sections.push(section);
+    timingInputs.push({ chapter, bookName: book.name, verses: selected, section });
     sourceDurations.push(sourceDuration);
   }
 
@@ -274,6 +278,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       throw new Error(`Offsets in ${path.join(destination, "offsets.json")} produce an invalid audio cut for ${path.basename(section.file)}`);
     }
   }
+  const verseTimings = await applyVerseOffsets(destination, replaceExisting, await estimateVerseCues(timingInputs));
   if (reuseVoices && (!replaceExisting || config.clipAudioMode === "video" || !await canReuseVoiceTracks(destination))) {
     throw new Error(`Reusable intro/outro WAV and text files are unavailable in ${destination}`);
   }
@@ -281,6 +286,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
   const temp = await fs.mkdtemp(path.join(path.dirname(destination), `.short-${passage.id}-`));
   try {
     await fs.writeFile(path.join(temp, "offsets.json"), offsets.text, "utf8");
+    await fs.writeFile(path.join(temp, "verse-offsets.json"), verseTimings.text, "utf8");
     await fs.writeFile(path.join(temp, "versiculos.txt"), `${label} — ${index.metadata.name}\n\n${lines.join("\n")}\n`, "utf8");
     if (!["video", "voice", "mix"].includes(config.clipAudioMode)) throw new Error(`Invalid VEOBIBLE_SHORTS_CLIP_AUDIO_MODE: ${config.clipAudioMode}`);
     let voices: VoiceTracks | undefined;
@@ -293,7 +299,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       }
       voices = { intro: path.join(temp, "intro.wav"), outro: path.join(temp, "outro.wav"), mode: config.clipAudioMode as "voice" | "mix" };
     }
-    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, introTitle(version.locale, label, index.metadata.name), await outroTitle(version.locale), voices);
+    const video = await renderShortVideo(path.join(temp, "short.mp4"), sections, config.videosDir, introTitle(version.locale, label, index.metadata.name), await outroTitle(version.locale), verseTimings.cues, voices);
     await fs.writeFile(path.join(temp, "metadata.txt"), [
       `Referencia: ${label}`,
       `ID del pasaje: ${passage.id}`,
@@ -313,6 +319,7 @@ export async function prepareShort(version: Version, passage: Passage, replaceEx
       `Audio bíblico: ${sections.map(section => `${path.basename(section.file)} [${section.start.toFixed(2)}–${section.end.toFixed(2)} s]`).join(", ")}`,
       `Cálculo: proporción de palabras ajustada a pausas cercanas detectadas con ffmpeg; comprueba el corte escuchando el vídeo.`,
       `Ajustes manuales: offsets.json`,
+      `Tiempos y ajustes de versículos: verse-offsets.json`,
       `Texto: versiculos.txt`,
       ""
     ].join("\n"), "utf8");
