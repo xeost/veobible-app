@@ -81,6 +81,14 @@ function stagePhase(length: number, delay: number, exitOrder = 0): Phase {
   return { start: delay * scale, duration: 0.65 * scale, exit: length - (0.96 + exitOrder) * scale, exitDuration: 0.45 * scale };
 }
 
+const introVersionDelay = 0.88;
+
+/** The version caption is the last element to finish its entrance. */
+export function introAnimationEnd(length: number): number {
+  const phase = stagePhase(length, introVersionDelay);
+  return phase.start + phase.duration;
+}
+
 class Graphics {
   private serial = 0;
   constructor(private width: number, private height: number, private directory: string) {}
@@ -171,7 +179,7 @@ export async function createStageGraphics(options: {
     g.text(introLines.length === 3 ? introLines[1] : introLines[0], 108, 650, 128, italic, palette.gold, introPhase(0.3), 72),
     g.text(introLines.length === 3 ? introLines[2] : introLines.slice(1).join(" "), 116, 822, 48, serif, palette.paper, introPhase(0.5, 0.04)),
     g.text(intro.reference, 112, 1060, 82, serif, palette.paper, introPhase(0.72, 0.13)),
-    g.text(intro.version, 116, 1180, 31, sans, palette.muted, introPhase(0.88, 0.22))
+    g.text(intro.version, 116, 1180, 31, sans, palette.muted, introPhase(introVersionDelay, 0.22))
   ]);
   const introGraph = [
     ...g.base("v0base", "introDesign", introLength, rate, introPhase(0)),

@@ -1,6 +1,6 @@
 # VeoBible Shorts CLI
 
-Asistente interactivo para crear vídeos completos de pasajes bíblicos populares. Selecciona idioma, versión y pasaje. Cada preparación crea `short.mp4`, `versiculos.txt`, `metadata.txt` y `offsets.json` en su carpeta de salida. Se puede marcar el pasaje como utilizado después de generarlo.
+Asistente interactivo para crear vídeos completos de pasajes bíblicos populares. Selecciona idioma, versión y pasaje. Cada preparación crea el vídeo, una miniatura y descripciones listas para publicar; los archivos de trabajo quedan dentro de `_internal/`. Se puede marcar el pasaje como utilizado después de generarlo.
 
 ## Instalación y ejecución
 
@@ -73,6 +73,40 @@ El catálogo incluido contiene **100 pasajes de los 66 libros**, todos verificad
 
 Los archivos se guardan en `<outputDir>/<versionId>/<id>/`. `status.json` se guarda directamente en `<outputDir>` y marca los pasajes globalmente por `id`, independientemente de idioma y versión. En la lista, los pasajes usados aparecen al final con la marca **✓ Used**. Crear el vídeo no lo marca automáticamente; el asistente lo pregunta al final. Si se omite, el pasaje se puede marcar más tarde desde su menú.
 
+## Archivos de salida para publicación
+
+La carpeta de cada pasaje queda organizada así:
+
+```text
+john-3-14-19/
+├── short.mp4
+├── thumbnail.jpg
+├── youtube.txt
+├── x.txt
+├── instagram.txt
+├── tiktok.txt
+└── _internal/
+    ├── 0-metadata.txt
+    ├── 1-intro.txt
+    ├── 1-intro.wav
+    ├── 2-passage-audio-offsets.json
+    ├── 2-verse-text-offsets.json
+    ├── 2-versiculos.txt
+    ├── 3-outro.txt
+    ├── 3-outro.wav
+    └── README.md
+```
+
+Las locuciones WAV y sus guiones se generan en los modos `voice` y `mix`. `thumbnail.jpg` conserva la resolución del vídeo y captura el primer fotograma posterior al final de todas las animaciones de entrada de la intro. Su segundo exacto queda registrado en `_internal/0-metadata.txt`.
+
+Los cuatro TXT de la raíz contienen descripciones en el idioma seleccionado, con la referencia, la versión, una invitación adaptada a cada red, el sitio web y hashtags bíblicos, del libro y de los temas identificados en el texto del pasaje. YouTube incluye `#Shorts` e Instagram `#Reels`. `x.txt` incluye además **todos los versículos del pasaje**, sin truncarlos; para pasajes largos puede requerir una publicación larga en X. Puedes editar los textos antes de publicarlos; se generan de nuevo al reprocesar.
+
+`_internal/README.md` explica cada archivo y cómo ajustar los offsets del audio del pasaje y los tiempos del texto de cada versículo, con ejemplos decimales.
+
+Los prefijos agrupan los archivos: `0-` para información general, `1-` para la intro, `2-` para la lectura y `3-` para la outro.
+
+Al reprocesar una salida antigua, la CLI lee los offsets y las voces desde los nombres anteriores en `_internal/`, `internal/` o la raíz y los guarda con sus nuevos prefijos en `_internal/`, conservando los ajustes manuales y las voces si eliges reutilizarlas. Edita los offsets dentro de `_internal/` a partir de ese momento.
+
 ## Montaje del vídeo
 
 Coloca en `<workingDir>/material/videos/` los clips `0-intro.mp4`, `0-outro.mp4` y uno o más fondos llamados `bg-0.mp4`, `bg-1.mp4`, etc. Si usas otra carpeta, configúrala con `VEOBIBLE_SHORTS_VIDEOS_DIR`. La CLI elige un fondo al azar, crea una secuencia que lo reproduce hacia adelante y en reversa, y la repite durante la lectura. `ffmpeg` monta intro, lectura y outro en `short.mp4` con un fundido cruzado de imagen y audio de 0,5 segundos en cada unión. El audio del fondo elegido no se utiliza.
@@ -83,25 +117,25 @@ En la lectura, el sombreado adapta automáticamente su paleta al fondo elegido: 
 
 Las animaciones se generan con FFmpeg: los textos entran por líneas con desaceleración suave, los trazos dorados se dibujan desde la izquierda y las salidas combinan desplazamiento breve con desvanecimiento. Las fases se adaptan a la duración disponible y a los tiempos de cada versículo. El diseño solo afecta a las capas superpuestas; conserva los clips de fondo, las voces, los cortes y las duraciones del montaje.
 
-Los audios bíblicos originales siguen divididos por capítulo. La CLI estima el inicio y el final del pasaje según la proporción de palabras de cada versículo y usa `ffmpeg` para ajustar cada límite a una pausa cercana cuando la detecta. Después concatena los fragmentos necesarios si el pasaje cruza capítulos. El segmento de lectura tiene un segundo de silencio antes y después del audio bíblico; 0,5 segundos de cada margen se solapan con el fundido correspondiente. Las pausas no identifican por sí solas los versículos, así que **comprueba el inicio y el final escuchando el vídeo generado**. `metadata.txt` guarda los límites antes y después de los ajustes y el nombre del fondo seleccionado.
+Los audios bíblicos originales siguen divididos por capítulo. La CLI estima el inicio y el final del pasaje según la proporción de palabras de cada versículo y usa `ffmpeg` para ajustar cada límite a una pausa cercana cuando la detecta. Después concatena los fragmentos necesarios si el pasaje cruza capítulos. El segmento de lectura tiene un segundo de silencio antes y después del audio bíblico; 0,5 segundos de cada margen se solapan con el fundido correspondiente. Las pausas no identifican por sí solas los versículos, así que **comprueba el inicio y el final escuchando el vídeo generado**. `_internal/0-metadata.txt` guarda los límites antes y después de los ajustes y el nombre del fondo seleccionado.
 
 Durante la lectura, el vídeo presenta cada versículo por separado: primero aparece su referencia pequeña (por ejemplo, `Juan 3:14`) y después el texto grande. Ambos entran y salen suavemente antes de pasar al siguiente. La CLI reparte la duración del audio según las palabras y letras de los versículos y acerca los límites a pausas detectadas por FFmpeg cuando hay una próxima. Este cálculo es una estimación acústica: FFmpeg no reconoce las palabras pronunciadas, por lo que conviene revisar la sincronización escuchando `short.mp4`.
 
-Cada salida incluye un `offsets.json` editable, inicialmente con `{"startSeconds": 0, "endSeconds": 0}`. Tras escuchar `short.mp4`, cambia `startSeconds` para mover el inicio de la lectura y `endSeconds` para mover su final; un número positivo mueve el límite más adelante en el audio fuente y uno negativo lo mueve hacia atrás. Los valores están en segundos y se suman a los límites automáticos indicados en `metadata.txt`. En **Reprocess complete video**, la CLI conserva el archivo editado y aplica sus valores al nuevo montaje. Si el pasaje cruza capítulos, el offset inicial afecta al primer capítulo y el final al último. Los límites deben quedar dentro del audio de cada capítulo y mantener un fragmento de duración positiva.
+Cada salida incluye un `_internal/2-passage-audio-offsets.json` editable, inicialmente con `{"startSeconds": 0, "endSeconds": 0}`. Tras escuchar `short.mp4`, cambia `startSeconds` para mover el inicio de la lectura y `endSeconds` para mover su final; un número positivo mueve el límite más adelante en el audio fuente y uno negativo lo mueve hacia atrás. Los valores están en segundos y se suman a los límites automáticos indicados en `_internal/0-metadata.txt`. En **Reprocess complete video**, la CLI conserva el archivo editado y aplica sus valores al nuevo montaje. Si el pasaje cruza capítulos, el offset inicial afecta al primer capítulo y el final al último. Los límites deben quedar dentro del audio de cada capítulo y mantener un fragmento de duración positiva.
 
-Cada salida también incluye `verse-offsets.json`. Su lista `verses` contiene la referencia, `estimatedStartSeconds` y `estimatedEndSeconds` para cada versículo, medidos **desde el inicio del audio bíblico recortado**, sin contar el segundo de silencio inicial de la lectura. Ajusta `startOffsetSeconds` y `endOffsetSeconds` para adelantar (valor negativo) o retrasar (valor positivo) la aparición y desaparición de un versículo. Por ejemplo, si el versículo siguiente debe entrar 0,2 segundos antes, cambia su `startOffsetSeconds` a `-0.2` y el `endOffsetSeconds` del anterior a `-0.2`. Los tiempos deben ser positivos, mantener cada versículo con duración mayor que cero y evitar superposiciones. Al reprocesar, la CLI conserva los offsets editados y recalcula los tiempos estimados, incluso si cambiaste los offsets globales en `offsets.json`.
+Cada salida también incluye `_internal/2-verse-text-offsets.json`. Su lista `verses` contiene la referencia, `estimatedStartSeconds` y `estimatedEndSeconds` para cada versículo, medidos **desde el inicio del audio bíblico recortado**, sin contar el segundo de silencio inicial de la lectura. Ajusta `startOffsetSeconds` y `endOffsetSeconds` para adelantar (valor negativo) o retrasar (valor positivo) la aparición y desaparición de un versículo. Por ejemplo, si el versículo siguiente debe entrar 0,2 segundos antes, cambia su `startOffsetSeconds` a `-0.2` y el `endOffsetSeconds` del anterior a `-0.2`. Los tiempos deben ser positivos, mantener cada versículo con duración mayor que cero y evitar superposiciones. Al reprocesar, la CLI conserva los offsets editados y recalcula los tiempos estimados, incluso si cambiaste los offsets globales en `_internal/2-passage-audio-offsets.json`.
 
-Para volver a generar un vídeo existente, elige **Reprocess complete video** y confirma el reemplazo. Si la salida anterior contiene `intro.wav`, `outro.wav`, `intro.txt` y `outro.txt`, la CLI pregunta si quieres reutilizarlos; **Yes** es la respuesta predeterminada. Los cuatro archivos se copian a la nueva salida y se evita volver a ejecutar Chatterbox o llamar a ElevenLabs. Si quieres actualizar la voz, sus muestras o sus guiones, responde **No** para generarlos de nuevo. La CLI prepara la salida en una carpeta temporal y conserva la anterior si falla la generación. La marca del pasaje en `status.json` se conserva. Esta opción también convierte salidas del formato anterior al nuevo vídeo completo.
+Para volver a generar un vídeo existente, elige **Reprocess complete video** y confirma el reemplazo. Si la salida anterior contiene `1-intro.wav`, `3-outro.wav`, `1-intro.txt` y `3-outro.txt` dentro de `_internal/` (o sus nombres anteriores en `internal/` o en la raíz), la CLI pregunta si quieres reutilizarlos; **Yes** es la respuesta predeterminada. Los cuatro archivos se copian al nuevo directorio `_internal/` y se evita volver a ejecutar Chatterbox o llamar a ElevenLabs. Si quieres actualizar la voz, sus muestras o sus guiones, responde **No** para generarlos de nuevo. La CLI prepara la salida en una carpeta temporal y conserva la anterior si falla la generación. La marca del pasaje en `status.json` se conserva. Esta opción también convierte salidas del formato anterior al nuevo vídeo completo.
 
 ## Voz de intro y outro
 
-Por defecto, `VEOBIBLE_SHORTS_CLIP_AUDIO_MODE=voice` genera las locuciones de intro y outro con Chatterbox o ElevenLabs y las coloca sobre `0-intro.mp4` y `0-outro.mp4`, respectivamente, sustituyendo el audio original de esos clips. Con `mix`, las locuciones se mezclan con el audio original a volumen reducido. Con `video`, se usa únicamente el audio incorporado en los MP4. **La intro termina un segundo después de su audio; la outro comienza con un segundo de silencio y termina un segundo después de su audio.** Esto se aplica también al audio original de los MP4 en los modos `mix` y `video`. Si el vídeo de fondo dura más o menos, se recorta o se prolonga su último fotograma. Cada locución se guarda como WAV PCM de 24 bits a 48 kHz, junto a su guion; `ffmpeg` utiliza esos WAV directamente para el montaje. Si falla la síntesis o el montaje, la salida anterior se conserva. El proveedor se elige en `.env`.
+Por defecto, `VEOBIBLE_SHORTS_CLIP_AUDIO_MODE=voice` genera las locuciones de intro y outro con Chatterbox o ElevenLabs y las coloca sobre `0-intro.mp4` y `0-outro.mp4`, respectivamente, sustituyendo el audio original de esos clips. Con `mix`, las locuciones se mezclan con el audio original a volumen reducido. Con `video`, se usa únicamente el audio incorporado en los MP4. **La intro termina un segundo después de su audio; la outro comienza con un segundo de silencio y termina un segundo después de su audio.** Esto se aplica también al audio original de los MP4 en los modos `mix` y `video`. Si el vídeo de fondo dura más o menos, se recorta o se prolonga su último fotograma. Dentro de `_internal/`, cada locución se guarda como WAV PCM de 24 bits a 48 kHz, junto a su guion; `ffmpeg` utiliza esos WAV directamente para el montaje. Si falla la síntesis o el montaje, la salida anterior se conserva. El proveedor se elige en `.env`.
 
 La outro muestra el título «Síguenos para escuchar más» traducido al idioma del pasaje, el nombre del canal, las cuentas de YouTube, X, Instagram y TikTok, y `veobible.com`. Edita [`social-accounts.json`](social-accounts.json) para configurar los usuarios por idioma. Los usuarios de YouTube ya corresponden a los canales del proyecto; los de X, Instagram y TikTok son **ejemplos** y debes reemplazarlos antes de publicar. Un usuario vacío omite esa red del vídeo. Puedes usar otro archivo con la misma estructura mediante `VEOBIBLE_SHORTS_SOCIAL_ACCOUNTS` en `.env`.
 
 Las plantillas de español, inglés y portugués se editan en [voice-templates.json](voice-templates.json), dentro de esta herramienta. Admiten `{reference}`, `{version}`, `{book}`, `{start}`, `{end}` y `{passage_id}`. Los valores provienen del pasaje y la versión elegidos; `veobible-shorts` entrega los guiones completos a [VeoBible Voice](../veobible-voice/README.md), que solo sintetiza el texto recibido.
 
-En las locuciones, `{reference}` escribe los números con letras (por ejemplo, «Juan capítulo tres versículos catorce al diecinueve»). También convierte los números de libros como «1 Juan» a «Primera de Juan». `metadata.txt` conserva la referencia escrita «Juan 3:14-19». Después de editar las plantillas o cambiar de proveedor, usa **Reprocess complete video** y elige generar las locuciones de nuevo para actualizar la salida.
+En las locuciones, `{reference}` escribe los números con letras (por ejemplo, «Juan capítulo tres versículos catorce al diecinueve»). También convierte los números de libros como «1 Juan» a «Primera de Juan». `_internal/0-metadata.txt` conserva la referencia escrita «Juan 3:14-19». Después de editar las plantillas o cambiar de proveedor, usa **Reprocess complete video** y elige generar las locuciones de nuevo para actualizar la salida.
 
 ### Chatterbox local
 

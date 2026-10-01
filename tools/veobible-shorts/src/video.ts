@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { config } from "./config.js";
 import type { VerseCue } from "./verse-timing.js";
-import { createStageGraphics } from "./motion-design.js";
+import { createStageGraphics, introAnimationEnd } from "./motion-design.js";
 import { extractBackgroundPalette } from "./background-palette.js";
 export { layoutVerse, wrapIntroTitle } from "./motion-design.js";
 
@@ -14,7 +14,7 @@ const readingSilence = 1;
 const transitionDuration = 0.5;
 
 export interface AudioSection { file: string; start: number; end: number }
-export interface VideoResult { background: string; duration: number; readingDuration: number }
+export interface VideoResult { background: string; duration: number; readingDuration: number; thumbnailTime: number }
 export interface VoiceTracks { intro: string; outro: string; mode: "voice" | "mix" }
 export interface IntroTitle { title: string; reference: string; version: string }
 export interface OutroTitle { title: string; highlight: string; channel: string; social: Array<{ platform: string; handle: string }>; website: string }
@@ -74,8 +74,26 @@ function pictureFilter(input: number, width: number, height: number, frameRate: 
   return `[${input}:v:0]fps=${frameRate},scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},format=yuv420p`;
 }
 
+export function introThumbnailTime(length: number, frameRate: string): number {
+  const [numerator, denominator] = frameRate.split("/").map(Number);
+  const rate = numerator / denominator;
+  return (Math.floor(introAnimationEnd(length) * rate) + 1) / rate;
+}
+
+export async function generateThumbnail(video: string, output: string, at: number): Promise<void> {
+  console.log("Creating publication thumbnail...");
+  const info = await mediaInfo(video);
+  const rate = info.streams.find(stream => stream.codec_type === "video")?.r_frame_rate;
+  if (!rate) throw new Error(`Missing video frame rate: ${video}`);
+  const [numerator, denominator] = rate.split("/").map(Number);
+  const frame = Math.round(at * numerator / denominator);
+  // Select by frame index: decimal seeking can round past a fractional timestamp.
+  await ffmpeg(["-i", video, "-vf", `select=eq(n\\,${frame})`, "-frames:v", "1", "-q:v", "2", "-update", "1", output]);
+  if (!(await fs.stat(output)).size) throw new Error(`Empty thumbnail: ${output}`);
+}
+
 /** Build one forward-and-reverse cycle, then loop it only for the reading. */
-export async function renderShortVideo(output: string, sections: AudioSection[], videosDir: string, title: IntroTitle, outroTitle: OutroTitle, verseCues: VerseCue[], voices?: VoiceTracks): Promise<VideoResult> {
+export async function renderShortVideo(output: string, sections: AudioSection[], videosDir: string, title: IntroTitle, outroTitle: OutroTitle, verseCues: VerseCue[], voices?: VoiceTracks, workDir = path.dirname(output)): Promise<VideoResult> {
   if (!sections.length || sections.some(section => !Number.isFinite(section.start) || !Number.isFinite(section.end) || section.start < 0 || section.end <= section.start)) {
     throw new Error("The passage needs at least one valid audio section");
   }
@@ -108,7 +126,7 @@ export async function renderShortVideo(output: string, sections: AudioSection[],
   if (!width || !height || !frameRate || !/^\d+\/\d+$/.test(frameRate)) throw new Error(`Invalid video format: ${intro}`);
   await requireVideoFilters();
 
-  const staging = await fs.mkdtemp(path.join(path.dirname(output), ".video-"));
+  const staging = await fs.mkdtemp(path.join(workDir, ".video-"));
   try {
     const boomerang = path.join(staging, "boomerang.mp4");
     console.log(`Creating boomerang from ${path.basename(background)}...`);
@@ -159,7 +177,7 @@ export async function renderShortVideo(output: string, sections: AudioSection[],
     await fs.writeFile(filterScript, filters.join(";"), "utf8");
     console.log("Rendering complete video...");
     await ffmpeg(["-i", intro, "-stream_loop", "-1", "-i", boomerang, "-i", outro, ...audioInputs, ...voiceInputs, "-/filter_complex", filterScript, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", output]);
-    return { background: path.basename(background), duration: introLength + readingLength + outroLength - transitionDuration * 2, readingDuration };
+    return { background: path.basename(background), duration: introLength + readingLength + outroLength - transitionDuration * 2, readingDuration, thumbnailTime: introThumbnailTime(introLength, frameRate) };
   } finally {
     await fs.rm(staging, { recursive: true, force: true });
   }

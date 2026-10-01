@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { config } from "./config.js";
 import type { AudioSection } from "./video.js";
+import { existingInternalFile } from "./output-files.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -86,7 +87,7 @@ export async function estimateVerseCues(inputs: VerseTimingInput[]): Promise<Ver
 
 /** Preserve only manual offsets; recalculate the displayed estimates on every render. */
 export async function applyVerseOffsets(outputDir: string, replaceExisting: boolean, estimates: VerseCue[]): Promise<{ cues: VerseCue[]; text: string }> {
-  const file = path.join(outputDir, "verse-offsets.json");
+  const file = await existingInternalFile(outputDir, "verse-offsets.json");
   let previous: VerseOffset[] = [];
   if (replaceExisting) {
     try {
