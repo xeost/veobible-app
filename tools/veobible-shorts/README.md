@@ -2,6 +2,22 @@
 
 Asistente interactivo para crear vídeos completos de pasajes bíblicos populares. Selecciona idioma, versión y pasaje. Cada preparación crea el vídeo, una miniatura y descripciones listas para publicar; los archivos de trabajo quedan dentro de `_internal/`. Se puede marcar el pasaje como utilizado después de generarlo.
 
+## Archivos locales en Remotion
+
+El renderer de Remotion prepara automáticamente los vídeos de intro, fondo y outro, los audios bíblicos y las locuciones en una carpeta pública temporal de su bundle. La composición usa `staticFile()` para obtener URLs que el navegador puede cargar, en lugar de recibir rutas absolutas del disco (`/Users/...`). No necesitas mover tus archivos ni cambiar sus rutas en `.env`.
+
+Cada render utiliza nombres independientes, reutiliza una sola copia por archivo de audio fuente y elimina sus medios temporales al terminar o fallar. Los archivos originales se conservan. Esto evita errores HTTP 404 al cargar vídeos o audios locales, incluidos renders consecutivos durante la misma sesión. Consulta la [documentación de Remotion sobre rutas absolutas](https://www.remotion.dev/docs/miscellaneous/absolute-paths).
+
+## Rendimiento y fluidez del renderizado
+
+Las tres etapas usan `Video` de `@remotion/media`, que decodifica el fotograma correspondiente a la línea de tiempo. El montaje conserva los FPS de `0-intro.mp4` (incluidos valores fraccionarios como `30000/1001`); el boomerang se genera con esa misma frecuencia. Si los clips fuente tienen frecuencias diferentes, se adaptan a la del montaje sin cambiar su velocidad. No se inventan fotogramas mediante interpolación.
+
+La duración real de cada video de intro/outro se trata por separado de la duración de su locución. Si el video termina antes, se mantiene su último fotograma mientras las animaciones y el audio siguen avanzando. Si es más largo, se corta al terminar la etapa.
+
+El render usa fotogramas JPEG intermedios y, por defecto, la mitad de las CPU disponibles con un máximo de cuatro procesos. Puedes configurar `VEOBIBLE_SHORTS_RENDER_CONCURRENCY` en `.env`: admite enteros entre `1` y el número de CPU disponibles. Aumentarlo puede empeorar el rendimiento o aumentar el consumo de memoria.
+
+Ejecuta `pnpm benchmark` desde esta herramienta para comparar 1, 2 y 4 procesos. Usa muestras de dos segundos de tus videos reales, a su resolución original, y audio sintético; calienta el bundle antes de medir y elimina todos sus archivos temporales. No modifica tus fondos, locuciones ni publicaciones. Los tiempos incluyen preparación y codificación; los pasajes más largos pueden favorecer otra concurrencia. Remotion compone mediante un navegador y no garantiza igualar la velocidad del montaje nativo con FFmpeg. Consulta las [recomendaciones oficiales de rendimiento](https://www.remotion.dev/docs/performance).
+
 ## Instalación y ejecución
 
 Requiere Node.js 18+, pnpm, `ffmpeg` y `ffprobe` (incluidos en FFmpeg) disponibles en `PATH`. El título de la intro se dibuja con el filtro `drawtext`: la compilación de FFmpeg debe incluir `libfreetype`, `libharfbuzz` y `libfontconfig`.

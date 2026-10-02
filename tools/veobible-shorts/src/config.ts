@@ -22,6 +22,7 @@ const ffmpegBin = process.env.VEOBIBLE_SHORTS_FFMPEG || homebrewFull || "ffmpeg"
 /** Paths can be set in .env, overridden by process environment variables. */
 export const config = {
   workingDir,
+  renderConcurrency: process.env.VEOBIBLE_SHORTS_RENDER_CONCURRENCY ?? "",
   outputDir: process.env.VEOBIBLE_SHORTS_OUTPUT_DIR ?? path.join(workingDir, "outputs"),
   videosDir: process.env.VEOBIBLE_SHORTS_VIDEOS_DIR ?? path.join(workingDir, "material", "videos"),
   socialAccounts: process.env.VEOBIBLE_SHORTS_SOCIAL_ACCOUNTS ?? path.join(toolRoot, "social-accounts.json"),

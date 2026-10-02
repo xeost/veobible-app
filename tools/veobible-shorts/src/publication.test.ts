@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { publicationDescriptions } from "./publication.js";
 import { introTitle } from "./shorts.js";
-import { introAnimationEnd } from "./motion-design.js";
+import { introAnimationEnd } from "./remotion/animation.js";
+
 import { introThumbnailTime } from "./video.js";
 
 test("publication descriptions are localized and X includes the complete passage", () => {

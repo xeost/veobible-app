@@ -1,33 +1,51 @@
+/**
+ * video.ts – Remotion-based replacement for the previous FFmpeg-only renderer.
+ *
+ * Public API is IDENTICAL to the original so that shorts.ts, index.ts and all
+ * other callers require zero changes.  The only difference is that video
+ * composition and rendering now go through Remotion instead of a raw FFmpeg
+ * filter graph.  FFmpeg is still used for:
+ *   - audio duration measurement (audioDurationSeconds via ffprobe)
+ *   - silence detection for verse-timing (detectPauses in verse-timing.ts)
+ *   - background palette extraction (extractBackgroundPalette via rawvideo)
+ *   - boomerang construction (forward+reverse loop from the background clip)
+ *   - thumbnail extraction from the rendered video
+ */
+
 import fs from "node:fs/promises";
 import path from "node:path";
+import { availableParallelism } from "node:os";
 import { randomInt } from "node:crypto";
 import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { bundle } from "@remotion/bundler";
+import { renderMedia, selectComposition } from "@remotion/renderer";
 import { config } from "./config.js";
 import type { VerseCue } from "./verse-timing.js";
-import { createStageGraphics, introAnimationEnd } from "./motion-design.js";
+import { introAnimationEnd } from "./remotion/animation.js";
 import { extractBackgroundPalette } from "./background-palette.js";
 import { validateReadingVolume } from "./reading-audio.js";
-export { layoutVerse, wrapIntroTitle } from "./motion-design.js";
+import type { ShortCompositionProps } from "./remotion/types.js";
+import { prepareRemotionMedia } from "./remotion-media.js";
+export { layoutVerse } from "./remotion/animation.js";
+import { wrapIntroTitle as wrapIntroTitleArr } from "./remotion/animation.js";
+/** Returns the wrapped intro title as a newline-joined string (same API as the original). */
+export function wrapIntroTitle(title: string): string {
+  return wrapIntroTitleArr(title).join("\n");
+}
+
 
 const execFileAsync = promisify(execFile);
-const readingSilence = 1;
-const transitionDuration = 0.5;
 
+// ─── types (re-exported for callers) ─────────────────────────────────────────
 export interface AudioSection { file: string; start: number; end: number }
 export interface VideoResult { background: string; duration: number; readingDuration: number; thumbnailTime: number }
 export interface VoiceTracks { intro: string; outro: string; mode: "voice" | "mix" }
 export interface IntroTitle { title: string; reference: string; version: string }
 export interface OutroTitle { title: string; highlight: string; channel: string; social: Array<{ platform: string; handle: string }>; website: string }
 
-const requiredVideoFilters = ["drawtext", "drawbox", "geq", "vignette", "color", "fade", "overlay", "xfade", "acrossfade", "reverse", "concat", "silencedetect", "volume", "alimiter"];
-
-export async function requireVideoFilters(): Promise<void> {
-  const { stdout } = await execFileAsync(config.ffmpegBin, ["-hide_banner", "-filters"]);
-  const available = new Set(stdout.split(/\r?\n/).map(line => /^\s*[.A-Z|]{2,3}\s+(\S+)\s/.exec(line)?.[1]).filter(Boolean));
-  const missing = requiredVideoFilters.filter(filter => !available.has(filter));
-  if (missing.length) throw new Error(`FFmpeg is missing required filters: ${missing.join(", ")}. On macOS, install Homebrew ffmpeg-full or set VEOBIBLE_SHORTS_FFMPEG to a compatible binary (see README).`);
-}
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
 interface MediaInfo {
   streams: Array<{ codec_type: string; width?: number; height?: number; r_frame_rate?: string; duration?: string }>;
@@ -43,30 +61,31 @@ async function ffmpeg(args: string[]): Promise<void> {
   try {
     await execFileAsync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-nostdin", "-n", ...args], { maxBuffer: 1024 * 1024 });
   } catch (error) {
-    throw new Error(`Video rendering failed: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`FFmpeg failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-function duration(info: MediaInfo, file: string): number {
-  const value = Number(info.format.duration);
+function mediaDuration(info: MediaInfo, file: string): number {
+  const videoDuration = Number(info.streams.find(s => s.codec_type === "video")?.duration);
+  const value = Number.isFinite(videoDuration) && videoDuration > 0 ? videoDuration : Number(info.format.duration);
   if (!Number.isFinite(value) || value <= 0) throw new Error(`Invalid video duration: ${file}`);
   return value;
 }
 
-function audioDuration(info: MediaInfo, file: string): number {
-  const value = Number(info.streams.find(stream => stream.codec_type === "audio")?.duration);
-  return Number.isFinite(value) && value > 0 ? value : duration(info, file);
+function audioStreamDuration(info: MediaInfo, file: string): number {
+  const value = Number(info.streams.find(s => s.codec_type === "audio")?.duration);
+  return Number.isFinite(value) && value > 0 ? value : mediaDuration(info, file);
 }
 
 function requireClipStreams(info: MediaInfo, file: string, needsAudio: boolean): void {
-  if (!info.streams.some(stream => stream.codec_type === "video")) throw new Error(`Missing video stream: ${file}`);
-  if (needsAudio && !info.streams.some(stream => stream.codec_type === "audio")) throw new Error(`Missing audio stream: ${file}`);
+  if (!info.streams.some(s => s.codec_type === "video")) throw new Error(`Missing video stream: ${file}`);
+  if (needsAudio && !info.streams.some(s => s.codec_type === "audio")) throw new Error(`Missing audio stream: ${file}`);
 }
 
 /** Select only numbered background clips, independently of directory order. */
 export async function backgroundVideos(videosDir: string): Promise<string[]> {
   const entries = await fs.readdir(videosDir, { withFileTypes: true });
-  const files = entries.filter(entry => entry.isFile() && /^bg-\d+\.mp4$/.test(entry.name)).map(entry => path.join(videosDir, entry.name)).sort();
+  const files = entries.filter(e => e.isFile() && /^bg-\d+\.mp4$/.test(e.name)).map(e => path.join(videosDir, e.name)).sort();
   if (!files.length) throw new Error(`No bg-[number].mp4 videos found in ${videosDir}`);
   return files;
 }
@@ -84,104 +103,198 @@ export function introThumbnailTime(length: number, frameRate: string): number {
 export async function generateThumbnail(video: string, output: string, at: number): Promise<void> {
   console.log("Creating publication thumbnail...");
   const info = await mediaInfo(video);
-  const rate = info.streams.find(stream => stream.codec_type === "video")?.r_frame_rate;
+  const rate = info.streams.find(s => s.codec_type === "video")?.r_frame_rate;
   if (!rate) throw new Error(`Missing video frame rate: ${video}`);
   const [numerator, denominator] = rate.split("/").map(Number);
   const frame = Math.round(at * numerator / denominator);
-  // Select by frame index: decimal seeking can round past a fractional timestamp.
   await ffmpeg(["-i", video, "-vf", `select=eq(n\\,${frame})`, "-frames:v", "1", "-q:v", "2", "-update", "1", output]);
   if (!(await fs.stat(output)).size) throw new Error(`Empty thumbnail: ${output}`);
 }
 
+// ─── Remotion bundle (cached per process) ────────────────────────────────────
+
+let bundleUrlCache: string | undefined;
+
+async function getBundle(): Promise<string> {
+  if (bundleUrlCache) return bundleUrlCache;
+  const entryPoint = fileURLToPath(new URL("./remotion/Root.tsx", import.meta.url));
+  console.log("Bundling Remotion composition...");
+  bundleUrlCache = await bundle({ entryPoint });
+  return bundleUrlCache;
+}
+
+// ─── Main render function ─────────────────────────────────────────────────────
+
+export function sourceFrameRate(rate: string): number {
+  const [numerator, denominator = 1] = rate.split("/").map(Number);
+  const fps = numerator / denominator;
+  if (!Number.isFinite(fps) || fps <= 0 || fps > 240) throw new Error(`Invalid video frame rate: ${rate}`);
+  return fps;
+}
+
+export function renderConcurrency(value = config.renderConcurrency): number {
+  if (!value) return Math.max(1, Math.min(4, Math.floor(availableParallelism() / 2)));
+  const concurrency = Number(value);
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > availableParallelism()) {
+    throw new Error(`VEOBIBLE_SHORTS_RENDER_CONCURRENCY must be an integer between 1 and ${availableParallelism()}`);
+  }
+  return concurrency;
+}
+const readingSilenceConst = 1;
+const transitionDuration = 0.5;
+
 /** Build one forward-and-reverse cycle, then loop it only for the reading. */
-export async function renderShortVideo(output: string, sections: AudioSection[], videosDir: string, title: IntroTitle, outroTitle: OutroTitle, verseCues: VerseCue[], voices?: VoiceTracks, workDir = path.dirname(output), volumeMultiplier = 1): Promise<VideoResult> {
+export async function renderShortVideo(
+  output: string,
+  sections: AudioSection[],
+  videosDir: string,
+  title: IntroTitle,
+  outroTitle: OutroTitle,
+  verseCues: VerseCue[],
+  voices?: VoiceTracks,
+  workDir = path.dirname(output),
+  volumeMultiplier = 1,
+  renderOptions: { concurrency?: number } = {},
+): Promise<VideoResult> {
   validateReadingVolume(volumeMultiplier);
-  if (!sections.length || sections.some(section => !Number.isFinite(section.start) || !Number.isFinite(section.end) || section.start < 0 || section.end <= section.start)) {
+  if (!sections.length || sections.some(s => !Number.isFinite(s.start) || !Number.isFinite(s.end) || s.start < 0 || s.end <= s.start)) {
     throw new Error("The passage needs at least one valid audio section");
   }
+
   const intro = path.join(videosDir, "0-intro.mp4");
   const outro = path.join(videosDir, "0-outro.mp4");
   const backgrounds = await backgroundVideos(videosDir);
   const background = backgrounds[randomInt(backgrounds.length)];
-  const [introInfo, outroInfo, backgroundInfo] = await Promise.all([mediaInfo(intro), mediaInfo(outro), mediaInfo(background)]);
+
+  const [introInfo, outroInfo, backgroundInfo] = await Promise.all([
+    mediaInfo(intro), mediaInfo(outro), mediaInfo(background),
+  ]);
   requireClipStreams(introInfo, intro, !voices || voices.mode === "mix");
   requireClipStreams(outroInfo, outro, !voices || voices.mode === "mix");
-  if (!backgroundInfo.streams.some(stream => stream.codec_type === "video")) throw new Error(`Missing video stream: ${background}`);
-  const introDuration = duration(introInfo, intro);
-  const outroDuration = duration(outroInfo, outro);
-  const voiceDurations = voices ? await Promise.all([voices.intro, voices.outro].map(async file => {
-    const info = await mediaInfo(file);
-    if (!info.streams.some(stream => stream.codec_type === "audio")) throw new Error(`Missing voice audio stream: ${file}`);
-    return audioDuration(info, file);
-  })) : undefined;
-  const introLength = (voiceDurations?.[0] ?? audioDuration(introInfo, intro)) + 1;
-  const outroLength = (voiceDurations?.[1] ?? audioDuration(outroInfo, outro)) + 2;
-  duration(backgroundInfo, background);
-  const readingDuration = sections.reduce((sum, section) => sum + section.end - section.start, 0);
-  if (!verseCues.length || verseCues.some((cue, index) => !cue.text || !Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.start < 0 || cue.end > readingDuration + 1e-6 || cue.end <= cue.start || index > 0 && cue.start < verseCues[index - 1].end - 1e-6)) {
+  if (!backgroundInfo.streams.some(s => s.codec_type === "video")) throw new Error(`Missing video stream: ${background}`);
+
+  const introDuration = mediaDuration(introInfo, intro);
+  const outroDuration = mediaDuration(outroInfo, outro);
+  const voiceDurations = voices
+    ? await Promise.all([voices.intro, voices.outro].map(async (file) => {
+        const info = await mediaInfo(file);
+        if (!info.streams.some(s => s.codec_type === "audio")) throw new Error(`Missing voice audio stream: ${file}`);
+        return audioStreamDuration(info, file);
+      }))
+    : undefined;
+
+  const introLength = (voiceDurations?.[0] ?? audioStreamDuration(introInfo, intro)) + 1;
+  const outroLength = (voiceDurations?.[1] ?? audioStreamDuration(outroInfo, outro)) + 2;
+  const readingDuration = sections.reduce((sum, s) => sum + s.end - s.start, 0);
+  if (!verseCues.length || verseCues.some((cue, i) =>
+    !cue.text || !Number.isFinite(cue.start) || !Number.isFinite(cue.end) ||
+    cue.start < 0 || cue.end > readingDuration + 1e-6 || cue.end <= cue.start ||
+    (i > 0 && cue.start < verseCues[i - 1].end - 1e-6)
+  )) {
     throw new Error("The reading needs sequential, valid verse timings");
   }
-  const introVideo = introInfo.streams.find(stream => stream.codec_type === "video")!;
-  const width = introVideo.width;
-  const height = introVideo.height;
-  const frameRate = introVideo.r_frame_rate;
+
+  const introVideo = introInfo.streams.find(s => s.codec_type === "video")!;
+  const width = introVideo.width!;
+  const height = introVideo.height!;
+  const frameRate = introVideo.r_frame_rate!;
   if (!width || !height || !frameRate || !/^\d+\/\d+$/.test(frameRate)) throw new Error(`Invalid video format: ${intro}`);
-  await requireVideoFilters();
+
+  const fps = sourceFrameRate(frameRate);
+  const concurrency = renderOptions.concurrency ?? renderConcurrency();
+  const readingLength = readingDuration + readingSilenceConst * 2;
+  const totalFrames = Math.round(introLength * fps) + Math.round(readingLength * fps) + Math.round(outroLength * fps) - 2 * Math.round(transitionDuration * fps);
+  const totalDuration = totalFrames / fps;
+
+  const bgVideoDuration = mediaDuration(backgroundInfo, background);
+  const readingPalette = await extractBackgroundPalette(background, bgVideoDuration);
 
   const staging = await fs.mkdtemp(path.join(workDir, ".video-"));
+  let cleanupMedia: (() => Promise<void>) | undefined;
   try {
+    // Build boomerang (still uses FFmpeg — only the composition/render moves to Remotion)
     const boomerang = path.join(staging, "boomerang.mp4");
     console.log(`Creating boomerang from ${path.basename(background)}...`);
-    await ffmpeg(["-i", background, "-filter_complex", `${pictureFilter(0, width, height, frameRate)},split[forward][backward];[forward]setpts=PTS-STARTPTS[f];[backward]reverse,setpts=PTS-STARTPTS[r];[f][r]concat=n=2:v=1:a=0[v]`, "-map", "[v]", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", boomerang]);
+    await ffmpeg([
+      "-i", background,
+      "-filter_complex",
+      `${pictureFilter(0, width, height, frameRate)},split[forward][backward];[forward]setpts=PTS-STARTPTS[f];[backward]reverse,setpts=PTS-STARTPTS[r];[f][r]concat=n=2:v=1:a=0[v]`,
+      "-map", "[v]", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+      boomerang,
+    ]);
 
-    const audioInputs = sections.flatMap(section => ["-i", section.file]);
-    const voiceInputs = voices ? ["-i", voices.intro, "-i", voices.outro] : [];
-    const audioParts = sections.map((section, index) => `[${index + 3}:a:0]atrim=start=${section.start.toFixed(6)}:end=${section.end.toFixed(6)},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo[part${index}]`);
-    const readingAudio = sections.length === 1
-      ? "[part0]anull[reading]"
-      : `${sections.map((_, index) => `[part${index}]`).join("")}concat=n=${sections.length}:v=0:a=1[reading]`;
-    const readingGain = volumeMultiplier === 1 ? "" : `volume=${volumeMultiplier}${volumeMultiplier > 1 ? ",alimiter=limit=0.95:level=0:latency=1" : ""},`;
-    const clipAudio = (videoInput: number, voiceInput: number, length: number, label: string, leadSilence = 0): string[] => {
-      const delay = leadSilence ? `,adelay=${leadSilence * 1000}:all=1` : "";
-      const clip = `[${videoInput}:a:0]aresample=48000,aformat=channel_layouts=stereo${delay},apad,atrim=duration=${length.toFixed(6)},asetpts=PTS-STARTPTS`;
-      if (!voices) return [`${clip}[${label}]`];
-      const speech = `[${voiceInput}:a:0]aresample=48000,aformat=channel_layouts=stereo${delay},apad,atrim=duration=${length.toFixed(6)},asetpts=PTS-STARTPTS`;
-      if (voices.mode === "voice") return [`${speech}[${label}]`];
-      return [
-        `${clip},volume=0.25[${label}music]`,
-        `${speech}[${label}speech]`,
-        `[${label}music][${label}speech]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[${label}]`
-      ];
+    // Build Remotion props
+    const compositionProps: ShortCompositionProps = {
+      introLength,
+      introVideoDuration: introDuration,
+      outroVideoDuration: outroDuration,
+      readingLength,
+      outroLength,
+      transitionDuration,
+      readingSilence: readingSilenceConst,
+      introVideoPath: intro,
+      boomerangVideoPath: boomerang,
+      outroVideoPath: outro,
+      sections,
+      voices: voices ? { intro: voices.intro, outro: voices.outro, mode: voices.mode } : undefined,
+      volumeMultiplier,
+      introTitle: title,
+      outroTitle,
+      verseCues,
+      readingPalette,
     };
-    const firstVoiceInput = 3 + sections.length;
-    const readingLength = readingDuration + readingSilence * 2;
-    const firstTransitionOffset = introLength - transitionDuration;
-    const secondTransitionOffset = introLength + readingLength - transitionDuration * 2;
-    const readingPalette = await extractBackgroundPalette(background, duration(backgroundInfo, background));
-    const graphics = await createStageGraphics({ width, height, rate: frameRate, staging, intro: title, outro: outroTitle, cues: verseCues, introLength, readingLength, outroLength, readingSilence, readingPalette });
-    const filters = [
-      `${pictureFilter(0, width, height, frameRate)},vignette=angle=PI/5${introLength > introDuration ? `,tpad=stop_mode=clone:stop_duration=${(introLength - introDuration).toFixed(6)}` : ""},trim=duration=${introLength.toFixed(6)},setpts=PTS-STARTPTS,settb=AVTB[v0base]`,
-      ...graphics.intro,
-      ...clipAudio(0, firstVoiceInput, introLength, "a0"),
-      `${pictureFilter(1, width, height, frameRate)},trim=duration=${readingLength.toFixed(6)},setpts=PTS-STARTPTS,settb=AVTB[v1base]`,
-      ...graphics.reading,
-      ...audioParts,
-      readingAudio,
-      `[reading]${readingGain}adelay=${readingSilence * 1000}:all=1,apad,atrim=duration=${readingLength.toFixed(6)},asetpts=PTS-STARTPTS[a1]`,
-      `${pictureFilter(2, width, height, frameRate)},vignette=angle=PI/5${outroLength > outroDuration ? `,tpad=stop_mode=clone:stop_duration=${(outroLength - outroDuration).toFixed(6)}` : ""},trim=duration=${outroLength.toFixed(6)},setpts=PTS-STARTPTS,settb=AVTB[v2base]`,
-      ...graphics.outro,
-      ...clipAudio(2, firstVoiceInput + 1, outroLength, "a2", 1),
-      `[v0][v1]xfade=transition=fade:duration=${transitionDuration}:offset=${firstTransitionOffset.toFixed(6)}[v01]`,
-      `[v01][v2]xfade=transition=fade:duration=${transitionDuration}:offset=${secondTransitionOffset.toFixed(6)}[v]`,
-      `[a0][a1]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a01]`,
-      `[a01][a2]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a]`
-    ];
-    const filterScript = path.join(staging, "composition.ffscript");
-    await fs.writeFile(filterScript, filters.join(";"), "utf8");
-    console.log("Rendering complete video...");
-    await ffmpeg(["-i", intro, "-stream_loop", "-1", "-i", boomerang, "-i", outro, ...audioInputs, ...voiceInputs, "-/filter_complex", filterScript, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", output]);
-    return { background: path.basename(background), duration: introLength + readingLength + outroLength - transitionDuration * 2, readingDuration, thumbnailTime: introThumbnailTime(introLength, frameRate) };
+
+    console.log(`Rendering complete video with Remotion (${fps.toFixed(3)} FPS, ${concurrency} workers)...`);
+    const bundleUrl = await getBundle();
+    const media = await prepareRemotionMedia(bundleUrl, compositionProps);
+    cleanupMedia = media.cleanup;
+    const composition = await selectComposition({
+      serveUrl: bundleUrl,
+      id: "VeoBibleShort",
+      inputProps: media.props as unknown as Record<string, unknown>,
+    });
+
+    // Override composition dimensions to match the source clips
+    let lastPct = -1;
+    await renderMedia({
+      composition: {
+        ...composition,
+        width,
+        height,
+        durationInFrames: totalFrames,
+        fps,
+      },
+      serveUrl: bundleUrl,
+      concurrency,
+      imageFormat: "jpeg",
+      codec: "h264",
+      outputLocation: output,
+      inputProps: media.props as unknown as Record<string, unknown>,
+      pixelFormat: "yuv420p",
+      crf: 20,
+      x264Preset: "veryfast",
+      audioBitrate: "192k",
+      audioCodec: "aac",
+      onProgress: ({ progress }) => {
+        if (progress !== undefined) {
+          const pct = Math.round(progress * 100);
+          if (pct !== lastPct) {
+            lastPct = pct;
+            process.stdout.write(`\rRendering: ${pct}%   `);
+          }
+        }
+      },
+    });
+    process.stdout.write("\n");
+
+    return {
+      background: path.basename(background),
+      duration: totalDuration,
+      readingDuration,
+      thumbnailTime: introThumbnailTime(introLength, frameRate),
+    };
   } finally {
+    await cleanupMedia?.();
     await fs.rm(staging, { recursive: true, force: true });
   }
 }

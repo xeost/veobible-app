@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { verseTextPhases } from "./motion-design.js";
+import { verseTextPhases } from "./remotion/animation.js";
 
 test("smooth verse transitions finish entirely before the audio boundary without overlapping texts", () => {
   for (const lengths of [[8, 6, 9], [0.15, 0.2, 0.1], [10, 0.12, 12]]) {
