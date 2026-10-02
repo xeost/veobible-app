@@ -33,7 +33,7 @@ pnpm start
 
 También se puede iniciar desde la raíz con `pnpm shorts`.
 
-Los menús muestran una lista de opciones con orden y numeración fijos. Selecciona con **↑/↓** o escribiendo el número, y pulsa **Enter** para elegir. Las flechas se detienen en los extremos de la lista, sin volver al otro extremo. En listas largas se desplaza la ventana visible para mantener el banner en pantalla. Cada vez que se abre un menú, aparece en la parte superior de la terminal con el banner de VeoBible encima. Pulsa **Backspace** para volver a mostrar el menú actual desde arriba. El contenido anterior queda disponible al desplazarse por el historial de la terminal.
+Los menús muestran una lista de opciones con orden y numeración fijos. Selecciona con **↑/↓** o escribiendo el número, y pulsa **Enter** para elegir. El cursor es cíclico: ↑ desde la primera opción selecciona la última, y ↓ desde la última selecciona la primera, manteniendo el orden fijo de la lista. En listas largas se desplaza la ventana visible para mantener el banner en pantalla. Cada vez que se abre un menú, aparece en la parte superior de la terminal con el banner de VeoBible encima. Pulsa **Backspace** para volver a mostrar el menú actual desde arriba. El contenido anterior queda disponible al desplazarse por el historial de la terminal.
 
 ## Configuración
 
@@ -71,15 +71,17 @@ Al configurar un pasaje, procura que el texto de los versículos seleccionados a
 
 El catálogo incluido contiene **100 pasajes de los 66 libros**, todos verificados con **130–150 palabras en Reina Valera 1909**. Consulta [la selección y los conteos por versión](popular-verses.md) para ver el tema de cada pasaje, los criterios de selección y las fuentes de interés consultadas. El orden es una propuesta editorial para shorts. La duración de 60–70 segundos depende de la velocidad de narración y las pausas; debe confirmarse con el audio final.
 
-Los archivos se guardan en `<outputDir>/<versionId>/<id>/`. `status.json` se guarda directamente en `<outputDir>` y marca los pasajes globalmente por `id`, independientemente de idioma y versión. En la lista, los pasajes usados aparecen al final con la marca **✓ Used**. Crear el vídeo no lo marca automáticamente; el asistente lo pregunta al final. Si se omite, el pasaje se puede marcar más tarde desde su menú.
+Los archivos se guardan en `<outputDir>/<versionId>/<id>/`. `status.json` se guarda directamente en `<outputDir>` y registra cada pasaje por **idioma, versión y pasaje**, con claves como `es/rv1909/john-3-14-19`. Marcarlo en una versión no lo marca en otras versiones ni idiomas. En la lista, los pasajes usados de la versión e idioma seleccionados aparecen al final con la marca **✓ Used**. Crear el vídeo no lo marca automáticamente; el asistente lo pregunta al final. Si se omite, el pasaje se puede marcar más tarde desde su menú.
+
+Los registros del formato anterior se interpretan usando el idioma y la versión que ya guardaban en sus campos `locale` y `version`. Al marcar otro pasaje, el archivo se guarda con las nuevas claves, conservando las fechas y rutas existentes. La CLI no atribuye esas marcas antiguas a versiones o idiomas diferentes.
 
 ## Ajuste interactivo de audio y texto
 
 En el menú de cada pasaje, **Adjust audio and verse timings** aparece antes de **Create complete video** o **Reprocess complete video**. Funciona también antes de generar el primer vídeo; no ejecuta Chatterbox ni renderiza el vídeo para escuchar los ajustes.
 
-Todos los menús recuerdan la última opción utilizada durante la sesión, incluidos los del editor de tiempos. Al volver a un menú, esa opción aparece seleccionada si sigue disponible: pulsa **Enter** para repetirla o cambia la selección con las flechas o un número. La memoria es independiente por menú y contexto (idioma, versión y pasaje) y se reinicia al cerrar la CLI.
+Todos los menús recuerdan la última opción utilizada durante la sesión, incluidos los del editor de tiempos. Al volver a un menú, esa opción aparece seleccionada si sigue disponible: pulsa **Enter** para repetirla o cambia la selección con las flechas o un número. La memoria es independiente por menú y contexto (idioma, versión y pasaje) y se reinicia al cerrar la CLI. Elegir **Back** también borra la selección recordada de ese menú: al volver queda activa la primera opción, incluidos los menús del editor de tiempos. Marcar un pasaje como usado es otra excepción: se olvida la selección de la lista de pasajes de esa versión para que, al volver, quede activo el primero de la lista reordenada.
 
-1. **Audio cut**: escucha el pasaje completo, sus primeros cinco segundos o sus últimos cinco segundos. Escribe offsets decimales mediante **Set start offset…** y **Set end offset…** para ajustar el inicio y el final. Repite la escucha hasta que el corte contenga exactamente la lectura deseada.
+1. **Audio cut**: escucha el pasaje completo, sus primeros cinco segundos o sus últimos cinco segundos. Al escuchar el comienzo se mantiene visible la referencia y el texto del primer versículo; al escuchar el final, los del último versículo. Escribe offsets decimales mediante **Set start offset…** y **Set end offset…** para ajustar el inicio y el final. Repite la escucha hasta que el corte contenga exactamente la lectura deseada.
 2. **Verse text**: elige un versículo y escucha su audio con un segundo de contexto a cada lado, o reproduce todo el pasaje con el texto mostrado en la terminal. Ajusta su aparición y desaparición. Mover el final de un versículo mueve también el inicio del siguiente; mover su inicio mueve también el final del anterior. El primero y el último tienen un solo vecino. La vista previa muestra los intervalos de texto; las animaciones de entrada y salida se aplican al renderizar el vídeo.
 3. **Use these timings — keep in memory**: vuelve al menú del pasaje y crea o reprocesa el vídeo. Solo entonces se guardan los offsets en los JSON de `_internal/`.
 
@@ -195,3 +197,7 @@ Chatterbox multilingüe admite portugués con `language_id="pt"`. Resemble AI ta
 Para usar la API, define `VEOBIBLE_SHORTS_TTS_PROVIDER=elevenlabs`, `VEOBIBLE_SHORTS_ELEVENLABS_API_KEY` y los IDs `VEOBIBLE_SHORTS_ELEVENLABS_VOICE_ES`, `_EN` y `_PT` en `.env`. Solo es obligatorio el ID del idioma que vas a generar. El modelo predeterminado es `eleven_multilingual_v2`; puedes cambiarlo con `VEOBIBLE_SHORTS_ELEVENLABS_MODEL`. Busca los IDs de voz en tu [biblioteca de voces de ElevenLabs](https://elevenlabs.io/app/voice-library). Cada intro y outro hace una petición a la API. La respuesta MP3 se convierte con `ffmpeg` a WAV PCM de 24 bits a 48 kHz. No necesitas instalar Chatterbox para esta opción.
 
 Al cambiar de proveedor, usa **Reprocess complete video** y responde **No** a la reutilización de audios para montar la salida con las nuevas locuciones.
+
+### Texto durante la escucha completa
+
+**Play complete passage** muestra todos los versículos del pasaje con sus referencias, resaltados y marcados como **PASSAGE**. Incluye hasta dos versículos anteriores y dos posteriores, cuando existen dentro del mismo libro, atenuados y marcados como **CONTEXT**, incluso de capítulos vecinos. El audio sigue siendo el corte ajustado del pasaje. Puedes recorrer el texto sin detener la escucha con **↑/↓**, **PgUp/PgDn** y **Home/End**.

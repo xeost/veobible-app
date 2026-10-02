@@ -18,14 +18,23 @@ export interface Passage { id: string; book: string; start: Point; end: Point }
 interface Book { id: string; name: string; chapters: number; versesPerChapter: number[] }
 interface BibleIndex { metadata: { name: string }; books: Book[] }
 interface Verse { verse: number; text: string }
+export interface PassageTextVerse { reference: string; text: string; inPassage: boolean }
 export interface UsedRecord { usedAt: string; locale: string; version: string; output: string }
 export type Status = Record<string, UsedRecord>;
 export interface PassageOffsets { startSeconds: number; endSeconds: number }
 export interface TimingAdjustments { passageOffsets: PassageOffsets; verseOffsets: VerseOffset[] }
 
+export function passageUsageKey(version: { locale: string; id: string }, passage: Pick<Passage, "id">): string {
+  return `${version.locale}/${version.id}/${passage.id}`;
+}
+
+export function isPassageUsed(status: Status, version: { locale: string; id: string }, passage: Pick<Passage, "id">): boolean {
+  return Boolean(status[passageUsageKey(version, passage)]);
+}
+
 /** Keep editorial order within each group while moving used passages to the end. */
-export function orderPassagesByUsage(catalog: readonly Passage[], status: Status): Passage[] {
-  return [...catalog.filter(passage => !status[passage.id]), ...catalog.filter(passage => Boolean(status[passage.id]))];
+export function orderPassagesByUsage(catalog: readonly Passage[], status: Status, version: { locale: string; id: string }): Passage[] {
+  return [...catalog.filter(passage => !isPassageUsed(status, version, passage)), ...catalog.filter(passage => isPassageUsed(status, version, passage))];
 }
 
 const catalogPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../popular-verses.json");
@@ -301,6 +310,48 @@ export async function analyzePassageAudio(version: Version, passage: Passage) {
   return { index, book, label, lines, sections, timingInputs, sourceDurations };
 }
 
+/** Include up to two neighboring verses on each side, crossing chapter boundaries within the book. */
+export async function readPassageTextContext(version: Version, passage: Passage, index?: BibleIndex): Promise<PassageTextVerse[]> {
+  const { book } = getBook(index ?? await readIndex(version), passage);
+  const before: Point[] = [], after: Point[] = [], selected: Point[] = [];
+  let point = { ...passage.start };
+  for (let count = 0; count < 2; count++) {
+    if (point.verse > 1) point = { ...point, verse: point.verse - 1 };
+    else if (point.chapter > 1) point = { chapter: point.chapter - 1, verse: book.versesPerChapter[point.chapter - 2] };
+    else break;
+    before.unshift(point);
+  }
+  point = { ...passage.end };
+  for (let count = 0; count < 2; count++) {
+    if (point.verse < book.versesPerChapter[point.chapter - 1]) point = { ...point, verse: point.verse + 1 };
+    else if (point.chapter < book.chapters) point = { chapter: point.chapter + 1, verse: 1 };
+    else break;
+    after.push(point);
+  }
+  for (let chapter = passage.start.chapter; chapter <= passage.end.chapter; chapter++) {
+    const first = chapter === passage.start.chapter ? passage.start.verse : 1;
+    const last = chapter === passage.end.chapter ? passage.end.verse : book.versesPerChapter[chapter - 1];
+    for (let verse = first; verse <= last; verse++) selected.push({ chapter, verse });
+  }
+  const chapters = new Map<number, Verse[]>();
+  const result: PassageTextVerse[] = [];
+  for (const [points, inPassage] of [[before, false], [selected, true], [after, false]] as const) {
+    for (const point of points) {
+      if (!chapters.has(point.chapter)) {
+        try { chapters.set(point.chapter, await versesForChapter(version, book, point.chapter)); }
+        catch (error) {
+          if (!inPassage && (error as NodeJS.ErrnoException).code === "ENOENT") { chapters.set(point.chapter, []); }
+          else throw error;
+        }
+      }
+      const verse = chapters.get(point.chapter)!.find(verse => verse.verse === point.verse);
+      if (verse) result.push({ reference: `${book.name} ${point.chapter}:${point.verse}`, text: verse.text, inPassage });
+      else if (inPassage) throw new Error(`Missing verse ${book.name} ${point.chapter}:${point.verse}`);
+    }
+  }
+  return result;
+}
+
 export function applyPassageAudioOffsets(sections: AudioSection[], sourceDurations: number[], offsets: PassageOffsets): AudioSection[] {
   if (!sections.length || sourceDurations.length !== sections.length) throw new Error("Missing audio sections or source durations");
   if (!Number.isFinite(offsets.startSeconds) || !Number.isFinite(offsets.endSeconds)) throw new Error("Audio offsets must be finite numbers");
@@ -410,7 +461,21 @@ export async function readStatus(): Promise<Status> {
   try {
     const parsed: unknown = JSON.parse(await fs.readFile(statusPath(), "utf8"));
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid status.json");
-    return parsed as Status;
+    const status: Status = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid status.json record: ${key}`);
+      const record = value as UsedRecord;
+      if (![record.locale, record.version, record.usedAt, record.output].every(field => typeof field === "string" && field.length > 0)) {
+        throw new Error(`Invalid status.json record: ${key}`);
+      }
+      const parts = key.split("/");
+      const passageId = parts.length === 1 ? key : parts.length === 3 && parts[0] === record.locale && parts[1] === record.version ? parts[2] : undefined;
+      if (!passageId) throw new Error(`Invalid status.json key: ${key}`);
+      // Legacy records belong only to the locale/version recorded in their metadata.
+      const scopedKey = passageUsageKey({ locale: record.locale, id: record.version }, { id: passageId });
+      if (key === scopedKey || !status[scopedKey]) status[scopedKey] = record;
+    }
+    return status;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
     throw error;
@@ -419,8 +484,9 @@ export async function readStatus(): Promise<Status> {
 
 export async function markUsed(passage: Passage, version: Version, output: string): Promise<void> {
   const status = await readStatus();
-  if (status[passage.id]) throw new Error(`Passage ${passage.id} is already marked as used`);
-  status[passage.id] = { usedAt: new Date().toISOString(), locale: version.locale, version: version.id, output };
+  const key = passageUsageKey(version, passage);
+  if (status[key]) throw new Error(`Passage ${key} is already marked as used`);
+  status[key] = { usedAt: new Date().toISOString(), locale: version.locale, version: version.id, output };
   await fs.mkdir(config.outputDir, { recursive: true });
   const temp = path.join(config.outputDir, `.status-${process.pid}-${Date.now()}.json`);
   try {

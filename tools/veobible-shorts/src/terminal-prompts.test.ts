@@ -1,6 +1,39 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createNumberedMenu } from "./terminal-prompts.js";
+import { nextMenuIndex } from "./numbered-select.js";
+
+test("Back clears the menu's previous selection, including timing editor navigation", async () => {
+  for (const value of ["back", "cancel", "audio"]) {
+    const defaults: Array<string | undefined> = [];
+    const replies = ["edit", value, "first"];
+    const choose = createNumberedMenu(async menu => { defaults.push(menu.default); return replies.shift()!; });
+    const choices = [{ name: "First", value: "first" }, { name: "Edit", value: "edit" }, { name: "Back", value, remember: false }];
+    for (let visit = 0; visit < 3; visit++) await choose("menu", { message: "Menu", choices });
+    assert.deepEqual(defaults, [undefined, "edit", undefined]);
+  }
+});
+
+test("cursor wraps at both ends while preserving choice positions and skipping unavailable options", () => {
+  const choices = ["a", "b", "c", "d"].map(value => ({ name: value, value, disabled: value === "b" }));
+  assert.equal(nextMenuIndex(choices, 0, -1), 3);
+  assert.equal(nextMenuIndex(choices, 3, 1), 0);
+  assert.equal(nextMenuIndex(choices, 0, 1), 2);
+  assert.deepEqual(choices.map(choice => choice.value), ["a", "b", "c", "d"]);
+});
+
+test("forgetting a used passage returns selection to the first reordered passage without resetting other menus", async () => {
+  const defaults: Array<string | undefined> = [];
+  const replies = ["used", "volume", "next", "volume"];
+  const choose = createNumberedMenu(async menu => { defaults.push(menu.default); return replies.shift()!; });
+  const choices = ["used", "next"].map(value => ({ name: value, value }));
+  await choose("passages/es-version", { message: "Passages", choices });
+  await choose("actions", { message: "Actions", choices: [{ name: "Volume", value: "volume" }] });
+  choose.forget("passages/es-version");
+  await choose("passages/es-version", { message: "Passages", choices: [...choices].reverse() });
+  await choose("actions", { message: "Actions", choices: [{ name: "Volume", value: "volume" }] });
+  assert.deepEqual(defaults, [undefined, undefined, undefined, "volume"]);
+});
 
 test("menus remember values independently across changing labels, order and available actions", async () => {
   const defaults: Array<string | undefined> = [];

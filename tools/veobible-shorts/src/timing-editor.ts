@@ -3,14 +3,14 @@ import os from "node:os";
 import path from "node:path";
 import { input } from "@inquirer/prompts";
 import { config, type Version } from "./config.js";
-import { analyzePassageAudio, applyPassageAudioOffsets, readPassageOffsets, type Passage, type TimingAdjustments } from "./shorts.js";
+import { analyzePassageAudio, applyPassageAudioOffsets, readPassageOffsets, readPassageTextContext, type PassageTextVerse, type Passage, type TimingAdjustments } from "./shorts.js";
 import { applyVerseOffsets, estimateVerseCues, type VerseCue } from "./verse-timing.js";
 import { offsetsFromCues, moveVerseBoundary } from "./timing-model.js";
 import { readReadingAudioSettings } from "./reading-audio.js";
 import { renderAudioPreview, excerptAudioPreview, playAudioPreview } from "./audio-preview.js";
 import { promptAtTopOnBackspace, numberedMenu } from "./terminal-prompts.js";
 
-interface Choice { name: string; value: string }
+interface Choice { name: string; value: string; remember?: boolean }
 export interface TimingEditorUI {
   choose(message: string, choices: Choice[], menuKey?: string): Promise<string>;
   number(message: string, current: number): Promise<number>;
@@ -26,7 +26,7 @@ const terminalUI: TimingEditorUI = {
   }, { signal }))),
   play: playAudioPreview
 };
-const choice = (name: string, value: string): Choice => ({ name, value });
+const choice = (name: string, value: string, remember = true): Choice => ({ name, value, remember });
 const signed = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(3)}`;
 const exitError = (error: unknown) => error instanceof Error && error.name === "ExitPromptError";
 
@@ -42,8 +42,9 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-timing-preview-"));
   const fullPreview = path.join(temp, "passage.wav");
   let previewKey = "";
+  let passageText: PassageTextVerse[] | undefined;
   try {
-    const play = async (from: number, to: number, cues?: VerseCue[]) => {
+    const play = async (from: number, to: number, cues?: VerseCue[], referenceVerse?: Pick<VerseCue, "reference" | "text">, passageText?: PassageTextVerse[]) => {
       const sections = applyPassageAudioOffsets(analysis.sections, analysis.sourceDurations, audioOffsets);
       const duration = sections.reduce((sum, section) => sum + section.end - section.start, 0);
       const key = JSON.stringify(sections);
@@ -58,7 +59,7 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
         file = path.join(temp, "excerpt.wav");
         await excerptAudioPreview(fullPreview, file, start, end);
       }
-      while (await ui.play(file, { label: analysis.label, duration: end - start, offset: start, cues }) === "replay") { /* Replay the same exact cut. */ }
+      while (await ui.play(file, { label: analysis.label, duration: end - start, offset: start, cues, referenceVerse, passageText }) === "replay") { /* Replay the same exact cut. */ }
     };
 
     while (true) {
@@ -68,12 +69,19 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
       const action = await ui.choose(message, [
         choice("Play complete passage", "play"), choice("Listen to the beginning (first 5 seconds)", "play-start"), choice("Listen to the ending (last 5 seconds)", "play-end"),
         choice("Set start offset…", "set-start"), choice("Set end offset…", "set-end"),
-        choice("Reset audio offsets to automatic estimates", "reset"), choice("Continue to verse text timings", "verses"), choice("Back — discard editor changes", "cancel")
+        choice("Reset audio offsets to automatic estimates", "reset"), choice("Continue to verse text timings", "verses"), choice("Back — discard editor changes", "cancel", false)
       ], `${menuKey}/audio`);
       if (action === "cancel") return undefined;
       try {
         if (action.startsWith("play")) {
-          await play(action === "play-end" ? Math.max(0, duration - 5) : 0, action === "play-start" ? Math.min(5, duration) : duration);
+          if (action === "play") passageText ??= await readPassageTextContext(version, passage, analysis.index);
+          let referenceVerse: Pick<VerseCue, "reference" | "text"> | undefined;
+          if (action === "play-start" || action === "play-end") {
+            const input = action === "play-start" ? analysis.timingInputs[0] : analysis.timingInputs.at(-1)!;
+            const verse = action === "play-start" ? input.verses[0] : input.verses.at(-1)!;
+            referenceVerse = { reference: `${input.bookName} ${input.chapter}:${verse.verse}`, text: verse.text };
+          }
+          await play(action === "play-end" ? Math.max(0, duration - 5) : 0, action === "play-start" ? Math.min(5, duration) : duration, undefined, referenceVerse, action === "play" ? passageText : undefined);
           continue;
         }
         if (action !== "verses") {
@@ -96,7 +104,7 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
         } catch (error) {
           if (exitError(error)) throw error;
           console.error(`Cannot apply existing verse offsets to this cut: ${error instanceof Error ? error.message : String(error)}`);
-          const recovery = await ui.choose("Existing verse offsets need correction for the new audio cut:", [choice("Back to audio adjustments", "back"), choice("Use automatic verse estimates instead", "reset")], `${menuKey}/recovery`);
+          const recovery = await ui.choose("Existing verse offsets need correction for the new audio cut:", [choice("Back to audio adjustments", "back", false), choice("Use automatic verse estimates instead", "reset")], `${menuKey}/recovery`);
           if (recovery === "back") continue;
           cues = estimates.map(cue => ({ ...cue }));
         }
@@ -106,10 +114,10 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
           const offsets = offsetsFromCues(estimates, cues);
           const current = offsets[selected];
           const verseAction = await ui.choose(`2. Verse text — ${cue.reference} (${selected + 1}/${cues.length})\n${cue.text}\nShown at ${cue.start.toFixed(3)}–${cue.end.toFixed(3)} s · Start offset ${signed(current.startOffsetSeconds)} s · End offset ${signed(current.endOffsetSeconds)} s\nShared boundaries move both adjacent verses.`, [
-            choice("Play selected verse with context", "play-verse"), choice("Play complete passage with timed verse text", "play-all"), choice("Select another verse…", "select"),
+            choice("Play complete passage with timed verse text", "play-all"), choice("Play selected verse with context", "play-verse"), choice("Select another verse…", "select"),
             choice("Set start offset…", "set-start"), choice("Set end offset…", "set-end"),
-            choice("Reset all verse text offsets to automatic estimates", "reset"), choice("Back to audio adjustments", "audio"),
-            choice("Use these timings — keep in memory", "use"), choice("Back — discard editor changes", "cancel")
+            choice("Reset all verse text offsets to automatic estimates", "reset"), choice("Back to audio adjustments", "audio", false),
+            choice("Use these timings — keep in memory", "use"), choice("Back — discard editor changes", "cancel", false)
           ], `${menuKey}/verse`);
           if (verseAction === "cancel") return undefined;
           if (verseAction === "audio") { verseOverrides = offsets; break; }

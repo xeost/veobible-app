@@ -10,6 +10,7 @@
     "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
+    "@inquirer/core": "10.3.2",
     "@inquirer/prompts": "^7.5.2",
     "boxen": "^8.0.1",
     "chalk": "^5.4.1",

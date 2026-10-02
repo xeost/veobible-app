@@ -1,4 +1,4 @@
-import { select } from "@inquirer/prompts";
+import { numberedSelect, type MenuChoice } from "./numbered-select.js";
 import { showBanner } from "./banner.js";
 
 export function startAtTopPreservingHistory(): void {
@@ -32,7 +32,7 @@ export async function promptAtTopOnBackspace<T>(run: (signal: AbortSignal) => Pr
 }
 interface NumberedMenu {
   message: string;
-  choices: Array<{ name: string; value: string; disabled?: boolean | string }>;
+  choices: MenuChoice[];
   default?: string;
 }
 
@@ -46,26 +46,25 @@ async function showNumberedMenu(menu: NumberedMenu): Promise<string> {
       .reduce((rows, line) => rows + Math.max(1, Math.ceil((line.length + 30) / columns)), 0), 0);
     const headingRows = menu.message.split("\n").reduce((rows, line) => rows + Math.max(1, Math.ceil((line.length + 2) / columns)), 0);
     const availableRows = Math.max(3, (process.stdout.rows || 24) - 7 - headingRows - 3);
-    return select({
+    return numberedSelect({
       ...menu,
-      loop: false,
       pageSize: Math.max(1, Math.min(pageSize, availableRows)),
-      theme: { indexMode: "number", style: { keysHelpTip: () => "Use ↑/↓ or an option number, then Enter." } }
     }, { signal });
   });
 }
 
 /** Keep selections by stable menu identity, even when labels or ordering change. */
-export function createNumberedMenu(run: (menu: NumberedMenu) => Promise<string> = showNumberedMenu
-): (key: string, menu: NumberedMenu) => Promise<string> {
+export function createNumberedMenu(run: (menu: NumberedMenu) => Promise<string> = showNumberedMenu) {
   const selections = new Map<string, string>();
-  return async (key, menu) => {
+  const choose = async (key: string, menu: NumberedMenu) => {
     const previous = selections.get(key);
     const available = menu.choices.some(choice => choice.value === previous && !choice.disabled);
     const selected = await run({ ...menu, default: available ? previous : menu.default });
-    selections.set(key, selected);
+    if (menu.choices.find(choice => choice.value === selected)?.remember === false) selections.delete(key);
+    else selections.set(key, selected);
     return selected;
   };
+  return Object.assign(choose, { forget: (key: string) => { selections.delete(key); } });
 }
 
 export const numberedMenu = createNumberedMenu();

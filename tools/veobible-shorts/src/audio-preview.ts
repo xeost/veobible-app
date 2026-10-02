@@ -4,6 +4,8 @@ import { emitKeypressEvents } from "node:readline";
 import { performance } from "node:perf_hooks";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import chalk from "chalk";
+import type { PassageTextVerse } from "./shorts.js";
 import { config } from "./config.js";
 import type { AudioSection } from "./video.js";
 import type { VerseCue } from "./verse-timing.js";
@@ -44,7 +46,7 @@ function wrap(text: string, width: number): string[] {
 }
 
 /** Native audio playback with a temporary terminal transport and timed verse text. */
-export async function playAudioPreview(file: string, options: { label: string; duration: number; offset?: number; cues?: VerseCue[] }): Promise<"done" | "replay"> {
+export async function playAudioPreview(file: string, options: { label: string; duration: number; offset?: number; cues?: VerseCue[]; referenceVerse?: Pick<VerseCue, "reference" | "text">; passageText?: PassageTextVerse[] }): Promise<"done" | "replay"> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error("Audio timing preview requires an interactive terminal");
   const chosen = player();
   const child = spawn(chosen.command, [...chosen.args, file], { stdio: ["ignore", "ignore", "pipe"] });
@@ -67,16 +69,33 @@ export async function playAudioPreview(file: string, options: { label: string; d
   };
   const elapsed = () => Math.min(options.duration, Math.max(0, ((paused ? pausedAt : performance.now()) - started - pausedMilliseconds) / 1000));
   let previousScreen = "";
+  let textScroll = 0;
+  const textPageSize = () => Math.max(3, (process.stdout.rows || 24) - 11);
   const draw = () => {
     const time = (options.offset ?? 0) + elapsed();
-    const cue = options.cues?.find(cue => cue.start <= time && time < cue.end);
+    const cue = options.referenceVerse ?? options.cues?.find(cue => cue.start <= time && time < cue.end);
     const width = Math.max(20, (process.stdout.columns || 80) - 4);
-    const content = cue ? `${cue.reference}\n\n${wrap(cue.text, width).join("\n")}` : options.cues ? "Between verses" : "Listen to the beginning and ending of the passage.";
-    const screen = `${options.label}\n\n${paused ? "Paused" : "Playing"}  ${time.toFixed(2)} s\n\n${content}\n\nEnter / Esc: stop   R: replay${process.platform !== "win32" ? "   Space: pause/resume" : ""}\nBackspace: return to the menu at the top   Ctrl+C: exit\n`;
+    let content = cue ? `${cue.reference}\n\n${wrap(cue.text, width).join("\n")}` : options.cues ? "Between verses" : "Listen to the beginning and ending of the passage.";
+    if (options.passageText) {
+      const lines = options.passageText.flatMap(verse => {
+        const style = verse.inPassage ? chalk.bold.cyan : chalk.dim;
+        return [style(`${verse.inPassage ? "▶" : "·"} ${verse.reference} [${verse.inPassage ? "PASSAGE" : "CONTEXT"}]`), ...wrap(verse.text, width - 2).map(line => style(`  ${line}`)), ""];
+      });
+      const page = textPageSize();
+      textScroll = Math.min(Math.max(0, textScroll), Math.max(0, lines.length - page));
+      content = `▶ Passage verses · Context verses\nText lines ${textScroll + 1}–${Math.min(lines.length, textScroll + page)}/${lines.length}\n${lines.slice(textScroll, textScroll + page).join("\n")}`;
+    }
+    const screen = `${options.label}\n\n${paused ? "Paused" : "Playing"}  ${time.toFixed(2)} s\n\n${content}\n\nEnter / Esc: stop   R: replay${process.platform !== "win32" ? "   Space: pause/resume" : ""}\nBackspace: return to the menu at the top   Ctrl+C: exit\n${options.passageText ? "↑/↓: scroll text   PgUp/PgDn: page   Home/End: first/last line\n" : ""}`;
     if (screen !== previousScreen) { process.stdout.write(`\x1b[H\x1b[2J${screen}`); previousScreen = screen; }
   };
   const onKey = (_text: string, key?: { name?: string; ctrl?: boolean }) => {
     if (key?.ctrl && key.name === "c") { cancelled = true; stop(); }
+    else if (options.passageText && ["up", "down", "pageup", "pagedown", "home", "end"].includes(key?.name ?? "")) {
+      if (key?.name === "home") textScroll = 0;
+      else if (key?.name === "end") textScroll = Number.MAX_SAFE_INTEGER;
+      else textScroll += (key?.name === "up" || key?.name === "pageup" ? -1 : 1) * (key?.name?.startsWith("page") ? textPageSize() : 1);
+      draw();
+    }
     else if (["return", "escape", "backspace", "r"].includes(key?.name ?? "")) {
       replay = key?.name === "r"; refresh = key?.name === "backspace"; stop();
     } else if (key?.name === "space" && process.platform !== "win32") {

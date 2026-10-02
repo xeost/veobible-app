@@ -6,7 +6,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { config } from "./config.js";
 import { editPassageTimings, type TimingEditorUI } from "./timing-editor.js";
-import { applyPassageAudioOffsets, type Passage } from "./shorts.js";
+import { applyPassageAudioOffsets, type Passage, type PassageTextVerse } from "./shorts.js";
 import { moveVerseBoundary, offsetsFromCues } from "./timing-model.js";
 import { applyVerseOffsets } from "./verse-timing.js";
 
@@ -68,9 +68,9 @@ test("timing editor loads JSON, previews exact cuts and coupled verse edits, and
     ] });
     await fs.writeFile(audioFile, audioText);
     await fs.writeFile(verseFile, verseText);
-    const actions = ["play", "set-start", "set-end", "play-start", "verses", "play-all", "set-end", "select", "1", "set-start", "play-verse", "use"];
+    const actions = ["play", "set-start", "set-end", "play-start", "play-end", "verses", "play-all", "set-end", "select", "1", "set-start", "play-verse", "use"];
     const numbers = [0.1, -0.1, 0.08, 0.05, 0.2];
-    const previews: Array<{ duration: number; cues?: Array<{ start: number; end: number }> }> = [];
+    const previews: Array<{ duration: number; cues?: Array<{ start: number; end: number }>; referenceVerse?: { reference: string; text: string }; passageText?: PassageTextVerse[] }> = [];
     let prompts = 0;
     const ui: TimingEditorUI = {
       choose: async (message, choices) => {
@@ -83,7 +83,7 @@ test("timing editor loads JSON, previews exact cuts and coupled verse edits, and
       play: async (file, options) => {
         const seconds = Number(execFileSync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file], { encoding: "utf8" }));
         assert.ok(Math.abs(seconds - options.duration) < 0.003, `${seconds} vs ${options.duration}`);
-        previews.push({ duration: seconds, cues: options.cues?.map(cue => ({ start: cue.start, end: cue.end })) });
+        previews.push({ duration: seconds, cues: options.cues?.map(cue => ({ start: cue.start, end: cue.end })), referenceVerse: options.referenceVerse, passageText: options.passageText });
         return "done";
       }
     };
@@ -92,10 +92,20 @@ test("timing editor loads JSON, previews exact cuts and coupled verse edits, and
     assert.deepEqual(result.passageOffsets, { startSeconds: 0.1, endSeconds: -0.1 });
     assert.equal(result.verseOffsets[0].endOffsetSeconds, 0.05);
     assert.equal(result.verseOffsets[1].startOffsetSeconds, 0.05);
-    assert.equal(previews.length, 4);
+    assert.equal(previews.length, 5);
     assert.ok(Math.abs(previews[0].duration - previews[1].duration - 0.1) < 0.003);
-    assert.equal(previews[2].cues![0].end, previews[2].cues![1].start);
+    assert.deepEqual(previews[1].referenceVerse, { reference: "John 1:2", text: "Verse 2" });
+    assert.deepEqual(previews[2].referenceVerse, { reference: "John 1:3", text: "Verse 3" });
+    assert.equal(previews[0].referenceVerse, undefined);
+    assert.deepEqual(previews[0].passageText, [
+      { reference: "John 1:1", text: "Verse 1", inPassage: false },
+      { reference: "John 1:2", text: "Verse 2", inPassage: true },
+      { reference: "John 1:3", text: "Verse 3", inPassage: true },
+      { reference: "John 1:4", text: "Verse 4", inPassage: false }
+    ]);
+    assert.equal(previews[1].passageText, undefined);
     assert.equal(previews[3].cues![0].end, previews[3].cues![1].start);
+    assert.equal(previews[4].cues![0].end, previews[4].cues![1].start);
     assert.equal(await fs.readFile(audioFile, "utf8"), audioText, "No JSON is written by the editor");
     assert.equal(await fs.readFile(verseFile, "utf8"), verseText);
     const saved = structuredClone(result);

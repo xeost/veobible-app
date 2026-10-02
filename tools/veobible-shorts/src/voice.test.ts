@@ -13,8 +13,8 @@ const passage: Passage = { id: "john-3-14-19", book: "john", start: { chapter: 3
 test("used passages move to the end without changing editorial order", () => {
   const catalog = ["a", "b", "c", "d"].map(id => ({ ...passage, id }));
   const used = { usedAt: "2026-01-01T00:00:00Z", locale: "es", version: "rv1909", output: "/tmp" };
-  const status: Status = { b: used, d: used };
-  assert.deepEqual(orderPassagesByUsage(catalog, status).map(item => item.id), ["a", "c", "b", "d"]);
+  const status: Status = { "es/rv1909/b": used, "es/rv1909/d": used };
+  assert.deepEqual(orderPassagesByUsage(catalog, status, { locale: "es", id: "rv1909" }).map(item => item.id), ["a", "c", "b", "d"]);
   assert.deepEqual(catalog.map(item => item.id), ["a", "b", "c", "d"]);
 });
 

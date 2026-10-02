@@ -4,7 +4,7 @@ import path from "node:path";
 import { confirm, input } from "@inquirer/prompts";
 import chalk from "chalk";
 import { config } from "./config.js";
-import { canReuseVoiceTracks, getBook, loadCatalog, markUsed, orderPassagesByUsage, prepareShort, readIndex, readStatus, reference, regenerateVoiceTrack } from "./shorts.js";
+import { canReuseVoiceTracks, getBook, loadCatalog, markUsed, orderPassagesByUsage, prepareShort, readIndex, readStatus, reference, regenerateVoiceTrack, isPassageUsed } from "./shorts.js";
 
 import { promptAtTopOnBackspace, numberedMenu } from "./terminal-prompts.js";
 import { editPassageTimings } from "./timing-editor.js";
@@ -29,7 +29,7 @@ async function main(): Promise<void> {
     if (locale === "exit") return;
     const version = await numberedMenu(`versions/${locale}`, { message: "Select a Bible version:", choices: [
       ...config.versions.filter(v => v.locale === locale).map(v => ({ name: v.label, value: v.id })),
-      { name: "Back", value: "back" }
+      { name: "Back", value: "back", remember: false }
     ] });
     if (version === "back") continue;
     const selectedVersion = config.versions.find(v => v.id === version)!;
@@ -37,12 +37,12 @@ async function main(): Promise<void> {
       const index = await readIndex(selectedVersion);
       const status = await readStatus();
       const passageId = await numberedMenu(`passages/${version}`, { message: "Select a passage:", choices: [
-        ...orderPassagesByUsage(catalog, status).map(p => {
+        ...orderPassagesByUsage(catalog, status, selectedVersion).map(p => {
           let label: string;
           try { label = reference(getBook(index, p).book.name, p); } catch { label = p.id + " (unavailable)"; }
-          return { name: `${label}${status[p.id] ? chalk.yellow(" · ✓ Used") : ""}`, value: p.id };
+          return { name: `${label}${isPassageUsed(status, selectedVersion, p) ? chalk.yellow(" · ✓ Used") : ""}`, value: p.id };
         }),
-        { name: "Back", value: "back" }
+        { name: "Back", value: "back", remember: false }
       ] });
       if (passageId === "back") continue;
       const passage = catalog.find(p => p.id === passageId)!;
@@ -60,9 +60,9 @@ async function main(): Promise<void> {
             { name: "Regenerate outro audio", value: "outro-audio" }
           ] : []),
           ...(isPrepared ? [{ name: "Reprocess complete video", value: "reprocess" }] : []),
-          ...(isPrepared && !status[passage.id] ? [{ name: "Mark as used", value: "mark" }] : []),
+          ...(isPrepared && !isPassageUsed(status, selectedVersion, passage) ? [{ name: "Mark as used", value: "mark" }] : []),
           ...(isPrepared ? [{ name: `Show output: ${existingOutput}`, value: "show" }] : []),
-          { name: "Back", value: "back" }
+          { name: "Back", value: "back", remember: false }
         ] });
         if (action === "back") break;
         if (action === "timings") {
@@ -103,16 +103,18 @@ async function main(): Promise<void> {
           continue;
         }
         if (action === "mark") {
-          if (await promptAtTopOnBackspace(signal => confirm({ message: "Mark this passage as used?", default: false }, { signal }))) {
+          if (await promptAtTopOnBackspace(signal => confirm({ message: "Mark this passage as used?", default: true }, { signal }))) {
             await markUsed(passage, selectedVersion, existingOutput);
+            numberedMenu.forget(`passages/${selectedVersion.id}`);
             console.log(chalk.green("✔ Passage marked as used in status.json"));
           }
           continue;
         }
         const output = await prepareShort(selectedVersion, passage, false, false, timingSessions.get(sessionKey), volumeSessions.get(sessionKey));
         console.log(chalk.green(`✔ Complete video created: ${path.join(output, "short.mp4")}`));
-        if (!status[passage.id] && await promptAtTopOnBackspace(signal => confirm({ message: "Mark this passage as used now?", default: false }, { signal }))) {
+        if (!isPassageUsed(status, selectedVersion, passage) && await promptAtTopOnBackspace(signal => confirm({ message: "Mark this passage as used now?", default: true }, { signal }))) {
           await markUsed(passage, selectedVersion, output);
+          numberedMenu.forget(`passages/${selectedVersion.id}`);
           console.log(chalk.green("✔ Passage marked as used in status.json"));
         }
       }
