@@ -8,6 +8,8 @@ El renderer de Remotion prepara automáticamente los vídeos de intro, fondo y o
 
 Cada render utiliza nombres independientes, reutiliza una sola copia por archivo de audio fuente y elimina sus medios temporales al terminar o fallar. Los archivos originales se conservan. Esto evita errores HTTP 404 al cargar vídeos o audios locales, incluidos renders consecutivos durante la misma sesión. Consulta la [documentación de Remotion sobre rutas absolutas](https://www.remotion.dev/docs/miscellaneous/absolute-paths).
 
+El video comienza y termina sin fundirse a negro. Su primer fotograma muestra todos los elementos de la intro en su posición final; desde el segundo se ocultan y se reproduce la entrada habitual. Solo las capas de la intro reinician su animación: el audio y el fondo mantienen su tiempo original. `thumbnail.jpg` sigue capturándose después de la entrada normal. El primer fotograma sirve como portada si la plataforma lo utiliza; cada red social puede seleccionar otra imagen de vista previa.
+
 ## Rendimiento y fluidez del renderizado
 
 Las tres etapas usan `Video` de `@remotion/media`, que decodifica el fotograma correspondiente a la línea de tiempo. El montaje conserva los FPS de `0-intro.mp4` (incluidos valores fraccionarios como `30000/1001`); el boomerang se genera con esa misma frecuencia. Si los clips fuente tienen frecuencias diferentes, se adaptan a la del montaje sin cambiar su velocidad. No se inventan fotogramas mediante interpolación.

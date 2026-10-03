@@ -8,7 +8,7 @@ import { applyVerseOffsets, estimateVerseCues, type VerseCue } from "./verse-tim
 import { offsetsFromCues, moveVerseBoundary } from "./timing-model.js";
 import { readReadingAudioSettings } from "./reading-audio.js";
 import { renderAudioPreview, excerptAudioPreview, playAudioPreview } from "./audio-preview.js";
-import { promptAtTopOnBackspace, numberedMenu } from "./terminal-prompts.js";
+import { numberedMenu } from "./terminal-prompts.js";
 
 interface Choice { name: string; value: string; remember?: boolean }
 export interface TimingEditorUI {
@@ -19,11 +19,11 @@ export interface TimingEditorUI {
 
 const terminalUI: TimingEditorUI = {
   choose: (message, choices, menuKey) => numberedMenu(menuKey ?? message, { message, choices }),
-  number: async (message, current) => Number(await promptAtTopOnBackspace(signal => input({
+  number: async (message, current) => Number(await input({
     message, default: String(current),
     validate: value => value.trim() && Number.isFinite(Number(value))
       ? true : "Enter a finite number of seconds, using a decimal point."
-  }, { signal }))),
+  })),
   play: playAudioPreview
 };
 const choice = (name: string, value: string, remember = true): Choice => ({ name, value, remember });

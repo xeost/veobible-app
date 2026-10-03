@@ -47,14 +47,16 @@ interface FadeWrapperProps {
   totalFrames: number;
 }
 const FadeWrapper: React.FC<FadeWrapperProps> = ({
+  from,
   fadeDuration,
   children,
   totalFrames,
 }) => {
   const { fps } = useVideoConfig();
   const frame = useCurrentFrame();
-  const fi = fadeIn(frame, fps, fadeDuration);
-  const fo = fadeOut(frame, totalFrames, fps, fadeDuration);
+  // Dissolve only between stages, never from/to black at the video edges.
+  const fi = from === "intro" ? 1 : fadeIn(frame, fps, fadeDuration);
+  const fo = from === "outro" ? 1 : fadeOut(frame, totalFrames, fps, fadeDuration);
   return (
     <AbsoluteFill style={{ opacity: Math.min(fi, fo) }}>{children}</AbsoluteFill>
   );

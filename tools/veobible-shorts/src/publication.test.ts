@@ -35,7 +35,7 @@ test("thumbnail uses the first frame strictly after the last intro entrance", ()
   for (const length of [1.3, 3, 8.16]) {
     for (const rate of [12, 24, 30, 30000 / 1001]) {
       const time = introThumbnailTime(length, `${rate}/1`);
-      const end = introAnimationEnd(length);
+      const end = introAnimationEnd(length) + 1 / rate;
       assert.ok(time > end);
       assert.ok(time - end <= 1 / rate + 1e-9);
       assert.ok(Math.abs(time * rate - Math.round(time * rate)) < 1e-9);

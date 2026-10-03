@@ -20,7 +20,7 @@ test("Remotion renders all external video and audio assets, including repeated r
     const reading = path.join(sourceAudio, "chapter.mp3");
     const intro = path.join(sourceAudio, "intro.wav");
     const outro = path.join(sourceAudio, "outro.wav");
-    for (const file of [reading, intro, outro]) execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=660:duration=0.4", "-y", file]);
+    for (const file of [reading, intro, outro]) execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", `sine=frequency=660:duration=${file === intro ? 3 : 0.4}`, "-y", file]);
     const originalIntro = await fs.readFile(intro);
     for (let render = 0; render < 2; render++) {
       const output = path.join(root, `short-${render}.mp4`);
@@ -33,6 +33,23 @@ test("Remotion renders all external video and audio assets, including repeated r
       assert.equal(info.streams.find((stream: { codec_type: string }) => stream.codec_type === "video").r_frame_rate, "24/1", "The render preserves source FPS rather than converting to 30 FPS");
       assert.ok(info.streams.some((stream: { codec_type: string }) => stream.codec_type === "audio"));
       assert.ok(Math.abs(Number(info.format.duration) - result.duration) < 0.15);
+      if (render === 0) {
+        const lastFrame = Math.round(result.duration * 24) - 1;
+        const frames = execFileSync(config.ffmpegBin, ["-v", "error", "-i", output, "-vf",
+          `select='eq(n,0)+eq(n,1)+eq(n,42)+eq(n,${lastFrame})'`, "-fps_mode", "passthrough", "-an", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 1024 * 1024 });
+        const frameSize = 128 * 228 * 3;
+        assert.equal(frames.length, frameSize * 4);
+        let coverDifference = 0;
+        let revealedPixels = 0;
+        for (let byte = 0; byte < frameSize; byte++) {
+          coverDifference += Math.abs(frames[byte] - frames[2 * frameSize + byte]);
+          if (Math.abs(frames[byte] - frames[frameSize + byte]) > 30) revealedPixels++;
+        }
+        assert.ok(coverDifference / frameSize < 3, "Frame zero shows the same fully revealed intro as after the entrance animation");
+        assert.ok(revealedPixels > 300, "Intro elements are hidden again on frame one");
+        assert.ok(frames[0] > 220 && frames[frameSize] > 220, "The video starts at full background brightness, without a fade from black");
+        assert.ok(frames[3 * frameSize + 2] > 220, "The final background stays bright, without a fade to black");
+      }
       const samples = execFileSync(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-i", output, "-vn", "-ac", "1", "-ar", "8000", "-f", "s16le", "-"], { maxBuffer: 512 * 1024 });
       let peak = 0;
       for (let byte = 0; byte < samples.length; byte += 2) peak = Math.max(peak, Math.abs(samples.readInt16LE(byte)));

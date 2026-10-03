@@ -55,13 +55,17 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
 }) => {
   const { fps, width, height } = useVideoConfig();
   const frame = useCurrentFrame();
-  const t = frame / fps;
+  // Frame zero is a fully revealed cover. Only overlay animation is restarted
+  // on frame one; the background and narration retain their original timeline.
+  const t = Math.max(0, frame - 1) / fps;
 
   const sx = (v: number) => Math.round((v * width) / 1080);
   const sy = (v: number) => Math.round((v * height) / 1920);
 
   const introPhase = (delay: number, exitOrder = 0) =>
-    stagePhase(introLength, delay, exitOrder);
+    frame === 0
+      ? { start: -1, duration: 0.001, exit: introLength + 1, exitDuration: 0.45 }
+      : stagePhase(introLength, delay, exitOrder);
 
   const introLines = wrapIntroTitle(title.title);
 
@@ -88,11 +92,6 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
   ];
 
   const rulePhase = introPhase(0.6, 0.1);
-  const ruleAlpha = phaseAlpha(t, rulePhase);
-
-  // Compute base video endTime (clip actual duration vs padded length)
-
-
   return (
     <div style={{ width, height, position: "relative", overflow: "hidden", background: "#000" }}>
       {/* Background video clip */}

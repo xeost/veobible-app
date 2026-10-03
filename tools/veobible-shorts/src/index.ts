@@ -6,7 +6,7 @@ import chalk from "chalk";
 import { config } from "./config.js";
 import { canReuseVoiceTracks, getBook, loadCatalog, markUsed, orderPassagesByUsage, prepareShort, readIndex, readStatus, reference, regenerateVoiceTrack, isPassageUsed } from "./shorts.js";
 
-import { promptAtTopOnBackspace, numberedMenu } from "./terminal-prompts.js";
+import { numberedMenu } from "./terminal-prompts.js";
 import { editPassageTimings } from "./timing-editor.js";
 import type { TimingAdjustments } from "./shorts.js";
 import { readReadingAudioSettings, validateReadingVolume } from "./reading-audio.js";
@@ -73,14 +73,14 @@ async function main(): Promise<void> {
         if (action === "volume") {
           const current = (await readReadingAudioSettings(existingOutput, true, volumeSessions.get(sessionKey))).volumeMultiplier;
           console.log("Reading volume: 0–4, including decimals (use a decimal point). 0 = mute, 1 = original, 0.5 = half amplitude, 2 = double amplitude. Peaks are limited above 1.");
-          const value = await promptAtTopOnBackspace(signal => input({
+          const value = await input({
             message: "volumeMultiplier:", default: String(current),
             validate: text => {
               if (!text.trim()) return "Enter a number between 0 and 4.";
               try { validateReadingVolume(Number(text)); return true; }
               catch { return "Enter a number between 0 and 4, using a decimal point."; }
             }
-          }, { signal }));
+          });
           volumeSessions.set(sessionKey, Number(value));
           console.log(chalk.green("✔ Reading volume kept in memory. Create or reprocess the video to save it."));
           continue;
@@ -94,16 +94,16 @@ async function main(): Promise<void> {
           continue;
         }
         if (action === "reprocess") {
-          if (!await promptAtTopOnBackspace(signal => confirm({ message: "Replace all files in this passage's output folder?", default: true }, { signal }))) continue;
+          if (!await confirm({ message: "Replace all files in this passage's output folder?", default: true })) continue;
           const reuseVoices = config.clipAudioMode !== "video" && await canReuseVoiceTracks(existingOutput)
-            ? await promptAtTopOnBackspace(signal => confirm({ message: "Reuse the existing intro and outro audio?", default: true }, { signal }))
+            ? await confirm({ message: "Reuse the existing intro and outro audio?", default: true })
             : false;
           const output = await prepareShort(selectedVersion, passage, true, reuseVoices, timingSessions.get(sessionKey), volumeSessions.get(sessionKey));
           console.log(chalk.green(`✔ Complete video reprocessed: ${path.join(output, "short.mp4")}`));
           continue;
         }
         if (action === "mark") {
-          if (await promptAtTopOnBackspace(signal => confirm({ message: "Mark this passage as used?", default: true }, { signal }))) {
+          if (await confirm({ message: "Mark this passage as used?", default: true })) {
             await markUsed(passage, selectedVersion, existingOutput);
             numberedMenu.forget(`passages/${selectedVersion.id}`);
             console.log(chalk.green("✔ Passage marked as used in status.json"));
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
         }
         const output = await prepareShort(selectedVersion, passage, false, false, timingSessions.get(sessionKey), volumeSessions.get(sessionKey));
         console.log(chalk.green(`✔ Complete video created: ${path.join(output, "short.mp4")}`));
-        if (!isPassageUsed(status, selectedVersion, passage) && await promptAtTopOnBackspace(signal => confirm({ message: "Mark this passage as used now?", default: true }, { signal }))) {
+        if (!isPassageUsed(status, selectedVersion, passage) && await confirm({ message: "Mark this passage as used now?", default: true })) {
           await markUsed(passage, selectedVersion, output);
           numberedMenu.forget(`passages/${selectedVersion.id}`);
           console.log(chalk.green("✔ Passage marked as used in status.json"));

@@ -97,7 +97,8 @@ function pictureFilter(input: number, width: number, height: number, frameRate: 
 export function introThumbnailTime(length: number, frameRate: string): number {
   const [numerator, denominator] = frameRate.split("/").map(Number);
   const rate = numerator / denominator;
-  return (Math.floor(introAnimationEnd(length) * rate) + 1) / rate;
+  // The entrance starts on frame one, after the single-frame intro cover.
+  return (Math.floor(introAnimationEnd(length) * rate) + 2) / rate;
 }
 
 export async function generateThumbnail(video: string, output: string, at: number): Promise<void> {
