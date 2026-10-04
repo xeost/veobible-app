@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { config } from "./config.js";
-import { isPassageUsed, markUsed, orderPassagesByUsage, passageUsageKey, readStatus, type Passage } from "./shorts.js";
+import { isPassageUsed, markUsed, unmarkUsed, orderPassagesByUsage, passageUsageKey, readStatus, type Passage } from "./shorts.js";
 
 test("usage is independent by locale and version, and legacy marks retain only their recorded scope", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "veobible-status-"));
@@ -40,6 +40,22 @@ test("usage is independent by locale and version, and legacy marks retain only t
     const saved = JSON.parse(await fs.readFile(file, "utf8"));
     assert.equal(saved[passage.id], undefined);
     assert.equal(saved[passageUsageKey(en, passage)].output, "english-output");
+    // Usage management does not depend on generated media or a passage folder.
+    const missingOutput = path.join(root, es.id, next.id);
+    await markUsed(next, es, missingOutput);
+    await assert.rejects(fs.access(missingOutput), { code: "ENOENT" });
+    assert.equal(isPassageUsed(await readStatus(), es, next), true);
+    await unmarkUsed(next, es);
+    assert.equal(isPassageUsed(await readStatus(), es, next), false);
+    await unmarkUsed(passage, es);
+    status = await readStatus();
+    assert.equal(isPassageUsed(status, es, passage), false);
+    assert.equal(isPassageUsed(status, alternate, passage), true);
+    assert.equal(isPassageUsed(status, en, passage), true);
+    assert.deepEqual(orderPassagesByUsage([passage, next], status, es).map(item => item.id), [passage.id, next.id]);
+    await fs.writeFile(file, legacy);
+    await unmarkUsed(passage, es);
+    assert.deepEqual(await readStatus(), {}, "Unmarking a legacy record removes its migrated scoped mark");
     const newer = { ...old, usedAt: "2026-09-01T00:00:00Z" };
     for (const records of [
       { [passage.id]: old, [passageUsageKey(es, passage)]: newer },

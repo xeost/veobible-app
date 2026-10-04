@@ -4,12 +4,14 @@ import path from "node:path";
 import { confirm, input } from "@inquirer/prompts";
 import chalk from "chalk";
 import { config } from "./config.js";
-import { canReuseVoiceTracks, getBook, loadCatalog, markUsed, orderPassagesByUsage, prepareShort, readIndex, readStatus, reference, regenerateVoiceTrack, isPassageUsed } from "./shorts.js";
+import { audioDurationSeconds, canReuseVoiceTracks, getBook, loadCatalog, markUsed, unmarkUsed, orderPassagesByUsage, prepareShort, readIndex, readStatus, reference, regenerateVoiceTrack, isPassageUsed } from "./shorts.js";
 
 import { numberedMenu } from "./terminal-prompts.js";
 import { editPassageTimings } from "./timing-editor.js";
 import type { TimingAdjustments } from "./shorts.js";
 import { readReadingAudioSettings, validateReadingVolume } from "./reading-audio.js";
+import { existingInternalFile } from "./output-files.js";
+import { playAudioPreview } from "./audio-preview.js";
 
 const languages = [
   { name: "Spanish", value: "es" },
@@ -56,12 +58,14 @@ async function main(): Promise<void> {
           { name: "Adjust reading volume", value: "volume" },
           ...(!isPrepared ? [{ name: "Create complete video", value: "prepare" }] : []),
           ...(isPrepared ? [
-            { name: "Regenerate intro audio", value: "intro-audio" },
-            { name: "Regenerate outro audio", value: "outro-audio" }
+            { name: "Listen to or regenerate intro audio", value: "intro-audio" },
+            { name: "Listen to or regenerate outro audio", value: "outro-audio" }
           ] : []),
           ...(isPrepared ? [{ name: "Reprocess complete video", value: "reprocess" }] : []),
-          ...(isPrepared && !isPassageUsed(status, selectedVersion, passage) ? [{ name: "Mark as used", value: "mark" }] : []),
-          ...(isPrepared ? [{ name: `Show output: ${existingOutput}`, value: "show" }] : []),
+          isPassageUsed(status, selectedVersion, passage)
+            ? { name: "Unmark as used", value: "unmark" }
+            : { name: "Mark as used", value: "mark" },
+          { name: "Show outputs directory path", value: "show" },
           { name: "Back", value: "back", remember: false }
         ] });
         if (action === "back") break;
@@ -85,12 +89,46 @@ async function main(): Promise<void> {
           console.log(chalk.green("✔ Reading volume kept in memory. Create or reprocess the video to save it."));
           continue;
         }
-        if (action === "show") { console.log(existingOutput); continue; }
+        if (action === "show") {
+          await numberedMenu(`output-path/${sessionKey}`, {
+            message: `Outputs directory:\n${config.outputDir}\n\nPassage output directory${isPrepared ? "" : " (not created)"}:\n${existingOutput}`,
+            choices: [{ name: "Back", value: "back", remember: false }]
+          });
+          continue;
+        }
         if (action === "intro-audio" || action === "outro-audio") {
           const part = action === "intro-audio" ? "intro" : "outro";
-          const file = await regenerateVoiceTrack(selectedVersion, passage, part);
-          console.log(chalk.green(`✔ ${part === "intro" ? "Intro" : "Outro"} audio regenerated: ${file}`));
-          console.log("Reprocess the complete video and reuse existing audio to include this track.");
+          const title = part === "intro" ? "Intro" : "Outro";
+          while (true) {
+            const file = await existingInternalFile(existingOutput, `${part}.wav`);
+            const available = await fs.stat(file).then(stat => stat.isFile() && stat.size > 0, error => {
+              if (error.code === "ENOENT") return false;
+              throw error;
+            });
+            const choice = await numberedMenu(`${part}-audio/${sessionKey}`, {
+              message: `${title} audio — ${reference(getBook(index, passage).book.name, passage)}`,
+              choices: [
+                { name: available ? `Listen to current ${part} audio` : `Listen to current ${part} audio (not generated)`, value: "listen", disabled: !available },
+                { name: `Regenerate ${part} audio`, value: "regenerate" },
+                { name: "Back", value: "back", remember: false }
+              ]
+            });
+            if (choice === "back") break;
+            if (choice === "listen") {
+              const duration = await audioDurationSeconds(file);
+              let text: string | undefined;
+              try { text = (await fs.readFile(await existingInternalFile(existingOutput, `${part}.txt`), "utf8")).trim(); }
+              catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+              while (await playAudioPreview(file, {
+                label: `${title} audio`, duration,
+                referenceVerse: { reference: `${title} script`, text: text || "No saved script available." }
+              }) === "replay") { /* Replay the current generated track. */ }
+            } else {
+              const generated = await regenerateVoiceTrack(selectedVersion, passage, part);
+              console.log(chalk.green(`✔ ${title} audio regenerated: ${generated}`));
+              console.log("Reprocess the complete video and reuse existing audio to include this track.");
+            }
+          }
           continue;
         }
         if (action === "reprocess") {
@@ -107,6 +145,14 @@ async function main(): Promise<void> {
             await markUsed(passage, selectedVersion, existingOutput);
             numberedMenu.forget(`passages/${selectedVersion.id}`);
             console.log(chalk.green("✔ Passage marked as used in status.json"));
+          }
+          continue;
+        }
+        if (action === "unmark") {
+          if (await confirm({ message: "Unmark this passage as used?", default: true })) {
+            await unmarkUsed(passage, selectedVersion);
+            numberedMenu.forget(`passages/${selectedVersion.id}`);
+            console.log(chalk.green("✔ Passage unmarked as used in status.json"));
           }
           continue;
         }

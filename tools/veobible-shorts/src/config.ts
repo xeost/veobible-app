@@ -27,6 +27,8 @@ export const config = {
   videosDir: process.env.VEOBIBLE_SHORTS_VIDEOS_DIR ?? path.join(workingDir, "material", "videos"),
   socialAccounts: process.env.VEOBIBLE_SHORTS_SOCIAL_ACCOUNTS ?? path.join(toolRoot, "social-accounts.json"),
   ffmpegBin,
+  mpvBin: process.env.VEOBIBLE_SHORTS_MPV || (process.platform === "darwin"
+    ? ["/opt/homebrew/bin/mpv", "/usr/local/bin/mpv"].find(existsSync) : undefined) || "mpv",
   ffprobeBin: ffmpegBin === "ffmpeg" ? "ffprobe" : path.join(path.dirname(ffmpegBin), "ffprobe"),
   clipAudioMode: process.env.VEOBIBLE_SHORTS_CLIP_AUDIO_MODE ?? "voice",
   audioDir: process.env.VEOBIBLE_SHORTS_AUDIO_DIR ?? "/Users/fabian/Documents/audiobibles/sources/audios",

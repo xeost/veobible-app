@@ -45,7 +45,7 @@ function wordCount(text: string): number {
   return text.replace(/\(H\d+-\d+\)/g, "").split(/\s+/u).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
 }
 
-async function audioDurationSeconds(file: string): Promise<number> {
+export async function audioDurationSeconds(file: string): Promise<number> {
   let stdout: string;
   try {
     ({ stdout } = await execFileAsync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file]));
@@ -487,6 +487,16 @@ export async function markUsed(passage: Passage, version: Version, output: strin
   const key = passageUsageKey(version, passage);
   if (status[key]) throw new Error(`Passage ${key} is already marked as used`);
   status[key] = { usedAt: new Date().toISOString(), locale: version.locale, version: version.id, output };
+  await writeStatus(status);
+}
+
+export async function unmarkUsed(passage: Passage, version: Version): Promise<void> {
+  const status = await readStatus();
+  delete status[passageUsageKey(version, passage)];
+  await writeStatus(status);
+}
+
+async function writeStatus(status: Status): Promise<void> {
   await fs.mkdir(config.outputDir, { recursive: true });
   const temp = path.join(config.outputDir, `.status-${process.pid}-${Date.now()}.json`);
   try {

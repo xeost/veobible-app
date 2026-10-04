@@ -68,7 +68,7 @@ test("timing editor loads JSON, previews exact cuts and coupled verse edits, and
     ] });
     await fs.writeFile(audioFile, audioText);
     await fs.writeFile(verseFile, verseText);
-    const actions = ["play", "set-start", "set-end", "play-start", "play-end", "verses", "play-all", "set-end", "select", "1", "set-start", "play-verse", "use"];
+    const actions = ["play", "set-start", "set-end", "play-start", "play-end", "verses", "play-all", "set-end", "play-verse", "select", "1", "set-start", "play-verse", "use"];
     const numbers = [0.1, -0.1, 0.08, 0.05, 0.2];
     const previews: Array<{ duration: number; cues?: Array<{ start: number; end: number }>; referenceVerse?: { reference: string; text: string }; passageText?: PassageTextVerse[] }> = [];
     let prompts = 0;
@@ -82,8 +82,43 @@ test("timing editor loads JSON, previews exact cuts and coupled verse edits, and
       number: async () => { const value = numbers.shift(); assert.notEqual(value, undefined); return value!; },
       play: async (file, options) => {
         const seconds = Number(execFileSync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file], { encoding: "utf8" }));
-        assert.ok(Math.abs(seconds - options.duration) < 0.003, `${seconds} vs ${options.duration}`);
-        previews.push({ duration: seconds, cues: options.cues?.map(cue => ({ start: cue.start, end: cue.end })), referenceVerse: options.referenceVerse, passageText: options.passageText });
+        const expectedDuration = options.passageControls?.sourceDuration ?? options.verseControls?.passageDuration ?? options.duration;
+        assert.ok(Math.abs(seconds - expectedDuration) < 0.003, `${seconds} vs ${expectedDuration}`);
+        if (options.passageControls) {
+          const controls = options.passageControls;
+          assert.equal(controls.startOffset, 0.05);
+          assert.equal(controls.endOffset, -0.05);
+          const earlier = controls.setBoundary("start", controls.start - 0.1);
+          assert.ok(Math.abs(earlier.startOffset + 0.05) < 1e-9, "The source includes audio before the initial cut");
+          const later = controls.setBoundary("end", controls.end + 0.1);
+          assert.ok(Math.abs(later.endOffset - 0.05) < 1e-9, "The source includes audio after the initial cut");
+          assert.throws(() => controls.setBoundary("start", -1), /invalid audio cut/);
+          assert.throws(() => controls.setBoundary("end", controls.sourceDuration + 1), /invalid audio cut/);
+          controls.setBoundary("start", controls.start);
+          controls.setBoundary("end", controls.end);
+        }
+        if (options.verseControls) {
+          const before = options.verseControls.getCues!();
+          const selected = before.findIndex(cue => cue.reference === options.referenceVerse?.reference);
+          assert.ok(selected >= 0);
+          assert.throws(() => options.verseControls!.setEnd(options.verseControls!.end + 5), /positive duration/);
+          const end = options.verseControls.end - 0.03;
+          assert.equal(options.verseControls.setEnd(end), end);
+          const after = options.verseControls.getCues!();
+          assert.equal(after[selected].end, end);
+          if (selected + 1 < after.length) assert.equal(after[selected + 1].start, end);
+          assert.notEqual(before, after, "The transport reads live cues after the editor replaces them");
+          const next = options.verseControls.nextVerse!();
+          if (selected + 1 < after.length) {
+            assert.equal(next?.verse.reference, after[selected + 1].reference);
+            assert.equal(next?.start, end, "Next preview starts from the freshly adjusted shared boundary");
+            assert.equal(next?.end, after[selected + 1].end);
+            assert.equal(options.verseControls.setEnd(next!.end), next!.end, "Edits now target the newly selected verse");
+            assert.equal(options.verseControls.getCues!()[selected].end, end, "The previous verse keeps its ending");
+            assert.equal(options.verseControls.nextVerse!(), undefined, "Last verse does not wrap to the first");
+          } else assert.equal(next, undefined);
+        }
+        previews.push({ duration: options.passageControls ? options.duration : seconds, cues: options.cues?.map(cue => ({ start: cue.start, end: cue.end })), referenceVerse: options.referenceVerse, passageText: options.passageText });
         return "done";
       }
     };
@@ -92,7 +127,8 @@ test("timing editor loads JSON, previews exact cuts and coupled verse edits, and
     assert.deepEqual(result.passageOffsets, { startSeconds: 0.1, endSeconds: -0.1 });
     assert.equal(result.verseOffsets[0].endOffsetSeconds, 0.05);
     assert.equal(result.verseOffsets[1].startOffsetSeconds, 0.05);
-    assert.equal(previews.length, 5);
+    assert.equal(result.verseOffsets[1].endOffsetSeconds, -0.03, "Playback edits are returned as offsets, without writing JSON");
+    assert.equal(previews.length, 6);
     assert.ok(Math.abs(previews[0].duration - previews[1].duration - 0.1) < 0.003);
     assert.deepEqual(previews[1].referenceVerse, { reference: "John 1:2", text: "Verse 2" });
     assert.deepEqual(previews[2].referenceVerse, { reference: "John 1:3", text: "Verse 3" });
@@ -129,6 +165,25 @@ test("timing editor loads JSON, previews exact cuts and coupled verse edits, and
     const applied = await applyVerseOffsets(path.dirname(internal), true, initialCues, result.verseOffsets);
     assert.ok(Math.abs(applied.cues[0].end - 0.95) < 1e-9);
     assert.ok(Math.abs(applied.cues[1].start - 0.95) < 1e-9);
+    await fs.writeFile(path.join(data, "index.json"), JSON.stringify({ metadata: { name: "Test Bible" }, books: [{ id: "john", name: "John", chapters: 2, versesPerChapter: [4, 4] }] }));
+    await fs.writeFile(path.join(data, "john", "2.json"), JSON.stringify([1, 2, 3, 4].map(verse => ({ verse, text: `Second chapter verse ${verse}` }))));
+    execFileSync(config.ffmpegBin, ["-v", "error", "-f", "lavfi", "-i", "sine=frequency=700:duration=6", "-y", path.join(audio, "01-john-2.mp3")]);
+    const multiActions = ["play", "cancel"];
+    await editPassageTimings(version, { id: "john-multi", book: "john", start: { chapter: 1, verse: 3 }, end: { chapter: 2, verse: 2 } }, undefined, {
+      ...ui, choose: async () => multiActions.shift()!, play: async (file, options) => {
+        const controls = options.passageControls!;
+        assert.ok(controls.start > 0 && controls.end > 4 && controls.end < controls.sourceDuration);
+        const seconds = Number(execFileSync(config.ffprobeBin, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file], { encoding: "utf8" }));
+        assert.ok(Math.abs(seconds - controls.sourceDuration) < 0.003, "Chapter joins preserve source coordinates, including MP3 padding");
+        controls.setBoundary("start", controls.start - 0.1);
+        const adjusted = controls.setBoundary("end", controls.end + 0.2);
+        assert.ok(Math.abs(adjusted.startOffset + 0.1) < 1e-9);
+        assert.ok(Math.abs(adjusted.endOffset - 0.2) < 1e-9);
+        assert.equal(adjusted.start, controls.start - 0.1);
+        assert.equal(adjusted.end, controls.end + 0.2);
+        return "done";
+      }
+    });
   } finally {
     Object.assign(config, original);
     await fs.rm(root, { recursive: true, force: true });

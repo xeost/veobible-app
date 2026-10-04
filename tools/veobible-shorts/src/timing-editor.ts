@@ -9,6 +9,7 @@ import { offsetsFromCues, moveVerseBoundary } from "./timing-model.js";
 import { readReadingAudioSettings } from "./reading-audio.js";
 import { renderAudioPreview, excerptAudioPreview, playAudioPreview } from "./audio-preview.js";
 import { numberedMenu } from "./terminal-prompts.js";
+import type { VersePlaybackControls, PassagePlaybackControls } from "./verse-audio-preview.js";
 
 interface Choice { name: string; value: string; remember?: boolean }
 export interface TimingEditorUI {
@@ -43,8 +44,19 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
   const fullPreview = path.join(temp, "passage.wav");
   let previewKey = "";
   let passageText: PassageTextVerse[] | undefined;
+  const sourcePreview = path.join(temp, "passage-source.wav");
+  let sourcePrepared = false;
+  // Keep source audio outside both estimated edges available for live edits.
+  // Intermediate cuts stay identical, including passages across chapters.
+  const sourceSections = analysis.sections.map((section, index) => ({ ...section,
+    start: index === 0 ? 0 : section.start,
+    end: index === analysis.sections.length - 1 ? analysis.sourceDurations[index] : section.end
+  }));
+  const sourceDuration = sourceSections.reduce((sum, section) => sum + section.end - section.start, 0);
+  const estimatedStart = analysis.sections[0].start;
+  const estimatedEnd = estimatedStart + analysis.sections.reduce((sum, section) => sum + section.end - section.start, 0);
   try {
-    const play = async (from: number, to: number, cues?: VerseCue[], referenceVerse?: Pick<VerseCue, "reference" | "text">, passageText?: PassageTextVerse[]) => {
+    const play = async (from: number, to: number, cues?: VerseCue[], referenceVerse?: Pick<VerseCue, "reference" | "text">, passageText?: PassageTextVerse[], verseControls?: VersePlaybackControls) => {
       const sections = applyPassageAudioOffsets(analysis.sections, analysis.sourceDurations, audioOffsets);
       const duration = sections.reduce((sum, section) => sum + section.end - section.start, 0);
       const key = JSON.stringify(sections);
@@ -55,11 +67,11 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
       }
       const start = Math.max(0, from), end = Math.min(duration, to);
       let file = fullPreview;
-      if (start > 0 || end < duration) {
+      if (!verseControls && (start > 0 || end < duration)) {
         file = path.join(temp, "excerpt.wav");
         await excerptAudioPreview(fullPreview, file, start, end);
       }
-      while (await ui.play(file, { label: analysis.label, duration: end - start, offset: start, cues, referenceVerse, passageText }) === "replay") { /* Replay the same exact cut. */ }
+      while (await ui.play(file, { label: analysis.label, duration: end - start, offset: start, cues, referenceVerse, passageText, verseControls }) === "replay") { /* Replay the same exact cut. */ }
     };
 
     while (true) {
@@ -74,14 +86,31 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
       if (action === "cancel") return undefined;
       try {
         if (action.startsWith("play")) {
-          if (action === "play") passageText ??= await readPassageTextContext(version, passage, analysis.index);
+          if (action === "play") {
+            passageText ??= await readPassageTextContext(version, passage, analysis.index);
+            if (!sourcePrepared) {
+              console.log("Preparing editable passage audio preview...");
+              await renderAudioPreview(sourcePreview, sourceSections, volume, { padSections: true });
+              sourcePrepared = true;
+            }
+            const state = () => ({ start: estimatedStart + audioOffsets.startSeconds, end: estimatedEnd + audioOffsets.endSeconds,
+              startOffset: audioOffsets.startSeconds, endOffset: audioOffsets.endSeconds });
+            const controls: PassagePlaybackControls = { ...state(), sourceDuration, setBoundary: (edge, time) => {
+              const next = { ...audioOffsets, [edge === "start" ? "startSeconds" : "endSeconds"]: time - (edge === "start" ? estimatedStart : estimatedEnd) };
+              applyPassageAudioOffsets(analysis.sections, analysis.sourceDurations, next);
+              audioOffsets = next;
+              return state();
+            } };
+            await ui.play(sourcePreview, { label: analysis.label, duration: controls.end - controls.start, offset: controls.start, passageText, passageControls: controls });
+            continue;
+          }
           let referenceVerse: Pick<VerseCue, "reference" | "text"> | undefined;
           if (action === "play-start" || action === "play-end") {
             const input = action === "play-start" ? analysis.timingInputs[0] : analysis.timingInputs.at(-1)!;
             const verse = action === "play-start" ? input.verses[0] : input.verses.at(-1)!;
             referenceVerse = { reference: `${input.bookName} ${input.chapter}:${verse.verse}`, text: verse.text };
           }
-          await play(action === "play-end" ? Math.max(0, duration - 5) : 0, action === "play-start" ? Math.min(5, duration) : duration, undefined, referenceVerse, action === "play" ? passageText : undefined);
+          await play(action === "play-end" ? Math.max(0, duration - 5) : 0, action === "play-start" ? Math.min(5, duration) : duration, undefined, referenceVerse);
           continue;
         }
         if (action !== "verses") {
@@ -127,7 +156,18 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
           }
           try {
             if (verseAction.startsWith("play")) {
-              await play(verseAction === "play-verse" ? Math.max(0, cue.start - 1) : 0, verseAction === "play-verse" ? Math.min(duration, cue.end + 1) : duration, cues);
+              const selectedVerse = verseAction === "play-verse";
+              await play(selectedVerse ? Math.max(0, cue.start - 1) : 0, selectedVerse ? Math.min(duration, cue.end + 1) : duration, cues,
+                selectedVerse ? { reference: cue.reference, text: cue.text } : undefined, undefined,
+                selectedVerse ? { passageDuration: duration, end: cue.end, estimateEnd: estimate.end, getCues: () => cues, nextVerse: () => {
+                  if (selected + 1 >= cues.length) return undefined;
+                  selected++;
+                  const next = cues[selected];
+                  return { verse: { reference: next.reference, text: next.text }, start: next.start, end: next.end, estimateEnd: estimates[selected].end };
+                }, setEnd: time => {
+                  cues = moveVerseBoundary(cues, selected, "end", time, duration);
+                  return cues[selected].end;
+                } } : undefined);
             } else if (verseAction === "select") {
               selected = Number(await ui.choose("Select a verse:", cues.map((item, index) => choice(`${item.reference} · ${item.start.toFixed(2)}–${item.end.toFixed(2)} s`, String(index))), `${menuKey}/verse-selection`));
             } else if (verseAction === "reset") cues = estimates.map(item => ({ ...item }));
