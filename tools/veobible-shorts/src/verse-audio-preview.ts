@@ -60,11 +60,11 @@ export async function playVerseAudioPreview(file: string, options: {
   verseControls?: VersePlaybackControls;
   passageControls?: PassagePlaybackControls;
   passageText?: PassageTextVerse[];
-}): Promise<"done"> {
+}): Promise<"done" | "discard"> {
   const controls = options.verseControls;
   const passageControls = options.passageControls;
   let passageState: PassagePlaybackState | undefined = passageControls ? { ...passageControls } : undefined;
-  let edge: "start" | "end" = "end";
+  let edge: "start" | "end" = "start";
   let start = options.offset ?? 0;
   let end = start + options.duration;
   let verseEnd = controls?.end ?? end;
@@ -73,6 +73,7 @@ export async function playVerseAudioPreview(file: string, options: {
   let position = start;
   let child: PreviewPlayback | undefined;
   let paused = false, finished = false, busy = false, closing = false, refresh = false;
+  let discard = false;
   let notice = "";
   let textScroll = 0;
   const pageSize = () => Math.max(3, (process.stdout.rows || 24) - 15);
@@ -120,7 +121,10 @@ export async function playVerseAudioPreview(file: string, options: {
     const help = passageState
       ? `A: add 5 seconds to ${edge} offset   D: subtract 5 seconds\nB: rewind 5 seconds   L: play last 5 seconds\nE: set passage ${edge} here   R: replay fragment from beginning`
       : "A: add 5 seconds to verse end   D: subtract 5 seconds\nB: rewind 5 seconds   L: play fragment's last 5 seconds   N: next verse\nE: set verse end here   R: replay fragment";
-    const screen = `${options.label}\n\n${status}  ${playbackPercent(time, start, end).toFixed(1)}% · ${(time - start).toFixed(2)} / ${(end - start).toFixed(2)} s\n${heading}\n\n${content}\n\n${help}   Space: pause/resume\nEnter / Esc: return   Backspace: menu at top   Ctrl+C: exit\n${options.passageText ? "↑/↓: scroll text   PgUp/PgDn: page   Home/End: first/last line\n" : ""}${notice}\n`;
+    const exitHelp = passageControls || controls
+      ? "Enter: keep changes and return   Esc: discard changes and return\nBackspace: keep changes and return to menu at top   Ctrl+C: exit"
+      : "Enter / Esc: return   Backspace: menu at top   Ctrl+C: exit";
+    const screen = `${options.label}\n\n${status}  ${playbackPercent(time, start, end).toFixed(1)}% · ${(time - start).toFixed(2)} / ${(end - start).toFixed(2)} s\n${heading}\n\n${content}\n\n${help}   Space: pause/resume\n${exitHelp}\n${options.passageText ? "↑/↓: scroll text   PgUp/PgDn: page   Home/End: first/last line\n" : ""}${notice}\n`;
     process.stdout.write(`\x1b[H\x1b[2J${screen}`);
   };
   const launch = async (time: number) => {
@@ -149,6 +153,7 @@ export async function playVerseAudioPreview(file: string, options: {
       rejectDone(error); return;
     }
     if (["return", "escape", "backspace"].includes(key?.name ?? "")) {
+      discard = Boolean(passageControls || controls) && key?.name === "escape";
       refresh = key?.name === "backspace"; closing = true; resolveDone(); return;
     }
     if (busy || closing) return;
@@ -232,5 +237,5 @@ export async function playVerseAudioPreview(file: string, options: {
     await fs.rm(temp, { recursive: true, force: true });
     if (refresh) startAtTopPreservingHistory();
   }
-  return "done";
+  return discard ? "discard" : "done";
 }

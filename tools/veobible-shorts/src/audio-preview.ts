@@ -41,7 +41,7 @@ function wrap(text: string, width: number): string[] {
 }
 
 /** Native audio playback with a temporary terminal transport and timed verse text. */
-export async function playAudioPreview(file: string, options: { label: string; duration: number; offset?: number; cues?: VerseCue[]; referenceVerse?: Pick<VerseCue, "reference" | "text">; passageText?: PassageTextVerse[]; verseControls?: VersePlaybackControls; passageControls?: PassagePlaybackControls }): Promise<"done" | "replay"> {
+export async function playAudioPreview(file: string, options: { label: string; duration: number; offset?: number; cues?: VerseCue[]; referenceVerse?: Pick<VerseCue, "reference" | "text">; passageText?: PassageTextVerse[]; verseControls?: VersePlaybackControls; passageControls?: PassagePlaybackControls }): Promise<"done" | "replay" | "discard"> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error("Audio timing preview requires an interactive terminal");
   if (options.verseControls || options.passageControls) return playVerseAudioPreview(file, options);
   const playback = await startPreviewPlayback(file);

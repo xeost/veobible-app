@@ -151,6 +151,53 @@ test("timing editor loads JSON, previews exact cuts and coupled verse edits, and
       return cancelActions.shift()!;
     } }), undefined);
     assert.deepEqual(result, saved, "Cancelled edits leave the previous session intact");
+    const discardActions = ["play", "play", "verses", "use"];
+    let playbackCount = 0;
+    const discarded = await editPassageTimings(version, passage, result, {
+      ...ui,
+      choose: async () => discardActions.shift()!,
+      play: async (_file, options) => {
+        const controls = options.passageControls!;
+        assert.ok(Math.abs(controls.startOffset - saved.passageOffsets.startSeconds) < 1e-9);
+        assert.ok(Math.abs(controls.endOffset - saved.passageOffsets.endSeconds) < 1e-9);
+        controls.setBoundary("start", controls.start - 0.04);
+        controls.setBoundary("end", controls.end + 0.04);
+        return playbackCount++ === 0 ? "discard" : "done";
+      }
+    });
+    assert.equal(playbackCount, 2, "Returning with discard restores both boundaries before reopening playback");
+    assert.ok(Math.abs(discarded!.passageOffsets.startSeconds - (saved.passageOffsets.startSeconds - 0.04)) < 1e-9);
+    assert.ok(Math.abs(discarded!.passageOffsets.endSeconds - (saved.passageOffsets.endSeconds + 0.04)) < 1e-9);
+    assert.deepEqual(result, saved, "Playback cancellation leaves the previous session untouched");
+    assert.equal(await fs.readFile(audioFile, "utf8"), audioText);
+    const verseDiscardActions = ["verses", "play-verse", "play-verse", "use"];
+    let versePlaybackCount = 0;
+    const verseDiscarded = await editPassageTimings(version, passage, result, {
+      ...ui,
+      choose: async () => verseDiscardActions.shift()!,
+      play: async (_file, options) => {
+        const controls = options.verseControls!;
+        const before = structuredClone(controls.getCues!());
+        assert.equal(options.referenceVerse!.reference, "John 1:2", "Discard also restores the selected verse after N");
+        if (versePlaybackCount++ === 0) {
+          controls.setEnd(before[0].end - 0.04);
+          const next = controls.nextVerse!()!;
+          controls.setEnd(next.end - 0.04);
+          return "discard";
+        }
+        assert.ok(Math.abs(before[0].end - controls.estimateEnd - saved.verseOffsets[0].endOffsetSeconds) < 1e-9);
+        const next = controls.nextVerse!()!;
+        assert.equal(next.end, before[1].end);
+        assert.ok(Math.abs(next.end - next.estimateEnd - saved.verseOffsets[1].endOffsetSeconds) < 1e-9);
+        controls.setEnd(next.end - 0.01);
+        return "done";
+      }
+    });
+    assert.equal(versePlaybackCount, 2);
+    assert.deepEqual(verseDiscarded!.verseOffsets[0], saved.verseOffsets[0], "Discard restores the shared neighbor boundary");
+    assert.ok(Math.abs(verseDiscarded!.verseOffsets[1].endOffsetSeconds - (saved.verseOffsets[1].endOffsetSeconds - 0.01)) < 1e-9);
+    assert.deepEqual(result, saved);
+    assert.equal(await fs.readFile(verseFile, "utf8"), verseText);
     const newPassage = { ...passage, id: "john-1-2-3-new" };
     const newActions = ["verses", "use"];
     const fresh = await editPassageTimings(version, newPassage, undefined, { ...ui, choose: async (_message, choices) => {

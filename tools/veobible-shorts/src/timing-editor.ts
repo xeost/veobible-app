@@ -71,7 +71,11 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
         file = path.join(temp, "excerpt.wav");
         await excerptAudioPreview(fullPreview, file, start, end);
       }
-      while (await ui.play(file, { label: analysis.label, duration: end - start, offset: start, cues, referenceVerse, passageText, verseControls }) === "replay") { /* Replay the same exact cut. */ }
+      let result: Awaited<ReturnType<typeof ui.play>>;
+      do {
+        result = await ui.play(file, { label: analysis.label, duration: end - start, offset: start, cues, referenceVerse, passageText, verseControls });
+      } while (result === "replay");
+      return result;
     };
 
     while (true) {
@@ -101,7 +105,14 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
               audioOffsets = next;
               return state();
             } };
-            await ui.play(sourcePreview, { label: analysis.label, duration: controls.end - controls.start, offset: controls.start, passageText, passageControls: controls });
+            const previousOffsets = { ...audioOffsets };
+            try {
+              const result = await ui.play(sourcePreview, { label: analysis.label, duration: controls.end - controls.start, offset: controls.start, passageText, passageControls: controls });
+              if (result === "discard") audioOffsets = previousOffsets;
+            } catch (error) {
+              audioOffsets = previousOffsets;
+              throw error;
+            }
             continue;
           }
           let referenceVerse: Pick<VerseCue, "reference" | "text"> | undefined;
@@ -157,17 +168,25 @@ export async function editPassageTimings(version: Version, passage: Passage, ini
           try {
             if (verseAction.startsWith("play")) {
               const selectedVerse = verseAction === "play-verse";
-              await play(selectedVerse ? Math.max(0, cue.start - 1) : 0, selectedVerse ? Math.min(duration, cue.end + 1) : duration, cues,
-                selectedVerse ? { reference: cue.reference, text: cue.text } : undefined, undefined,
-                selectedVerse ? { passageDuration: duration, end: cue.end, estimateEnd: estimate.end, getCues: () => cues, nextVerse: () => {
-                  if (selected + 1 >= cues.length) return undefined;
-                  selected++;
-                  const next = cues[selected];
-                  return { verse: { reference: next.reference, text: next.text }, start: next.start, end: next.end, estimateEnd: estimates[selected].end };
-                }, setEnd: time => {
-                  cues = moveVerseBoundary(cues, selected, "end", time, duration);
-                  return cues[selected].end;
-                } } : undefined);
+              const previousCues = structuredClone(cues);
+              const previousSelected = selected;
+              try {
+                const result = await play(selectedVerse ? Math.max(0, cue.start - 1) : 0, selectedVerse ? Math.min(duration, cue.end + 1) : duration, cues,
+                  selectedVerse ? { reference: cue.reference, text: cue.text } : undefined, undefined,
+                  selectedVerse ? { passageDuration: duration, end: cue.end, estimateEnd: estimate.end, getCues: () => cues, nextVerse: () => {
+                    if (selected + 1 >= cues.length) return undefined;
+                    selected++;
+                    const next = cues[selected];
+                    return { verse: { reference: next.reference, text: next.text }, start: next.start, end: next.end, estimateEnd: estimates[selected].end };
+                  }, setEnd: time => {
+                    cues = moveVerseBoundary(cues, selected, "end", time, duration);
+                    return cues[selected].end;
+                  } } : undefined);
+                if (result === "discard") { cues = previousCues; selected = previousSelected; }
+              } catch (error) {
+                cues = previousCues; selected = previousSelected;
+                throw error;
+              }
             } else if (verseAction === "select") {
               selected = Number(await ui.choose("Select a verse:", cues.map((item, index) => choice(`${item.reference} · ${item.start.toFixed(2)}–${item.end.toFixed(2)} s`, String(index))), `${menuKey}/verse-selection`));
             } else if (verseAction === "reset") cues = estimates.map(item => ({ ...item }));
