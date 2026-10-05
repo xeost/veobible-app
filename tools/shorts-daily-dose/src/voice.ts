@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { config, type Version } from "./config.js";
 import type { Passage } from "./shorts.js";
 
-const script = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../veobible-voice/cli.py");
+const script = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../voice-generator/cli.py");
 const templateFields = new Set(["reference", "version", "book", "start", "end", "passage_id"]);
 export type VoicePart = "intro" | "outro";
 const allParts: readonly VoicePart[] = ["intro", "outro"];

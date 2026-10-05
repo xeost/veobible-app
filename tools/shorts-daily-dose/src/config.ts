@@ -41,7 +41,7 @@ export const config = {
     en: process.env.VEOBIBLE_SHORTS_ELEVENLABS_VOICE_EN ?? "",
     pt: process.env.VEOBIBLE_SHORTS_ELEVENLABS_VOICE_PT ?? ""
   },
-  ttsPython: process.env.VEOBIBLE_SHORTS_TTS_PYTHON ?? path.join(toolRoot, "../veobible-voice/.venv/bin/python"),
+  ttsPython: process.env.VEOBIBLE_SHORTS_TTS_PYTHON ?? path.join(toolRoot, "../voice-generator/.venv/bin/python"),
   ttsModels: {
     es: process.env.VEOBIBLE_SHORTS_TTS_MODEL_ES ?? sharedTtsModel,
     en: process.env.VEOBIBLE_SHORTS_TTS_MODEL_EN ?? sharedTtsModel,

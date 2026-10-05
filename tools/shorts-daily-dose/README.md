@@ -43,7 +43,7 @@ Filtros usados por el montaje:
 | Ajuste del corte | `silencedetect` |
 
 ```bash
-cd tools/veobible-shorts
+cd tools/shorts-daily-dose
 pnpm install
 cp .env.example .env
 pnpm start
@@ -55,7 +55,7 @@ Los menús muestran una lista de opciones con orden y numeración fijos. Selecci
 
 ## Configuración
 
-Copia `.env.example` a `.env` dentro de `tools/veobible-shorts` y ajusta las rutas. La herramienta carga ese archivo aunque la ejecutes desde la raíz del repositorio. También puedes cambiar los valores predeterminados en `src/config.ts`. Las variables exportadas en el entorno del proceso tienen prioridad sobre `.env`; si falta una variable, se usa el valor predeterminado de `config.ts`.
+Copia `.env.example` a `.env` dentro de `tools/shorts-daily-dose` y ajusta las rutas. La herramienta carga ese archivo aunque la ejecutes desde la raíz del repositorio. También puedes cambiar los valores predeterminados en `src/config.ts`. Las variables exportadas en el entorno del proceso tienen prioridad sobre `.env`; si falta una variable, se usa el valor predeterminado de `config.ts`.
 
 | Variable | Valor predeterminado |
 | --- | --- |
@@ -70,7 +70,7 @@ Copia `.env.example` a `.env` dentro de `tools/veobible-shorts` y ajusta las rut
 | `VEOBIBLE_SHORTS_ELEVENLABS_API_KEY` | Vacío; obligatorio para ElevenLabs |
 | `VEOBIBLE_SHORTS_ELEVENLABS_MODEL` | `eleven_multilingual_v2` |
 | `VEOBIBLE_SHORTS_ELEVENLABS_VOICE_ES`, `_EN`, `_PT` | Vacío; ID de voz obligatorio para el idioma seleccionado con ElevenLabs |
-| `VEOBIBLE_SHORTS_TTS_PYTHON` | `<raíz del repositorio>/tools/veobible-voice/.venv/bin/python` |
+| `VEOBIBLE_SHORTS_TTS_PYTHON` | `<raíz del repositorio>/tools/voice-generator/.venv/bin/python` |
 | `VEOBIBLE_SHORTS_TTS_MODEL` | `multilingual` (`latam` solo para español) |
 | `VEOBIBLE_SHORTS_TTS_MODEL_ES`, `_EN`, `_PT` | Modelo del idioma; si falta, usa `VEOBIBLE_SHORTS_TTS_MODEL` |
 | `VEOBIBLE_SHORTS_TTS_DEVICE` | `auto` |
@@ -79,7 +79,7 @@ Copia `.env.example` a `.env` dentro de `tools/veobible-shorts` y ajusta las rut
 | `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_PT` | `<workingDir>/material/voices/pt.mp3` |
 | `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_ES_INTRO`, `_ES_OUTRO` (y equivalentes `_EN_*`, `_PT_*`) | Rutas opcionales para cada pista; si faltan, busca `<workingDir>/material/voices/<idioma>-<pista>.mp3` o `.wav` |
 | `VEOBIBLE_SHORTS_TTS_VOICE_PROMPT` | Vacío; muestra compartida que sustituye los valores predeterminados cuando no hay ruta por idioma |
-| `VEOBIBLE_SHORTS_TTS_TEMPLATES` | `tools/veobible-shorts/voice-templates.json` |
+| `VEOBIBLE_SHORTS_TTS_TEMPLATES` | `tools/shorts-daily-dose/voice-templates.json` |
 
 `VEOBIBLE_SHORTS_OUTPUT_DIR` es opcional: si lo omites, se usa `outputs` dentro de `VEOBIBLE_SHORTS_WORKING_DIR`. El archivo `.env` queda excluido de Git; `.env.example` sirve como plantilla.
 
@@ -210,19 +210,19 @@ Por defecto, `VEOBIBLE_SHORTS_CLIP_AUDIO_MODE=voice` genera las locuciones de in
 
 La outro muestra el título «Síguenos para escuchar más» traducido al idioma del pasaje, el nombre del canal, las cuentas de YouTube, X, Instagram y TikTok, y `veobible.com`. Edita [`social-accounts.json`](social-accounts.json) para configurar los usuarios por idioma. Los usuarios de YouTube ya corresponden a los canales del proyecto; los de X, Instagram y TikTok son **ejemplos** y debes reemplazarlos antes de publicar. Un usuario vacío omite esa red del vídeo. Puedes usar otro archivo con la misma estructura mediante `VEOBIBLE_SHORTS_SOCIAL_ACCOUNTS` en `.env`.
 
-Las plantillas de español, inglés y portugués se editan en [voice-templates.json](voice-templates.json), dentro de esta herramienta. Admiten `{reference}`, `{version}`, `{book}`, `{start}`, `{end}` y `{passage_id}`. Los valores provienen del pasaje y la versión elegidos; `veobible-shorts` entrega los guiones completos a [VeoBible Voice](../veobible-voice/README.md), que solo sintetiza el texto recibido.
+Las plantillas de español, inglés y portugués se editan en [voice-templates.json](voice-templates.json), dentro de esta herramienta. Admiten `{reference}`, `{version}`, `{book}`, `{start}`, `{end}` y `{passage_id}`. Los valores provienen del pasaje y la versión elegidos; `shorts-daily-dose` entrega los guiones completos a [VeoBible Voice](../voice-generator/README.md), que solo sintetiza el texto recibido.
 
 En las locuciones, `{reference}` escribe los números con letras (por ejemplo, «Juan capítulo tres versículos catorce al diecinueve»). También convierte los números de libros como «1 Juan» a «Primera de Juan». `_internal/0-metadata.txt` conserva la referencia escrita «Juan 3:14-19». Después de editar las plantillas o cambiar de proveedor, usa **Reprocess complete video** y elige generar las locuciones de nuevo para actualizar la salida.
 
 ### Chatterbox local
 
-Instala primero las dependencias en el entorno propio de [VeoBible Voice](../veobible-voice/README.md). `veobible-shorts` usa automáticamente `tools/veobible-voice/.venv/bin/python` y ejecuta su `cli.py`; no necesita configurar `VEOBIBLE_SHORTS_TTS_PYTHON` salvo que uses otra ubicación para ese entorno. Puedes seleccionar `latam` solo para español con `VEOBIBLE_SHORTS_TTS_MODEL_ES` o usar otro JSON de plantillas con `VEOBIBLE_SHORTS_TTS_TEMPLATES`. Los WAV finales son PCM de 24 bits a 48 kHz.
+Instala primero las dependencias en el entorno propio de [VeoBible Voice](../voice-generator/README.md). `shorts-daily-dose` usa automáticamente `tools/voice-generator/.venv/bin/python` y ejecuta su `cli.py`; no necesita configurar `VEOBIBLE_SHORTS_TTS_PYTHON` salvo que uses otra ubicación para ese entorno. Puedes seleccionar `latam` solo para español con `VEOBIBLE_SHORTS_TTS_MODEL_ES` o usar otro JSON de plantillas con `VEOBIBLE_SHORTS_TTS_TEMPLATES`. Los WAV finales son PCM de 24 bits a 48 kHz.
 
 Durante la generación local, la terminal muestra la etapa actual y el tiempo transcurrido. Los mensajes de descarga, avisos y barras internas de Chatterbox se ocultan; si falla la generación, se muestran los detalles técnicos del error.
 
 ### Muestras de voz por idioma
 
-Las muestras están fuera del repositorio, en `<workingDir>/material/voices/`. Para cada idioma se busca primero una muestra dedicada a la pista: `es-intro.mp3` y `es-outro.mp3`, `en-intro.mp3` y `en-outro.mp3`, o `pt-intro.mp3` y `pt-outro.mp3`. También se aceptan archivos `.wav`. Si falta una muestra dedicada, se usa la muestra general de ese idioma (`es.mp3`, `en.mp3` o `pt.mp3`; también `.wav`). Puedes cambiar las rutas generales en `tools/veobible-shorts/.env`:
+Las muestras están fuera del repositorio, en `<workingDir>/material/voices/`. Para cada idioma se busca primero una muestra dedicada a la pista: `es-intro.mp3` y `es-outro.mp3`, `en-intro.mp3` y `en-outro.mp3`, o `pt-intro.mp3` y `pt-outro.mp3`. También se aceptan archivos `.wav`. Si falta una muestra dedicada, se usa la muestra general de ese idioma (`es.mp3`, `en.mp3` o `pt.mp3`; también `.wav`). Puedes cambiar las rutas generales en `tools/shorts-daily-dose/.env`:
 
 ```dotenv
 VEOBIBLE_SHORTS_TTS_VOICE_PROMPT_ES=/Users/fabian/Documents/veobible-shorts/material/voices/es.mp3
