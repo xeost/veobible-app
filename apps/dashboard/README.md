@@ -80,12 +80,13 @@ El editor permite buscar y filtrar videos por versión, ajustar volumen, modo de
 
 D1 guarda la copia de ajustes de cada trabajo, resultados, guiones, descripciones, referencias a fuentes, tiempos, errores y marcas de uso/publicación. Los callbacks actualizan D1 sin depender del navegador. La consulta periódica reconcilia callbacks fallidos. Tras reiniciar la API, los trabajos perdidos se marcan interrumpidos durante la siguiente reconciliación; puedes reintentarlos desde sus ajustes. Si la laptop está apagada se conserva el estado hasta que vuelva a responder. No hay reanudación automática después de reiniciar.
 
-La cola procesa un trabajo a la vez y admite hasta 20. La API guarda multimedia en `tools/video-generator-api/media/` (`VIDEO_MEDIA_DIR` permite otra ubicación):
+La cola procesa un trabajo a la vez y admite hasta 20. `SHORTS_WORKING_DIR` y `LONGS_WORKING_DIR` definen directorios independientes para cada formato. En esta laptop son `/Users/fabian/Documents/veobible-shorts` y `/Users/fabian/Documents/veobible-longs`:
 
-- `sources/<short|long>/<UUID>/`: voces fuente conservadas entre renders.
-- `renders/<short|long>/<UUID>/`: video y miniatura finales, descartables después de publicar.
+- `material/videos/` y `material/voices/`: clips y muestras de voz.
+- `media/sources/<UUID>/`: voces fuente conservadas entre renders.
+- `outputs/<UUID>/`: video y miniatura finales.
 
-No borres `sources/` si quieres reutilizar las voces exactas. Los audios bíblicos se configuran con `VIDEO_AUDIO_DIR`; los clips y muestras de voz se conservan en `tools/video-generator-api/material/`. El fondo elegido automáticamente se guarda en los ajustes al terminar para regenerarlo después.
+No borres `media/sources/` si quieres reutilizar las voces exactas. Los audios bíblicos se pueden configurar con `VIDEO_AUDIO_DIR` para usar la biblioteca externa. El fondo elegido automáticamente se guarda en los ajustes al terminar para regenerarlo después.
 
 La API usa directamente análisis, voces y render; no llama a `prepareShort`, `prepareEpisode`, `markUsed` ni a escritores de ajustes. No crea `status.json`, `default-version-settings.json` ni ajustes de proyecto en disco. Solo usa archivos temporales de síntesis/render, que limpia al terminar. Conserva materiales y entorno de modelos originales para reproducir una generación.
 

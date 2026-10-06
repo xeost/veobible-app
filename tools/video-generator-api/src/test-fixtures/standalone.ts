@@ -6,11 +6,20 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 const execute = promisify(execFile);
 const working = process.cwd();
+process.env.SHORTS_WORKING_DIR = path.join(working, "work", "short");
+process.env.LONGS_WORKING_DIR = path.join(working, "work", "long");
 const data = path.resolve(
   working,
   "../../apps/frontend/public/bible-data/es/rv1909",
 );
-const audio = path.join(working, "material/bible-audio/rv1909");
+const audio = path.join(
+  working,
+  "work",
+  "short",
+  "material",
+  "bible-audio",
+  "rv1909",
+);
 await fs.mkdir(audio, { recursive: true });
 await fs.mkdir(data, { recursive: true });
 await fs.writeFile(
@@ -50,6 +59,7 @@ const scripts=JSON.parse(await fs.readFile(arg('--scripts'),'utf8'));
 for(const [part,text] of Object.entries(scripts)){execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-f','lavfi','-i','sine=frequency=880:duration=0.25','-y',path.join(arg('--output-dir'),part+'.wav')]);await fs.writeFile(path.join(arg('--output-dir'),part+'.txt'),text);}`,
 );
 process.env.VIDEO_TTS_SCRIPT = provider;
+process.env.VIDEO_AUDIO_DIR = path.dirname(audio);
 for (const kind of ["SHORT", "LONG"]) {
   process.env[`VIDEO_${kind}_TTS_PYTHON`] = process.execPath;
   process.env[`VIDEO_${kind}_RENDER_CONCURRENCY`] = "2";
@@ -66,7 +76,7 @@ const {
 } = await import("../pipeline.js");
 const { renderSchema } = await import("../protocol.js");
 for (const kind of ["short", "long"] as const) {
-  const clips = path.join(working, "material", kind, "videos");
+  const clips = path.join(working, "work", kind, "material", "videos");
   await fs.mkdir(clips, { recursive: true });
   if (process.env.VIDEO_SMOKE_RENDER === "1") {
     for (const name of ["0-intro.mp4", "0-outro.mp4", "bg-1.mp4"]) {

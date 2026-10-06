@@ -1,20 +1,20 @@
 # VeoBible Video Generator API
 
-Servicio Node local autónomo con análisis bíblico, síntesis de voces y composiciones Remotion propias en `src/engines/short` y `src/engines/long`. No importa código, dependencias, catálogos, outputs ni configuración de las CLI o del dashboard. Puede instalarse y ejecutarse sin esos proyectos. Su contrato HTTP está en `src/protocol.ts`.
+Servicio Node local autónomo con análisis bíblico, síntesis de voces y composiciones Remotion propias en `src/engines/short` y `src/engines/long`. No importa código, dependencias, catálogos, outputs ni configuración de las CLI o del dashboard. Usa los datos bíblicos estáticos del frontend sin importar su código. Su contrato HTTP está en `src/protocol.ts`.
 
 ## Instalación y fuentes
 
 Requiere Node 22+, pnpm y FFmpeg/ffprobe. Instala únicamente este paquete y copia `.env.example` a `.env`. Arranca con `pnpm start` desde esta carpeta, o mediante `pnpm start:api-proxy` desde la raíz. El proxy transmite el token compartido; las variables de proceso prevalecen sobre el `.env` propio de esta API.
 
 - `apps/frontend/public/bible-data/<locale>/<version>/index.json` y `<book>/<chapter>.json`: datos bíblicos estáticos compartidos con el sitio público. La ruta es fija, relativa al repositorio, e independiente del directorio de ejecución; no es configurable.
-- `material/bible-audio/<version>/`: audios originales de capítulos; alternativa `VIDEO_AUDIO_DIR`. Se mantiene la nomenclatura existente `NN-book-chapter.mp3` o `.m4a`.
-- `material/short/videos/` y `material/long/videos/`: `0-intro.mp4`, `0-outro.mp4` y fondos `bg-N.mp4`.
-- `material/<short|long>/voices/`: muestras para Chatterbox (`es.mp3`, `en.mp3`, `pt.mp3`, con variantes por intro/outro).
+- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/bible-audio/<version>/`: audios originales de capítulos; alternativa `VIDEO_AUDIO_DIR`. Se mantiene la nomenclatura existente `NN-book-chapter.mp3` o `.m4a`.
+- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/videos/`: `0-intro.mp4`, `0-outro.mp4` y fondos `bg-N.mp4`.
+- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/voices/`: muestras para Chatterbox (`es.mp3`, `en.mp3`, `pt.mp3`, con variantes por intro/outro).
 - Los textos de narración se configuran por formato e idioma en los botones Settings de Short Videos y Long Videos. Se guardan en `site_settings` y se reciben en `voiceTemplates` para analizar, generar voces o renderizar; no se leen plantillas locales. Las cuentas sociales se configuran en Settings del dashboard, se guardan en `site_settings` y se reciben en `socialAccounts` de cada solicitud de render. No se leen cuentas desde archivos locales; si no se envían cuentas, las redes se omiten del cierre.
 
-Las fuentes voluminosas son locales y están ignoradas por Git. En esta laptop ya se copiaron los textos bíblicos, clips y muestras al directorio de la API, conservando los originales; los audios bíblicos usan su biblioteca externa. En una instalación nueva provisiona estas fuentes o configura rutas absolutas. No es necesario mantener las CLI ni el frontend para leerlas.
+`SHORTS_WORKING_DIR` y `LONGS_WORKING_DIR` definen las raíces por formato (rutas absolutas o relativas al paquete). En esta laptop apuntan a `/Users/fabian/Documents/veobible-shorts` y `/Users/fabian/Documents/veobible-longs`. Cada raíz contiene `material/{videos,voices,bible-audio}`, `media/sources/<UUID>` y `outputs/<UUID>`; estos últimos conservan el video y la miniatura finales. Los audios bíblicos pueden seguir en su biblioteca externa mediante `VIDEO_AUDIO_DIR` o las opciones por formato. Sin variables se usa `work/short` y `work/long` dentro del paquete. Las variables anteriores `VIDEO_MEDIA_DIR` y `VIDEO_SHORT/LONG_WORKING_DIR` ya no se usan.
 
-`VIDEO_SHORT_*` y `VIDEO_LONG_*` permiten configurar cada motor por separado: `WORKING_DIR` (contiene `videos/` y `voices/`), `VIDEOS_DIR`, `AUDIO_DIR`, `FFMPEG`, `RENDER_CONCURRENCY`, `TTS_PROVIDER`, `TTS_PYTHON`, `TTS_MODEL`, `TTS_MODEL_ES/EN/PT`, `TTS_DEVICE`, `TTS_VOICE_PROMPT`, `TTS_VOICE_PROMPT_ES/EN/PT`, y `TTS_VOICE_PROMPT_<locale>_INTRO/OUTRO`. Las cuentas sociales provienen de Settings del dashboard. También se admiten `ELEVENLABS_API_KEY`, `ELEVENLABS_MODEL` y `ELEVENLABS_VOICE_ES/EN/PT` por motor.
+`VIDEO_SHORT_*` y `VIDEO_LONG_*` permiten configurar cada motor por separado: `VIDEOS_DIR`, `AUDIO_DIR`, `FFMPEG`, `RENDER_CONCURRENCY`, `TTS_PROVIDER`, `TTS_PYTHON`, `TTS_MODEL`, `TTS_MODEL_ES/EN/PT`, `TTS_DEVICE`, `TTS_VOICE_PROMPT`, `TTS_VOICE_PROMPT_ES/EN/PT`, y `TTS_VOICE_PROMPT_<locale>_INTRO/OUTRO`. Las cuentas sociales provienen de Settings del dashboard. También se admiten `ELEVENLABS_API_KEY`, `ELEVENLABS_MODEL` y `ELEVENLABS_VOICE_ES/EN/PT` por motor.
 
 Para modelos locales, el único servicio compartido es `voice-generator`: por defecto usa `../voice-generator/cli.py` y su `.venv/bin/python`. `VIDEO_TTS_SCRIPT` y las variables `TTS_PYTHON` permiten otra instalación. Las CLI no participan en esta llamada.
 

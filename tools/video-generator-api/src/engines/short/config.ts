@@ -1,18 +1,17 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
+import { workingDirectories } from "../../working-directories.js";
 
 const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
 );
 
-const workingDir =
-  process.env.VIDEO_SHORT_WORKING_DIR ??
-  path.join(toolRoot, "material", "short");
+const workingDir = workingDirectories.short;
 const sharedVoicePrompt = process.env.VIDEO_SHORT_TTS_VOICE_PROMPT ?? "";
 const sharedTtsModel = process.env.VIDEO_SHORT_TTS_MODEL ?? "multilingual";
-const voiceDir = path.join(workingDir, "voices");
+const voiceDir = path.join(workingDir, "material", "voices");
 const homebrewFull =
   process.platform === "darwin"
     ? [
@@ -31,7 +30,8 @@ const settings = {
     path.join(toolRoot, "../voice-generator/cli.py"),
   renderConcurrency: process.env.VIDEO_SHORT_RENDER_CONCURRENCY ?? "",
   videosDir:
-    process.env.VIDEO_SHORT_VIDEOS_DIR ?? path.join(workingDir, "videos"),
+    process.env.VIDEO_SHORT_VIDEOS_DIR ??
+    path.join(workingDir, "material", "videos"),
   ffmpegBin,
   ffprobeBin:
     ffmpegBin === "ffmpeg"
@@ -41,7 +41,7 @@ const settings = {
   audioDir:
     process.env.VIDEO_SHORT_AUDIO_DIR ??
     process.env.VIDEO_AUDIO_DIR ??
-    path.join(toolRoot, "material", "bible-audio"),
+    path.join(workingDir, "material", "bible-audio"),
   bibleDataDir: path.resolve(toolRoot, "../../apps/frontend/public/bible-data"),
   ttsProvider: process.env.VIDEO_SHORT_TTS_PROVIDER ?? "chatterbox",
   elevenLabsApiKey: process.env.VIDEO_SHORT_ELEVENLABS_API_KEY ?? "",

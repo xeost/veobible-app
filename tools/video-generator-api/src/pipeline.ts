@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { outputRoot, mediaRoot } from "./working-directories.js";
 import * as short from "./engines/short/shorts.js";
 import * as long from "./engines/long/episodes.js";
 import * as shortVoice from "./engines/short/voice.js";
@@ -16,14 +16,10 @@ import { outroTitle as longOutro } from "./engines/long/social.js";
 import { publicationDescriptions as shortDescriptions } from "./engines/short/publication.js";
 import { publicationDescriptions as longDescriptions } from "./engines/long/publication.js";
 import type { RenderRequest } from "./protocol.js";
-export const mediaRoot = path.resolve(
-  fileURLToPath(new URL("..", import.meta.url)),
-  process.env.VIDEO_MEDIA_DIR ?? "media",
-);
 export const projectDir = (kind: string, id: string) =>
-  path.join(mediaRoot, "renders", kind, id);
+  path.join(outputRoot(kind), id);
 export const sourceDir = (kind: string, id: string) =>
-  path.join(mediaRoot, "sources", kind, id);
+  path.join(mediaRoot(kind), "sources", id);
 async function prepareProjectDirectories(kind: string, id: string) {
   const output = projectDir(kind, id);
   const sources = sourceDir(kind, id);
