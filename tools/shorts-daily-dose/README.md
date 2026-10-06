@@ -65,7 +65,7 @@ Copia `.env.example` a `.env` dentro de `tools/shorts-daily-dose` y ajusta las r
 | `VEOBIBLE_SHORTS_FFMPEG` | `ffmpeg-full` de Homebrew en macOS si está instalado; en otro caso, `ffmpeg` del `PATH` |
 | `VEOBIBLE_SHORTS_CLIP_AUDIO_MODE` | `voice`; también admite `mix` y `video` |
 | `VEOBIBLE_SHORTS_AUDIO_DIR` | `/Users/fabian/Documents/audiobibles/sources/audios` |
-| `VEOBIBLE_SHORTS_BIBLE_DATA_DIR` | `<raíz del repositorio>/frontend/public/bible-data` |
+| `VEOBIBLE_SHORTS_BIBLE_DATA_DIR` | `<raíz del repositorio>/apps/frontend/public/bible-data` |
 | `VEOBIBLE_SHORTS_TTS_PROVIDER` | `chatterbox`; también admite `elevenlabs` |
 | `VEOBIBLE_SHORTS_ELEVENLABS_API_KEY` | Vacío; obligatorio para ElevenLabs |
 | `VEOBIBLE_SHORTS_ELEVENLABS_MODEL` | `eleven_multilingual_v2` |

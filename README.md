@@ -12,7 +12,8 @@ This is a monorepo with two independent packages and shared design documentation
 
 ```
 veobible-app/
-├── frontend/    # Next.js PWA — static site, offline reader, i18n
+├── apps/
+│   └── frontend/ # Next.js PWA — static site, offline reader, i18n
 ├── backend/     # Cloudflare Workers API — sync, bookmarks, preferences
 └── design/      # Architecture and API design documents
 ```
@@ -36,14 +37,14 @@ A Next.js 14 PWA with full static export (`output: 'export'`), deployed to **Clo
 **Stack:** Next.js · TypeScript · Tailwind CSS · next-pwa (Workbox) · Cloudflare Workers
 
 ```bash
-cd frontend
+cd apps/frontend
 pnpm install
 pnpm dev          # local dev server
 pnpm build        # static export → out/
 pnpm prod-preview # build + serve via wrangler pages dev
 ```
 
-See [`frontend/`](./frontend) and [`design/frontend-design.md`](./design/frontend-design.md).
+See [`apps/frontend/`](./apps/frontend) and [`design/frontend-design.md`](./design/frontend-design.md).
 
 ---
 

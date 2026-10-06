@@ -262,7 +262,7 @@ Every chapter page generates:
 
 ## ☁️ Deployment
 
-Deployment is handled automatically via the **native Cloudflare Workers × GitHub integration**. Every push to `main` that includes changes under `frontend/` triggers a new deploy.
+Deployment is handled automatically via the **native Cloudflare Workers × GitHub integration**. Every push to `main` that includes changes under `apps/frontend/` triggers a new deploy.
 
 ### Cloudflare dashboard configuration
 
@@ -270,9 +270,11 @@ Connect the repository at **Cloudflare Dashboard → Workers & Pages → Create 
 
 | Setting | Value |
 |---------|-------|
-| **Root directory** | `/frontend` |
+| **Root directory** | `/apps/frontend` |
 | **Build command** | `pnpm run build` |
 | **Deploy command** | `pnpm wrangler deploy` |
+
+After moving the app, update the existing Cloudflare project's root directory to `apps/frontend` (and its watched build path, if configured). Repository changes do not update dashboard settings automatically.
 
 ---
 

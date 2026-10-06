@@ -20,7 +20,7 @@ export interface BibleVersion {
   schedule?: VersionScheduleConfig;
 }
 
-// ─── Bible index (mirrors frontend/public/bible-data/<locale>/<id>/index.json) ─────────
+// ─── Bible index (mirrors apps/frontend/public/bible-data/<locale>/<id>/index.json) ─────────
 
 export interface BibleVersionMetadata {
   name: string;

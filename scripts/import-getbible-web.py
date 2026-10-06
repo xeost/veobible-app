@@ -4,11 +4,11 @@ import-getbible-web.py
 ======================
 Downloads or reads the World English Bible (WEB) JSON from GetBible API v2
 (https://api.getbible.net/v2/web.json) and converts it to the veobible-app
-storage structure under `frontend/public/bible-data/en/web`.
+storage structure under `apps/frontend/public/bible-data/en/web`.
 
 Output structure
 ----------------
-frontend/public/bible-data/en/web/
+apps/frontend/public/bible-data/en/web/
   index.json                 <- Version metadata & book index
   genesis.json               <- Per-book merged JSON
   exodus.json
@@ -27,7 +27,7 @@ Options
     --source SOURCE   URL or local file path to web.json
                       (default: https://api.getbible.net/v2/web.json)
     --output-dir DIR  Destination directory
-                      (default: frontend/public/bible-data/en/web)
+                      (default: apps/frontend/public/bible-data/en/web)
     --force           Overwrite existing files without warning
     --pretty          Write indented JSON for debugging
     --dry-run         Preview actions without writing files
@@ -251,8 +251,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--output-dir",
-        default="frontend/public/bible-data/en/web",
-        help="Target output directory (default: frontend/public/bible-data/en/web)",
+        default="apps/frontend/public/bible-data/en/web",
+        help="Target output directory (default: apps/frontend/public/bible-data/en/web)",
     )
     parser.add_argument(
         "--force",

@@ -48,7 +48,7 @@ veobible-longs/
 
 Usa fondos horizontales para aprovechar el encuadre. La salida siempre es 16:9; los clips con otra proporción se recortan al centro, sin deformarlos. Se conserva la frecuencia de fotogramas de la intro. Un fondo `bg-[n].mp4` se elige aleatoriamente y se prepara como boomerang en bucle.
 
-El origen de los audios bíblicos permanece, por defecto, en `/Users/fabian/Documents/audiobibles/sources/audios`. Los textos se leen de `frontend/public/bible-data` del repositorio. Estas rutas pueden cambiarse con `VEOBIBLE_LONGS_AUDIO_DIR` y `VEOBIBLE_LONGS_BIBLE_DATA_DIR`.
+El origen de los audios bíblicos permanece, por defecto, en `/Users/fabian/Documents/audiobibles/sources/audios`. Los textos se leen de `apps/frontend/public/bible-data` del repositorio. Estas rutas pueden cambiarse con `VEOBIBLE_LONGS_AUDIO_DIR` y `VEOBIBLE_LONGS_BIBLE_DATA_DIR`.
 
 Configura en `.env`:
 

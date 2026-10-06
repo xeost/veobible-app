@@ -33,15 +33,15 @@ VeoBible is a Progressive Web App (PWA) for reading the Bible. It is statically 
 
 ```
 veobible-app/
-├── frontend/    # Next.js PWA (this document)
+├── apps/frontend/    # Next.js PWA (this document)
 ├── backend/     # Cloudflare Workers + Hono + D1 (see backend-design.md)
 └── design/      # Design documents
 ```
 
-### Frontend (`frontend/`)
+### Frontend (`apps/frontend/`)
 
 ```
-frontend/
+apps/frontend/
 ├── src/
 │   ├── app/                      # Next.js App Router pages
 │   │   ├── layout.tsx            # Root layout (fonts, theme, SW registration)
@@ -129,7 +129,7 @@ All chapter pages are statically generated at build time via `generateStaticPara
 
 ### 5.1 Bible Content (Static)
 
-Bible data lives in `frontend/public/bible-data/[lang]/[version]/`:
+Bible data lives in `apps/frontend/public/bible-data/[lang]/[version]/`:
 
 | File | Content |
 |------|---------|
@@ -256,7 +256,7 @@ Users can download entire Bible versions via `useOfflineVersion`:
 Lightweight custom i18n system (no heavy library):
 
 - **Supported locales**: `en`, `es`
-- **Translation files**: `frontend/src/lib/i18n/translations/{en,es}.ts`
+- **Translation files**: `apps/frontend/src/lib/i18n/translations/{en,es}.ts`
 - **Context**: `I18nProvider` wraps `[lang]/layout.tsx`
 - **Client hook**: `useI18n()` → `{ locale, t }`
 - **Server helper**: `getTranslations(locale)`
@@ -461,7 +461,7 @@ RootLayout
 
 ## 12. Build & Deployment
 
-All commands run from the `frontend/` directory:
+All commands run from the `apps/frontend/` directory:
 
 | Command | Action |
 |---------|--------|
@@ -469,6 +469,6 @@ All commands run from the `frontend/` directory:
 | `pnpm build` | `next build` + `next-image-export-optimizer` |
 | `pnpm prod-preview` | Build + serve via `wrangler pages dev out` |
 
-**CI/CD**: Push to main → Cloudflare Workers deploys from `frontend/out/` directory via Wrangler.
+**CI/CD**: Push to main → Cloudflare Workers deploys from `apps/frontend/out/` directory via Wrangler.
 
 **Output**: ~2,400 static HTML files + JS bundles + Bible JSON data + SW.

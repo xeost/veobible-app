@@ -4,7 +4,7 @@ import-ebible-spabll.py
 =======================
 Downloads or reads the "Santa Biblia Libre Latinoamericano" (spabll) from
 eBible.org in VPL (Verse Per Line) format and converts it to the veobible-app
-storage structure under `frontend/public/bible-data/es/spabll`.
+storage structure under `apps/frontend/public/bible-data/es/spabll`.
 
 Source format (VPL)
 -------------------
@@ -18,7 +18,7 @@ The book abbreviations follow the eBible / USFM standard (uppercase 3-letter).
 
 Output structure
 ----------------
-frontend/public/bible-data/es/spabll/
+apps/frontend/public/bible-data/es/spabll/
   index.json                 <- Version metadata & book index
   genesis.json               <- Per-book merged JSON  {"1": [{verse, text}, ...], ...}
   exodus.json
@@ -37,7 +37,7 @@ Options
     --source SOURCE   URL to spabll_vpl.zip or path to a local .zip/.txt file
                       (default: https://eBible.org/Scriptures/spabll_vpl.zip)
     --output-dir DIR  Destination directory
-                      (default: frontend/public/bible-data/es/spabll)
+                      (default: apps/frontend/public/bible-data/es/spabll)
     --force           Overwrite existing files without warning
     --pretty          Write indented JSON for debugging
     --dry-run         Preview actions without writing files
@@ -455,8 +455,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--output-dir",
-        default="frontend/public/bible-data/es/spabll",
-        help="Target output directory (default: frontend/public/bible-data/es/spabll)",
+        default="apps/frontend/public/bible-data/es/spabll",
+        help="Target output directory (default: apps/frontend/public/bible-data/es/spabll)",
     )
     parser.add_argument(
         "--force",

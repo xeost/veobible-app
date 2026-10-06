@@ -6,7 +6,7 @@ Como señales de interés se consultaron el [resumen de lecturas de Bible Gatewa
 
 ## Extensión y duración
 
-Los 100 pasajes cumplen **130–150 palabras en Reina Valera 1909**, usando los textos locales de `frontend/public/bible-data/es/rv1909`. Se cuentan unidades separadas por espacios que contienen letras o números, sin añadir la referencia, el nombre del libro ni los números de versículo. Se excluyen las marcas editoriales de numeración hebrea como `(H2-2)` presentes en Jonás. No se corta ningún versículo ni se altera el texto bíblico.
+Los 100 pasajes cumplen **130–150 palabras en Reina Valera 1909**, usando los textos locales de `apps/frontend/public/bible-data/es/rv1909`. Se cuentan unidades separadas por espacios que contienen letras o números, sin añadir la referencia, el nombre del libro ni los números de versículo. Se excluyen las marcas editoriales de numeración hebrea como `(H2-2)` presentes en Jonás. No se corta ningún versículo ni se altera el texto bíblico.
 
 A una velocidad de 130 palabras por minuto, esa extensión equivale a unos **60–69 segundos**. Las pausas y la velocidad de la grabación pueden cambiar el resultado: hay que medir el audio final para confirmar el límite. La CLI sigue copiando capítulos completos, que requieren recorte al editar el video.
 

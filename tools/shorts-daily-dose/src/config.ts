@@ -32,7 +32,7 @@ export const config = {
   ffprobeBin: ffmpegBin === "ffmpeg" ? "ffprobe" : path.join(path.dirname(ffmpegBin), "ffprobe"),
   clipAudioMode: process.env.VEOBIBLE_SHORTS_CLIP_AUDIO_MODE ?? "voice",
   audioDir: process.env.VEOBIBLE_SHORTS_AUDIO_DIR ?? "/Users/fabian/Documents/audiobibles/sources/audios",
-  bibleDataDir: process.env.VEOBIBLE_SHORTS_BIBLE_DATA_DIR ?? path.join(projectRoot, "frontend/public/bible-data"),
+  bibleDataDir: process.env.VEOBIBLE_SHORTS_BIBLE_DATA_DIR ?? path.join(projectRoot, "apps/frontend/public/bible-data"),
   ttsProvider: process.env.VEOBIBLE_SHORTS_TTS_PROVIDER ?? "chatterbox",
   elevenLabsApiKey: process.env.VEOBIBLE_SHORTS_ELEVENLABS_API_KEY ?? "",
   elevenLabsModel: process.env.VEOBIBLE_SHORTS_ELEVENLABS_MODEL ?? "eleven_multilingual_v2",
