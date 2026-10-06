@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "audiobibles": "cd audiobibles-cli && pnpm start",
-    "shorts": "cd tools/shorts-daily-dose && pnpm start"
+    "shorts": "cd tools/shorts-daily-dose && pnpm start",
+    "longs": "cd tools/longs-365-days && pnpm start"
   }
 }

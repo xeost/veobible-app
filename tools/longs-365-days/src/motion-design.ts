@@ -250,7 +250,7 @@ export async function createStageGraphics(options: {
   ]);
   for (let index = 0; index < outro.social.length; index++) {
     const row = outro.social[index];
-    const y = 910 + index * Math.min(114, 380 / Math.max(1, outro.social.length - 1));
+    const y = 910 + index * 114;
     const phase = outroPhase(0.7 + index * 0.13, (outro.social.length - index) * 0.025);
     outroText.push(await g.text(row.platform.toUpperCase(), 116, y, 21, sans, palette.gold, phase, 24));
     outroText.push(await g.text(row.handle, 116, y + 35, 37, sans, palette.paper, { ...phase, start: phase.start + 0.05 * Math.min(1, outroLength / 4) }, 30));
