@@ -1,30 +1,45 @@
 "use client";
 import Link from "next/link";
-import { useI18n } from "../i18n/context";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  userMessage,
-  statusLabel,
-  generationStage,
-  jobSummary,
-} from "../lib/presentation";
-import { useEffect, useState } from "react";
-import {
-  Play,
-  Check,
-  RefreshCw,
-  Save,
-  Download,
-  SlidersHorizontal,
   ChevronLeft,
+  ChevronDown,
+  ChevronsDown,
+  ChevronsUp,
+  Mic,
+  AudioLines,
+  LockKeyhole,
+  Play,
+  Pause,
+  LoaderCircle,
+  Save,
+  RefreshCw,
+  Download,
+  Check,
+  Clock,
+  Film,
+  Clapperboard,
 } from "lucide-react";
+import { useI18n } from "../i18n/context";
 import { api, date } from "./api";
+import { userMessage, statusLabel, generationStage } from "../lib/presentation";
 import { settingsSchema, type RenderRequest } from "../lib/video-schema";
+import { type VideoRow, type VideoKind } from "./video-project";
 import {
-  type VideoRow,
-  type VideoKind,
-  videoStatusLabels as labels,
-} from "./video-project";
+  adjustedCues,
+  validVerseTimings,
+  readingTimeline,
+  type Inspection,
+} from "../lib/video-timing";
+import { VerseWaveform } from "./VerseWaveform";
+import { queueChangedEvent } from "../lib/generation-queue";
 type Settings = RenderRequest["settings"];
+type VoiceState = { available: boolean; status: string };
+type Voices = Record<"intro" | "outro", VoiceState>;
+const emptyVoices: Voices = {
+  intro: { available: false, status: "idle" },
+  outro: { available: false, status: "idle" },
+};
 export function VideoProjectEditor({
   kind,
   catalogId,
@@ -35,34 +50,69 @@ export function VideoProjectEditor({
   version: string;
 }) {
   const { t, language } = useI18n();
-  const [chosen, setChosen] = useState<VideoRow | null>(null);
+  const [project, setProject] = useState<VideoRow | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
-  const [offsets, setOffsets] = useState("[]");
-  const [tab, setTab] = useState("settings");
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const [analysis, setAnalysis] = useState<Inspection | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [jobs, setJobs] = useState<any[]>([]);
   const [error, setError] = useState("");
-  const [loadError, setLoadError] = useState("");
+  const [analysisError, setAnalysisError] = useState("");
+  const [voiceError, setVoiceError] = useState("");
   const [notice, setNotice] = useState("");
+  const [voices, setVoices] = useState<Voices>(emptyVoices);
+  const [voiceRevision, setVoiceRevision] = useState(0);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [playingVoice, setPlayingVoice] = useState<"intro" | "outro" | null>(
+    null,
+  );
+  const voicePlayers = useRef<
+    Partial<Record<"intro" | "outro", HTMLAudioElement>>
+  >({});
+  const [jobs, setJobs] = useState<any[]>([]);
+  const projectState = useRef(project);
+  projectState.current = project;
+  const voiceState = useRef(voices);
+  voiceState.current = voices;
+  const base = `videos/${encodeURIComponent(catalogId)}?version=${encodeURIComponent(version)}&kind=${kind}`;
+  const endpoint = useCallback(
+    (action = "") =>
+      `videos/${encodeURIComponent(catalogId)}${action ? `/${action}` : ""}?version=${encodeURIComponent(version)}&kind=${kind}`,
+    [catalogId, version, kind],
+  );
   const backHref = `/${kind === "short" ? "short-videos" : "long-videos"}?version=${encodeURIComponent(version)}`;
-  const endpoint = (row: VideoRow, action = "") =>
-    `videos/${encodeURIComponent(row.id)}${action ? "/" + action : ""}?version=${encodeURIComponent(version)}&kind=${kind}`;
-  const load = async () => {
-    const data = await api<{ video: VideoRow; defaults: Settings }>(
-      `videos/${encodeURIComponent(catalogId)}?version=${encodeURIComponent(version)}&kind=${kind}`,
-    );
-    setChosen(data.video);
-    return data;
-  };
+  const media = (asset: string) => `/api/${endpoint("media")}&asset=${asset}`;
+  useEffect(() => {
+    setExpanded(new Set());
+    setPlayingVoice(null);
+    for (const player of Object.values(voicePlayers.current)) player.pause();
+  }, [base]);
+  const inspect = useCallback(
+    async (values: Settings) => {
+      setAnalyzing(true);
+      setAnalysisError("");
+      try {
+        // Always retain baseline estimates. Offsets are applied locally and saved for rendering.
+        const data = await api<Inspection>(endpoint("analyze"), {
+          method: "POST",
+          body: JSON.stringify({ ...values, verseOffsets: [] }),
+        });
+        setAnalysis(data);
+      } catch (cause) {
+        setAnalysisError(userMessage(cause));
+      } finally {
+        setAnalyzing(false);
+      }
+    },
+    [endpoint],
+  );
   useEffect(() => {
     let live = true;
     let initialized = false;
     const refresh = async () => {
       try {
-        const data = await api<{ video: VideoRow; defaults: Settings }>(
-          `videos/${encodeURIComponent(catalogId)}?version=${encodeURIComponent(version)}&kind=${kind}`,
-        );
+        const data = await api<{ video: VideoRow; defaults: Settings }>(base);
         if (!live) return;
         if (!initialized) {
           const values = settingsSchema.parse(
@@ -71,84 +121,358 @@ export function VideoProjectEditor({
               : data.defaults,
           );
           setSettings(values);
-          setOffsets(JSON.stringify(values.verseOffsets, null, 2));
           initialized = true;
+          void inspect(values);
         }
-        setChosen(data.video);
-        setLoadError("");
-      } catch (e) {
-        if (live) setLoadError(userMessage(e));
+        setProject(data.video);
+      } catch (cause) {
+        if (live) setError(userMessage(cause));
       }
     };
     void refresh();
     const timer = setInterval(() => {
-      if (!document.hidden) void refresh();
+      if (
+        !document.hidden &&
+        ["queued", "running"].includes(projectState.current?.status ?? "")
+      )
+        void refresh();
     }, 5000);
     return () => {
       live = false;
       clearInterval(timer);
     };
-  }, [catalogId, version, kind]);
+  }, [base, inspect]);
   useEffect(() => {
-    if (tab !== "history" || !chosen?.project_id) return;
+    if (!project?.project_id) return;
     let live = true;
-    const projectId = chosen.project_id;
     const refresh = async () => {
       try {
-        const data = await api("jobs");
-        if (live)
-          setJobs(data.jobs.filter((job: any) => job.project_id === projectId));
-      } catch (e) {
-        if (live) setLoadError(userMessage(e));
+        const data = await api<{ voices: Voices }>(endpoint("voices"));
+        if (live) {
+          setVoices(data.voices);
+          setVoiceError("");
+        }
+      } catch (cause) {
+        if (live) setVoiceError(userMessage(cause));
       }
     };
     void refresh();
     const timer = setInterval(() => {
-      if (!document.hidden) void refresh();
-    }, 5000);
+      if (
+        !document.hidden &&
+        Object.values(voiceState.current).some((voice) =>
+          ["queued", "running"].includes(voice.status),
+        )
+      )
+        void refresh();
+    }, 4000);
     return () => {
       live = false;
       clearInterval(timer);
     };
-  }, [tab, chosen?.project_id]);
-  const active = chosen && ["queued", "running"].includes(chosen.status);
-  const result = chosen?.result ? JSON.parse(chosen.result) : null;
-  const values = () =>
-    settingsSchema.parse({ ...settings, verseOffsets: JSON.parse(offsets) });
-  const offsetFor = (reference: string) => {
-    try {
-      return (
-        JSON.parse(offsets).find((v: any) => v.reference === reference) ?? {
-          reference,
-          startOffsetSeconds: 0,
-          endOffsetSeconds: 0,
-        }
-      );
-    } catch {
-      return { reference, startOffsetSeconds: 0, endOffsetSeconds: 0 };
-    }
-  };
-  const setVerseOffset = (reference: string, key: string, value: number) => {
-    const entries = JSON.parse(offsets);
-    const previous = entries.find((v: any) => v.reference === reference);
-    if (previous) previous[key] = value;
-    else entries.push({ ...offsetFor(reference), [key]: value });
-    setOffsets(JSON.stringify(entries, null, 2));
-  };
+  }, [project?.project_id, endpoint]);
+  const active = Boolean(
+    project && ["queued", "running"].includes(project.status),
+  );
+  const editingLocked = busy || active;
+  const locked = editingLocked;
+  const timeline = readingTimeline(analysis?.sections ?? []);
+  const cues = adjustedCues(analysis?.cues ?? [], settings.verseOffsets);
+  const result = project?.result ? JSON.parse(project.result) : null;
   const perform = async (action: () => Promise<void>) => {
     setBusy(true);
     setError("");
     setNotice("");
     try {
       await action();
-      await load();
-    } catch (e) {
-      setError(userMessage(e));
+      const data = await api<{ video: VideoRow }>(base);
+      setProject(data.video);
+    } catch (cause) {
+      setError(userMessage(cause));
     } finally {
       setBusy(false);
     }
   };
-  if (!chosen)
+  const checkedSettings = () => {
+    if (
+      analysis &&
+      !validVerseTimings(
+        adjustedCues(analysis.cues, settingsRef.current.verseOffsets),
+        analysis.cues.at(-1)?.end ?? 0,
+      )
+    ) {
+      throw new Error(
+        "Los tiempos de algunos versículos se superponen o están fuera del pasaje. Revisa los ajustes de inicio y fin.",
+      );
+    }
+    return settingsSchema.parse(settingsRef.current);
+  };
+  const save = async () => {
+    await api(endpoint(), {
+      method: "PATCH",
+      body: JSON.stringify({
+        settings: checkedSettings(),
+      }),
+    });
+    setNotice("Ajustes guardados.");
+  };
+  const trim = (reference: string, edge: "start" | "end", value: number) => {
+    const original = analysis?.cues.find((cue) => cue.reference === reference);
+    if (!original) return;
+    setSettings((current) => {
+      const old = current.verseOffsets.find(
+        (offset) => offset.reference === reference,
+      ) ?? { reference, startOffsetSeconds: 0, endOffsetSeconds: 0 };
+      const next = {
+        ...old,
+        [edge === "start" ? "startOffsetSeconds" : "endOffsetSeconds"]:
+          value - original[edge],
+      };
+      return {
+        ...current,
+        verseOffsets: [
+          ...current.verseOffsets.filter(
+            (offset) => offset.reference !== reference,
+          ),
+          next,
+        ],
+      };
+    });
+    setNotice("");
+  };
+  const generateVoice = (part: "intro" | "outro") =>
+    perform(async () => {
+      for (const player of Object.values(voicePlayers.current)) player.pause();
+      setPlayingVoice(null);
+      await api(endpoint("voices"), {
+        method: "POST",
+        body: JSON.stringify({ part }),
+      });
+      setVoices((current) => ({
+        ...current,
+        [part]: { ...current[part], status: "queued" },
+      }));
+      setSettings((current) => ({
+        ...current,
+        clipAudioMode: "voice",
+        reuseVoices: true,
+      }));
+      setVoiceRevision((value) => value + 1);
+      window.dispatchEvent(new Event(queueChangedEvent));
+      setNotice(
+        "La voz está en preparación. Puedes seguir revisando el proyecto.",
+      );
+    });
+  const toggleVoicePlayback = async (part: "intro" | "outro") => {
+    const player = voicePlayers.current[part];
+    if (!player) return;
+    if (!player.paused) {
+      player.pause();
+      return;
+    }
+    setVoiceError("");
+    try {
+      await player.play();
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === "AbortError"))
+        setVoiceError("No se pudo reproducir la voz. Vuelve a intentarlo.");
+    }
+  };
+  const toggle = (id: string) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const sectionIds = [
+    "intro",
+    ...(timeline.length
+      ? timeline.map((section) => `reading-${section.index}`)
+      : ["reading-0"]),
+    "outro",
+  ];
+  const sectionHeading = (
+    id: string,
+    number: number,
+    title: string,
+    summary: string,
+    voice = false,
+  ) => (
+    <button
+      type="button"
+      className="section-heading"
+      aria-expanded={expanded.has(id)}
+      aria-controls={`section-${id}`}
+      onClick={() => toggle(id)}
+    >
+      <span className="section-number">{String(number).padStart(2, "0")}</span>
+      <span className={`section-role ${voice ? "voice" : "reading"}`}>
+        {voice ? <Mic size={15} /> : <AudioLines size={15} />}
+        {t(voice ? "Voz" : "Lectura")}
+      </span>
+      <span className="section-heading-text">
+        <strong>{title}</strong>
+        <small>{summary}</small>
+      </span>
+      {voice && <LockKeyhole size={15} aria-label={t("Sección fija")} />}
+      <ChevronDown size={18} className={expanded.has(id) ? "expanded" : ""} />
+    </button>
+  );
+  const voiceSection = (part: "intro" | "outro", number: number) => {
+    const voice = voices[part];
+    const pending = ["queued", "running"].includes(voice.status);
+    const title = t(part === "intro" ? "Introducción" : "Cierre");
+    const generateLabel = t(
+      pending
+        ? "Preparando voz…"
+        : voice.available
+          ? "Regenerar voz"
+          : "Generar voz",
+    );
+    const playLabel = t(playingVoice === part ? "Pausar voz" : "Escuchar voz");
+    return (
+      <section className="section-card" key={part}>
+        <div className="voice-section-heading">
+          {sectionHeading(
+            part,
+            number,
+            title,
+            t(
+              pending
+                ? "Preparando voz…"
+                : voice.available
+                  ? "Voz lista para escuchar"
+                  : "Genera la voz de esta sección",
+            ),
+            true,
+          )}
+          <div className="voice-section-actions">
+            <button
+              type="button"
+              aria-label={`${generateLabel} · ${title}`}
+              title={generateLabel}
+              disabled={editingLocked || pending || !analysis}
+              onClick={() => void generateVoice(part)}
+            >
+              {pending ? (
+                <LoaderCircle size={17} className="voice-spinner" />
+              ) : voice.available ? (
+                <RefreshCw size={17} />
+              ) : (
+                <Mic size={17} />
+              )}
+            </button>
+            {voice.available && !pending && (
+              <button
+                type="button"
+                aria-label={`${playLabel} · ${title}`}
+                title={playLabel}
+                onClick={() => void toggleVoicePlayback(part)}
+              >
+                {playingVoice === part ? (
+                  <Pause size={17} />
+                ) : (
+                  <Play size={17} />
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+        <div
+          id={`section-${part}`}
+          hidden={!expanded.has(part)}
+          className="section-body voice-section-body"
+        >
+          <div className="narration-script">
+            <p className="eyebrow">{t("Guión de narración")}</p>
+            <p>
+              {analysis?.scripts[part] ||
+                t("El guión aparecerá al cargar el pasaje.")}
+            </p>
+            <span className="muted">
+              {t(
+                "El texto y la presentación de esta sección están definidos para este formato.",
+              )}
+            </span>
+          </div>
+          <div className="narration-preview">
+            <div className="section-preview-icon">
+              <Mic size={26} />
+            </div>
+            <h3>{t("Previsualización de voz")}</h3>
+            {voice.available && !pending ? (
+              <audio
+                ref={(player) => {
+                  if (player) voicePlayers.current[part] = player;
+                  else delete voicePlayers.current[part];
+                }}
+                key={`${part}-${voice.status}-${voiceRevision}`}
+                controls
+                preload="metadata"
+                src={`${media(part)}&revision=${voiceRevision}`}
+                onPlay={() => {
+                  voicePlayers.current[
+                    part === "intro" ? "outro" : "intro"
+                  ]?.pause();
+                  setPlayingVoice(part);
+                }}
+                onPause={() =>
+                  setPlayingVoice((current) =>
+                    current === part ? null : current,
+                  )
+                }
+                onEnded={() =>
+                  setPlayingVoice((current) =>
+                    current === part ? null : current,
+                  )
+                }
+                onError={() => {
+                  setPlayingVoice((current) =>
+                    current === part ? null : current,
+                  );
+                  setVoiceError(
+                    "No se pudo reproducir la voz. Vuelve a intentarlo.",
+                  );
+                }}
+              />
+            ) : (
+              <p className="muted">
+                {t(
+                  pending
+                    ? "La voz estará disponible aquí cuando termine la preparación."
+                    : "Genera el audio para escuchar esta sección antes de crear el video.",
+                )}
+              </p>
+            )}
+            {voice.status === "failed" && (
+              <p className="error">
+                {t(
+                  "No se pudo generar la voz. Revisa la conexión y vuelve a intentarlo.",
+                )}
+              </p>
+            )}
+            <button
+              type="button"
+              className="primary"
+              disabled={editingLocked || pending || !analysis}
+              onClick={() => void generateVoice(part)}
+            >
+              <Mic size={16} />
+              {t(
+                pending
+                  ? "Preparando voz…"
+                  : voice.available
+                    ? "Regenerar voz"
+                    : "Generar voz",
+              )}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  };
+  if (!project)
     return (
       <section className="panel">
         <Link className="button" href={backHref}>
@@ -156,49 +480,68 @@ export function VideoProjectEditor({
           {t("Volver a los proyectos")}
         </Link>
         <p
-          className={error || loadError ? "error" : "empty"}
-          role={error || loadError ? "alert" : "status"}
+          className={error ? "error" : "empty"}
+          role={error ? "alert" : "status"}
         >
-          {t(error || loadError || "Cargando proyecto…")}
+          {t(error || "Cargando proyecto…")}
         </p>
       </section>
     );
+  const FormatIcon = kind === "short" ? Clapperboard : Film;
   return (
-    <section className="panel project-editor">
-      <div className="page-heading">
+    <>
+      <div className="page-heading project-studio-heading">
         <div>
+          <Link className="editor-back" href={backHref}>
+            <ChevronLeft size={14} />
+            {t("Volver a los proyectos")}
+          </Link>
           <p className="eyebrow">
-            {t(kind === "short" ? "DAILY DOSE" : "365 DAYS")} ·{" "}
-            {version.toUpperCase()} ·{" "}
-            {t(kind === "short" ? "Vertical · 9:16" : "Horizontal · 16:9")}
+            {t("EDITOR DE PROYECTO")} · {version.toUpperCase()}
           </p>
-          <h1>{chosen.title}</h1>
+          <h1>{project.title}</h1>
+          <p className="muted">
+            {t("Prepara la voz y sincroniza cada versículo con su audio.")}
+          </p>
         </div>
-        <Link className="button" href={backHref}>
-          <ChevronLeft size={16} /> {t("Volver a los proyectos")}
-        </Link>
-      </div>
-      <div className="tabs">
-        {[
-          ["settings", "Ajustes"],
-          ["timing", "Pasaje y tiempos"],
-          ["preview", "Video y publicación"],
-          ["history", "Historial"],
-        ].map(([id, label]) => (
-          <button
-            className={tab === id ? "active" : ""}
-            key={id}
-            onClick={() => {
-              setTab(id);
-            }}
-          >
-            {t(label)}
+        <div className="project-top-actions">
+          <button disabled={editingLocked} onClick={() => void perform(save)}>
+            <Save size={16} />
+            {t("Guardar cambios")}
           </button>
-        ))}
+          <button
+            className="primary"
+            disabled={locked || !analysis || analyzing}
+            onClick={() =>
+              void perform(async () => {
+                await api(endpoint("render"), {
+                  method: "POST",
+                  body: JSON.stringify(
+                    settingsSchema.parse({
+                      ...checkedSettings(),
+                      clipAudioMode: "voice",
+                    }),
+                  ),
+                });
+                window.dispatchEvent(new Event(queueChangedEvent));
+                setNotice("Video en espera de generación.");
+              })
+            }
+          >
+            <Play size={16} />
+            {t(
+              active
+                ? "Generando"
+                : result
+                  ? "Regenerar video"
+                  : "Generar video",
+            )}
+          </button>
+        </div>
       </div>
-      {(error || loadError) && (
+      {error && (
         <p className="error" role="alert">
-          {t(error || loadError)}
+          {t(error)}
         </p>
       )}
       {notice && (
@@ -208,357 +551,292 @@ export function VideoProjectEditor({
       )}
       {active && (
         <p className="notice">
-          {t("Trabajo")} {t(labels[chosen.status]).toLowerCase()}
-          {t(". Puedes salir de esta página; la generación continúa.")}
+          {t(
+            "El video se está creando. Puedes salir de esta página; la generación continúa.",
+          )}
         </p>
       )}
-      {tab === "settings" && (
-        <div className="editor-content">
-          <div className="editor-intro">
-            <SlidersHorizontal size={22} />
+      <div className="project-studio-layout">
+        <div className="section-stack">
+          <div className="sections-toolbar">
             <div>
-              <h3>{t("Configuración de producción")}</h3>
+              <h2>{t("Secciones del video")}</h2>
               <p className="muted">
-                {t(
-                  "Tus ajustes se conservan para volver a generar el video cuando lo necesites.",
-                )}
+                {sectionIds.length} {t("secciones")} ·{" "}
+                {t("Introducción, lectura y cierre")}
               </p>
             </div>
-          </div>
-          <div className="form-grid">
-            <label>
-              {t("Volumen de lectura")}
-              <input
-                type="number"
-                min={0}
-                max={4}
-                step={0.05}
-                disabled={!!active}
-                value={settings.volumeMultiplier}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    volumeMultiplier: Number(e.target.value),
-                  })
-                }
-              />
-            </label>
-            <label>
-              {t("Audio de introducción y cierre")}
-              <select
-                disabled={!!active}
-                value={settings.clipAudioMode}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    clipAudioMode: e.target.value as Settings["clipAudioMode"],
-                  })
-                }
+            <div>
+              <button
+                type="button"
+                aria-label={t("Expandir todas")}
+                onClick={() => setExpanded(new Set(sectionIds))}
               >
-                <option value="voice">{t("Narración generada")}</option>
-                <option value="mix">{t("Voz + audio del video")}</option>
-                <option value="video">{t("Audio del video original")}</option>
-              </select>
-            </label>
-            <label>
-              {t("Ajuste de inicio del pasaje (segundos)")}
-              <input
-                disabled={!!active}
-                type="number"
-                step={0.01}
-                value={settings.passageOffsets.startSeconds}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    passageOffsets: {
-                      ...settings.passageOffsets,
-                      startSeconds: Number(e.target.value),
-                    },
-                  })
-                }
-              />
-            </label>
-            <label>
-              {t("Ajuste de fin del pasaje (segundos)")}
-              <input
-                disabled={!!active}
-                type="number"
-                step={0.01}
-                value={settings.passageOffsets.endSeconds}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    passageOffsets: {
-                      ...settings.passageOffsets,
-                      endSeconds: Number(e.target.value),
-                    },
-                  })
-                }
-              />
-            </label>
-          </div>
-          <label>
-            {t("Video de fondo")}
-            {analysis ? (
-              <select
-                disabled={!!active}
-                value={settings.background ?? ""}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    background: e.target.value || undefined,
-                  })
-                }
+                <ChevronsDown size={16} />
+              </button>
+              <button
+                type="button"
+                aria-label={t("Contraer todas")}
+                onClick={() => setExpanded(new Set())}
               >
-                <option value="">{t("Seleccionar automáticamente")}</option>
-                {analysis.backgrounds.map((v: string, index: number) => (
-                  <option key={v} value={v}>
-                    {t("Fondo")} {index + 1}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div>
-                <p className="muted">
-                  {t(
-                    settings.background
-                      ? "Se usará el fondo seleccionado para este video."
-                      : "El fondo se seleccionará automáticamente.",
-                  )}
-                </p>
-                <button
-                  disabled={busy || !!active}
-                  onClick={() =>
-                    perform(async () =>
-                      setAnalysis(
-                        await api(endpoint(chosen, "analyze"), {
-                          method: "POST",
-                          body: JSON.stringify(values()),
-                        }),
-                      ),
-                    )
-                  }
-                >
-                  {t("Elegir fondo")}
-                </button>
-              </div>
-            )}
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              disabled={!!active}
-              checked={settings.reuseVoices}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  reuseVoices: e.target.checked,
-                })
-              }
-            />{" "}
-            {t("Reutilizar voces existentes (desmarca para regenerarlas)")}
-          </label>
-          <button
-            disabled={busy || !!active}
-            onClick={() =>
-              perform(async () => {
-                await api(`settings?kind=${kind}&version=${version}`, {
-                  method: "PUT",
-                  body: JSON.stringify(values()),
-                });
-                setNotice(
-                  "Ajustes guardados como valores predeterminados para esta versión y formato.",
+                <ChevronsUp size={16} />
+              </button>
+            </div>
+          </div>
+          {voiceSection("intro", 1)}
+          {timeline.length ? (
+            timeline.map((section) => {
+              const id = `reading-${section.index}`;
+              const verses = cues.filter((cue, index) => {
+                const baseline = analysis!.cues[index];
+                return (
+                  baseline.start >= section.timelineStart - 0.0001 &&
+                  baseline.start < section.timelineEnd - 0.0001
                 );
-              })
-            }
-          >
-            {t("Guardar como predeterminados de versión")}
-          </button>
-        </div>
-      )}
-      {tab === "timing" && (
-        <div className="editor-content">
-          <button
-            disabled={busy || !!active}
-            onClick={() =>
-              perform(async () =>
-                setAnalysis(
-                  await api(endpoint(chosen, "analyze"), {
-                    method: "POST",
-                    body: JSON.stringify(values()),
-                  }),
+              });
+              return (
+                <section className="section-card" key={id}>
+                  {sectionHeading(
+                    id,
+                    section.index + 2,
+                    `${t("Lectura del pasaje")} ${timeline.length > 1 ? section.index + 1 : ""}`,
+                    `${verses.length} ${t("versículos")} · ${(section.end - section.start).toFixed(1)} s`,
+                  )}
+                  <div
+                    id={`section-${id}`}
+                    hidden={!expanded.has(id)}
+                    className="section-body"
+                  >
+                    {expanded.has(id) && (
+                      <VerseWaveform
+                        src={media(id)}
+                        sourceStart={section.start}
+                        sourceEnd={section.end}
+                        timelineStart={section.timelineStart}
+                        cues={verses}
+                        disabled={editingLocked || analyzing}
+                        onTrim={trim}
+                      />
+                    )}
+                  </div>
+                </section>
+              );
+            })
+          ) : (
+            <section className="section-card">
+              {sectionHeading(
+                "reading-0",
+                2,
+                t("Lectura del pasaje"),
+                t(
+                  analyzing
+                    ? "Cargando audio y versículos…"
+                    : "Prepara el audio para ajustar los tiempos",
                 ),
-              )
-            }
-          >
-            <RefreshCw size={16} /> {t("Revisar texto y audio")}
-          </button>
-          <p className="muted">
-            {t(
-              "Revisa los cortes detectados y ajusta los tiempos de cada versículo.",
-            )}
-          </p>
-          {analysis && (
-            <>
-              <div className="reading-preview">
-                {analysis.sections.map((section: any, i: number) => (
-                  <label key={i}>
-                    {t("Audio de lectura · sección")} {i + 1} ·{" "}
-                    {section.start.toFixed(2)}–{section.end.toFixed(2)} {t("s")}
-                    <audio
-                      controls
-                      preload="none"
-                      src={`/api/${endpoint(chosen, "media")}&asset=reading-${i}#t=${section.start},${section.end}`}
-                    />
-                  </label>
-                ))}
-              </div>
-              <div className="passage-text">
-                {analysis.text.map((v: any, i: number) => (
-                  <p key={i} className={v.inPassage ? "" : "context"}>
-                    <b>{v.reference}</b> {v.text}
+              )}
+              <div
+                id="section-reading-0"
+                hidden={!expanded.has("reading-0")}
+                className="section-body"
+              >
+                <div className="reading-loading">
+                  <AudioLines size={36} />
+                  <h3>
+                    {t(
+                      analyzing
+                        ? "Cargando audio y versículos…"
+                        : "Sincronización del pasaje",
+                    )}
+                  </h3>
+                  <p className="muted">
+                    {t(
+                      "Aquí podrás escuchar el pasaje y ajustar los tiempos sobre su forma de onda.",
+                    )}
                   </p>
-                ))}
+                </div>
               </div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t("Versículo")}</th>
-                    <th>{t("Inicio")}</th>
-                    <th>{t("Fin")}</th>
-                    <th>{t("Ajuste de inicio")}</th>
-                    <th>{t("Ajuste de fin")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analysis.cues.map((v: any) => (
-                    <tr key={v.reference}>
-                      <td>{v.reference}</td>
-                      <td>
-                        {v.start.toFixed(3)} {t("s")}
-                      </td>
-                      <td>
-                        {v.end.toFixed(3)} {t("s")}
-                      </td>
-                      <td>
-                        <input
-                          aria-label={`${v.reference} ajuste de inicio`}
-                          disabled={busy || !!active}
-                          type="number"
-                          step={0.01}
-                          value={offsetFor(v.reference).startOffsetSeconds}
-                          onChange={(e) =>
-                            setVerseOffset(
-                              v.reference,
-                              "startOffsetSeconds",
-                              Number(e.target.value),
-                            )
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          aria-label={`${v.reference} ajuste de fin`}
-                          disabled={busy || !!active}
-                          type="number"
-                          step={0.01}
-                          value={offsetFor(v.reference).endOffsetSeconds}
-                          onChange={(e) =>
-                            setVerseOffset(
-                              v.reference,
-                              "endOffsetSeconds",
-                              Number(e.target.value),
-                            )
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <details>
-                <summary>{t("Guiones de voz")}</summary>
-                {Object.entries(analysis.scripts).map(([key, value]) => (
-                  <p key={key}>
-                    <b>{t(key === "intro" ? "Introducción" : "Cierre")}</b>:{" "}
-                    {String(value)}
-                  </p>
-                ))}
-              </details>
-            </>
+            </section>
           )}
+          {analysisError && (
+            <p className="error" role="alert">
+              {t(analysisError)}
+            </p>
+          )}
+          <button
+            className="analysis-retry"
+            disabled={analyzing || locked}
+            onClick={() => void inspect(settings)}
+          >
+            <RefreshCw size={16} />
+            {t(
+              analyzing
+                ? "Cargando audio y versículos…"
+                : "Volver a analizar el audio",
+            )}
+          </button>
+          {voiceSection("outro", sectionIds.length)}
         </div>
-      )}
-      {tab === "preview" && (
-        <div className="editor-content">
-          {result ? (
-            <>
+        <aside className="project-studio-sidebar">
+          <section className="panel project-preview-panel">
+            <div className="panel-heading">
+              <h3>{t("Previsualización del video")}</h3>
+              <span className="format-pill">
+                <FormatIcon size={14} />
+                {kind === "short" ? "9:16" : "16:9"}
+              </span>
+            </div>
+            {result ? (
               <video
                 controls
                 preload="metadata"
-                className={
-                  kind === "short" ? "preview vertical" : "preview horizontal"
-                }
-                src={`/api/${endpoint(chosen, "media")}&asset=video`}
+                className={`studio-video-preview ${kind}`}
+                src={media("video")}
                 onError={() =>
-                  setNotice(
+                  setError(
                     "El video no está disponible. Puedes volver a generarlo con tus ajustes guardados.",
                   )
                 }
               />
+            ) : (
+              <div className={`studio-preview-placeholder ${kind}`}>
+                <FormatIcon size={40} />
+                <strong>
+                  {t(kind === "short" ? "Video vertical" : "Video horizontal")}
+                </strong>
+                <span>
+                  {t("El video aparecerá aquí después de generarlo.")}
+                </span>
+              </div>
+            )}
+            <span className={`badge ${project.status}`}>
+              {t(statusLabel(project.status))}
+            </span>
+            {result && (
               <div className="preview-actions">
-                <a
-                  className="button"
-                  href={`/api/${endpoint(chosen, "media")}&asset=video&download=1`}
-                >
-                  <Download size={16} /> {t("Video")}
+                <a className="button" href={`${media("video")}&download=1`}>
+                  <Download size={15} />
+                  {t("Video")}
                 </a>
-                <a
-                  className="button"
-                  href={`/api/${endpoint(chosen, "media")}&asset=thumbnail&download=1`}
-                >
-                  <Download size={16} /> {t("Miniatura")}
+                <a className="button" href={`${media("thumbnail")}&download=1`}>
+                  <Download size={15} />
+                  {t("Miniatura")}
                 </a>
                 <button
-                  disabled={busy || !!active}
+                  disabled={locked}
                   onClick={() =>
-                    perform(async () => {
-                      await api(endpoint(chosen), {
+                    void perform(async () => {
+                      await api(endpoint(), {
                         method: "PATCH",
                         body: JSON.stringify({
-                          published: !chosen.published_at,
+                          published: !project.published_at,
                         }),
                       });
                       setNotice(
-                        chosen.published_at
+                        project.published_at
                           ? "Marca de publicación eliminada."
                           : "Marcado como publicado.",
                       );
                     })
                   }
                 >
-                  <Check size={16} />
+                  <Check size={15} />
                   {t(
-                    chosen.published_at
+                    project.published_at
                       ? "Quitar publicación"
                       : "Marcar publicado",
                   )}
                 </button>
               </div>
-              {["intro", "outro"].map((asset) => (
-                <label key={asset}>
-                  {t("Voz de")}{" "}
-                  {t(asset === "intro" ? "introducción" : "cierre")}
-                  <audio
-                    controls
-                    preload="none"
-                    src={`/api/${endpoint(chosen, "media")}&asset=${asset}`}
-                  />
-                </label>
-              ))}
-              {Object.entries(result.descriptions ?? {}).map(([name, text]) => (
+            )}
+          </section>
+          <section className="panel studio-audio-settings">
+            <h3>
+              <AudioLines size={17} />
+              {t("Ajustes de audio")}
+            </h3>
+            <label>
+              {t("Volumen de lectura")}
+              <div className="volume-control">
+                <input
+                  type="range"
+                  min={0}
+                  max={4}
+                  step={0.05}
+                  value={settings.volumeMultiplier}
+                  disabled={locked}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      volumeMultiplier: Number(e.target.value),
+                    })
+                  }
+                />
+                <output>{settings.volumeMultiplier.toFixed(2)}×</output>
+              </div>
+            </label>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={settings.reuseVoices}
+                disabled={locked}
+                onChange={(e) =>
+                  setSettings({ ...settings, reuseVoices: e.target.checked })
+                }
+              />
+              {t("Reutilizar voces existentes (desmarca para regenerarlas)")}
+            </label>
+            <p className="muted">
+              {t("Guarda los cambios de sincronización antes de salir.")}
+            </p>
+            {voiceError && (
+              <p className="error" role="alert">
+                {t(voiceError)}
+              </p>
+            )}
+          </section>
+          <details
+            className="panel studio-history"
+            onToggle={(event) => {
+              if (event.currentTarget.open)
+                void api("jobs")
+                  .then((data) =>
+                    setJobs(
+                      data.jobs.filter(
+                        (job: any) => job.project_id === project.project_id,
+                      ),
+                    ),
+                  )
+                  .catch((cause) => setError(userMessage(cause)));
+            }}
+          >
+            <summary>
+              <Clock size={16} />
+              {t("Historial")}
+            </summary>
+            {jobs.length ? (
+              jobs.map((job) => (
+                <div className="studio-history-item" key={job.id}>
+                  <span className={`badge ${job.status}`}>
+                    {t(statusLabel(job.status))}
+                  </span>
+                  <small>{date(job.created_at, language)}</small>
+                  <p>{t(generationStage(job.stage, job.status))}</p>
+                  {job.error && (
+                    <p className="error">{t(userMessage(job.error))}</p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="muted">
+                {t("Sin trabajos de generación para este proyecto.")}
+              </p>
+            )}
+          </details>
+          {result?.descriptions && (
+            <details className="panel studio-history">
+              <summary>{t("Textos de publicación")}</summary>
+              {Object.entries(result.descriptions).map(([name, text]) => (
                 <label key={name}>
-                  {t("Texto para")}{" "}
                   {(
                     {
                       "youtube.txt": "YouTube",
@@ -567,131 +845,14 @@ export function VideoProjectEditor({
                       "x.txt": "X",
                       "facebook.txt": "Facebook",
                     } as Record<string, string>
-                  )[name] ?? "redes sociales"}
-                  <textarea readOnly rows={4} value={String(text)} />
+                  )[name] || t("redes sociales")}
+                  <textarea readOnly rows={5} value={String(text)} />
                 </label>
               ))}
-            </>
-          ) : (
-            <div className="empty">
-              {t(
-                "Genera el video para previsualizarlo y obtener los textos de publicación.",
-              )}
-            </div>
+            </details>
           )}
-          <p className="muted">
-            {t(
-              "Marcar publicado registra el estado en el dashboard. Sube el archivo a tus redes desde tu laptop.",
-            )}
-          </p>
-        </div>
-      )}
-      {tab === "history" && (
-        <div className="editor-content">
-          {jobs.length ? (
-            jobs.map((job) => (
-              <div className="job-card" key={job.id}>
-                <div className="panel-heading">
-                  <span className={`badge ${job.status}`}>
-                    {t(statusLabel(job.status))}
-                  </span>
-                  <span className="muted">
-                    {date(job.created_at, language)}
-                  </span>
-                </div>
-                <p>{t(generationStage(job.stage, job.status))}</p>
-                {job.error && (
-                  <p className="error">{t(userMessage(job.error))}</p>
-                )}
-                <details>
-                  <summary>{t("Ajustes y resultado")}</summary>
-                  {(() => {
-                    const summary = jobSummary(job);
-                    return (
-                      <div className="muted">
-                        {summary.version && (
-                          <p>
-                            {t("Versión:")} {summary.version}
-                          </p>
-                        )}
-                        {summary.volume !== null && (
-                          <p>
-                            {t("Volumen de lectura:")} {summary.volume}×
-                          </p>
-                        )}
-                        {summary.voices && (
-                          <p>
-                            {t("Audio:")} {t(summary.voices)}
-                          </p>
-                        )}
-                        {summary.duration !== null && (
-                          <p>
-                            {t("Duración del video:")}{" "}
-                            {summary.duration.toFixed(1)} {t("segundos")}
-                          </p>
-                        )}
-                        {!summary.version &&
-                          summary.volume === null &&
-                          !summary.voices &&
-                          summary.duration === null && (
-                            <p>{t("No hay más detalles disponibles.")}</p>
-                          )}
-                      </div>
-                    );
-                  })()}
-                </details>
-              </div>
-            ))
-          ) : (
-            <p className="empty">
-              {t("Sin trabajos de generación para este proyecto.")}
-            </p>
-          )}
-        </div>
-      )}
-      <div className="project-editor-footer">
-        <span className={`badge ${chosen.status}`}>
-          {t(labels[chosen.status])}
-        </span>
-        <div>
-          <button
-            disabled={busy || !!active}
-            onClick={() =>
-              perform(async () => {
-                await api(endpoint(chosen), {
-                  method: "PATCH",
-                  body: JSON.stringify({ settings: values() }),
-                });
-                setNotice("Ajustes guardados.");
-              })
-            }
-          >
-            <Save size={16} /> {t("Guardar")}
-          </button>
-          <button
-            className="primary"
-            disabled={busy || !!active}
-            onClick={() =>
-              perform(async () => {
-                await api(endpoint(chosen, "render"), {
-                  method: "POST",
-                  body: JSON.stringify(values()),
-                });
-                setNotice("Video en espera de generación.");
-              })
-            }
-          >
-            <Play size={16} />
-            {t(
-              busy
-                ? "Procesando…"
-                : result
-                  ? "Regenerar video"
-                  : "Generar video",
-            )}
-          </button>
-        </div>
+        </aside>
       </div>
-    </section>
+    </>
   );
 }

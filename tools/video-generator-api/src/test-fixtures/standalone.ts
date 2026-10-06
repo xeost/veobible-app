@@ -53,8 +53,14 @@ for (const kind of ["SHORT", "LONG"]) {
   process.env[`VIDEO_${kind}_TTS_VOICE_PROMPT_ES`] = "";
 }
 // Modules load only after this standalone environment is configured.
-const { analyze, inspection, render, sourceDir } =
-  await import("../pipeline.js");
+const {
+  analyze,
+  inspection,
+  render,
+  sourceDir,
+  projectDir,
+  generateProjectVoice,
+} = await import("../pipeline.js");
 const { renderSchema } = await import("../protocol.js");
 for (const kind of ["short", "long"] as const) {
   const clips = path.join(working, "material", kind, "videos");
@@ -110,9 +116,22 @@ for (const kind of ["short", "long"] as const) {
   assert.equal(preview.cues.length, kind === "short" ? 1 : 2);
   assert.ok(preview.text.every((row) => row.inPassage || kind === "short"));
   assert.ok(preview.scripts.intro.length > 0);
+  // Either narration must be able to create a completely new project on its own.
+  for (const part of ["intro", "outro"] as const) {
+    const fresh = { ...input, projectId: randomUUID() };
+    const sources = sourceDir(kind, fresh.projectId);
+    const output = projectDir(kind, fresh.projectId);
+    await assert.rejects(fs.stat(sources), { code: "ENOENT" });
+    await assert.rejects(fs.stat(output), { code: "ENOENT" });
+    await generateProjectVoice(fresh, part);
+    assert.ok((await fs.stat(output)).isDirectory());
+    assert.deepEqual(await fs.readdir(sources), [`${part}.wav`]);
+    assert.ok((await fs.stat(path.join(sources, `${part}.wav`))).size > 44);
+    await generateProjectVoice(fresh, part);
+    assert.deepEqual(await fs.readdir(sources), [`${part}.wav`]);
+  }
   const analyzed = await analyze(input);
   const voices = sourceDir(kind, input.projectId);
-  await fs.mkdir(voices, { recursive: true });
   await analyzed.m.voice.generateVoice(voices, analyzed.context, true);
   assert.ok((await fs.stat(path.join(voices, "intro.wav"))).size > 44);
   assert.ok(
@@ -121,6 +140,18 @@ for (const kind of ["short", "long"] as const) {
   // The pipeline removes adapter text files; only multimedia stays under project media.
   for (const name of ["intro.txt", "outro.txt"])
     await fs.rm(path.join(voices, name));
+  const otherVoice = await fs.readFile(path.join(voices, "outro.wav"));
+  await generateProjectVoice(input, "intro");
+  assert.deepEqual(
+    await fs.readFile(path.join(voices, "outro.wav")),
+    otherVoice,
+  );
+  assert.ok((await fs.stat(path.join(voices, "intro.wav"))).size > 44);
+  assert.ok(
+    !(await fs.readdir(voices)).some(
+      (name) => name.endsWith(".txt") || name.startsWith(".voice-"),
+    ),
+  );
   if (process.env.VIDEO_SMOKE_RENDER === "1") {
     const result = await render(input, () => {});
     assert.ok((await fs.stat(result.video)).size > 100);

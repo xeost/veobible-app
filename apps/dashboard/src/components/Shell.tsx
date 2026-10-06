@@ -1,6 +1,6 @@
 "use client";
 import { useI18n } from "../i18n/context";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,11 +12,17 @@ import {
   UserRound,
   Menu,
   ChevronRight,
+  ListOrdered,
 } from "lucide-react";
 import type { User } from "../lib/auth";
 import { api } from "./api";
 import { UserProfileModal } from "./UserProfileModal";
 import { BrandLogo } from "./BrandLogo";
+import { GenerationQueueModal } from "./GenerationQueueModal";
+import {
+  queueChangedEvent,
+  type GenerationQueueState,
+} from "../lib/generation-queue";
 const items = [
   ["/", "Dashboard", LayoutDashboard],
   ["/short-videos", "Short Videos", Clapperboard],
@@ -27,24 +33,66 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
   const { t } = useI18n();
   const pathname = usePathname();
   const [open, setOpen] = useState(false),
-    [profile, setProfile] = useState(false),
-    [connected, setConnected] = useState(false);
+    [profile, setProfile] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [queue, setQueue] = useState<GenerationQueueState>({
+    connected: false,
+    items: [],
+  });
+  const refreshQueue = useRef<() => void>(() => {});
   const [account, setAccount] = useState(user);
   useEffect(() => {
     let live = true;
-    const refresh = () =>
-      api("health")
-        .then((d) => {
-          if (live) setConnected(d.connected);
-        })
-        .catch(() => {
-          if (live) setConnected(false);
-        });
+    let timer: ReturnType<typeof setTimeout>;
+    let fetching = false;
+    let refreshAgain = false;
+    const refresh = async () => {
+      if (!live) return;
+      if (fetching) {
+        refreshAgain = true;
+        return;
+      }
+      fetching = true;
+      clearTimeout(timer);
+      let delay = 30000;
+      try {
+        const data = await api<GenerationQueueState>("generation-queue");
+        if (live)
+          setQueue((current) =>
+            data.connected ? data : { ...current, connected: false },
+          );
+        if (
+          data.items.some((item) => ["queued", "running"].includes(item.status))
+        )
+          delay = 3000;
+      } catch {
+        if (live) setQueue((current) => ({ ...current, connected: false }));
+      } finally {
+        fetching = false;
+        if (live && refreshAgain) {
+          refreshAgain = false;
+          void refresh();
+          return;
+        }
+        if (live)
+          timer = setTimeout(() => {
+            if (document.hidden) timer = setTimeout(refresh, 30000);
+            else void refresh();
+          }, delay);
+      }
+    };
+    refreshQueue.current = refresh;
+    const onVisible = () => {
+      if (!document.hidden) void refresh();
+    };
     void refresh();
-    const timer = setInterval(refresh, 30000);
+    window.addEventListener(queueChangedEvent, refresh);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       live = false;
-      clearInterval(timer);
+      clearTimeout(timer);
+      window.removeEventListener(queueChangedEvent, refresh);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
   const isActive = (href: string) =>
@@ -80,23 +128,45 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
             ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="local-card">
-            <span className={connected ? "dot green" : "dot"} />
+          <button
+            type="button"
+            className="local-card generation-queue-card"
+            aria-label={t("Abrir cola de generación")}
+            onClick={() => {
+              setQueueOpen(true);
+              setOpen(false);
+              refreshQueue.current();
+            }}
+          >
+            <span className={queue.connected ? "dot green" : "dot"} />
             <strong>
               {t(
-                connected
+                queue.connected
                   ? "Generación disponible"
                   : "Generación no disponible",
               )}
             </strong>
             <p>
               {t(
-                connected
-                  ? "Puedes crear nuevos videos"
-                  : "Inténtalo de nuevo más tarde",
+                queue.items.some((item) => item.status === "running")
+                  ? "Generación en curso"
+                  : queue.items.some((item) => item.status === "queued")
+                    ? "Generaciones en espera"
+                    : "Sin generaciones pendientes",
               )}
             </p>
-          </div>
+            <span className="queue-card-link">
+              <ListOrdered size={15} />
+              {t("Ver cola")}
+              <b>
+                {
+                  queue.items.filter((item) =>
+                    ["queued", "running"].includes(item.status),
+                  ).length
+                }
+              </b>
+            </span>
+          </button>
           <div className="sidebar-note">
             {t("VeoBible Dashboard")} <span>01</span>
           </div>
@@ -148,13 +218,28 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
             </button>
           </div>
         </header>
-        <main>{children}</main>
+        <main
+          className={
+            /^\/(short|long)-videos\/[^/]+/.test(pathname)
+              ? "video-editor-main"
+              : undefined
+          }
+        >
+          {children}
+        </main>
       </div>
       {profile && (
         <UserProfileModal
           user={account}
           close={() => setProfile(false)}
           onUpdated={setAccount}
+        />
+      )}
+      {queueOpen && (
+        <GenerationQueueModal
+          state={queue}
+          close={() => setQueueOpen(false)}
+          refresh={() => refreshQueue.current()}
         />
       )}
     </div>

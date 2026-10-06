@@ -6,13 +6,14 @@ import { fileURLToPath } from "node:url";
 import { timingSafeEqual } from "node:crypto";
 import { renderSchema } from "./protocol.js";
 import { z } from "zod";
+import { GenerationQueue } from "./generation-queue.js";
 const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
 if (fs.existsSync(path.join(toolRoot, ".env")))
   process.loadEnvFile(path.join(toolRoot, ".env"));
-const { render, inspection, projectDir, sourceDir } =
+const { render, inspection, projectDir, sourceDir, generateProjectVoice } =
   await import("./pipeline.js");
 const token = process.env.VIDEO_API_TOKEN;
 if (!token || token.length < 32)
@@ -39,7 +40,8 @@ const readingSources = new Map<
   { kind: string; sections: { file: string }[] }
 >();
 const jobs = new Map<string, Job>();
-const active = new Map<string, string>();
+const voiceJobs = new Map<string, Partial<Record<"intro" | "outro", Job>>>();
+const generationQueue = new GenerationQueue();
 const json = (res: http.ServerResponse, status: number, value: unknown) => {
   res.writeHead(status, {
     "Content-Type": "application/json",
@@ -61,7 +63,6 @@ const analysisSchema = renderSchema
   .pick({ kind: true, version: true, passage: true, settings: true })
   .extend({ projectId: z.string().uuid() });
 const idSchema = z.string().uuid();
-let queue = Promise.resolve();
 const server = http.createServer(async (req, res) => {
   try {
     const authorization = Buffer.from(req.headers.authorization ?? "");
@@ -78,8 +79,10 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         service: "veobible-video-generator",
         videoProjectProtocolVersion: 1,
-        active: active.size,
+        active: generationQueue.pendingCount,
       });
+    if (url.pathname === "/v1/queue" && req.method === "GET")
+      return json(res, 200, { items: generationQueue.snapshot() });
     if (url.pathname === "/v1/analyze" && req.method === "POST") {
       const input = analysisSchema.parse(await body(req));
       const result = await inspection(input);
@@ -89,18 +92,79 @@ const server = http.createServer(async (req, res) => {
       });
       return json(res, 200, result);
     }
+    if (parts[1] === "projects" && parts[3] === "voices") {
+      const projectId = idSchema.parse(parts[2]);
+      if (req.method === "GET") {
+        const kind = z
+          .enum(["short", "long"])
+          .parse(url.searchParams.get("kind"));
+        const state = voiceJobs.get(projectId) ?? {};
+        const voices = await Promise.all(
+          (["intro", "outro"] as const).map(async (part) => {
+            const available = await fsp
+              .stat(path.join(sourceDir(kind, projectId), `${part}.wav`))
+              .then(
+                (stat) => stat.size > 0,
+                () => false,
+              );
+            const job = state[part];
+            return [
+              part,
+              { available, status: job?.status ?? "idle" },
+            ] as const;
+          }),
+        );
+        return json(res, 200, { voices: Object.fromEntries(voices) });
+      }
+      if (req.method === "POST") {
+        const input = analysisSchema
+          .extend({ part: z.enum(["intro", "outro"]) })
+          .parse(await body(req));
+        if (input.projectId !== projectId)
+          return json(res, 400, { error: "Project mismatch" });
+        if (
+          generationQueue.hasPending(projectId, input.part) ||
+          generationQueue.hasPending(projectId, "video")
+        )
+          return json(res, 409, { error: "Project already active" });
+        if (generationQueue.pendingCount >= 20)
+          return json(res, 503, { error: "Render queue is full" });
+        const job: Job = {
+          id: crypto.randomUUID(),
+          status: "queued",
+          stage: "Queued",
+        };
+        const state = voiceJobs.get(projectId) ?? {};
+        state[input.part] = job;
+        voiceJobs.set(projectId, state);
+        generationQueue.enqueue(
+          { projectId, kind: input.kind, type: input.part },
+          job,
+          async () => {
+            job.status = "running";
+            try {
+              await generateProjectVoice(input, input.part);
+              job.status = "done";
+            } catch (error) {
+              console.error("Voice generation failed", error);
+              job.status = "failed";
+            }
+          },
+        );
+        return json(res, 202, { ok: true, status: job.status });
+      }
+    }
     if (url.pathname === "/v1/jobs" && req.method === "POST") {
       const input = renderSchema.parse(await body(req));
       if (!origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));
-      if (active.has(input.projectId))
+      if (generationQueue.hasPending(input.projectId, "video"))
         return json(res, 409, { error: "Project already active" });
-      if (active.size >= 20)
+      if (generationQueue.pendingCount >= 20)
         return json(res, 503, { error: "Render queue is full" });
       const job: Job = { id: input.id, status: "queued", stage: "Queued" };
       jobs.set(job.id, job);
-      active.set(input.projectId, job.id);
       const notify = async () => {
         const status = job.status;
         try {
@@ -128,8 +192,10 @@ const server = http.createServer(async (req, res) => {
           );
         }
       };
-      queue = queue
-        .then(async () => {
+      generationQueue.enqueue(
+        { projectId: input.projectId, kind: input.kind, type: "video" },
+        job,
+        async () => {
           job.status = "running";
           job.stage = "Starting";
           void notify();
@@ -146,12 +212,11 @@ const server = http.createServer(async (req, res) => {
             job.error = error instanceof Error ? error.message : String(error);
             console.error(`Job ${job.id}: ${job.error}`);
           } finally {
-            active.delete(input.projectId);
             await notify();
             setTimeout(() => jobs.delete(job.id), 86400000).unref();
           }
-        })
-        .catch((error) => console.error("Queue error", error));
+        },
+      );
       return json(res, 202, job);
     }
     if (parts[1] === "jobs" && parts[2] && req.method === "GET") {

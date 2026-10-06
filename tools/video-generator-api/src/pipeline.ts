@@ -24,6 +24,15 @@ export const projectDir = (kind: string, id: string) =>
   path.join(mediaRoot, "renders", kind, id);
 export const sourceDir = (kind: string, id: string) =>
   path.join(mediaRoot, "sources", kind, id);
+async function prepareProjectDirectories(kind: string, id: string) {
+  const output = projectDir(kind, id);
+  const sources = sourceDir(kind, id);
+  await Promise.all([
+    fs.mkdir(output, { recursive: true }),
+    fs.mkdir(sources, { recursive: true }),
+  ]);
+  return { output, sources };
+}
 function modules(kind: "short" | "long") {
   return kind === "short"
     ? {
@@ -93,16 +102,39 @@ export async function inspection(
     ),
   };
 }
+/** Generate one fixed narration without rendering a video or touching the other voice. */
+export async function generateProjectVoice(
+  input: Pick<
+    RenderRequest,
+    "kind" | "passage" | "version" | "settings" | "projectId"
+  >,
+  part: "intro" | "outro",
+) {
+  const { sources } = await prepareProjectDirectories(
+    input.kind,
+    input.projectId,
+  );
+  const { context, m } = await analyze({
+    ...input,
+    settings: { ...input.settings, verseOffsets: [] },
+  });
+  try {
+    await m.voice.generateVoice(sources, context, true, part);
+  } finally {
+    await fs.rm(path.join(sources, `${part}.txt`), { force: true });
+  }
+}
+
 export async function render(
   input: RenderRequest,
   update: (stage: string) => void,
 ) {
   update("Analizando pasaje y tiempos");
   const { data, sections, cues, context, version, m } = await analyze(input);
-  const output = projectDir(input.kind, input.projectId),
-    sources = sourceDir(input.kind, input.projectId);
-  await fs.mkdir(output, { recursive: true });
-  await fs.mkdir(sources, { recursive: true });
+  const { output, sources } = await prepareProjectDirectories(
+    input.kind,
+    input.projectId,
+  );
   const scripts = await m.voice.renderVoiceScripts(context);
   let voices: shortVideo.VoiceTracks | undefined;
   if (input.settings.clipAudioMode !== "video") {

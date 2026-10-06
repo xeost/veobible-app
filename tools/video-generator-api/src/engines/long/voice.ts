@@ -475,6 +475,7 @@ export async function generateVoice(
   part?: VoicePart,
 ): Promise<void> {
   const parts = part ? [part] : allParts;
+  await fs.mkdir(outputDir, { recursive: true });
   const rendered = await renderVoiceScripts(context);
   const scripts = Object.fromEntries(
     parts.map((name) => [name, rendered[name]]),

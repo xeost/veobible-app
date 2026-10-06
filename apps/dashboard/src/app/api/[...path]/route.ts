@@ -341,6 +341,52 @@ async function handle(req: Request) {
         },
       });
     }
+    if (parts[2] === "voices" && project) {
+      if (method === "GET") {
+        const response = await videoFetch(
+          `/v1/projects/${project.id}/voices?kind=${catalog.kind}`,
+        );
+        if (!response.ok)
+          return json(
+            {
+              error:
+                "No se pudo conectar. Inténtalo de nuevo en unos momentos.",
+            },
+            503,
+          );
+        return json(await response.json());
+      }
+      if (method === "POST") {
+        if (["queued", "running"].includes(project.status))
+          return json({ error: "Espera a que termine la generación" }, 409);
+        const { part } = z
+          .object({ part: z.enum(["intro", "outro"]) })
+          .parse(await body());
+        const response = await videoFetch(`/v1/projects/${project.id}/voices`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: project.id,
+            kind: catalog.kind,
+            version,
+            passage: JSON.parse(catalog.passage),
+            settings: settingsSchema.parse(JSON.parse(project.settings)),
+            part,
+          }),
+        });
+        if (response.status === 409)
+          return json({ error: "Espera a que termine la generación" }, 409);
+        if (!response.ok)
+          return json(
+            {
+              error:
+                "No se pudo conectar. Inténtalo de nuevo en unos momentos.",
+            },
+            503,
+          );
+        return json(await response.json(), 202);
+      }
+    }
     if (parts[2] === "media" && method === "GET") {
       if (!project) return json({ error: "Sin archivos" }, 404);
       const asset = z
@@ -467,6 +513,66 @@ async function handle(req: Request) {
           .all()
       ).results,
     });
+  }
+  if (parts[0] === "generation-queue" && method === "GET") {
+    try {
+      const response = await videoFetch("/v1/queue");
+      if (!response.ok) return json({ connected: false, items: [] });
+      const { items } = z
+        .object({
+          items: z
+            .array(
+              z.object({
+                id: z.string().uuid(),
+                projectId: z.string().uuid(),
+                kind: z.enum(["short", "long"]),
+                type: z.enum(["intro", "outro", "video"]),
+                status: z.enum(["queued", "running", "done", "failed"]),
+                stage: z.string(),
+                position: z.number().nullable(),
+                createdAt: z.string(),
+              }),
+            )
+            .max(100),
+        })
+        .parse(await response.json());
+      // Reconcile render results even when their editor is no longer open.
+      await syncJobs();
+      if (items.length === 0) return json({ connected: true, items: [] });
+      const projectIds = [...new Set(items.map((item) => item.projectId))];
+      const projects = (
+        await database
+          .prepare(
+            `SELECT p.id,p.catalog_id,p.version_id,c.title,c.kind FROM projects p JOIN catalog c ON c.id=p.catalog_id WHERE p.id IN (${projectIds.map(() => "?").join(",")})`,
+          )
+          .bind(...projectIds)
+          .all<{
+            id: string;
+            catalog_id: string;
+            version_id: string;
+            title: string;
+            kind: string;
+          }>()
+      ).results;
+      const byId = new Map(projects.map((project) => [project.id, project]));
+      return json({
+        connected: true,
+        items: items.flatMap((item) => {
+          const project = byId.get(item.projectId);
+          if (!project || project.kind !== item.kind) return [];
+          return [
+            {
+              ...item,
+              title: project.title,
+              version: project.version_id,
+              href: `/${item.kind === "short" ? "short-videos" : "long-videos"}/${encodeURIComponent(project.catalog_id)}?version=${encodeURIComponent(project.version_id)}`,
+            },
+          ];
+        }),
+      });
+    } catch {
+      return json({ connected: false, items: [] });
+    }
   }
   if (parts[0] === "health" && method === "GET") {
     try {

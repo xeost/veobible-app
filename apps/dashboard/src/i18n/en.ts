@@ -1,4 +1,91 @@
 export const english: Record<string, string> = {
+  "Cola de generación": "Generation queue",
+  "Abrir cola de generación": "Open generation queue",
+  "Puedes seguir editando otros proyectos mientras se preparan las voces y los videos.":
+    "You can keep editing other projects while narration and videos are prepared.",
+  "Actualizar cola": "Refresh queue",
+  "No se pudo actualizar la cola. Inténtalo de nuevo en unos momentos.":
+    "Could not refresh the queue. Try again in a moment.",
+  "No hay generaciones pendientes.": "There are no pending generations.",
+  "En proceso y en espera": "In progress and waiting",
+  "Terminados recientemente": "Recently finished",
+  "Video final": "Final video",
+  "Voz de introducción": "Introduction narration",
+  "Voz de cierre": "Closing narration",
+  Posición: "Position",
+  "Generación en curso": "Generation in progress",
+  "Generaciones en espera": "Generations waiting",
+  "Sin generaciones pendientes": "No pending generations",
+  "Ver cola": "View queue",
+  "Escuchar voz": "Listen to narration",
+  "Pausar voz": "Pause narration",
+  "No se pudo reproducir la voz. Vuelve a intentarlo.":
+    "Could not play the narration. Try again.",
+  "Reintentar carga de audio": "Retry loading audio",
+  "EDITOR DE PROYECTO": "PROJECT EDITOR",
+  "Prepara la voz y sincroniza cada versículo con su audio.":
+    "Prepare the narration and synchronize each verse with its audio.",
+  "Secciones del video": "Video sections",
+  secciones: "sections",
+  versículos: "verses",
+  "Introducción, lectura y cierre": "Introduction, reading and closing",
+  "Expandir todas": "Expand all",
+  "Contraer todas": "Collapse all",
+  Voz: "Voice",
+  Lectura: "Reading",
+  "Sección fija": "Fixed section",
+  "Guión de narración": "Narration script",
+  "El guión aparecerá al cargar el pasaje.":
+    "The script will appear once the passage loads.",
+  "El texto y la presentación de esta sección están definidos para este formato.":
+    "The script and presentation of this section are defined for this format.",
+  "Previsualización de voz": "Narration preview",
+  "Preparando voz…": "Preparing narration\u2026",
+  "Voz lista para escuchar": "Narration ready to listen",
+  "Genera la voz de esta sección": "Generate narration for this section",
+  "La voz estará disponible aquí cuando termine la preparación.":
+    "The narration will be available here once preparation is complete.",
+  "Genera el audio para escuchar esta sección antes de crear el video.":
+    "Generate the audio to listen to this section before creating the video.",
+  "No se pudo generar la voz. Revisa la conexión y vuelve a intentarlo.":
+    "Could not generate narration. Check the connection and try again.",
+  "Generar voz": "Generate narration",
+  "Regenerar voz": "Regenerate narration",
+  "La voz está en preparación. Puedes seguir revisando el proyecto.":
+    "Narration is being prepared. You can continue reviewing the project.",
+  "El video se está creando. Puedes salir de esta página; la generación continúa.":
+    "The video is being created. You can leave this page; generation will continue.",
+  "Lectura del pasaje": "Passage reading",
+  "Cargando audio y versículos…": "Loading audio and verses\u2026",
+  "Prepara el audio para ajustar los tiempos":
+    "Prepare the audio to adjust timing",
+  "Sincronización del pasaje": "Passage synchronization",
+  "Aquí podrás escuchar el pasaje y ajustar los tiempos sobre su forma de onda.":
+    "Listen to the passage and adjust timing on its waveform here.",
+  "Volver a analizar el audio": "Analyze audio again",
+  "Previsualización del video": "Video preview",
+  "Video vertical": "Portrait video",
+  "Video horizontal": "Landscape video",
+  "El video aparecerá aquí después de generarlo.":
+    "The video will appear here after generation.",
+  "Ajustes de audio": "Audio settings",
+  "Guarda los cambios de sincronización antes de salir.":
+    "Save synchronization changes before leaving.",
+  "Textos de publicación": "Publication texts",
+  "No hay versículos para sincronizar en esta sección.":
+    "There are no verses to synchronize in this section.",
+  "Sincronizar texto y audio": "Synchronize text and audio",
+  Alejar: "Zoom out",
+  Acercar: "Zoom in",
+  "Al soltar un extremo, escucharás 3 segundos de ese lado. Haz clic dentro del fragmento para escuchar desde ese punto hasta el final. Usa las flechas para ajustes precisos.":
+    "Release an edge to hear 3 seconds from that side. Click inside the fragment to listen from that point to the end. Use the arrow keys for precise adjustments.",
+  "Forma de onda del audio": "Audio waveform",
+  "No se pudo cargar la forma de onda. Puedes ajustar los tiempos y reintentar.":
+    "Could not load the waveform. You can adjust timing and try again.",
+  "Cargando forma de onda…": "Loading waveform\u2026",
+  Pausar: "Pause",
+  "Escuchar versículo": "Listen to verse",
+
   "Volver a los proyectos": "Back to projects",
   "Abrir proyecto": "Open project",
   "Cargando proyecto…": "Loading project…",

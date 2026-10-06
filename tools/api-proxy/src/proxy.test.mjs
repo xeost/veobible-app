@@ -4,7 +4,7 @@ import http from "node:http";
 import { once } from "node:events";
 import { createProxy, routeFor } from "./proxy.mjs";
 test("routes only registered video namespaces", () => {
-  for (const p of ["/v1/projects/x", "/v1/jobs", "/v1/analyze"])
+  for (const p of ["/v1/projects/x", "/v1/jobs", "/v1/analyze", "/v1/queue"])
     assert.equal(routeFor(p), "video");
   for (const p of ["/", "/v1/batches", "/v1/jobs-extra", "/anything"])
     assert.equal(routeFor(p), null);

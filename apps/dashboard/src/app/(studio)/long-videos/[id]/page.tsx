@@ -1,3 +1,4 @@
+import { videoCatalogId } from "../../../../lib/video-routing";
 import { VideoProjectEditor } from "../../../../components/VideoProjectEditor";
 export default async function Page({
   params,
@@ -6,7 +7,8 @@ export default async function Page({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ version?: string }>;
 }) {
-  const { id } = await params;
+  const { id: routeId } = await params;
+  const id = videoCatalogId(routeId);
   const { version = "rv1909" } = await searchParams;
   return (
     <VideoProjectEditor

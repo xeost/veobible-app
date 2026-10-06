@@ -72,6 +72,10 @@ Deployments publica el **sitio público VeoBible** (`apps/frontend`, veobible.co
 
 Los listados `/short-videos` y `/long-videos` abren páginas propias en `/short-videos/[id]?version=…` y `/long-videos/[id]?version=…`. Ambas reutilizan `VideoProjectEditor`, conservan la versión bíblica seleccionada y cargan el proyecto directamente, sin abrir un modal. Los videos cortos usan formato vertical 9:16 (1080×1920); los largos, horizontal 16:9 (1920×1080).
 
+El editor se organiza en bloques colapsables de intro, lectura por tramo de audio y cierre (al menos tres). La intro y el cierre son fijos. Cada uno permite generar su propia voz y escucharla sin renderizar el video; el servicio procesa estas tareas en la misma cola que los renders y conserva los WAV bajo `media/sources`. El estado se consulta por proyecto; al reiniciar el servicio los audios siguen disponibles. Reinicia la API de video tras actualizar su código para habilitar `/v1/projects/:id/voices`.
+
+La sincronización decodifica el audio real con Web Audio y muestra su forma de onda con zoom, extremos arrastrables, ajustes por teclado de 0,01 s (0,1 s con Shift) y escucha por versículo. Los controles aplican límites por tramo y por los versículos vecinos. Los tiempos se expresan respecto a cada tramo en la interfaz y se convierten a offsets sobre la lectura completa al guardar, usando el mismo contrato que el render. «Guardar cambios» conserva la sincronización en D1 y «Generar video» incluye los ajustes actuales en el trabajo. Los elementos visuales y fondos no se editan aquí.
+
 El editor permite buscar y filtrar videos por versión, ajustar volumen, modo de audio, offsets y fondo; inspeccionar texto/contexto, guiones y tiempos; reutilizar o regenerar voces; renderizar, previsualizar, descargar y marcar publicaciones manualmente. Las publicaciones no envían mensajes ni suben archivos a redes.
 
 D1 guarda la copia de ajustes de cada trabajo, resultados, guiones, descripciones, referencias a fuentes, tiempos, errores y marcas de uso/publicación. Los callbacks actualizan D1 sin depender del navegador. La consulta periódica reconcilia callbacks fallidos. Tras reiniciar la API, los trabajos perdidos se marcan interrumpidos durante la siguiente reconciliación; puedes reintentarlos desde sus ajustes. Si la laptop está apagada se conserva el estado hasta que vuelva a responder. No hay reanudación automática después de reiniciar.
@@ -84,6 +88,12 @@ La cola procesa un trabajo a la vez y admite hasta 20. La API guarda multimedia 
 No borres `sources/` si quieres reutilizar las voces exactas. Los audios bíblicos se configuran con `VIDEO_AUDIO_DIR`; los clips y muestras de voz se conservan en `tools/video-generator-api/material/`. El fondo elegido automáticamente se guarda en los ajustes al terminar para regenerarlo después.
 
 La API usa directamente análisis, voces y render; no llama a `prepareShort`, `prepareEpisode`, `markUsed` ni a escritores de ajustes. No crea `status.json`, `default-version-settings.json` ni ajustes de proyecto en disco. Solo usa archivos temporales de síntesis/render, que limpia al terminar. Conserva materiales y entorno de modelos originales para reproducir una generación.
+
+## Cola de generación
+
+El cuadro inferior del sidebar abre la cola global. La cola del servicio local procesa intro, outro y video en orden, permite ambas voces del mismo proyecto y continúa al cambiar de página o cerrar el editor. Los items enlazan al proyecto y versión correspondientes. Se admiten hasta 20 trabajos pendientes y se muestran los últimos 100 trabajos de la sesión del servicio; la cola de voces reside en memoria y requiere mantener el servicio local en ejecución. Los resultados de render continúan reconciliándose con los trabajos guardados en la base de datos.
+
+El layout consulta `/api/generation-queue` cada 3 segundos cuando hay pendientes y cada 30 segundos en reposo; también actualiza al enviar un trabajo, abrir el modal o volver a la pestaña. El editor solo consulta estados de proyecto y voz periódicamente cuando tiene una generación pendiente.
 
 ## Verificación
 
