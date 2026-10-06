@@ -89,6 +89,12 @@ No borres `sources/` si quieres reutilizar las voces exactas. Los audios bíblic
 
 La API usa directamente análisis, voces y render; no llama a `prepareShort`, `prepareEpisode`, `markUsed` ni a escritores de ajustes. No crea `status.json`, `default-version-settings.json` ni ajustes de proyecto en disco. Solo usa archivos temporales de síntesis/render, que limpia al terminar. Conserva materiales y entorno de modelos originales para reproducir una generación.
 
+## Settings
+
+Los botones Settings de `/short-videos` y `/long-videos` abren los textos de intro y outro para los tres idiomas. Se almacenan por separado en `site_settings` con las claves `voice_templates:short` y `voice_templates:long`, sin inserciones iniciales. Los administradores pueden editarlos y los editores consultarlos. El dashboard envía los textos del formato e idioma correspondiente en `voiceTemplates` al analizar, generar una voz o renderizar. Los trabajos encolados conservan su copia de los textos. El generador no necesita archivos de plantillas; si falta un texto necesario, se solicita configurarlo antes de generar.
+
+Los administradores configuran en `/settings` las cuentas de YouTube, X, Instagram, TikTok y Facebook para español, inglés y portugués. Se guardan como un objeto por idioma en `site_settings`, clave `social_accounts`. No se insertan cuentas iniciales al abrir la página, desde migraciones ni desde scripts; los campos empiezan vacíos y se guardan solo al enviar el formulario. Cada render enviado desde el dashboard incluye una copia de las cuentas guardadas del idioma correspondiente; los campos vacíos omiten esas redes del cierre. Los trabajos ya encolados conservan la copia que recibieron al enviarse.
+
 ## Cola de generación
 
 El cuadro inferior del sidebar abre la cola global. La cola del servicio local procesa intro, outro y video en orden, permite ambas voces del mismo proyecto y continúa al cambiar de página o cerrar el editor. Los items enlazan al proyecto y versión correspondientes. Se admiten hasta 20 trabajos pendientes y se muestran los últimos 100 trabajos de la sesión del servicio; la cola de voces reside en memoria y requiere mantener el servicio local en ejecución. Los resultados de render continúan reconciliándose con los trabajos guardados en la base de datos.

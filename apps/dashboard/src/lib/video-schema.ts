@@ -48,6 +48,21 @@ export const renderSchema = z.object({
     end: point,
   }),
   settings: settingsSchema,
+  voiceTemplates: z
+    .object({
+      intro: z.string().trim().max(10000),
+      outro: z.string().trim().max(10000),
+    })
+    .default({ intro: "", outro: "" }),
+  socialAccounts: z
+    .object({
+      youtube: z.string().trim().max(100),
+      x: z.string().trim().max(100),
+      instagram: z.string().trim().max(100),
+      tiktok: z.string().trim().max(100),
+      facebook: z.string().trim().max(100),
+    })
+    .default({ youtube: "", x: "", instagram: "", tiktok: "", facebook: "" }),
   callback: z.object({ url: z.string().url(), token: z.string().min(32) }),
 });
 export const resultSchema = z.object({

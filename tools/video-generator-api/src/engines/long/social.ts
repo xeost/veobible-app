@@ -1,5 +1,4 @@
-import fs from "node:fs/promises";
-import { config, type Version } from "./config.js";
+import type { Version } from "./config.js";
 import type { OutroTitle } from "./video.js";
 
 const platforms = ["youtube", "x", "instagram", "tiktok", "facebook"] as const;
@@ -26,27 +25,14 @@ const labels: Record<
 
 export async function outroTitle(
   locale: Version["locale"],
+  configuredAccounts: Partial<Record<(typeof platforms)[number], string>> = {},
 ): Promise<OutroTitle> {
-  let data: unknown;
-  try {
-    data = JSON.parse(await fs.readFile(config.socialAccounts, "utf8"));
-  } catch (error) {
-    throw new Error(
-      `Cannot read social accounts from ${config.socialAccounts}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-  const entry = (data as Record<string, unknown> | null)?.[locale];
-  if (!entry || typeof entry !== "object" || Array.isArray(entry))
-    throw new Error(`Missing ${locale} accounts in ${config.socialAccounts}`);
-  const accounts = entry as Record<string, unknown>;
   const social: OutroTitle["social"] = [];
   for (const platform of platforms) {
-    const value = accounts[platform];
-    if (platform === "facebook" && value === undefined) continue;
+    const value = configuredAccounts[platform];
+    if (value === undefined) continue;
     if (typeof value !== "string")
-      throw new Error(
-        `Expected a string for ${locale}.${platform} in ${config.socialAccounts}`,
-      );
+      throw new Error(`Expected a social username for ${locale}.${platform}`);
     const handle = value.trim();
     if (handle)
       social.push({

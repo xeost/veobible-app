@@ -55,7 +55,10 @@ function modules(kind: "short" | "long") {
       };
 }
 export async function analyze(
-  input: Pick<RenderRequest, "kind" | "passage" | "version" | "settings">,
+  input: Pick<
+    RenderRequest,
+    "kind" | "passage" | "version" | "settings" | "voiceTemplates"
+  >,
 ) {
   const m = modules(input.kind);
   const version = m.config.versions.find((v) => v.id === input.version.id);
@@ -79,11 +82,15 @@ export async function analyze(
     input.passage,
     data.book.name,
     data.index.metadata.name,
+    input.voiceTemplates,
   );
   return { data, sections, cues, context, version, m };
 }
 export async function inspection(
-  input: Pick<RenderRequest, "kind" | "passage" | "version" | "settings">,
+  input: Pick<
+    RenderRequest,
+    "kind" | "passage" | "version" | "settings" | "voiceTemplates"
+  >,
 ) {
   const { data, sections, cues, context, version, m } = await analyze(input);
   return {
@@ -106,7 +113,7 @@ export async function inspection(
 export async function generateProjectVoice(
   input: Pick<
     RenderRequest,
-    "kind" | "passage" | "version" | "settings" | "projectId"
+    "kind" | "passage" | "version" | "settings" | "voiceTemplates" | "projectId"
   >,
   part: "intro" | "outro",
 ) {
@@ -187,7 +194,7 @@ export async function render(
       sections,
       m.config.videosDir,
       title,
-      await m.outro(version.locale),
+      await m.outro(version.locale, input.socialAccounts),
       cues,
       voices,
       work,

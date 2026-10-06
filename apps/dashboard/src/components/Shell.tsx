@@ -13,6 +13,7 @@ import {
   Menu,
   ChevronRight,
   ListOrdered,
+  Settings,
 } from "lucide-react";
 import type { User } from "../lib/auth";
 import { api } from "./api";
@@ -28,6 +29,7 @@ const items = [
   ["/short-videos", "Short Videos", Clapperboard],
   ["/long-videos", "Long Videos", Film],
   ["/deployments", "Actualizaciones", Rocket],
+  ["/settings", "Settings", Settings],
 ] as const;
 export function Shell({ children, user }: { children: ReactNode; user: User }) {
   const { t } = useI18n();
@@ -112,7 +114,9 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
         <nav>
           {items
             .filter(
-              ([href]) => href !== "/deployments" || user.role === "admin",
+              ([href]) =>
+                !["/deployments", "/settings"].includes(href) ||
+                user.role === "admin",
             )
             .map(([href, label, Icon]) => (
               <Link

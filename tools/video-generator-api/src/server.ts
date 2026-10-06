@@ -60,7 +60,13 @@ async function body(req: http.IncomingMessage) {
   return JSON.parse(Buffer.concat(chunks).toString());
 }
 const analysisSchema = renderSchema
-  .pick({ kind: true, version: true, passage: true, settings: true })
+  .pick({
+    kind: true,
+    version: true,
+    passage: true,
+    settings: true,
+    voiceTemplates: true,
+  })
   .extend({ projectId: z.string().uuid() });
 const idSchema = z.string().uuid();
 const server = http.createServer(async (req, res) => {

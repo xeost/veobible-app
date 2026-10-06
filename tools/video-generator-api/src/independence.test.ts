@@ -9,14 +9,14 @@ import { promisify } from "node:util";
 const execute = promisify(execFile);
 const root = fileURLToPath(new URL("..", import.meta.url));
 
-test("runtime has no imports or paths into dashboard or legacy tools", async () => {
+test("runtime only uses frontend static Bible data and has no dependencies on dashboard or legacy tools", async () => {
   const files = await fs.readdir(path.join(root, "src"), { recursive: true });
   for (const name of files) {
     if (!/\.(ts|tsx)$/.test(name) || name.endsWith(".test.ts")) continue;
     const source = await fs.readFile(path.join(root, "src", name), "utf8");
     assert.doesNotMatch(
       source,
-      /shorts-daily-dose|longs-365-days|apps\/dashboard|apps\/frontend|VEOBIBLE_(SHORTS|LONGS)_/,
+      /shorts-daily-dose|longs-365-days|apps\/dashboard|apps\/frontend\/(?!public\/bible-data)|VEOBIBLE_(SHORTS|LONGS)_/,
       name,
     );
     assert.doesNotMatch(
@@ -31,22 +31,18 @@ test(
   "standalone short and cross-book long pipeline with its own sources and voice adapter",
   { timeout: 240_000 },
   async () => {
-    const isolated = await fs.mkdtemp(
+    const workspace = await fs.mkdtemp(
       path.join(os.tmpdir(), "veobible-api-isolated-"),
     );
+    const isolated = path.join(workspace, "tools", "video-generator-api");
+    await fs.mkdir(isolated, { recursive: true });
     try {
       for (const name of ["src", "package.json", "tsconfig.json"]) {
         await fs.cp(path.join(root, name), path.join(isolated, name), {
           recursive: true,
         });
       }
-      for (const kind of ["short", "long"]) {
-        await fs.cp(
-          path.join(root, "resources", kind),
-          path.join(isolated, "resources", kind),
-          { recursive: true },
-        );
-      }
+      // Narration templates and social accounts arrive in requests; no resource JSON is required.
       // Only this package's installed dependencies are accessible, never a CLI node_modules.
       await fs.symlink(
         path.join(root, "node_modules"),
@@ -75,7 +71,7 @@ test(
       if (process.env.VIDEO_SMOKE_RENDER === "1")
         assert.match(stdout, /standalone renders passed: short, long/);
     } finally {
-      await fs.rm(isolated, { recursive: true, force: true });
+      await fs.rm(workspace, { recursive: true, force: true });
     }
   },
 );

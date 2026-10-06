@@ -18,6 +18,14 @@ import { settingsSchema, renderSchema } from "../../../lib/video-schema";
 import { videoFetch } from "../../../lib/video-client";
 import { applyUpdate, syncJobs } from "../../../lib/jobs";
 import { z } from "zod";
+import {
+  loadVoiceSettings,
+  saveVoiceSettings,
+} from "../../../lib/voice-settings";
+import {
+  loadSocialSettings,
+  saveSocialSettings,
+} from "../../../lib/social-settings";
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) =>
   Response.json(value, {
     status,
@@ -108,6 +116,26 @@ async function handle(req: Request) {
   const admin = () => {
     if (user.role !== "admin") throw new Error("Se requiere administrador");
   };
+  if (parts.join("/") === "settings/voice-templates") {
+    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    if (method === "GET")
+      return json({ templates: await loadVoiceSettings(database, kind) });
+    if (method === "PUT") {
+      admin();
+      return json({
+        templates: await saveVoiceSettings(database, kind, await body()),
+      });
+    }
+  }
+  if (parts.join("/") === "settings/social-accounts") {
+    admin();
+    if (method === "GET")
+      return json({ accounts: await loadSocialSettings(database) });
+    if (method === "PUT")
+      return json({
+        accounts: await saveSocialSettings(database, await body()),
+      });
+  }
   if (parts.join("/") === "auth/me" && method === "GET") return json({ user });
   if (parts.join("/") === "auth/logout" && method === "POST") {
     if (cookie)
@@ -331,6 +359,9 @@ async function handle(req: Request) {
           version,
           passage: JSON.parse(catalog.passage),
           settings: input,
+          voiceTemplates: (await loadVoiceSettings(database, catalog.kind))[
+            version.locale as "es" | "en" | "pt"
+          ],
         }),
       });
       return new Response(response.body, {
@@ -362,6 +393,17 @@ async function handle(req: Request) {
         const { part } = z
           .object({ part: z.enum(["intro", "outro"]) })
           .parse(await body());
+        const voiceTemplates = (
+          await loadVoiceSettings(database, catalog.kind)
+        )[version.locale as "es" | "en" | "pt"];
+        if (!voiceTemplates[part])
+          return json(
+            {
+              error:
+                "Configura los textos de voz en Settings antes de generar.",
+            },
+            400,
+          );
         const response = await videoFetch(`/v1/projects/${project.id}/voices`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -372,6 +414,7 @@ async function handle(req: Request) {
             passage: JSON.parse(catalog.passage),
             settings: settingsSchema.parse(JSON.parse(project.settings)),
             part,
+            voiceTemplates,
           }),
         });
         if (response.status === 409)
@@ -451,6 +494,19 @@ async function handle(req: Request) {
         token = crypto.randomUUID() + crypto.randomUUID();
       const base = bindings().DASHBOARD_CALLBACK_URL;
       if (!base) throw new Error("Configura DASHBOARD_CALLBACK_URL");
+      const voiceTemplates = (await loadVoiceSettings(database, catalog.kind))[
+        version.locale as "es" | "en" | "pt"
+      ];
+      if (
+        input.clipAudioMode !== "video" &&
+        (!voiceTemplates.intro || !voiceTemplates.outro)
+      )
+        return json(
+          {
+            error: "Configura los textos de voz en Settings antes de generar.",
+          },
+          400,
+        );
       const snapshot = {
         id,
         projectId: project.id,
@@ -458,6 +514,10 @@ async function handle(req: Request) {
         version,
         passage: JSON.parse(catalog.passage),
         settings: input,
+        voiceTemplates,
+        socialAccounts: (await loadSocialSettings(database))[
+          version.locale as "es" | "en" | "pt"
+        ],
       };
       const request = renderSchema.parse({
         ...snapshot,

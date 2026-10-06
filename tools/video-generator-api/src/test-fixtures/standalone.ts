@@ -6,7 +6,10 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 const execute = promisify(execFile);
 const working = process.cwd();
-const data = path.join(working, "resources/bible-data/es/rv1909");
+const data = path.resolve(
+  working,
+  "../../apps/frontend/public/bible-data/es/rv1909",
+);
 const audio = path.join(working, "material/bible-audio/rv1909");
 await fs.mkdir(audio, { recursive: true });
 await fs.mkdir(data, { recursive: true });
@@ -109,6 +112,10 @@ for (const kind of ["short", "long"] as const) {
       end: { chapter: 1, verse: 1 },
     },
     settings: { background: "bg-1.mp4" },
+    voiceTemplates: {
+      intro: "Introducción de prueba para {reference}.",
+      outro: "Cierre de prueba para {reference}.",
+    },
     callback: { url: "http://127.0.0.1:3003/callback", token: "x".repeat(32) },
   });
   const preview = await inspection(input);

@@ -11,14 +11,18 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, date } from "./api";
 import { type VideoRow, videoStatusLabels as labels } from "./video-project";
+import { VoiceSettingsModal } from "./VoiceSettingsModal";
 export function Videos({ kind }: { kind: "short" | "long" }) {
   const { t, language } = useI18n();
   const searchParams = useSearchParams();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [canEditSettings, setCanEditSettings] = useState(false);
   const [rows, setRows] = useState<VideoRow[]>([]),
     [versions, setVersions] = useState<any[]>([]),
     [version, setVersion] = useState(searchParams.get("version") || "rv1909"),
@@ -38,6 +42,9 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     }
   }, [kind, version]);
   useEffect(() => {
+    void api("auth/me")
+      .then((data) => setCanEditSettings(data.user.role === "admin"))
+      .catch(() => {});
     void api("versions")
       .then((d) => setVersions(d.versions))
       .catch((e) => setError(userMessage(e)));
@@ -84,9 +91,15 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             )}
           </p>
         </div>
-        <button onClick={load}>
-          <RefreshCw size={16} /> {t("Actualizar")}
-        </button>
+        <div className="project-top-actions">
+          <button type="button" onClick={() => setSettingsOpen(true)}>
+            <Settings size={16} />
+            {t("Settings")}
+          </button>
+          <button onClick={load}>
+            <RefreshCw size={16} /> {t("Actualizar")}
+          </button>
+        </div>
       </div>
       <div className="video-summary">
         <div>
@@ -257,6 +270,13 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           </div>
         </div>
       </section>
+      {settingsOpen && (
+        <VoiceSettingsModal
+          kind={kind}
+          canEdit={canEditSettings}
+          close={() => setSettingsOpen(false)}
+        />
+      )}
     </>
   );
 }

@@ -6,15 +6,15 @@ Servicio Node local autónomo con análisis bíblico, síntesis de voces y compo
 
 Requiere Node 22+, pnpm y FFmpeg/ffprobe. Instala únicamente este paquete y copia `.env.example` a `.env`. Arranca con `pnpm start` desde esta carpeta, o mediante `pnpm start:api-proxy` desde la raíz. El proxy transmite el token compartido; las variables de proceso prevalecen sobre el `.env` propio de esta API.
 
-- `resources/bible-data/<locale>/<version>/index.json` y `<book>/<chapter>.json`: datos bíblicos locales; alternativa `VIDEO_BIBLE_DATA_DIR`.
+- `apps/frontend/public/bible-data/<locale>/<version>/index.json` y `<book>/<chapter>.json`: datos bíblicos estáticos compartidos con el sitio público. La ruta es fija, relativa al repositorio, e independiente del directorio de ejecución; no es configurable.
 - `material/bible-audio/<version>/`: audios originales de capítulos; alternativa `VIDEO_AUDIO_DIR`. Se mantiene la nomenclatura existente `NN-book-chapter.mp3` o `.m4a`.
 - `material/short/videos/` y `material/long/videos/`: `0-intro.mp4`, `0-outro.mp4` y fondos `bg-N.mp4`.
 - `material/<short|long>/voices/`: muestras para Chatterbox (`es.mp3`, `en.mp3`, `pt.mp3`, con variantes por intro/outro).
-- `resources/<short|long>/voice-templates.json` y `social-accounts.json`: plantillas y cuentas propias, versionadas con la API.
+- Los textos de narración se configuran por formato e idioma en los botones Settings de Short Videos y Long Videos. Se guardan en `site_settings` y se reciben en `voiceTemplates` para analizar, generar voces o renderizar; no se leen plantillas locales. Las cuentas sociales se configuran en Settings del dashboard, se guardan en `site_settings` y se reciben en `socialAccounts` de cada solicitud de render. No se leen cuentas desde archivos locales; si no se envían cuentas, las redes se omiten del cierre.
 
 Las fuentes voluminosas son locales y están ignoradas por Git. En esta laptop ya se copiaron los textos bíblicos, clips y muestras al directorio de la API, conservando los originales; los audios bíblicos usan su biblioteca externa. En una instalación nueva provisiona estas fuentes o configura rutas absolutas. No es necesario mantener las CLI ni el frontend para leerlas.
 
-`VIDEO_SHORT_*` y `VIDEO_LONG_*` permiten configurar cada motor por separado: `WORKING_DIR` (contiene `videos/` y `voices/`), `VIDEOS_DIR`, `AUDIO_DIR`, `BIBLE_DATA_DIR`, `FFMPEG`, `RENDER_CONCURRENCY`, `TTS_PROVIDER`, `TTS_PYTHON`, `TTS_MODEL`, `TTS_MODEL_ES/EN/PT`, `TTS_DEVICE`, `TTS_VOICE_PROMPT`, `TTS_VOICE_PROMPT_ES/EN/PT`, y `TTS_VOICE_PROMPT_<locale>_INTRO/OUTRO`. `TTS_TEMPLATES` y `SOCIAL_ACCOUNTS` pueden sustituir los recursos propios. También se admiten `ELEVENLABS_API_KEY`, `ELEVENLABS_MODEL` y `ELEVENLABS_VOICE_ES/EN/PT` por motor.
+`VIDEO_SHORT_*` y `VIDEO_LONG_*` permiten configurar cada motor por separado: `WORKING_DIR` (contiene `videos/` y `voices/`), `VIDEOS_DIR`, `AUDIO_DIR`, `FFMPEG`, `RENDER_CONCURRENCY`, `TTS_PROVIDER`, `TTS_PYTHON`, `TTS_MODEL`, `TTS_MODEL_ES/EN/PT`, `TTS_DEVICE`, `TTS_VOICE_PROMPT`, `TTS_VOICE_PROMPT_ES/EN/PT`, y `TTS_VOICE_PROMPT_<locale>_INTRO/OUTRO`. Las cuentas sociales provienen de Settings del dashboard. También se admiten `ELEVENLABS_API_KEY`, `ELEVENLABS_MODEL` y `ELEVENLABS_VOICE_ES/EN/PT` por motor.
 
 Para modelos locales, el único servicio compartido es `voice-generator`: por defecto usa `../voice-generator/cli.py` y su `.venv/bin/python`. `VIDEO_TTS_SCRIPT` y las variables `TTS_PYTHON` permiten otra instalación. Las CLI no participan en esta llamada.
 

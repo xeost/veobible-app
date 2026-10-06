@@ -29,6 +29,7 @@ export function generationStage(stage: string | null, status: string): string {
 }
 
 const messages = new Set([
+  "Configura los textos de voz en Settings antes de generar.",
   "Ese nombre de usuario ya está en uso. Elige otro.",
   "No tienes permiso para realizar esta acción.",
   "Los tiempos de algunos versículos se superponen o están fuera del pasaje. Revisa los ajustes de inicio y fin.",

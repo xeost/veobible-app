@@ -1,4 +1,39 @@
 export const english: Record<string, string> = {
+  "Settings de voz": "Narration settings",
+  "Configura los textos de introducción y cierre en cada idioma. Se usarán en las próximas generaciones de voz y video.":
+    "Configure introduction and closing scripts for each language. They will be used in future narration and video generations.",
+  "Usa {reference} para el pasaje, {version} para la versión bíblica, {book} para el libro, {start} para el inicio y {end} para el final.":
+    "Use {reference} for the passage, {version} for the Bible version, {book} for the book, {start} for the start and {end} for the end.",
+  "Solo los administradores pueden cambiar estos ajustes.":
+    "Only administrators can change these settings.",
+  "Cargando textos de voz…": "Loading narration scripts…",
+  "No se pudieron cargar los textos de voz. Cierra y vuelve a abrir Settings.":
+    "Could not load narration scripts. Close and reopen Settings.",
+  "Revisa los marcadores de los textos y usa un máximo de 10000 caracteres por sección.":
+    "Check the script placeholders and use no more than 10000 characters per section.",
+  "No se pudieron guardar los textos de voz. Vuelve a intentarlo.":
+    "Could not save narration scripts. Try again.",
+  "Configura los textos de voz en Settings antes de generar.":
+    "Configure narration scripts in Settings before generating.",
+  Settings: "Settings",
+  CONFIGURACIÓN: "SETTINGS",
+  "Configura las cuentas de redes sociales para cada idioma.":
+    "Configure social media accounts for each language.",
+  "Cuentas de redes sociales": "Social media accounts",
+  "Introduce el nombre de usuario con o sin @. Deja una cuenta vacía para no mostrar esa red en el video.":
+    "Enter the username with or without @. Leave an account empty to hide that network in the video.",
+  "Los cambios se aplican a los próximos videos que envíes a generar.":
+    "Changes apply to the next videos you submit for generation.",
+  "Cargando cuentas…": "Loading accounts…",
+  "No se pudieron cargar las cuentas. Recarga la página para reintentar.":
+    "Could not load accounts. Reload the page to try again.",
+  "No se pudieron guardar las cuentas. Vuelve a intentarlo.":
+    "Could not save accounts. Try again.",
+  "Escribe nombres de usuario, sin enlaces ni espacios, de hasta 100 caracteres.":
+    "Enter usernames, without links or spaces, up to 100 characters.",
+  Español: "Spanish",
+  Inglés: "English",
+  Portugués: "Portuguese",
   "Cola de generación": "Generation queue",
   "Abrir cola de generación": "Open generation queue",
   "Puedes seguir editando otros proyectos mientras se preparan las voces y los videos.":

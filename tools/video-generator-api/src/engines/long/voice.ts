@@ -191,6 +191,7 @@ function spokenBookName(locale: Version["locale"], book: string): string {
 }
 
 export interface VoiceContext {
+  templates: { intro: string; outro: string };
   locale: Version["locale"];
   reference: string;
   version: string;
@@ -243,8 +244,10 @@ export function voiceContext(
   passage: Passage,
   book: string,
   versionName: string,
+  templates = { intro: "", outro: "" },
 ): VoiceContext {
   return {
+    templates,
     locale: version.locale,
     reference: spokenReference(version.locale, book, passage),
     version: versionName,
@@ -258,19 +261,11 @@ export function voiceContext(
 export async function renderVoiceScripts(
   context: VoiceContext,
 ): Promise<Record<"intro" | "outro", string>> {
-  const raw: unknown = JSON.parse(
-    await fs.readFile(config.ttsTemplates, "utf8"),
-  );
-  if (!raw || typeof raw !== "object")
-    throw new Error(`Invalid voice templates: ${config.ttsTemplates}`);
-  const templates = (raw as Record<string, unknown>)[context.locale];
-  if (!templates || typeof templates !== "object")
-    throw new Error(`Missing voice templates for ${context.locale}`);
+  const templates = context.templates;
   const values = context as unknown as Record<string, string>;
   const render = (part: "intro" | "outro"): string => {
-    const template = (templates as Record<string, unknown>)[part];
-    if (typeof template !== "string" || !template.trim())
-      throw new Error(`Missing voice template ${context.locale}.${part}`);
+    const template = templates[part];
+    if (!template.trim()) return "";
     const result = template.replace(/\{([^{}]+)\}/g, (_, key: string) => {
       if (!templateFields.has(key))
         throw new Error(`Unsupported voice template variable: ${key}`);
@@ -477,6 +472,10 @@ export async function generateVoice(
   const parts = part ? [part] : allParts;
   await fs.mkdir(outputDir, { recursive: true });
   const rendered = await renderVoiceScripts(context);
+  for (const name of parts) {
+    if (!rendered[name])
+      throw new Error(`Missing voice template ${context.locale}.${name}`);
+  }
   const scripts = Object.fromEntries(
     parts.map((name) => [name, rendered[name]]),
   );

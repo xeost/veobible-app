@@ -31,9 +31,6 @@ const settings = {
   renderConcurrency: process.env.VIDEO_LONG_RENDER_CONCURRENCY ?? "",
   videosDir:
     process.env.VIDEO_LONG_VIDEOS_DIR ?? path.join(workingDir, "videos"),
-  socialAccounts:
-    process.env.VIDEO_LONG_SOCIAL_ACCOUNTS ??
-    path.join(toolRoot, "resources", "long", "social-accounts.json"),
   ffmpegBin,
   ffprobeBin:
     ffmpegBin === "ffmpeg"
@@ -44,10 +41,7 @@ const settings = {
     process.env.VIDEO_LONG_AUDIO_DIR ??
     process.env.VIDEO_AUDIO_DIR ??
     path.join(toolRoot, "material", "bible-audio"),
-  bibleDataDir:
-    process.env.VIDEO_LONG_BIBLE_DATA_DIR ??
-    process.env.VIDEO_BIBLE_DATA_DIR ??
-    path.join(toolRoot, "resources", "bible-data"),
+  bibleDataDir: path.resolve(toolRoot, "../../apps/frontend/public/bible-data"),
   ttsProvider: process.env.VIDEO_LONG_TTS_PROVIDER ?? "chatterbox",
   elevenLabsApiKey: process.env.VIDEO_LONG_ELEVENLABS_API_KEY ?? "",
   elevenLabsModel:
@@ -91,9 +85,6 @@ const settings = {
       outro: process.env.VIDEO_LONG_TTS_VOICE_PROMPT_PT_OUTRO,
     },
   },
-  ttsTemplates:
-    process.env.VIDEO_LONG_TTS_TEMPLATES ??
-    path.join(toolRoot, "resources", "long", "voice-templates.json"),
   versions: [
     { locale: "es", id: "rv1909", label: "Reina Valera 1909" },
     { locale: "es", id: "spabll", label: "Santa Biblia Libre Latinoamericana" },
@@ -111,8 +102,6 @@ export const config = {
   videosDir: resolveInput(settings.videosDir),
   audioDir: resolveInput(settings.audioDir),
   bibleDataDir: resolveInput(settings.bibleDataDir),
-  socialAccounts: resolveInput(settings.socialAccounts),
-  ttsTemplates: resolveInput(settings.ttsTemplates),
   ttsScript: resolveInput(settings.ttsScript),
   ttsPython: resolveInput(settings.ttsPython),
   ttsVoicePrompts: Object.fromEntries(
