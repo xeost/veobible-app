@@ -64,7 +64,7 @@ bible-book-bg-script/
 ### 1. Run the script
 
 ```bash
-cd bible-book-bg-script
+cd tools/bible-book-bg-script
 python3 generate_prompts.py
 ```
 

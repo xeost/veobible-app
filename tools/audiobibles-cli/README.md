@@ -229,7 +229,7 @@ The generated upload info file contains:
 ## Development
 
 ```bash
-cd audiobibles-cli
+cd tools/audiobibles-cli
 pnpm install
 pnpm start          # Run the CLI
 pnpm dev            # Run with file watching (tsx watch)

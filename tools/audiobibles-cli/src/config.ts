@@ -8,8 +8,8 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Resolve the project root (audiobibles-cli/src → up two levels reaches veobible-app/)
-const projectRoot = path.resolve(__dirname, "..", "..");
+// src/ and dist/ are both under tools/audiobibles-cli; three levels reach the repository root.
+const projectRoot = path.resolve(__dirname, "..", "..", "..");
 
 export const config = {
   /**
