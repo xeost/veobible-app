@@ -20,10 +20,10 @@ declare global {
 }
 
 declare namespace VinextRouteTypes {
-  type PageRoute = "/" | "/deployments" | "/login" | "/long-videos" | "/short-videos";
+  type PageRoute = "/" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/short-videos" | "/short-videos/[id]";
   type LayoutRoute = "/" | "/(studio)";
   type RouteHandlerRoute = "/api/[...path]";
-  type AppRoute = "/" | "/(studio)" | "/api/[...path]" | "/deployments" | "/login" | "/long-videos" | "/short-videos";
+  type AppRoute = "/" | "/(studio)" | "/api/[...path]" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/short-videos" | "/short-videos/[id]";
 
   interface ParamMap {
     "/": {};
@@ -32,7 +32,9 @@ declare namespace VinextRouteTypes {
     "/deployments": {};
     "/login": {};
     "/long-videos": {};
+    "/long-videos/[id]": { id: string; };
     "/short-videos": {};
+    "/short-videos/[id]": { id: string; };
   }
 
   interface LayoutSlotMap {

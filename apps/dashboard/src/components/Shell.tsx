@@ -1,9 +1,9 @@
 "use client";
+import { useI18n } from "../i18n/context";
 import { useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpen,
   LayoutDashboard,
   Clapperboard,
   Film,
@@ -12,29 +12,24 @@ import {
   UserRound,
   Menu,
   ChevronRight,
-  Users,
-  X,
 } from "lucide-react";
 import type { User } from "../lib/auth";
 import { api } from "./api";
-import { UsersPanel } from "./UsersPanel";
+import { UserProfileModal } from "./UserProfileModal";
+import { BrandLogo } from "./BrandLogo";
 const items = [
   ["/", "Dashboard", LayoutDashboard],
   ["/short-videos", "Short Videos", Clapperboard],
   ["/long-videos", "Long Videos", Film],
-  ["/deployments", "Deployments", Rocket],
+  ["/deployments", "Actualizaciones", Rocket],
 ] as const;
 export function Shell({ children, user }: { children: ReactNode; user: User }) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const [open, setOpen] = useState(false),
     [profile, setProfile] = useState(false),
-    [users, setUsers] = useState(false),
-    [connected, setConnected] = useState(false),
-    [error, setError] = useState("");
-  const [name, setName] = useState(user.name),
-    [email, setEmail] = useState(user.email),
-    [password, setPassword] = useState(""),
-    [currentPassword, setCurrentPassword] = useState("");
+    [connected, setConnected] = useState(false);
+  const [account, setAccount] = useState(user);
   useEffect(() => {
     let live = true;
     const refresh = () =>
@@ -52,44 +47,58 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
       clearInterval(timer);
     };
   }, []);
-  const title = items.find((i) => i[0] === pathname)?.[1] ?? "Studio";
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+  const title = items.find((i) => isActive(i[0]))?.[1] ?? "Dashboard";
   return (
     <div className="shell">
       <aside className={open ? "sidebar expanded" : "sidebar"}>
         <Link href="/" className="brand">
-          <div className="brand-icon">
-            <BookOpen size={25} />
-          </div>
+          <BrandLogo />
           <div>
-            <strong>VeoBible</strong>
-            <small>PRODUCTION STUDIO</small>
+            <strong>{t("VeoBible")}</strong>
+            <small>{t("PRODUCCIÓN DE VIDEOS")}</small>
           </div>
         </Link>
-        <div className="nav-label">WORKSPACE</div>
+        <div className="nav-label">{t("TUS PROYECTOS")}</div>
         <nav>
-          {items.map(([href, label, Icon]) => (
-            <Link
-              onClick={() => setOpen(false)}
-              key={href}
-              href={href}
-              className={pathname === href ? "active" : ""}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {pathname === href && <i />}
-            </Link>
-          ))}
+          {items
+            .filter(
+              ([href]) => href !== "/deployments" || user.role === "admin",
+            )
+            .map(([href, label, Icon]) => (
+              <Link
+                onClick={() => setOpen(false)}
+                key={href}
+                href={href}
+                className={isActive(href) ? "active" : ""}
+              >
+                <Icon size={18} />
+                <span>{t(label)}</span>
+                {isActive(href) && <i />}
+              </Link>
+            ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="local-card">
             <span className={connected ? "dot green" : "dot"} />
             <strong>
-              {connected ? "Laptop conectada" : "Laptop desconectada"}
+              {t(
+                connected
+                  ? "Generación disponible"
+                  : "Generación no disponible",
+              )}
             </strong>
-            <p>IA y archivos multimedia locales</p>
+            <p>
+              {t(
+                connected
+                  ? "Puedes crear nuevos videos"
+                  : "Inténtalo de nuevo más tarde",
+              )}
+            </p>
           </div>
           <div className="sidebar-note">
-            VeoBible Studio <span>01</span>
+            {t("VeoBible Dashboard")} <span>01</span>
           </div>
         </div>
       </aside>
@@ -98,36 +107,38 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
           <div className="breadcrumb">
             <button
               className="mobile-toggle icon-button"
-              aria-label="Abrir menú"
+              aria-label={t("Abrir menú")}
               onClick={() => setOpen(!open)}
             >
               <Menu size={20} />
             </button>
-            <span>Workspace</span>
+            <span>{t("Mis proyectos")}</span>
             <ChevronRight size={14} />
             <b>{title}</b>
           </div>
           <div className="header-actions">
-            <span className="env-badge">D1 · Dashboard</span>
-            {user.role === "admin" && (
-              <button
-                className="icon-button"
-                aria-label="Gestionar usuarios"
-                onClick={() => setUsers(true)}
-              >
-                <Users size={18} />
-              </button>
-            )}
-            <button className="user-button" onClick={() => setProfile(true)}>
-              <span className="avatar">{name.slice(0, 1).toUpperCase()}</span>
-              <span>
-                {name}
-                <small>{user.role}</small>
+            <button
+              type="button"
+              className="user-button"
+              aria-label={t("Abrir mi perfil")}
+              title={t("Mi perfil")}
+              onClick={() => setProfile(true)}
+            >
+              <span className="profile-avatar">
+                <span>
+                  <UserRound size={16} />
+                </span>
+              </span>
+              <span className="user-info">
+                <strong>{account.name || account.username}</strong>
+                <small>
+                  {t(account.role === "admin" ? "Administrador" : "Editor")}
+                </small>
               </span>
             </button>
             <button
               className="icon-button"
-              aria-label="Cerrar sesión"
+              aria-label={t("Cerrar sesión")}
               onClick={async () => {
                 await api("auth/logout", { method: "POST" });
                 window.location.assign("/login");
@@ -140,87 +151,11 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
         <main>{children}</main>
       </div>
       {profile && (
-        <div className="modal-backdrop">
-          <section
-            className="modal small"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Mi perfil"
-          >
-            <div className="modal-title">
-              <h2>
-                <UserRound size={20} /> Mi perfil
-              </h2>
-              <button
-                className="icon-button"
-                aria-label="Cerrar"
-                onClick={() => setProfile(false)}
-              >
-                <X />
-              </button>
-            </div>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                try {
-                  await api("auth/profile", {
-                    method: "PATCH",
-                    body: JSON.stringify({
-                      name,
-                      email,
-                      ...(password ? { password, currentPassword } : {}),
-                    }),
-                  });
-                  setProfile(false);
-                  setPassword("");
-                } catch (e) {
-                  setError(String(e));
-                }
-              }}
-            >
-              <label>
-                Nombre
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </label>
-              <label>
-                Email
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </label>
-              <label>
-                Contraseña actual
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  autoComplete="current-password"
-                />
-              </label>
-              <label>
-                Nueva contraseña
-                <input
-                  type="password"
-                  minLength={12}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                />
-              </label>
-              {error && <p className="error">{error}</p>}
-              <button className="primary">Guardar perfil</button>
-            </form>
-          </section>
-        </div>
-      )}
-      {users && (
-        <UsersPanel currentId={user.id} close={() => setUsers(false)} />
+        <UserProfileModal
+          user={account}
+          close={() => setProfile(false)}
+          onUpdated={setAccount}
+        />
       )}
     </div>
   );

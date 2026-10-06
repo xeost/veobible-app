@@ -1,4 +1,6 @@
 "use client";
+import { useI18n } from "../../i18n/context";
+import { userMessage, statusLabel } from "../../lib/presentation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -11,12 +13,13 @@ import {
 } from "lucide-react";
 import { api, date } from "../../components/api";
 export default function Dashboard() {
+  const { t, language } = useI18n();
   const [data, setData] = useState<any>(null),
     [error, setError] = useState("");
   useEffect(() => {
     api("summary")
       .then(setData)
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(userMessage(e)));
   }, []);
   const count = (kind: string) =>
     data?.catalog.find((v: any) => v.kind === kind)?.total ?? 0;
@@ -26,17 +29,17 @@ export default function Dashboard() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">PRODUCTION OVERVIEW</p>
-          <h1>Dashboard</h1>
+          <p className="eyebrow">{t("RESUMEN DE PRODUCCIÓN")}</p>
+          <h1>{t("Dashboard")}</h1>
           <p className="muted">
-            Cada historia empieza aquí. Organiza tu próxima producción.
+            {t("Cada historia empieza aquí. Organiza tu próxima producción.")}
           </p>
         </div>
         <Link className="primary" href="/short-videos">
-          Crear un video <ArrowUpRight size={17} />
+          {t("Crear un video")} <ArrowUpRight size={17} />
         </Link>
       </div>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">{t(error)}</p>}
       <div className="stats">
         {[
           [
@@ -66,11 +69,11 @@ export default function Dashboard() {
         ].map(([Icon, label, note, sub]: any) => (
           <div className="stat" key={label}>
             <div className="stat-top">
-              <span>{label}</span>
+              <span>{t(label)}</span>
               <Icon size={18} />
             </div>
             <strong>{data ? note : "—"}</strong>
-            <small>{sub}</small>
+            <small>{t(sub)}</small>
           </div>
         ))}
       </div>
@@ -79,69 +82,70 @@ export default function Dashboard() {
           <div className="hero-orb">
             <BookOpen size={130} />
           </div>
-          <p className="eyebrow">CREATE WITH PURPOSE</p>
+          <p className="eyebrow">{t("CREA CON PROPÓSITO")}</p>
           <h2>
-            La Palabra,
+            {t("La Palabra,")}
             <br />
-            en cada pantalla.
+            {t("en cada pantalla.")}
           </h2>
           <p>
-            Dos formatos. Un mismo propósito.
+            {t("Dos formatos. Un mismo propósito.")}
             <br />
-            Genera videos con tus modelos de IA locales.
+            {t("Elige un pasaje y crea tu próximo video.")}
           </p>
           <div className="hero-links">
             <Link href="/short-videos">
-              Daily Dose <ArrowUpRight size={16} />
+              {t("Daily Dose")} <ArrowUpRight size={16} />
             </Link>
             <Link href="/long-videos">
-              365 Days <ArrowUpRight size={16} />
+              {t("365 Days")} <ArrowUpRight size={16} />
             </Link>
           </div>
         </section>
         <section className="panel">
           <div className="panel-heading">
-            <h3>En producción</h3>
+            <h3>{t("En producción")}</h3>
             <span className="badge running">
-              {state("running") + state("queued")} activos
+              {state("running") + state("queued")} {t("activos")}
             </span>
           </div>
           {["draft", "queued", "running", "failed"].map((s) => (
             <div className="state-line" key={s}>
               <span>
                 <i className={`dot ${s === "running" ? "green" : ""}`} />
-                {
+                {t(
                   {
                     draft: "Borradores",
                     queued: "En cola",
                     running: "Generando",
                     failed: "Requieren atención",
-                  }[s]
-                }
+                  }[s] ?? "",
+                )}
               </span>
               <b>{state(s)}</b>
             </div>
           ))}
           <p className="panel-note">
-            Los estados y ajustes viven en D1. Los audios, imágenes y videos
-            permanecen en tu laptop.
+            {t(
+              "Tus ajustes y el progreso de cada video se guardan automáticamente.",
+            )}
           </p>
         </section>
       </div>
       <section className="panel">
         <div className="panel-heading">
-          <h3>Actividad reciente</h3>
-          <span className="muted">Últimas producciones</span>
+          <h3>{t("Actividad reciente")}</h3>
+          <span className="muted">{t("Últimas producciones")}</span>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Proyecto</th>
-                <th>Formato</th>
-                <th>Versión</th>
-                <th>Estado</th>
-                <th>Actualizado</th>
+                <th>{t("Proyecto")}</th>
+                <th>{t("Formato")}</th>
+                <th>{t("Versión")}</th>
+                <th>{t("Estado")}</th>
+                <th>{t("Actualizado")}</th>
               </tr>
             </thead>
             <tbody>
@@ -156,20 +160,23 @@ export default function Dashboard() {
                       {p.title}
                     </Link>
                   </td>
-                  <td>{p.kind === "short" ? "Short" : "Long"}</td>
+                  <td>{t(p.kind === "short" ? "Short" : "Long")}</td>
                   <td>{p.label}</td>
                   <td>
-                    <span className={`badge ${p.status}`}>{p.status}</span>
+                    <span className={`badge ${p.status}`}>
+                      {t(statusLabel(p.status))}
+                    </span>
                   </td>
-                  <td className="muted">{date(p.updated_at)}</td>
+                  <td className="muted">{date(p.updated_at, language)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {data?.recent.length === 0 && (
             <div className="empty">
-              Tu próximo video aparecerá aquí. Importa los estados de la CLI o
-              comienza una producción.
+              {t(
+                "Tu próximo video aparecerá aquí. Elige un pasaje para comenzar.",
+              )}
             </div>
           )}
         </div>

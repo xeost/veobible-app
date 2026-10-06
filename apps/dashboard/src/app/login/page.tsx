@@ -1,29 +1,22 @@
 "use client";
+import { useI18n } from "../../i18n/context";
+import { userMessage } from "../../lib/presentation";
 import { useState } from "react";
-import { BookOpen, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { BrandLogo } from "../../components/BrandLogo";
 export default function Login() {
+  const { t } = useI18n();
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
     <div className="login">
-      <div className="login-art">
-        <BookOpen size={64} />
-        <p className="eyebrow">VEO BIBLE STUDIO</p>
-        <h1>
-          Historias eternas.
-          <br />
-          <span>Nuevas formas de contarlas.</span>
-        </h1>
-        <p>Tu espacio para crear, organizar y dar vida a la Palabra.</p>
-        <div className="login-caption">SHORT VIDEOS · 365 DAYS · LOCAL AI</div>
-      </div>
       <section className="login-form">
-        <div className="brand-icon">
-          <BookOpen size={28} />
-        </div>
-        <p className="eyebrow">BIENVENIDO AL STUDIO</p>
-        <h2>Inicia sesión</h2>
-        <p className="muted">Accede a tu espacio de producción de videos.</p>
+        <BrandLogo />
+        <p className="eyebrow">{t("BIENVENIDO AL DASHBOARD")}</p>
+        <h2>{t("Inicia sesión")}</h2>
+        <p className="muted">
+          {t("Accede a tu espacio de producción de videos.")}
+        </p>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -40,41 +33,43 @@ export default function Login() {
               if (!response.ok) throw new Error(data.error);
               window.location.assign("/");
             } catch (e) {
-              setError(String(e));
+              setError(userMessage(e));
               setBusy(false);
             }
           }}
         >
           <label>
-            Usuario
+            {t("Usuario")}
             <input
               name="username"
               required
               autoComplete="username"
-              placeholder="Tu usuario"
+              placeholder={t("Tu usuario")}
             />
           </label>
           <label>
-            Contraseña
+            {t("Contraseña")}
             <input
               name="password"
               type="password"
               required
               autoComplete="current-password"
-              placeholder="Tu contraseña"
+              placeholder={t("Tu contraseña")}
             />
           </label>
           {error && (
             <p role="alert" className="error">
-              {error}
+              {t(error)}
             </p>
           )}
           <button className="primary" disabled={busy}>
-            {busy ? "Ingresando…" : "Entrar al Studio"}
+            {t(busy ? "Ingresando…" : "Entrar al Dashboard")}
             <ArrowRight size={17} />
           </button>
         </form>
-        <small className="muted">Acceso privado · Usuarios del dashboard</small>
+        <small className="muted">
+          {t("Acceso privado · Usuarios del dashboard")}
+        </small>
       </section>
     </div>
   );

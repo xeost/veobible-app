@@ -8,8 +8,7 @@ export interface Bindings {
   CF_ACCESS_CLIENT_SECRET?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_API_TOKEN?: string;
-  DASHBOARD_DEPLOY_HOOK?: string;
-  DASHBOARD_WORKER_NAME?: string;
+  SITE_DEPLOY_HOOK?: string;
 }
 export function bindings(): Bindings {
   return env as unknown as Bindings;

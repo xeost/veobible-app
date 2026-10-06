@@ -1,3 +1,10 @@
+import {
+  isDeployHookUrl,
+  deploymentStatus,
+  type BuildStatus,
+} from "../../../lib/deployments";
+import { profileSchema, saveProfile, ProfileError } from "../../../lib/profile";
+import { userMessage } from "../../../lib/presentation";
 import { db, bindings } from "../../../lib/env";
 import { currentUser } from "../../../lib/auth";
 import {
@@ -113,44 +120,16 @@ async function handle(req: Request) {
     });
   }
   if (parts.join("/") === "auth/profile" && method === "PATCH") {
-    const input = z
-      .object({
-        name: z.string().min(1).max(100),
-        email: z.string().email().or(z.literal("")),
-        currentPassword: z.string().max(256).optional(),
-        password: z.string().min(12).max(256).optional(),
-      })
-      .parse(await body());
-    if (input.password) {
-      const row = await database
-        .prepare("SELECT password_hash FROM users WHERE id=?")
-        .bind(user.id)
-        .first<{ password_hash: string }>();
-      if (
-        !row ||
-        !(await verifyPassword(input.currentPassword ?? "", row.password_hash))
-      )
-        return json({ error: "Contraseña actual incorrecta" }, 400);
-      await database.batch([
-        database
-          .prepare("UPDATE users SET name=?,email=?,password_hash=? WHERE id=?")
-          .bind(
-            input.name,
-            input.email,
-            await passwordHash(input.password),
-            user.id,
-          ),
-        database
-          .prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>?")
-          .bind(user.id, await digest(cookie ?? "")),
-      ]);
-    } else
-      await database
-        .prepare("UPDATE users SET name=?,email=? WHERE id=?")
-        .bind(input.name, input.email, user.id)
-        .run();
-    return json({ ok: true });
+    const input = profileSchema.parse(await body());
+    const updated = await saveProfile(
+      database,
+      user,
+      input,
+      await digest(cookie ?? ""),
+    );
+    return json({ ok: true, user: updated });
   }
+
   if (parts[0] === "users") {
     admin();
     if (method === "GET")
@@ -283,11 +262,15 @@ async function handle(req: Request) {
     return json({ videos: rows.results });
   }
   if (parts[0] === "videos" && parts[1]) {
+    if (method === "GET" && !parts[2]) await syncJobs();
     const catalog = await database
       .prepare("SELECT * FROM catalog WHERE id=?")
       .bind(decodeURIComponent(parts[1]))
       .first<{ id: string; kind: "short" | "long"; passage: string }>();
     if (!catalog) return json({ error: "Video inexistente" }, 404);
+    const expectedKind = url.searchParams.get("kind");
+    if (expectedKind && expectedKind !== catalog.kind)
+      return json({ error: "Video inexistente" }, 404);
     const versionId = url.searchParams.get("version") ?? "rv1909";
     const version = await database
       .prepare("SELECT * FROM versions WHERE id=?")
@@ -323,6 +306,20 @@ async function handle(req: Request) {
         status: string;
         result: string | null;
       }>();
+    if (method === "GET" && !parts[2]) {
+      const video = await database
+        .prepare(
+          "SELECT c.*,p.id project_id,COALESCE(p.status,'draft') status,p.published_at,p.used_at,p.settings,p.result,p.updated_at FROM catalog c LEFT JOIN projects p ON p.catalog_id=c.id AND p.version_id=? WHERE c.id=?",
+        )
+        .bind(version.id, catalog.id)
+        .first();
+      return json({
+        video,
+        defaults: settingsSchema.parse(
+          defaults ? JSON.parse(defaults.settings) : {},
+        ),
+      });
+    }
     if (parts[2] === "analyze" && method === "POST") {
       const input = settingsSchema.parse(await body());
       const response = await videoFetch("/v1/analyze", {
@@ -485,74 +482,172 @@ async function handle(req: Request) {
   if (parts[0] === "deployments") {
     admin();
     const env = bindings();
-    if (method === "POST") {
-      if (!env.DASHBOARD_DEPLOY_HOOK)
-        return json({ error: "Configura DASHBOARD_DEPLOY_HOOK" }, 400);
-      const id = crypto.randomUUID();
-      await database
-        .prepare(
-          "INSERT INTO deployments(id,status,created_by) VALUES (?,'requested',?)",
-        )
-        .bind(id, user.id)
-        .run();
-      try {
-        const response = await fetch(env.DASHBOARD_DEPLOY_HOOK, {
-          method: "POST",
-          signal: AbortSignal.timeout(15000),
-        });
-        await database
-          .prepare("UPDATE deployments SET status=?,details=? WHERE id=?")
-          .bind(
-            response.ok ? "requested" : "failed",
-            (await response.text()).slice(0, 6000),
-            id,
-          )
-          .run();
-      } catch (error) {
+    const hookRow = await database
+      .prepare("SELECT value FROM site_settings WHERE key=?")
+      .bind("deploy_hook:veobible:site")
+      .first<{ value: string }>();
+    // A saved empty value explicitly disables publishing, including the environment fallback.
+    const hookUrl = hookRow ? hookRow.value : (env.SITE_DEPLOY_HOOK ?? "");
+    if (parts[1] === "settings") {
+      if (method === "GET") return json({ hookUrl });
+      if (method === "POST") {
+        const input = z
+          .object({
+            hookUrl: z
+              .string()
+              .trim()
+              .max(2048)
+              .refine((value) => value === "" || isDeployHookUrl(value)),
+          })
+          .parse(await body());
         await database
           .prepare(
-            "UPDATE deployments SET status='unknown',details=? WHERE id=?",
+            "INSERT INTO site_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
           )
-          .bind(String(error), id)
+          .bind(
+            "deploy_hook:veobible:site",
+            input.hookUrl,
+            new Date().toISOString(),
+          )
           .run();
+        return json({ ok: true, configured: Boolean(input.hookUrl) });
       }
-      return json({ ok: true, id });
-    }
-    if (method === "GET") {
-      let cloudflare: unknown[] = [],
-        syncError: string | null = null;
-      if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN) {
-        try {
-          const response = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/workers/scripts/${encodeURIComponent(env.DASHBOARD_WORKER_NAME ?? "veobible-dashboard")}/deployments`,
+    } else if (parts.length === 1) {
+      if (method === "POST") {
+        if (!hookUrl)
+          return json(
             {
-              headers: { Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` },
-              signal: AbortSignal.timeout(10000),
+              error:
+                "La publicación de actualizaciones todavía no está disponible. Contacta al administrador.",
             },
+            400,
           );
-          const data = (await response.json()) as {
-            success: boolean;
-            result: unknown[];
-          };
-          if (!response.ok || !data.success)
-            throw new Error("No se pudo consultar Cloudflare");
-          cloudflare = data.result;
-        } catch (error) {
-          syncError = String(error);
-        }
-      }
-      return json({
-        configured: Boolean(env.DASHBOARD_DEPLOY_HOOK),
-        cloudflare,
-        syncError,
-        deployments: (
+        if (!isDeployHookUrl(hookUrl))
+          return json(
+            {
+              error:
+                "Revisa los datos y ajustes introducidos antes de continuar.",
+            },
+            400,
+          );
+        const input = z
+          .object({ message: z.string().trim().max(500).default("") })
+          .parse(await body());
+        const id = crypto.randomUUID();
+        await database
+          .prepare(
+            "INSERT INTO deployments(id,status,created_by,message,target) VALUES (?,'requested',?,?,'site')",
+          )
+          .bind(id, user.id, input.message)
+          .run();
+        let status = "unknown";
+        try {
+          const response = await fetch(hookUrl, {
+            method: "POST",
+            redirect: "error",
+            signal: AbortSignal.timeout(15000),
+          });
+          const details = (await response.text()).slice(0, 6000);
+          let result: { success?: boolean; result?: { build_uuid?: string } } =
+            {};
+          try {
+            result = JSON.parse(details);
+          } catch {
+            /* Some providers return an empty response. */
+          }
+          status =
+            response.ok && result.success !== false ? "requested" : "failed";
           await database
             .prepare(
-              "SELECT * FROM deployments ORDER BY created_at DESC LIMIT 30",
+              "UPDATE deployments SET status=?,external_id=?,details=? WHERE id=?",
             )
-            .all()
-        ).results,
-      });
+            .bind(
+              status,
+              status === "requested"
+                ? (result.result?.build_uuid ?? null)
+                : null,
+              details,
+              id,
+            )
+            .run();
+        } catch (error) {
+          console.error("Deployment request could not be confirmed", error);
+          await database
+            .prepare("UPDATE deployments SET status='unknown' WHERE id=?")
+            .bind(id)
+            .run();
+        }
+        return json({ ok: status === "requested", id, status });
+      }
+      if (method === "GET") {
+        let syncError = false;
+        if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN) {
+          const pending = await database
+            .prepare(
+              "SELECT id,external_id FROM deployments WHERE target='site' AND external_id IS NOT NULL AND status IN ('requested','queued','building','deploying') ORDER BY created_at DESC LIMIT 5",
+            )
+            .all<{ id: string; external_id: string }>();
+          await Promise.all(
+            pending.results.map(async (record) => {
+              try {
+                const response = await fetch(
+                  `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID!)}/builds/builds/${encodeURIComponent(record.external_id)}`,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+                    },
+                    signal: AbortSignal.timeout(10000),
+                  },
+                );
+                const data = (await response.json()) as {
+                  success: boolean;
+                  result: BuildStatus;
+                };
+                if (!response.ok || !data.success || !data.result)
+                  throw new Error("Build status unavailable");
+                const build = data.result;
+                const started =
+                  build.running_on || build.initializing_on || build.created_on;
+                const duration =
+                  started && build.stopped_on
+                    ? Math.max(
+                        0,
+                        Date.parse(build.stopped_on) - Date.parse(started),
+                      )
+                    : null;
+                await database
+                  .prepare(
+                    "UPDATE deployments SET status=?,completed_at=?,duration_ms=? WHERE id=?",
+                  )
+                  .bind(
+                    deploymentStatus(build),
+                    build.stopped_on ?? null,
+                    Number.isFinite(duration) ? duration : null,
+                    record.id,
+                  )
+                  .run();
+              } catch (error) {
+                console.error("Deployment synchronization failed", error);
+                syncError = true;
+              }
+            }),
+          );
+        }
+        return json({
+          configured: Boolean(hookUrl),
+          syncError,
+          trackingAvailable: Boolean(
+            env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN,
+          ),
+          deployments: (
+            await database
+              .prepare(
+                "SELECT d.id,d.status,d.message,d.created_at,d.completed_at,d.duration_ms,(d.external_id IS NOT NULL) AS trackable,u.name AS created_by_name FROM deployments d LEFT JOIN users u ON u.id=d.created_by WHERE d.target='site' ORDER BY d.created_at DESC LIMIT 50",
+              )
+              .all()
+          ).results,
+        });
+      }
     }
   }
   return json({ error: "Ruta no encontrada" }, 404);
@@ -561,19 +656,19 @@ async function route(req: Request) {
   try {
     return await handle(req);
   } catch (error) {
+    if (error instanceof ProfileError)
+      return json({ error: error.message }, error.status);
     if (error instanceof z.ZodError)
       return json(
         {
-          error: error.issues
-            .map((i) => `${i.path.join(".")}: ${i.message}`)
-            .join("; "),
+          error: userMessage(error, 400),
         },
         400,
       );
     const message = error instanceof Error ? error.message : "Error interno";
     console.error(message);
     return json(
-      { error: message },
+      { error: userMessage(error) },
       message === "Se requiere administrador" ? 403 : 500,
     );
   }

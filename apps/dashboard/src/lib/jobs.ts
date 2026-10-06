@@ -57,7 +57,7 @@ export async function syncJobs() {
             status: "failed",
             stage: "Interrumpido",
             error:
-              "La API local perdió este trabajo o se reinició. Puedes regenerarlo con los ajustes guardados en D1.",
+              "La generación se interrumpió. Puedes volver a generar el video con tus ajustes guardados.",
           });
       } catch {
         /* Disconnected laptop: retain durable job state until it can be reconciled. */

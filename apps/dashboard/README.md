@@ -66,9 +66,11 @@ Las CLI mantienen su comportamiento. La importación es explícita y unidireccio
 
 El navegador llama únicamente a la API del dashboard; esta usa el proxy directamente en desarrollo y HTTPS/tunnel en producción. No se exponen tokens al navegador. El proxy solo registra la API de video, pero permite añadir namespaces futuros detrás del mismo tunnel.
 
-Deployments consulta versiones del **Worker del dashboard** y permite invocar su deploy hook. Configura `DASHBOARD_DEPLOY_HOOK`, `DASHBOARD_WORKER_NAME`, `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` como secretos/variables apropiados. Una respuesta positiva del hook se registra como solicitud; las versiones publicadas se muestran por separado. No despliega el frontend.
+Deployments publica el **sitio público VeoBible** (`apps/frontend`, veobible.com). Aplica la migración `0006_site_deployments.sql` antes de usarlo. «Configurar» guarda la URL del deploy hook en `site_settings` con la clave `deploy_hook:veobible:site`, usando un upsert con fecha de modificación, como el dashboard de referencia. Una cadena vacía desactiva las publicaciones; `SITE_DEPLOY_HOOK` sirve de respaldo solo cuando todavía no hay un ajuste guardado. Los hooks anteriores del dashboard no se reutilizan y su historial queda separado. Configura `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` para consultar el estado de Workers Builds. Sin esas credenciales, las solicitudes quedan pendientes de confirmación. Solo los administradores pueden consultar o modificar la configuración y publicar; las mutaciones requieren el mismo origen.
 
 ## Archivos y estados
+
+Los listados `/short-videos` y `/long-videos` abren páginas propias en `/short-videos/[id]?version=…` y `/long-videos/[id]?version=…`. Ambas reutilizan `VideoProjectEditor`, conservan la versión bíblica seleccionada y cargan el proyecto directamente, sin abrir un modal. Los videos cortos usan formato vertical 9:16 (1080×1920); los largos, horizontal 16:9 (1920×1080).
 
 El editor permite buscar y filtrar videos por versión, ajustar volumen, modo de audio, offsets y fondo; inspeccionar texto/contexto, guiones y tiempos; reutilizar o regenerar voces; renderizar, previsualizar, descargar y marcar publicaciones manualmente. Las publicaciones no envían mensajes ni suben archivos a redes.
 

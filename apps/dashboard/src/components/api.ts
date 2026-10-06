@@ -1,3 +1,4 @@
+import { userMessage } from "../lib/presentation";
 export async function api<T = any>(
   url: string,
   init: RequestInit = {},
@@ -11,8 +12,10 @@ export async function api<T = any>(
     window.location.assign("/login");
     throw new Error("Inicia sesión");
   }
-  if (!response.ok) throw new Error(data.error ?? "Error de conexión");
+  if (!response.ok) throw new Error(userMessage(data.error, response.status));
   return data;
 }
-export const date = (value: string | null) =>
-  value ? new Date(value).toLocaleString("es-AR") : "—";
+export const date = (value: string | null, language: "es" | "en" = "es") =>
+  value
+    ? new Date(value).toLocaleString(language === "en" ? "en-US" : "es-AR")
+    : "—";
