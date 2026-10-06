@@ -1,0 +1,9 @@
+VIDEO_API_TOKEN=replace-with-long-random-shared-token
+# Optional Cloudflare Access service token for the tunnel
+CF_ACCESS_CLIENT_ID=
+CF_ACCESS_CLIENT_SECRET=
+# Dashboard Worker builds only; never the public frontend
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_API_TOKEN=
+DASHBOARD_DEPLOY_HOOK=
+DASHBOARD_WORKER_NAME=veobible-dashboard

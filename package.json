@@ -4,6 +4,13 @@
   "scripts": {
     "audiobibles": "cd tools/audiobibles-cli && pnpm start",
     "shorts": "cd tools/shorts-daily-dose && pnpm start",
-    "longs": "cd tools/longs-365-days && pnpm start"
+    "longs": "cd tools/longs-365-days && pnpm start",
+    "dev:dashboard": "pnpm --dir apps/dashboard dev",
+    "build:dashboard": "pnpm --dir apps/dashboard build",
+    "start:api-proxy": "node tools/api-proxy/src/index.mjs",
+    "tunnel:api-proxy": "node tools/api-proxy/scripts/tunnel.mjs",
+    "start:video-generator": "pnpm --dir tools/video-generator-api start",
+    "db:dashboard:local": "pnpm --dir apps/dashboard db:migrate:local",
+    "db:dashboard:remote": "pnpm --dir apps/dashboard db:migrate:remote"
   }
 }

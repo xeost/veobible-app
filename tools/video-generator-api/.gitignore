@@ -1,0 +1,5 @@
+node_modules/
+.env
+media/
+material/
+resources/bible-data/

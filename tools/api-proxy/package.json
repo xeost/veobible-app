@@ -1,0 +1,10 @@
+{
+  "name": "veobible-api-proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "tunnel": "node scripts/tunnel.mjs",
+    "test": "node --test src/*.test.mjs"
+  }
+}

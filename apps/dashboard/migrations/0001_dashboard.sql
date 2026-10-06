@@ -1,0 +1,12 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT NOT NULL, email TEXT NOT NULL DEFAULT '', password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('admin','editor')), active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+CREATE TABLE sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL);
+CREATE TABLE login_attempts (key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, reset_at INTEGER NOT NULL);
+CREATE TABLE versions (id TEXT PRIMARY KEY, locale TEXT NOT NULL, label TEXT NOT NULL);
+CREATE TABLE version_settings (kind TEXT NOT NULL CHECK(kind IN ('short','long')), version_id TEXT NOT NULL REFERENCES versions(id), settings TEXT NOT NULL CHECK(json_valid(settings)), PRIMARY KEY(kind,version_id));
+CREATE TABLE catalog (id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('short','long')), passage_id TEXT NOT NULL, title TEXT NOT NULL, passage TEXT NOT NULL CHECK(json_valid(passage)), position INTEGER NOT NULL, UNIQUE(kind,passage_id));
+CREATE TABLE projects (id TEXT PRIMARY KEY, catalog_id TEXT NOT NULL REFERENCES catalog(id), version_id TEXT NOT NULL REFERENCES versions(id), status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','queued','running','ready','failed')), published_at TEXT, settings TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(settings)), result TEXT CHECK(result IS NULL OR json_valid(result)), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), UNIQUE(catalog_id,version_id));
+CREATE TABLE jobs (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), status TEXT NOT NULL CHECK(status IN ('queued','running','done','failed')), stage TEXT NOT NULL DEFAULT 'Queued', snapshot TEXT NOT NULL CHECK(json_valid(snapshot)), result TEXT CHECK(result IS NULL OR json_valid(result)), error TEXT, callback_hash TEXT NOT NULL, created_by TEXT REFERENCES users(id), created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+CREATE UNIQUE INDEX jobs_one_active ON jobs(project_id) WHERE status IN ('queued','running');
+CREATE INDEX jobs_status ON jobs(status);
+CREATE TABLE deployments (id TEXT PRIMARY KEY, status TEXT NOT NULL, external_id TEXT, message TEXT NOT NULL DEFAULT '', created_by TEXT REFERENCES users(id), details TEXT, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
