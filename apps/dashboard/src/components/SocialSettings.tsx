@@ -9,9 +9,9 @@ import {
   type SocialSettings as Accounts,
 } from "../lib/social-settings";
 const languages = [
-  ["es", "Español"],
-  ["en", "Inglés"],
-  ["pt", "Portugués"],
+  ["es", "Spanish"],
+  ["en", "English"],
+  ["pt", "Portuguese"],
 ] as const;
 const platforms = [
   ["youtube", "YouTube"],
@@ -35,9 +35,7 @@ export function SocialSettings() {
       })
       .catch(() => {
         if (live)
-          setError(
-            "No se pudieron cargar las cuentas. Recarga la página para reintentar.",
-          );
+          setError("Could not load accounts. Reload the page to try again.");
       })
       .finally(() => {
         if (live) setLoading(false);
@@ -52,7 +50,7 @@ export function SocialSettings() {
     const parsed = socialSettingsSchema.safeParse(accounts);
     if (!parsed.success) {
       setError(
-        "Escribe nombres de usuario, sin enlaces ni espacios, de hasta 100 caracteres.",
+        "Enter usernames, without links or spaces, up to 100 characters.",
       );
       return;
     }
@@ -64,9 +62,9 @@ export function SocialSettings() {
         { method: "PUT", body: JSON.stringify(parsed.data) },
       );
       setAccounts(data.accounts);
-      setNotice("Ajustes guardados.");
+      setNotice("Settings saved.");
     } catch {
-      setError("No se pudieron guardar las cuentas. Vuelve a intentarlo.");
+      setError("Could not save accounts. Try again.");
     } finally {
       setBusy(false);
     }
@@ -75,15 +73,15 @@ export function SocialSettings() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{t("CONFIGURACIÓN")}</p>
+          <p className="eyebrow">{t("SETTINGS")}</p>
           <h1>{t("Settings")}</h1>
           <p className="muted">
-            {t("Configura las cuentas de redes sociales para cada idioma.")}
+            {t("Configure social media accounts for each language.")}
           </p>
         </div>
       </div>
       {loading ? (
-        <p className="empty">{t("Cargando cuentas…")}</p>
+        <p className="empty">{t("Loading accounts…")}</p>
       ) : (
         <form onSubmit={submit} className="social-settings-form">
           {error && (
@@ -99,10 +97,10 @@ export function SocialSettings() {
           <div className="social-settings-intro">
             <AtSign size={22} />
             <div>
-              <h2>{t("Cuentas de redes sociales")}</h2>
+              <h2>{t("Social media accounts")}</h2>
               <p className="muted">
                 {t(
-                  "Introduce el nombre de usuario con o sin @. Deja una cuenta vacía para no mostrar esa red en el video.",
+                  "Enter the username with or without @. Leave an account empty to hide that network in the video.",
                 )}
               </p>
             </div>
@@ -115,7 +113,7 @@ export function SocialSettings() {
                 disabled={
                   busy ||
                   error ===
-                    "No se pudieron cargar las cuentas. Recarga la página para reintentar."
+                    "Could not load accounts. Reload the page to try again."
                 }
               >
                 <legend>
@@ -156,9 +154,7 @@ export function SocialSettings() {
           </div>
           <div className="social-settings-footer">
             <p className="muted">
-              {t(
-                "Los cambios se aplican a los próximos videos que envíes a generar.",
-              )}
+              {t("Changes apply to the next videos you submit for generation.")}
             </p>
             <button
               type="submit"
@@ -166,11 +162,11 @@ export function SocialSettings() {
               disabled={
                 busy ||
                 error ===
-                  "No se pudieron cargar las cuentas. Recarga la página para reintentar."
+                  "Could not load accounts. Reload the page to try again."
               }
             >
               <Save size={16} />
-              {t(busy ? "Guardando…" : "Guardar cambios")}
+              {busy ? t("Saving…") : t("Save changes")}
             </button>
           </div>
         </form>

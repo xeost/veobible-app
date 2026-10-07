@@ -89,9 +89,9 @@ export function CreateVideoProjectModal({
       initial = edge === "start";
     return (
       <fieldset className="manual-passage-point">
-        <legend>{t(initial ? "Inicio del pasaje" : "Final del pasaje")}</legend>
+        <legend>{initial ? t("Passage start") : t("Passage end")}</legend>
         <label>
-          {t(initial ? "Libro de inicio" : "Libro de final")}
+          {initial ? t("Start book") : t("End book")}
           <select
             required
             value={point.book}
@@ -108,7 +108,7 @@ export function CreateVideoProjectModal({
         </label>
         <div className="manual-passage-numbers">
           <label>
-            {t(initial ? "Capítulo de inicio" : "Capítulo de final")}
+            {initial ? t("Start chapter") : t("End chapter")}
             <input
               type="number"
               required
@@ -126,7 +126,7 @@ export function CreateVideoProjectModal({
             />
           </label>
           <label>
-            {t(initial ? "Versículo de inicio" : "Versículo de final")}
+            {initial ? t("Start verse") : t("End verse")}
             <input
               type="number"
               required
@@ -171,9 +171,7 @@ export function CreateVideoProjectModal({
           try {
             input = validateManualVideoProject(raw, books);
           } catch {
-            setError(
-              "Revisa el título, el nombre corto y los límites del pasaje.",
-            );
+            setError("Check the title, short name and passage boundaries.");
             return;
           }
           setBusy(true);
@@ -194,11 +192,11 @@ export function CreateVideoProjectModal({
         }}
       >
         <div className="generation-queue-heading">
-          <h2 id="create-video-title">{t("Nuevo proyecto de video")}</h2>
+          <h2 id="create-video-title">{t("New video project")}</h2>
           <button
             type="button"
             className="icon-button"
-            aria-label={t("Cerrar")}
+            aria-label={t("Close")}
             disabled={busy}
             onClick={close}
           >
@@ -211,17 +209,17 @@ export function CreateVideoProjectModal({
           </p>
         )}
         {loading ? (
-          <p>{t("Cargando versiones…")}</p>
+          <p>{t("Loading versions…")}</p>
         ) : !versions.length ? (
           <p className="notice">
             {t(
-              "Añade una versión de la Biblia antes de crear un proyecto. Si no tienes acceso, solicita ayuda al administrador.",
+              "Add a Bible version before creating a project. If you do not have access, ask the administrator for help.",
             )}
           </p>
         ) : (
           <fieldset disabled={busy} className="voice-settings-fields">
             <label>
-              {t("Versión bíblica")}
+              {t("Bible version")}
               <select
                 required
                 value={version}
@@ -235,7 +233,7 @@ export function CreateVideoProjectModal({
               </select>
             </label>
             <label>
-              {t("Título del proyecto")}
+              {t("Project title")}
               <input
                 required
                 maxLength={500}
@@ -244,7 +242,7 @@ export function CreateVideoProjectModal({
               />
             </label>
             <label>
-              {t("Nombre corto")}
+              {t("Short name")}
               <input
                 required
                 maxLength={200}
@@ -255,13 +253,13 @@ export function CreateVideoProjectModal({
               />
               <small className="muted">
                 {t(
-                  "Debe ser único para esta versión. Usa letras minúsculas, números y guiones, sin espacios.",
+                  "It must be unique for this version. Use lowercase letters, numbers and hyphens, without spaces.",
                 )}
               </small>
             </label>
             {kind === "long" && (
               <label>
-                {t("Número de episodio")}
+                {t("Episode number")}
                 <input
                   type="number"
                   required
@@ -273,7 +271,7 @@ export function CreateVideoProjectModal({
               </label>
             )}
             {loadingBooks ? (
-              <p className="muted">{t("Cargando libros…")}</p>
+              <p className="muted">{t("Loading books…")}</p>
             ) : (
               books.length > 0 && (
                 <div className="manual-passage-points">
@@ -286,7 +284,7 @@ export function CreateVideoProjectModal({
         )}
         <div className="modal-footer">
           <button type="button" disabled={busy} onClick={close}>
-            {t("Cerrar")}
+            {t("Close")}
           </button>
           <button
             className="primary"
@@ -294,7 +292,7 @@ export function CreateVideoProjectModal({
               busy || loading || loadingBooks || !version || !books.length
             }
           >
-            {t(busy ? "Guardando…" : "Crear proyecto")}
+            {busy ? t("Saving…") : t("Create project")}
           </button>
         </div>
       </form>

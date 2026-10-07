@@ -59,7 +59,7 @@ export function VideoProjectEditor({
   kind: VideoKind;
   projectId: string;
 }) {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const [project, setProject] = useState<VideoRow | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
   const settingsRef = useRef(settings);
@@ -220,7 +220,7 @@ export function VideoProjectEditor({
       )
     ) {
       throw new Error(
-        "Los tiempos de algunos versículos están fuera del pasaje o tienen el inicio después del final. Revisa los ajustes de inicio y fin.",
+        "Some verse timings fall outside the passage or have a start after the end. Review the start and end adjustments.",
       );
     }
     return settingsSchema.parse(settingsRef.current);
@@ -290,7 +290,7 @@ export function VideoProjectEditor({
       await player.play();
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === "AbortError"))
-        setVoiceError("No se pudo reproducir la voz. Vuelve a intentarlo.");
+        setVoiceError("Could not play the narration. Try again.");
     }
   };
   const toggle = (id: string) =>
@@ -324,28 +324,27 @@ export function VideoProjectEditor({
       <span className="section-number">{String(number).padStart(2, "0")}</span>
       <span className={`section-role ${voice ? "voice" : "reading"}`}>
         {voice ? <Mic size={15} /> : <AudioLines size={15} />}
-        {t(voice ? "Voz" : "Lectura")}
+        {voice ? t("Voice") : t("Reading")}
       </span>
       <span className="section-heading-text">
         <strong>{title}</strong>
         <small>{summary}</small>
       </span>
-      {voice && <LockKeyhole size={15} aria-label={t("Sección fija")} />}
+      {voice && <LockKeyhole size={15} aria-label={t("Fixed section")} />}
       <ChevronDown size={18} className={expanded.has(id) ? "expanded" : ""} />
     </button>
   );
   const voiceSection = (part: "intro" | "outro", number: number) => {
     const voice = voices[part];
     const pending = ["queued", "running"].includes(voice.status);
-    const title = t(part === "intro" ? "Introducción" : "Cierre");
-    const generateLabel = t(
-      pending
-        ? "Preparando voz…"
-        : voice.available
-          ? "Regenerar voz"
-          : "Generar voz",
-    );
-    const playLabel = t(playingVoice === part ? "Pausar voz" : "Escuchar voz");
+    const title = part === "intro" ? t("Introduction") : t("Closing");
+    const generateLabel = pending
+      ? t("Preparing narration…")
+      : voice.available
+        ? t("Regenerate narration")
+        : t("Generate narration");
+    const playLabel =
+      playingVoice === part ? t("Pause narration") : t("Listen to narration");
     return (
       <section className="section-card" key={part}>
         <div className="voice-section-heading">
@@ -353,13 +352,11 @@ export function VideoProjectEditor({
             part,
             number,
             title,
-            t(
-              pending
-                ? "Preparando voz…"
-                : voice.available
-                  ? "Voz lista para escuchar"
-                  : "Genera la voz de esta sección",
-            ),
+            pending
+              ? t("Preparing narration…")
+              : voice.available
+                ? t("Narration ready to listen")
+                : t("Generate narration for this section"),
             true,
           )}
           <div className="voice-section-actions">
@@ -397,7 +394,7 @@ export function VideoProjectEditor({
         {pending && (
           <GenerationProgress
             value={voice.progress ?? 0}
-            label={t("Generación de voz")}
+            label={t("Voice generation")}
           />
         )}
         <div
@@ -406,14 +403,14 @@ export function VideoProjectEditor({
           className="section-body voice-section-body"
         >
           <div className="narration-script">
-            <p className="eyebrow">{t("Guión de narración")}</p>
+            <p className="eyebrow">{t("Narration script")}</p>
             <p>
               {analysis?.scripts[part] ||
-                t("El guión aparecerá al cargar el pasaje.")}
+                t("The script will appear once the passage loads.")}
             </p>
             <span className="muted">
               {t(
-                "El texto y la presentación de esta sección están definidos para este formato.",
+                "The script and presentation of this section are defined for this format.",
               )}
             </span>
           </div>
@@ -421,7 +418,7 @@ export function VideoProjectEditor({
             <div className="section-preview-icon">
               <Mic size={26} />
             </div>
-            <h3>{t("Previsualización de voz")}</h3>
+            <h3>{t("Narration preview")}</h3>
             {voice.available && !pending ? (
               <audio
                 ref={(player) => {
@@ -452,18 +449,18 @@ export function VideoProjectEditor({
                   setPlayingVoice((current) =>
                     current === part ? null : current,
                   );
-                  setVoiceError(
-                    "No se pudo reproducir la voz. Vuelve a intentarlo.",
-                  );
+                  setVoiceError("Could not play the narration. Try again.");
                 }}
               />
             ) : (
               <p className="muted">
-                {t(
-                  pending
-                    ? "La voz estará disponible aquí cuando termine la preparación."
-                    : "Genera el audio para escuchar esta sección antes de crear el video.",
-                )}
+                {pending
+                  ? t(
+                      "The narration will be available here once preparation is complete.",
+                    )
+                  : t(
+                      "Generate the audio to listen to this section before creating the video.",
+                    )}
               </p>
             )}
             {voice.status === "failed" && (
@@ -478,13 +475,11 @@ export function VideoProjectEditor({
               onClick={() => void generateVoice(part)}
             >
               <Mic size={16} />
-              {t(
-                pending
-                  ? "Preparando voz…"
-                  : voice.available
-                    ? "Regenerar voz"
-                    : "Generar voz",
-              )}
+              {pending
+                ? t("Preparing narration…")
+                : voice.available
+                  ? t("Regenerate narration")
+                  : t("Generate narration")}
             </button>
           </div>
         </div>
@@ -496,13 +491,13 @@ export function VideoProjectEditor({
       <section className="panel">
         <Link className="button" href={backHref}>
           <ChevronLeft size={16} />
-          {t("Volver a los proyectos")}
+          {t("Back to projects")}
         </Link>
         <p
           className={error ? "error" : "empty"}
           role={error ? "alert" : "status"}
         >
-          {t(error || "Cargando proyecto…")}
+          {t(error || "Loading project…")}
         </p>
       </section>
     );
@@ -513,15 +508,17 @@ export function VideoProjectEditor({
         <div>
           <Link className="editor-back" href={backHref}>
             <ChevronLeft size={14} />
-            {t("Volver a los proyectos")}
+            {t("Back to projects")}
           </Link>
           <p className="eyebrow">
-            {t("EDITOR DE PROYECTO")} ·{" "}
+            {t("PROJECT EDITOR")} ·{" "}
             {(project?.version_code ?? "").toUpperCase()}
           </p>
           <h1>{project.title}</h1>
           <p className="muted">
-            {t("Prepara la voz y sincroniza cada versículo con su audio.")}
+            {t(
+              "Prepare the narration and synchronize each verse with its audio.",
+            )}
           </p>
         </div>
         <div className="project-top-actions">
@@ -534,7 +531,7 @@ export function VideoProjectEditor({
             }}
           >
             {saved ? <Check size={16} /> : <Save size={16} />}
-            {t(saved ? "Cambios guardados" : "Guardar cambios")}
+            {saved ? t("Changes saved") : t("Save changes")}
           </button>
           <button
             className="primary"
@@ -551,18 +548,16 @@ export function VideoProjectEditor({
                   ),
                 });
                 window.dispatchEvent(new Event(queueChangedEvent));
-                setNotice("Video en espera de generación.");
+                setNotice("Video queued for generation.");
               })
             }
           >
             <Play size={16} />
-            {t(
-              active
-                ? "Generando"
-                : result
-                  ? "Regenerar video"
-                  : "Generar video",
-            )}
+            {active
+              ? t("Generating")
+              : result
+                ? t("Generate video again")
+                : t("Generate video")}
           </button>
         </div>
       </div>
@@ -579,7 +574,7 @@ export function VideoProjectEditor({
       {active && (
         <p className="notice">
           {t(
-            "El video se está creando. Puedes salir de esta página; la generación continúa.",
+            "The video is being created. You can leave this page; generation will continue.",
           )}
         </p>
       )}
@@ -587,23 +582,23 @@ export function VideoProjectEditor({
         <div className="section-stack">
           <div className="sections-toolbar">
             <div>
-              <h2>{t("Secciones del video")}</h2>
+              <h2>{t("Video sections")}</h2>
               <p className="muted">
-                {sectionIds.length} {t("secciones")} ·{" "}
-                {t("Introducción, lectura y cierre")}
+                {sectionIds.length} {t("sections")} ·{" "}
+                {t("Introduction, reading and closing")}
               </p>
             </div>
             <div>
               <button
                 type="button"
-                aria-label={t("Expandir todas")}
+                aria-label={t("Expand all")}
                 onClick={() => setExpanded(new Set(sectionIds))}
               >
                 <ChevronsDown size={16} />
               </button>
               <button
                 type="button"
-                aria-label={t("Contraer todas")}
+                aria-label={t("Collapse all")}
                 onClick={() => setExpanded(new Set())}
               >
                 <ChevronsUp size={16} />
@@ -626,8 +621,8 @@ export function VideoProjectEditor({
                   {sectionHeading(
                     id,
                     section.index + 2,
-                    `${t("Lectura del pasaje")} ${timeline.length > 1 ? section.index + 1 : ""}`,
-                    `${verses.length} ${t("versículos")} · ${(section.end - section.start).toFixed(1)} s`,
+                    `${t("Passage reading")} ${timeline.length > 1 ? section.index + 1 : ""}`,
+                    `${verses.length} ${t("verses")} · ${(section.end - section.start).toFixed(1)} s`,
                   )}
                   <div
                     id={`section-${id}`}
@@ -654,12 +649,10 @@ export function VideoProjectEditor({
               {sectionHeading(
                 "reading-0",
                 2,
-                t("Lectura del pasaje"),
-                t(
-                  analyzing
-                    ? "Cargando audio y versículos…"
-                    : "Prepara el audio para ajustar los tiempos",
-                ),
+                t("Passage reading"),
+                analyzing
+                  ? t("Loading audio and verses…")
+                  : t("Prepare the audio to adjust timing"),
               )}
               <div
                 id="section-reading-0"
@@ -669,15 +662,13 @@ export function VideoProjectEditor({
                 <div className="reading-loading">
                   <AudioLines size={36} />
                   <h3>
-                    {t(
-                      analyzing
-                        ? "Cargando audio y versículos…"
-                        : "Sincronización del pasaje",
-                    )}
+                    {analyzing
+                      ? t("Loading audio and verses…")
+                      : t("Passage synchronization")}
                   </h3>
                   <p className="muted">
                     {t(
-                      "Aquí podrás escuchar el pasaje y ajustar los tiempos sobre su forma de onda.",
+                      "Listen to the passage and adjust timing on its waveform here.",
                     )}
                   </p>
                 </div>
@@ -695,18 +686,16 @@ export function VideoProjectEditor({
             onClick={() => void inspect(settings)}
           >
             <RefreshCw size={16} />
-            {t(
-              analyzing
-                ? "Cargando audio y versículos…"
-                : "Volver a analizar el audio",
-            )}
+            {analyzing
+              ? t("Loading audio and verses…")
+              : t("Analyze audio again")}
           </button>
           {voiceSection("outro", sectionIds.length)}
         </div>
         <aside className="project-studio-sidebar">
           <section className="panel project-preview-panel">
             <div className="panel-heading">
-              <h3>{t("Previsualización del video")}</h3>
+              <h3>{t("Video preview")}</h3>
               <span className="format-pill">
                 <FormatIcon size={14} />
                 {kind === "short" ? "9:16" : "16:9"}
@@ -742,7 +731,7 @@ export function VideoProjectEditor({
             {active && (
               <GenerationProgress
                 value={project.progress ?? 0}
-                label={t("Generación de video")}
+                label={t("Video generation")}
               />
             )}
             {result && (
@@ -753,7 +742,7 @@ export function VideoProjectEditor({
                 </a>
                 <a className="button" href={`${media("thumbnail")}&download=1`}>
                   <Download size={15} />
-                  {t("Miniatura")}
+                  {t("Thumbnail")}
                 </a>
                 <button
                   disabled={locked}
@@ -767,18 +756,16 @@ export function VideoProjectEditor({
                       });
                       setNotice(
                         project.published
-                          ? "Marcado como no publicado."
-                          : "Marcado como publicado.",
+                          ? "Marked as unpublished."
+                          : "Marked as published.",
                       );
                     })
                   }
                 >
                   <Check size={15} />
-                  {t(
-                    project.published
-                      ? "Marcar como no publicado"
-                      : "Marcar como publicado",
-                  )}
+                  {project.published
+                    ? t("Mark as unpublished")
+                    : t("Mark as published")}
                 </button>
               </div>
             )}
@@ -786,10 +773,10 @@ export function VideoProjectEditor({
           <section className="panel studio-audio-settings">
             <h3>
               <AudioLines size={17} />
-              {t("Ajustes de audio")}
+              {t("Audio settings")}
             </h3>
             <label>
-              {t("Volumen de lectura")}
+              {t("Reading volume")}
               <div className="volume-control">
                 <input
                   type="range"
@@ -817,10 +804,10 @@ export function VideoProjectEditor({
                   setSettings({ ...settings, reuseVoices: e.target.checked })
                 }
               />
-              {t("Reutilizar voces existentes (desmarca para regenerarlas)")}
+              {t("Reuse existing voices (uncheck to generate them again)")}
             </label>
             <p className="muted">
-              {t("Guarda los cambios de sincronización antes de salir.")}
+              {t("Save synchronization changes before leaving.")}
             </p>
             {voiceError && (
               <p className="error" role="alert">
@@ -830,7 +817,7 @@ export function VideoProjectEditor({
           </section>
           {result?.descriptions && (
             <details className="panel studio-history">
-              <summary>{t("Textos de publicación")}</summary>
+              <summary>{t("Publication texts")}</summary>
               {Object.entries(result.descriptions).map(([name, text]) => (
                 <label key={name}>
                   {(
@@ -841,7 +828,7 @@ export function VideoProjectEditor({
                       "x.txt": "X",
                       "facebook.txt": "Facebook",
                     } as Record<string, string>
-                  )[name] || t("redes sociales")}
+                  )[name] || t("social media")}
                   <textarea readOnly rows={5} value={String(text)} />
                 </label>
               ))}

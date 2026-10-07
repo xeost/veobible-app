@@ -66,9 +66,7 @@ export function VoiceSettingsModal({
       .catch(() => {
         if (live) {
           setLoadFailed(true);
-          setError(
-            "No se pudieron cargar los ajustes. Cierra y vuelve a abrir Settings.",
-          );
+          setError("Could not load settings. Close and reopen Settings.");
         }
       })
       .finally(() => {
@@ -84,7 +82,7 @@ export function VoiceSettingsModal({
     if (tab === "projects") {
       const parsed = projectSettingsSchema.safeParse(projectSettings);
       if (!parsed.success) {
-        setError("El volumen de lectura debe estar entre 0 y 4.");
+        setError("Reading volume must be between 0 and 4.");
         return;
       }
       setBusy(true);
@@ -96,7 +94,7 @@ export function VoiceSettingsModal({
         });
         close();
       } catch {
-        setError("No se pudieron guardar los ajustes. Vuelve a intentarlo.");
+        setError("Could not save settings. Try again.");
       } finally {
         setBusy(false);
       }
@@ -105,7 +103,7 @@ export function VoiceSettingsModal({
     const parsed = voiceSettingsSchema.safeParse(templates);
     if (!parsed.success) {
       setError(
-        "Revisa los marcadores de los textos y usa un máximo de 10000 caracteres por sección.",
+        "Check the script placeholders and use no more than 10000 characters per section.",
       );
       return;
     }
@@ -118,9 +116,7 @@ export function VoiceSettingsModal({
       });
       close();
     } catch {
-      setError(
-        "No se pudieron guardar los textos de voz. Vuelve a intentarlo.",
-      );
+      setError("Could not save narration scripts. Try again.");
     } finally {
       setBusy(false);
     }
@@ -149,7 +145,7 @@ export function VoiceSettingsModal({
           <button
             type="button"
             className="icon-button"
-            aria-label={t("Cerrar")}
+            aria-label={t("Close")}
             disabled={busy}
             onClick={close}
           >
@@ -167,7 +163,7 @@ export function VoiceSettingsModal({
               setError("");
             }}
           >
-            {t("Settings de voz")}
+            {t("Narration settings")}
           </button>
           <button
             type="button"
@@ -179,41 +175,41 @@ export function VoiceSettingsModal({
               setError("");
             }}
           >
-            {t("Settings de proyectos")}
+            {t("Project settings")}
           </button>
         </div>
         {tab === "voice" ? (
           <>
             <p className="muted">
               {t(
-                "Configura los textos de introducción y cierre en cada idioma. Se usarán en las próximas generaciones de voz y video.",
+                "Configure introduction and closing scripts for each language. They will be used in future narration and video generations.",
               )}
             </p>
           </>
         ) : (
           <p className="muted">
             {t(
-              "Configura el volumen de lectura para nuevos proyectos en cada idioma y versión. Los proyectos existentes conservan sus ajustes.",
+              "Configure reading volume for new projects in each language and version. Existing projects keep their settings.",
             )}
           </p>
         )}
         {tab === "projects" && (
           <p className="notice" id="project-volume-help">
             {t(
-              "Mínimo: 0×, sin sonido. Volumen original: 1× (100 %), sin cambios. Máximo: 4× (400 % del nivel original). Los valores entre 0× y 1× reducen el volumen; los valores mayores que 1× lo aumentan.",
+              "Minimum: 0×, muted. Original volume: 1× (100%), unchanged. Maximum: 4× (400% of the original level). Values between 0× and 1× reduce volume; values above 1× increase it.",
             )}
           </p>
         )}
         {tab === "voice" && (
           <p className="notice">
             {t(
-              "Usa {reference} para el pasaje, {version} para la versión bíblica, {book} para el libro, {start} para el inicio y {end} para el final.",
+              "Use {reference} for the passage, {version} for the Bible version, {book} for the book, {start} for the start and {end} for the end.",
             )}
           </p>
         )}
         {!canEdit && (
           <p className="muted">
-            {t("Solo los administradores pueden cambiar estos ajustes.")}
+            {t("Only administrators can change these settings.")}
           </p>
         )}
         {error && (
@@ -222,7 +218,7 @@ export function VoiceSettingsModal({
           </p>
         )}
         {loading ? (
-          <p className="empty">{t("Cargando ajustes…")}</p>
+          <p className="empty">{t("Loading settings…")}</p>
         ) : (
           <fieldset
             disabled={busy || loadFailed || !canEdit}
@@ -230,9 +226,9 @@ export function VoiceSettingsModal({
           >
             {(
               [
-                ["es", "Español"],
-                ["en", "Inglés"],
-                ["pt", "Portugués"],
+                ["es", "Spanish"],
+                ["en", "English"],
+                ["pt", "Portuguese"],
               ] as const
             ).map(([locale, label]) => (
               <section className="voice-settings-language" key={locale}>
@@ -245,7 +241,7 @@ export function VoiceSettingsModal({
                           key={`${locale}/${version.code}`}
                           htmlFor={`project-volume-${locale}-${version.code}`}
                         >
-                          {version.label} · {t("Volumen de lectura")}
+                          {version.label} · {t("Reading volume")}
                           <div className="volume-control">
                             <input
                               id={`project-volume-${locale}-${version.code}`}
@@ -291,16 +287,16 @@ export function VoiceSettingsModal({
                             </output>
                           </div>
                           <span className="muted">
-                            {t("0× · Sin sonido — 1× · Original — 4× · Máximo")}
+                            {t("0× · Muted — 1× · Original — 4× · Maximum")}
                           </span>
                         </label>
                       ))
                   : (["intro", "outro"] as const).map((part) => (
                       <label key={part} htmlFor={`voice-${locale}-${part}`}>
-                        {t(part === "intro" ? "Introducción" : "Cierre")}
+                        {part === "intro" ? t("Introduction") : t("Closing")}
                         <textarea
                           id={`voice-${locale}-${part}`}
-                          aria-label={`${t(part === "intro" ? "Introducción" : "Cierre")} · ${t(label)}`}
+                          aria-label={`${part === "intro" ? t("Introduction") : t("Closing")} · ${t(label)}`}
                           value={templates[locale][part]}
                           maxLength={10000}
                           rows={4}
@@ -322,7 +318,7 @@ export function VoiceSettingsModal({
         )}
         <div className="modal-footer">
           <button type="button" disabled={busy} onClick={close}>
-            {t("Cerrar")}
+            {t("Close")}
           </button>
           {canEdit && (
             <button
@@ -331,7 +327,7 @@ export function VoiceSettingsModal({
               disabled={loading || loadFailed || busy}
             >
               <Save size={16} />
-              {t(busy ? "Guardando…" : "Guardar cambios")}
+              {busy ? t("Saving…") : t("Save changes")}
             </button>
           )}
         </div>

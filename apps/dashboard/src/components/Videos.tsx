@@ -79,8 +79,8 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       }>(`videos/sync-existing?kind=${kind}`, { method: "POST" });
       setSyncNotice(
         result.total === 0
-          ? t("No se encontraron proyectos existentes para sincronizar.")
-          : `${t("Actualizados:")} ${result.updated} · ${t("Sin cambios:")} ${result.unchanged}${result.skipped ? ` · ${t("Omitidos:")} ${result.skipped}. ${t("Revisa que sus versiones estén registradas y sus datos estén completos. Los proyectos en generación se omiten hasta que terminen.")}` : ""}`,
+          ? t("No existing projects were found to sync.")
+          : `${t("Updated:")} ${result.updated} · ${t("Unchanged:")} ${result.unchanged}${result.skipped ? ` · ${t("Skipped:")} ${result.skipped}. ${t("Check that their Bible versions are registered and their data is complete. Projects being generated are skipped until they finish.")}` : ""}`,
       );
       await load();
     } catch (cause) {
@@ -107,15 +107,15 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             {t(
               kind === "short"
                 ? "DAILY DOSE · VERTICAL"
-                : "365 DÍAS · HORIZONTAL",
+                : "365 DAYS · LANDSCAPE",
             )}
           </p>
           <h1>{t(kind === "short" ? "Short Videos" : "Long Videos")}</h1>
           <p className="muted">
             {t(
               kind === "short"
-                ? "Pasajes que inspiran, un video a la vez."
-                : "Un recorrido por toda la Biblia, en 365 episodios.",
+                ? "Inspiring passages, one video at a time."
+                : "A journey through the entire Bible, in 365 episodes.",
             )}
           </p>
         </div>
@@ -125,7 +125,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             className="primary"
             onClick={() => setCreateOpen(true)}
           >
-            {t("Nuevo proyecto de video")}
+            {t("New video project")}
           </button>
           <VideoProjectMenu
             onSettings={() => setSettingsOpen(true)}
@@ -139,17 +139,17 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
         <div>
           <Icon size={21} />
           <strong>{rows.length}</strong>
-          <span>{t(kind === "short" ? "pasajes" : "episodios")}</span>
+          <span>{t(kind === "short" ? "passages" : "episodes")}</span>
         </div>
         <div>
           <span className="dot green" />
           <strong>{rows.filter((r) => !r.published).length}</strong>
-          <span>{t("No publicados")}</span>
+          <span>{t("Unpublished")}</span>
         </div>
         <div>
           <Check size={17} />
           <strong>{rows.filter((r) => r.published).length}</strong>
-          <span>{t("Publicados")}</span>
+          <span>{t("Published")}</span>
         </div>
       </div>
       {error && (
@@ -159,7 +159,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       )}
       {syncingExisting && (
         <p className="notice" role="status">
-          {t("Sincronizando proyectos existentes…")}
+          {t("Syncing existing projects…")}
         </p>
       )}
       {syncNotice && (
@@ -172,8 +172,8 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           <div className="search">
             <Search size={17} />
             <input
-              aria-label={t("Buscar pasaje")}
-              placeholder={t("Buscar un pasaje o episodio…")}
+              aria-label={t("Find a passage")}
+              placeholder={t("Find a passage or episode…")}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -182,11 +182,11 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             />
           </div>
           <select
-            aria-label={t("Versión bíblica")}
+            aria-label={t("Bible version")}
             value={version}
             onChange={(e) => setVersion(e.target.value)}
           >
-            <option value="all">{t("Todas las versiones")}</option>
+            <option value="all">{t("All versions")}</option>
             {versions
               .filter((v) => v.id !== null)
               .map((v) => (
@@ -196,16 +196,16 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               ))}
           </select>
           <select
-            aria-label={t("Filtrar publicación")}
+            aria-label={t("Filter publication")}
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
               setPage(0);
             }}
           >
-            <option value="all">{t("Todos los proyectos")}</option>
-            <option value="published">{t("Publicados")}</option>
-            <option value="unpublished">{t("No publicados")}</option>
+            <option value="all">{t("All projects")}</option>
+            <option value="published">{t("Published")}</option>
+            <option value="unpublished">{t("Unpublished")}</option>
           </select>
         </div>
         <div className="table-wrap">
@@ -213,10 +213,10 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>{t("Proyecto de video")}</th>
-                <th>{t("Versión bíblica")}</th>
-                <th>{t("Publicación")}</th>
-                <th>{t("Actualizado")}</th>
+                <th>{t("Video project")}</th>
+                <th>{t("Bible version")}</th>
+                <th>{t("Publication")}</th>
+                <th>{t("Updated")}</th>
                 <th />
               </tr>
             </thead>
@@ -228,7 +228,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                     key={row.id}
                     className="video-project-row"
                     tabIndex={0}
-                    aria-label={`${t("Abrir proyecto")}: ${row.title}`}
+                    aria-label={`${t("Open project")}: ${row.title}`}
                     onClick={(event) => {
                       if ((event.target as Element).closest("a, button"))
                         return;
@@ -281,14 +281,14 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                           }
                         }}
                       >
-                        {t(row.published ? "Publicado" : "No publicado")}
+                        {row.published ? t("Published") : t("Unpublished")}
                       </button>
                     </td>
                     <td className="muted">{date(row.updated_at, language)}</td>
                     <td>
                       <Link
                         className="button icon-button"
-                        aria-label={`${t("Abrir proyecto")}: ${row.title}`}
+                        aria-label={`${t("Open project")}: ${row.title}`}
                         href={projectHref(row)}
                       >
                         <ArrowRight size={17} />
@@ -298,25 +298,23 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                 ))}
             </tbody>
           </table>
-          {loading && <div className="empty">{t("Cargando proyectos…")}</div>}
+          {loading && <div className="empty">{t("Loading projects…")}</div>}
           {!loading && !filtered.length && (
             <div className="empty">
-              {t(
-                rows.length === 0 && version === "all" && !query
-                  ? "Crea tu primer proyecto de video para comenzar."
-                  : "No hay videos que coincidan con estos filtros.",
-              )}
+              {rows.length === 0 && version === "all" && !query
+                ? t("Create your first video project to get started.")
+                : t("No videos match these filters.")}
             </div>
           )}
         </div>
         <div className="pagination">
           <span>
-            {filtered.length} {t("proyectos · página")} {currentPage + 1}{" "}
-            {t("de")} {pages}
+            {filtered.length} {t("projects · page")} {currentPage + 1} {t("of")}{" "}
+            {pages}
           </span>
           <div>
             <label className="pagination-page-size">
-              {t("Elementos por página")}
+              {t("Items per page")}
               <select
                 value={pageSize}
                 onChange={(event) => {
@@ -334,8 +332,8 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             <button
               type="button"
               className="icon-button"
-              aria-label={t("Primera página")}
-              title={t("Primera página")}
+              aria-label={t("First page")}
+              title={t("First page")}
               disabled={currentPage === 0}
               onClick={() => setPage(0)}
             >
@@ -343,7 +341,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             </button>
             <button
               className="icon-button"
-              aria-label={t("Página anterior")}
+              aria-label={t("Previous page")}
               disabled={currentPage === 0}
               onClick={() => setPage(currentPage - 1)}
             >
@@ -351,7 +349,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             </button>
             <button
               className="icon-button"
-              aria-label={t("Página siguiente")}
+              aria-label={t("Next page")}
               disabled={currentPage + 1 >= pages}
               onClick={() => setPage(currentPage + 1)}
             >
@@ -360,8 +358,8 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             <button
               type="button"
               className="icon-button"
-              aria-label={t("Última página")}
-              title={t("Última página")}
+              aria-label={t("Last page")}
+              title={t("Last page")}
               disabled={currentPage + 1 >= pages}
               onClick={() => setPage(pages - 1)}
             >

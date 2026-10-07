@@ -27,14 +27,14 @@ export default function Dashboard() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{t("RESUMEN DE PRODUCCIÓN")}</p>
+          <p className="eyebrow">{t("PRODUCTION OVERVIEW")}</p>
           <h1>{t("Dashboard")}</h1>
           <p className="muted">
-            {t("Cada historia empieza aquí. Organiza tu próxima producción.")}
+            {t("Every story starts here. Plan your next production.")}
           </p>
         </div>
         <Link className="primary" href="/short-videos">
-          {t("Crear un video")} <ArrowUpRight size={17} />
+          {t("Create a video")} <ArrowUpRight size={17} />
         </Link>
       </div>
       {error && <p className="error">{t(error)}</p>}
@@ -42,28 +42,18 @@ export default function Dashboard() {
         {[
           [
             Clapperboard,
-            "Pasajes cortos",
+            "Short passages",
             count("short"),
-            "Catálogo Daily Dose",
+            "Daily Dose catalog",
           ],
-          [
-            Film,
-            "Episodios largos",
-            count("long"),
-            "Plan de lectura · 365 días",
-          ],
+          [Film, "Long episodes", count("long"), "Reading plan · 365 days"],
           [
             CheckCheck,
-            "No publicados",
+            "Unpublished",
             data?.unpublished?.total ?? 0,
-            "Proyectos disponibles",
+            "Available projects",
           ],
-          [
-            Send,
-            "Publicados",
-            data?.published?.total ?? 0,
-            "Videos publicados",
-          ],
+          [Send, "Published", data?.published?.total ?? 0, "Published videos"],
         ].map(([Icon, label, note, sub]: any) => (
           <div className="stat" key={label}>
             <div className="stat-top">
@@ -80,16 +70,16 @@ export default function Dashboard() {
           <div className="hero-orb">
             <BookOpen size={130} />
           </div>
-          <p className="eyebrow">{t("CREA CON PROPÓSITO")}</p>
+          <p className="eyebrow">{t("CREATE WITH PURPOSE")}</p>
           <h2>
-            {t("La Palabra,")}
+            {t("The Word,")}
             <br />
-            {t("en cada pantalla.")}
+            {t("on every screen.")}
           </h2>
           <p>
-            {t("Dos formatos. Un mismo propósito.")}
+            {t("Two formats. One purpose.")}
             <br />
-            {t("Elige un pasaje y crea tu próximo video.")}
+            {t("Choose a passage and create your next video.")}
           </p>
           <div className="hero-links">
             <Link href="/short-videos">
@@ -103,18 +93,18 @@ export default function Dashboard() {
       </div>
       <section className="panel">
         <div className="panel-heading">
-          <h3>{t("Actividad reciente")}</h3>
-          <span className="muted">{t("Últimas producciones")}</span>
+          <h3>{t("Recent activity")}</h3>
+          <span className="muted">{t("Latest productions")}</span>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>{t("Proyecto")}</th>
-                <th>{t("Formato")}</th>
-                <th>{t("Versión")}</th>
-                <th>{t("Publicación")}</th>
-                <th>{t("Actualizado")}</th>
+                <th>{t("Project")}</th>
+                <th>{t("Format")}</th>
+                <th>{t("Version")}</th>
+                <th>{t("Publication")}</th>
+                <th>{t("Updated")}</th>
               </tr>
             </thead>
             <tbody>
@@ -131,7 +121,7 @@ export default function Dashboard() {
                   <td>{p.label}</td>
                   <td>
                     <span className="badge">
-                      {t(p.published ? "Publicado" : "No publicado")}
+                      {p.published ? t("Published") : t("Unpublished")}
                     </span>
                   </td>
                   <td className="muted">{date(p.updated_at, language)}</td>
@@ -142,7 +132,7 @@ export default function Dashboard() {
           {data?.recent.length === 0 && (
             <div className="empty">
               {t(
-                "Tu próximo video aparecerá aquí. Elige un pasaje para comenzar.",
+                "Your next video will appear here. Choose a passage to get started.",
               )}
             </div>
           )}

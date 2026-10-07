@@ -12,11 +12,9 @@ export default function Login() {
     <div className="login">
       <section className="login-form">
         <BrandLogo />
-        <p className="eyebrow">{t("BIENVENIDO AL DASHBOARD")}</p>
-        <h2>{t("Inicia sesión")}</h2>
-        <p className="muted">
-          {t("Accede a tu espacio de producción de videos.")}
-        </p>
+        <p className="eyebrow">{t("WELCOME TO THE DASHBOARD")}</p>
+        <h2>{t("Sign in")}</h2>
+        <p className="muted">{t("Access your video production workspace.")}</p>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -39,22 +37,22 @@ export default function Login() {
           }}
         >
           <label>
-            {t("Usuario")}
+            {t("Username")}
             <input
               name="username"
               required
               autoComplete="username"
-              placeholder={t("Tu usuario")}
+              placeholder={t("Your username")}
             />
           </label>
           <label>
-            {t("Contraseña")}
+            {t("Password")}
             <input
               name="password"
               type="password"
               required
               autoComplete="current-password"
-              placeholder={t("Tu contraseña")}
+              placeholder={t("Your password")}
             />
           </label>
           {error && (
@@ -63,13 +61,11 @@ export default function Login() {
             </p>
           )}
           <button className="primary" disabled={busy}>
-            {t(busy ? "Ingresando…" : "Entrar al Dashboard")}
+            {busy ? t("Signing in…") : t("Sign in to the Dashboard")}
             <ArrowRight size={17} />
           </button>
         </form>
-        <small className="muted">
-          {t("Acceso privado · Usuarios del dashboard")}
-        </small>
+        <small className="muted">{t("Private access · Dashboard users")}</small>
       </section>
     </div>
   );

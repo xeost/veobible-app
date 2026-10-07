@@ -77,7 +77,7 @@ export default function Deployments() {
         body: JSON.stringify({ hookUrl: value.trim() }),
       });
       setModal(null);
-      setNotice("Ajustes guardados.");
+      setNotice("Settings saved.");
       await load();
     } catch (e) {
       setModalError(userMessage(e));
@@ -96,15 +96,12 @@ export default function Deployments() {
       });
       setModal(null);
       if (result.status === "failed")
-        setNotice("No se pudo solicitar la actualización. Inténtalo de nuevo.");
+        setNotice("Could not request the update. Please try again.");
       else if (result.status === "unknown")
         setNotice(
-          "No se pudo confirmar la solicitud. Revisa las actualizaciones publicadas antes de reintentar.",
+          "Could not confirm the request. Check published updates before trying again.",
         );
-      else
-        setNotice(
-          "Solicitud enviada. La publicación está pendiente de confirmación.",
-        );
+      else setNotice("Request sent. Publication is awaiting confirmation.");
       await load();
     } catch (e) {
       setModalError(userMessage(e));
@@ -127,21 +124,21 @@ export default function Deployments() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{t("GESTIÓN DE LA PLATAFORMA")}</p>
-          <h1>{t("Actualizaciones")}</h1>
+          <p className="eyebrow">{t("PLATFORM MANAGEMENT")}</p>
+          <h1>{t("Updates")}</h1>
           <p className="muted">
-            {t("Publica los cambios del sitio público y consulta su progreso.")}
+            {t("Publish public site changes and track their progress.")}
           </p>
         </div>
         <div className="deployment-actions">
           <button onClick={load} disabled={loading}>
             <RefreshCw size={16} />
-            {t("Actualizar")}
+            {t("Refresh")}
           </button>
           <button
             type="button"
-            aria-label={t("Configurar")}
-            title={t("Configurar")}
+            aria-label={t("Configure")}
+            title={t("Configure")}
             onClick={configure}
             disabled={busy}
           >
@@ -157,7 +154,7 @@ export default function Deployments() {
             }
           >
             <Rocket size={16} />
-            {t("Publicar actualización")}
+            {t("Publish update")}
           </button>
         </div>
       </div>
@@ -172,45 +169,42 @@ export default function Deployments() {
         </p>
       )}
       <section className="panel">
-        <h3>{t("Última versión publicada")}</h3>
+        <h3>{t("Latest published version")}</h3>
         <p className="muted">
           {latest
             ? date(latest.completed_at || latest.created_at, language)
-            : t("Todavía no hay publicaciones completadas.")}
+            : t("No completed publications yet.")}
         </p>
         {latest?.message && <p>{latest.message}</p>}
         {active && (
           <p className="notice">
-            {t("Hay una actualización en curso.")}{" "}
-            {t(statusLabel(active.status))}
+            {t("An update is in progress.")} {t(statusLabel(active.status))}
           </p>
         )}
         {data && !data.trackingAvailable && (
           <p className="muted">
             {t(
-              "El seguimiento automático no está disponible. Comprueba el sitio antes de volver a publicar.",
+              "Automatic tracking is unavailable. Check the site before publishing again.",
             )}
           </p>
         )}
         {data?.syncError && (
           <p className="error">
-            {t(
-              "No se pudo consultar el historial de actualizaciones. Inténtalo de nuevo más tarde.",
-            )}
+            {t("Could not load update history. Try again later.")}
           </p>
         )}
       </section>
       <section className="panel">
-        <h3>{t("Historial de publicaciones")}</h3>
+        <h3>{t("Publication history")}</h3>
         <div className="deployment-table">
           <table>
             <thead>
               <tr>
-                <th>{t("Fecha")}</th>
-                <th>{t("Estado")}</th>
-                <th>{t("Duración")}</th>
-                <th>{t("Publicado por")}</th>
-                <th>{t("Nota")}</th>
+                <th>{t("Date")}</th>
+                <th>{t("Status")}</th>
+                <th>{t("Duration")}</th>
+                <th>{t("Published by")}</th>
+                <th>{t("Note")}</th>
               </tr>
             </thead>
             <tbody>
@@ -232,11 +226,9 @@ export default function Deployments() {
             </tbody>
           </table>
         </div>
-        {!data && <p className="empty">{t("Cargando historial…")}</p>}
+        {!data && <p className="empty">{t("Loading history…")}</p>}
         {data?.deployments.length === 0 && (
-          <p className="empty">
-            {t("Todavía no hay solicitudes de actualización.")}
-          </p>
+          <p className="empty">{t("No update requests yet.")}</p>
         )}
       </section>
       <dialog
@@ -256,15 +248,13 @@ export default function Deployments() {
         >
           <div className="modal-title">
             <h2>
-              {t(
-                modal === "config"
-                  ? "Configurar publicación"
-                  : "Publicar actualización",
-              )}
+              {modal === "config"
+                ? t("Configure publishing")
+                : t("Publish update")}
             </h2>
             <button
               type="button"
-              aria-label={t("Cerrar")}
+              aria-label={t("Close")}
               disabled={busy}
               onClick={() => setModal(null)}
             >
@@ -280,11 +270,11 @@ export default function Deployments() {
             <>
               <p className="muted">
                 {t(
-                  "Pega el enlace de publicación del sitio público. Los ajustes se conservan para las próximas publicaciones.",
+                  "Paste the public site publishing link. Settings are saved for future publications.",
                 )}
               </p>
               <label>
-                {t("Enlace de publicación")}
+                {t("Publishing link")}
                 <input
                   type="url"
                   autoComplete="off"
@@ -296,17 +286,17 @@ export default function Deployments() {
               </label>
               <p className="muted">
                 {t(
-                  "Usa el enlace del sitio VeoBible, con dirección segura https://.",
+                  "Use the VeoBible site link with a secure https:// address.",
                 )}
               </p>
             </>
           ) : (
             <>
               <p className="muted">
-                {t("Se publicarán los cambios actuales en veobible.com.")}
+                {t("Current changes will be published to veobible.com.")}
               </p>
               <label>
-                {t("Nota de publicación (opcional)")}
+                {t("Publication note (optional)")}
                 <textarea
                   value={message}
                   maxLength={500}
@@ -323,7 +313,7 @@ export default function Deployments() {
                 disabled={busy || !hookUrl}
                 onClick={() => void save("")}
               >
-                {t("Desactivar publicación")}
+                {t("Disable publishing")}
               </button>
             )}
             <button
@@ -331,16 +321,14 @@ export default function Deployments() {
               disabled={busy}
               onClick={() => setModal(null)}
             >
-              {t("Cerrar")}
+              {t("Close")}
             </button>
             <button type="submit" className="primary" disabled={busy}>
-              {t(
-                busy
-                  ? "Procesando…"
-                  : modal === "config"
-                    ? "Guardar cambios"
-                    : "Confirmar y publicar",
-              )}
+              {busy
+                ? t("Processing…")
+                : modal === "config"
+                  ? t("Save changes")
+                  : t("Confirm and publish")}
             </button>
           </div>
         </form>

@@ -57,10 +57,14 @@ test("one migration creates numeric project tables and only the requested admin"
       [1, 2],
     );
     assert.equal(
-      db.prepare("SELECT sum(published) total FROM video_projects").get()?.total,
+      db.prepare("SELECT sum(published) total FROM video_projects").get()
+        ?.total,
       0,
     );
-    assert.throws(() => db.exec("UPDATE video_projects SET published=2"), /CHECK/);
+    assert.throws(
+      () => db.exec("UPDATE video_projects SET published=2"),
+      /CHECK/,
+    );
     assert.throws(
       () => db.exec("UPDATE video_projects SET bible_version_id=99 WHERE id=1"),
       /FOREIGN KEY/,

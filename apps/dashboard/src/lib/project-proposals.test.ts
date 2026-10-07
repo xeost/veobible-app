@@ -63,16 +63,14 @@ test("project sync only adds missing slugs within a format and Bible version, re
     sqlite.exec(
       "INSERT INTO bible_versions(locale,code,label) VALUES ('es','same','Spanish'),('en','same','English')",
     );
-    sqlite
-      .prepare("INSERT INTO site_settings(key,value) VALUES (?,?)")
-      .run(
-        "project_settings:short",
-        JSON.stringify({
-          es: { same: { volumeMultiplier: 1.5 } },
-          en: { same: { volumeMultiplier: 2 } },
-          pt: {},
-        }),
-      );
+    sqlite.prepare("INSERT INTO site_settings(key,value) VALUES (?,?)").run(
+      "project_settings:short",
+      JSON.stringify({
+        es: { same: { volumeMultiplier: 1.5 } },
+        en: { same: { volumeMultiplier: 2 } },
+        pt: {},
+      }),
+    );
     assert.deepEqual(
       await syncVideoProjects(database, "short", spanish, [first]),
       { added: 1, total: 1 },

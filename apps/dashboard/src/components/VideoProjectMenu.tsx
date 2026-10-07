@@ -56,8 +56,8 @@ export function VideoProjectMenu({
         ref={trigger}
         type="button"
         className="icon-button"
-        aria-label={t("Opciones de proyectos")}
-        title={t("Opciones de proyectos")}
+        aria-label={t("Project options")}
+        title={t("Project options")}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? "video-project-options" : undefined}
@@ -70,7 +70,7 @@ export function VideoProjectMenu({
           role="menu"
           id="video-project-options"
           className="project-actions-dropdown"
-          aria-label={t("Opciones de proyectos")}
+          aria-label={t("Project options")}
         >
           <button
             ref={item}
@@ -93,7 +93,7 @@ export function VideoProjectMenu({
             }}
           >
             <RefreshCw size={16} />
-            {t("Sincronizar presets de proyectos")}
+            {t("Sync project presets")}
           </button>
           <button
             type="button"
@@ -109,11 +109,9 @@ export function VideoProjectMenu({
             ) : (
               <FolderSync size={16} />
             )}
-            {t(
-              syncingExisting
-                ? "Sincronizando proyectos existentes…"
-                : "Sincronizar proyectos existentes",
-            )}
+            {syncingExisting
+              ? t("Syncing existing projects…")
+              : t("Sync existing projects")}
           </button>
         </div>
       )}

@@ -47,16 +47,16 @@ export function GenerationQueueModal({
     >
       <div className="generation-queue-heading">
         <div>
-          <p className="eyebrow">{t("PRODUCCIÓN DE VIDEOS")}</p>
+          <p className="eyebrow">{t("VIDEO PRODUCTION")}</p>
           <h2 id="generation-queue-title">
             <ListOrdered size={22} />
-            {t("Cola de generación")}
+            {t("Generation queue")}
           </h2>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label={t("Cerrar")}
+          aria-label={t("Close")}
           onClick={close}
         >
           <X size={20} />
@@ -64,23 +64,21 @@ export function GenerationQueueModal({
       </div>
       <p className="muted">
         {t(
-          "Puedes seguir editando otros proyectos mientras se preparan las voces y los videos.",
+          "You can keep editing other projects while narration and videos are prepared.",
         )}
       </p>
       <div className="generation-queue-summary">
         <span className={state.connected ? "dot green" : "dot"} />
         <span>
-          {t(
-            state.connected
-              ? "Generación disponible"
-              : "Generación no disponible",
-          )}
+          {state.connected
+            ? t("Generation available")
+            : t("Generation unavailable")}
         </span>
         <button
           type="button"
           className="icon-button"
-          aria-label={t("Actualizar cola")}
-          title={t("Actualizar cola")}
+          aria-label={t("Refresh queue")}
+          title={t("Refresh queue")}
           onClick={refresh}
         >
           <RefreshCw size={16} />
@@ -89,21 +87,19 @@ export function GenerationQueueModal({
       {pending.length > 0 && (
         <GenerationProgress
           value={state.summary?.progress ?? 0}
-          label={t("Cola completa")}
+          label={t("Entire queue")}
         />
       )}
       {!state.connected && (
         <p className="notice">
-          {t(
-            "No se pudo actualizar la cola. Inténtalo de nuevo en unos momentos.",
-          )}
+          {t("Could not refresh the queue. Try again in a moment.")}
         </p>
       )}
       <div className="generation-queue-list">
         {pending.length === 0 && (
-          <p className="empty">{t("No hay generaciones pendientes.")}</p>
+          <p className="empty">{t("There are no pending generations.")}</p>
         )}
-        {pending.length > 0 && <h3>{t("En proceso y en espera")}</h3>}
+        {pending.length > 0 && <h3>{t("In progress and waiting")}</h3>}
         {pending.map((item) => (
           <div key={item.id}>
             <Link
@@ -119,27 +115,27 @@ export function GenerationQueueModal({
                 <small>
                   {t(
                     item.type === "video"
-                      ? "Video final"
+                      ? "Final video"
                       : item.type === "intro"
-                        ? "Voz de introducción"
-                        : "Voz de cierre",
+                        ? "Introduction narration"
+                        : "Closing narration",
                   )}{" "}
                   · {item.version.toUpperCase()}
                 </small>
                 <span>
                   {t(statusLabel(item.status))}
                   {item.status === "queued"
-                    ? ` · ${t("Posición")} ${item.position}`
+                    ? ` · ${t("Position")} ${item.position}`
                     : item.status === "running" && item.type === "video"
                       ? ` · ${t(generationStage(item.stage, item.status))}`
                       : ""}
                 </span>
                 <GenerationProgress
                   value={item.progress}
-                  label={t("Progreso")}
+                  label={t("Progress")}
                 />
               </span>
-              <ArrowUpRight size={18} aria-label={t("Abrir proyecto")} />
+              <ArrowUpRight size={18} aria-label={t("Open project")} />
             </Link>
           </div>
         ))}

@@ -82,25 +82,25 @@ export function UserProfileModal({
     setError("");
     if (!/^[a-z0-9_.-]{3,60}$/.test(username.trim().toLowerCase())) {
       setError(
-        "El usuario debe tener entre 3 y 60 caracteres: letras, números, puntos, guiones o guiones bajos.",
+        "Your username must contain 3 to 60 characters: letters, numbers, dots, hyphens or underscores.",
       );
       return;
     }
     if (!name.trim()) {
-      setError("Escribe tu nombre.");
+      setError("Enter your name.");
       return;
     }
     if (tab === "password") {
       if (!currentPassword) {
-        setError("Escribe tu contraseña actual.");
+        setError("Enter your current password.");
         return;
       }
       if (password.length < 12) {
-        setError("La nueva contraseña debe tener al menos 12 caracteres.");
+        setError("Your new password must contain at least 12 characters.");
         return;
       }
       if (password !== confirmPassword) {
-        setError("Las contraseñas no coinciden.");
+        setError("The passwords do not match.");
         return;
       }
     }
@@ -143,17 +143,15 @@ export function UserProfileModal({
             <UserRound size={21} />
           </div>
           <div>
-            <h2 id="profile-title">{t("Mi perfil")}</h2>
+            <h2 id="profile-title">{t("My profile")}</h2>
             <p id="profile-description" className="muted">
-              {t(
-                "Gestiona tu información personal y la seguridad de tu cuenta.",
-              )}
+              {t("Manage your personal information and account security.")}
             </p>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label={t("Cerrar perfil")}
+            aria-label={t("Close profile")}
             disabled={busy}
             onClick={close}
           >
@@ -163,7 +161,7 @@ export function UserProfileModal({
         <div
           className="tabs profile-tabs"
           role="tablist"
-          aria-label={t("Opciones de perfil")}
+          aria-label={t("Profile options")}
         >
           <button
             type="button"
@@ -176,7 +174,7 @@ export function UserProfileModal({
             onClick={() => changeTab("profile")}
           >
             <UserRound size={15} />
-            {t("Datos personales")}
+            {t("Personal details")}
           </button>
           <button
             type="button"
@@ -189,7 +187,7 @@ export function UserProfileModal({
             onClick={() => changeTab("password")}
           >
             <KeyRound size={15} />
-            {t("Cambiar contraseña")}
+            {t("Change password")}
           </button>
         </div>
         <form onSubmit={submit} className="profile-form">
@@ -207,7 +205,7 @@ export function UserProfileModal({
             {tab === "profile" ? (
               <>
                 <label>
-                  {t("Usuario")}
+                  {t("Username")}
                   <div className="profile-input">
                     <UserRound size={16} />
                     <input
@@ -226,10 +224,10 @@ export function UserProfileModal({
                   </div>
                 </label>
                 <p className="profile-hint">
-                  {t("Usa este nombre para iniciar sesión.")}
+                  {t("Use this username to sign in.")}
                 </p>
                 <label>
-                  {t("Nombre")}
+                  {t("Name")}
                   <div className="profile-input">
                     <UserRound size={16} />
                     <input
@@ -243,7 +241,7 @@ export function UserProfileModal({
                   </div>
                 </label>
                 <label>
-                  {t("Correo electrónico")}
+                  {t("Email address")}
                   <div className="profile-input">
                     <Mail size={16} />
                     <input
@@ -256,7 +254,7 @@ export function UserProfileModal({
                   </div>
                 </label>
                 <label>
-                  {t("Idioma")}
+                  {t("Language")}
                   <div className="profile-input">
                     <Globe size={16} />
                     <select
@@ -264,23 +262,26 @@ export function UserProfileModal({
                       disabled={busy}
                       onChange={(e) => setLanguage(e.target.value as Language)}
                     >
-                      <option value="es">Español</option>
-                      <option value="en">English</option>
+                      <option value="es">
+                        {t("Spanish (Latin American)")}
+                      </option>
+                      <option value="en">{t("English (American)")}</option>
+                      <option value="pt">{t("Portuguese (Brazil)")}</option>
                     </select>
                   </div>
                 </label>
                 <p className="profile-hint">
                   {t(
-                    "El idioma se aplica a la interfaz y se recuerda en este navegador.",
+                    "The language applies to the interface and is remembered in this browser.",
                   )}
                 </p>
                 <div className="profile-role">
                   <span>
                     <Shield size={16} />
-                    {t("Rol de la cuenta")}
+                    {t("Account role")}
                   </span>
                   <span className="badge">
-                    {t(user.role === "admin" ? "Administrador" : "Editor")}
+                    {t(user.role === "admin" ? "Administrator" : "Editor")}
                   </span>
                 </div>
               </>
@@ -289,11 +290,11 @@ export function UserProfileModal({
                 <p className="notice profile-alert">
                   <LockKeyhole size={17} />
                   {t(
-                    "Para cambiar tu contraseña, confirma tu identidad con la contraseña actual.",
+                    "To change your password, confirm your identity with your current password.",
                   )}
                 </p>
                 <label>
-                  {t("Contraseña actual")}
+                  {t("Current password")}
                   <div className="profile-input">
                     <LockKeyhole size={16} />
                     <input
@@ -308,7 +309,7 @@ export function UserProfileModal({
                   </div>
                 </label>
                 <label>
-                  {t("Nueva contraseña")}
+                  {t("New password")}
                   <div className="profile-input">
                     <KeyRound size={16} />
                     <input
@@ -324,10 +325,10 @@ export function UserProfileModal({
                   </div>
                 </label>
                 <p className="profile-hint">
-                  {t("Usa al menos 12 caracteres.")}
+                  {t("Use at least 12 characters.")}
                 </p>
                 <label>
-                  {t("Confirmar nueva contraseña")}
+                  {t("Confirm new password")}
                   <div className="profile-input">
                     <KeyRound size={16} />
                     <input
@@ -347,11 +348,11 @@ export function UserProfileModal({
           </div>
           <div className="profile-footer">
             <button type="button" disabled={busy} onClick={close}>
-              {t("Cerrar")}
+              {t("Close")}
             </button>
             <button type="submit" className="primary" disabled={busy}>
               <Save size={16} />
-              {t(busy ? "Guardando…" : "Guardar cambios")}
+              {t(busy ? "Saving…" : "Save changes")}
             </button>
           </div>
         </form>

@@ -15,7 +15,7 @@ import { api } from "./api";
 import { userMessage } from "../lib/presentation";
 import { bibleVersionSchema, type BibleVersion } from "../lib/bible-versions";
 
-const languages = { es: "Español", en: "Inglés", pt: "Portugués" } as const;
+const languages = { es: "Spanish", en: "English", pt: "Portuguese" } as const;
 export function BibleVersions() {
   const { t } = useI18n();
   const [versions, setVersions] = useState<BibleVersion[]>([]);
@@ -75,8 +75,8 @@ export function BibleVersions() {
       await load();
       setNotice(
         result.added
-          ? `${t("Versiones nuevas añadidas:")} ${result.added}.`
-          : t("No hay versiones nuevas para añadir."),
+          ? `${t("New versions added:")} ${result.added}.`
+          : t("There are no new versions to add."),
       );
     } catch (cause) {
       setError(userMessage(cause));
@@ -89,12 +89,10 @@ export function BibleVersions() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{t("CONFIGURACIÓN")}</p>
-          <h1>{t("Versiones de la Biblia")}</h1>
+          <p className="eyebrow">{t("SETTINGS")}</p>
+          <h1>{t("Bible versions")}</h1>
           <p className="muted">
-            {t(
-              "Administra las versiones disponibles para tus proyectos de video.",
-            )}
+            {t("Manage the versions available for your video projects.")}
           </p>
         </div>
         <div className="project-top-actions">
@@ -107,7 +105,7 @@ export function BibleVersions() {
             }}
           >
             <Plus size={16} />
-            {t("Añadir versión")}
+            {t("Add version")}
           </button>
           <div
             className="bible-versions-menu"
@@ -125,10 +123,8 @@ export function BibleVersions() {
               ref={menuTrigger}
               type="button"
               className="icon-button"
-              aria-label={t("Opciones de versiones")}
-              title={t(
-                syncing ? "Sincronizando versiones…" : "Opciones de versiones",
-              )}
+              aria-label={t("Version options")}
+              title={syncing ? t("Syncing versions…") : t("Version options")}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-controls={menuOpen ? "bible-versions-menu" : undefined}
@@ -146,7 +142,7 @@ export function BibleVersions() {
                 role="menu"
                 id="bible-versions-menu"
                 className="bible-versions-dropdown"
-                aria-label={t("Opciones de versiones")}
+                aria-label={t("Version options")}
               >
                 <button
                   ref={syncItem}
@@ -155,7 +151,7 @@ export function BibleVersions() {
                   onClick={synchronize}
                 >
                   <RefreshCw size={16} />
-                  {t("Sincronizar versiones")}
+                  {t("Sync versions")}
                 </button>
               </div>
             )}
@@ -177,11 +173,11 @@ export function BibleVersions() {
           <table className="bible-versions-table">
             <thead>
               <tr>
-                <th>{t("Nombre")}</th>
-                <th>{t("Idioma")}</th>
-                <th>{t("Código de versión")}</th>
-                <th>{t("Proyectos")}</th>
-                <th>{t("Acciones")}</th>
+                <th>{t("Name")}</th>
+                <th>{t("Language")}</th>
+                <th>{t("Version code")}</th>
+                <th>{t("Projects")}</th>
+                <th>{t("Actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -190,7 +186,7 @@ export function BibleVersions() {
                   key={version.id}
                   className="bible-version-row"
                   tabIndex={0}
-                  aria-label={`${t("Editar versión")}: ${version.label}`}
+                  aria-label={`${t("Edit version")}: ${version.label}`}
                   onClick={() => {
                     setNotice("");
                     setEditing(version);
@@ -213,7 +209,7 @@ export function BibleVersions() {
                       <button
                         type="button"
                         className="icon-button"
-                        aria-label={`${t("Editar versión")}: ${version.label}`}
+                        aria-label={`${t("Edit version")}: ${version.label}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           setNotice("");
@@ -226,12 +222,12 @@ export function BibleVersions() {
                         type="button"
                         className="icon-button"
                         disabled={version.project_count > 0}
-                        title={t(
+                        title={
                           version.project_count
-                            ? "Esta versión tiene proyectos asociados."
-                            : "Eliminar versión",
-                        )}
-                        aria-label={`${t("Eliminar versión")}: ${version.label}`}
+                            ? t("This version has associated projects.")
+                            : t("Delete version")
+                        }
+                        aria-label={`${t("Delete version")}: ${version.label}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           setDeleting(version);
@@ -246,12 +242,12 @@ export function BibleVersions() {
             </tbody>
           </table>
           {loading ? (
-            <p className="empty">{t("Cargando versiones…")}</p>
+            <p className="empty">{t("Loading versions…")}</p>
           ) : (
             !versions.length && (
               <p className="empty">
                 {t(
-                  "Todavía no hay versiones. Añade una para comenzar a crear proyectos.",
+                  "There are no versions yet. Add one to start creating projects.",
                 )}
               </p>
             )
@@ -264,7 +260,7 @@ export function BibleVersions() {
           close={() => setEditing(null)}
           saved={() => {
             setEditing(null);
-            setNotice("Versión guardada.");
+            setNotice("Version saved.");
             void load();
           }}
         />
@@ -276,7 +272,7 @@ export function BibleVersions() {
           close={() => setDeleting(null)}
           saved={() => {
             setDeleting(null);
-            setNotice("Versión eliminada.");
+            setNotice("Version deleted.");
             void load();
           }}
         />
@@ -314,10 +310,10 @@ function VersionDialog({
     };
   }, []);
   const title = deleting
-    ? "Eliminar versión"
+    ? "Delete version"
     : version
-      ? "Editar versión"
-      : "Añadir versión";
+      ? "Edit version"
+      : "Add version";
   return (
     <dialog
       ref={dialog}
@@ -333,7 +329,7 @@ function VersionDialog({
           event.preventDefault();
           setError("");
           if (!deleting && !bibleVersionSchema.safeParse(values).success) {
-            setError("Revisa el nombre, el idioma y el código de la versión.");
+            setError("Check the version name, language and code.");
             return;
           }
           setBusy(true);
@@ -355,7 +351,7 @@ function VersionDialog({
           <button
             type="button"
             className="icon-button"
-            aria-label={t("Cerrar")}
+            aria-label={t("Close")}
             disabled={busy}
             onClick={close}
           >
@@ -369,13 +365,13 @@ function VersionDialog({
         )}
         {deleting ? (
           <p>
-            {t("¿Quieres eliminar esta versión?")}{" "}
+            {t("Do you want to delete this version?")}{" "}
             <strong>{version?.label}</strong>
           </p>
         ) : (
           <fieldset disabled={busy} className="voice-settings-fields">
             <label>
-              {t("Nombre")}
+              {t("Name")}
               <input
                 required
                 maxLength={120}
@@ -387,7 +383,7 @@ function VersionDialog({
               />
             </label>
             <label>
-              {t("Idioma")}
+              {t("Language")}
               <select
                 disabled={locked}
                 value={values.locale}
@@ -406,7 +402,7 @@ function VersionDialog({
               </select>
             </label>
             <label>
-              {t("Código de versión")}
+              {t("Version code")}
               <input
                 required
                 maxLength={60}
@@ -420,14 +416,14 @@ function VersionDialog({
               />
               <small className="muted">
                 {t(
-                  "Usa el código de la versión bíblica disponible: letras minúsculas, números y guiones, sin espacios.",
+                  "Use the code of the available Bible version: lowercase letters, numbers and hyphens, without spaces.",
                 )}
               </small>
             </label>
             {locked && (
               <p className="notice">
                 {t(
-                  "Esta versión tiene proyectos asociados. Puedes cambiar su nombre, pero no su idioma o código ni eliminarla.",
+                  "This version has associated projects. You can change its name, but you cannot change its language or code or delete it.",
                 )}
               </p>
             )}
@@ -435,17 +431,15 @@ function VersionDialog({
         )}
         <div className="modal-footer">
           <button type="button" disabled={busy} onClick={close}>
-            {t("Cancelar")}
+            {t("Cancel")}
           </button>
           <button className="primary" disabled={busy}>
             {deleting ? <Trash2 size={16} /> : <Save size={16} />}
-            {t(
-              busy
-                ? "Guardando…"
-                : deleting
-                  ? "Eliminar versión"
-                  : "Guardar cambios",
-            )}
+            {busy
+              ? t("Saving…")
+              : deleting
+                ? t("Delete version")
+                : t("Save changes")}
           </button>
         </div>
       </form>

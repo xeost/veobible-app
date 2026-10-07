@@ -254,7 +254,7 @@ export function VerseWaveform({
   if (!cue)
     return (
       <p className="muted">
-        {t("No hay versículos para sincronizar en esta sección.")}
+        {t("There are no verses to synchronize in this section.")}
       </p>
     );
   return (
@@ -282,11 +282,11 @@ export function VerseWaveform({
       <div className="sync-workspace">
         <div className="sync-heading">
           <AudioLines size={18} />
-          <strong>{t("Sincronizar texto y audio")}</strong>
+          <strong>{t("Synchronize text and audio")}</strong>
           <div>
             <button
               type="button"
-              aria-label={t("Alejar")}
+              aria-label={t("Zoom out")}
               disabled={zoom === 1}
               onClick={() => setZoom(Math.max(1, zoom - 1))}
             >
@@ -294,7 +294,7 @@ export function VerseWaveform({
             </button>
             <button
               type="button"
-              aria-label={t("Acercar")}
+              aria-label={t("Zoom in")}
               disabled={zoom === 6}
               onClick={() => setZoom(Math.min(6, zoom + 1))}
             >
@@ -304,7 +304,7 @@ export function VerseWaveform({
         </div>
         <p className="muted">
           {t(
-            "Al soltar un extremo, escucharás 3 segundos de ese lado. Haz clic dentro del fragmento para escuchar desde ese punto hasta el final. Usa las flechas para ajustes precisos.",
+            "Release an edge to hear 3 seconds from that side. Click inside the fragment to listen from that point to the end. Use the arrow keys for precise adjustments.",
           )}
         </p>
         <div className="waveform-scroll" ref={scroll}>
@@ -325,7 +325,7 @@ export function VerseWaveform({
               viewBox="0 0 1000 120"
               preserveAspectRatio="none"
               className="waveform-bars"
-              aria-label={t("Forma de onda del audio")}
+              aria-label={t("Audio waveform")}
               role="img"
             >
               {peaks.map((peak, i) => (
@@ -343,8 +343,8 @@ export function VerseWaveform({
               <span className="waveform-status">
                 {t(
                   waveError
-                    ? "No se pudo cargar la forma de onda. Puedes ajustar los tiempos y reintentar."
-                    : "Cargando forma de onda…",
+                    ? "Could not load the waveform. You can adjust timing and try again."
+                    : "Loading waveform…",
                 )}
               </span>
             )}
@@ -375,7 +375,7 @@ export function VerseWaveform({
             className="analysis-retry"
             onClick={() => setRevision((current) => current + 1)}
           >
-            {t("Reintentar carga de audio")}
+            {t("Retry loading audio")}
           </button>
         )}
         <div className="waveform-ruler">
@@ -390,13 +390,13 @@ export function VerseWaveform({
           <p>{cue.text}</p>
           <button type="button" onClick={preview}>
             <span>{playing ? <Pause size={16} /> : <Play size={16} />}</span>
-            {t(playing ? "Pausar" : "Escuchar versículo")}
+            {playing ? t("Pause") : t("Listen to verse")}
           </button>
         </div>
         <div className="trim-fields">
           {(["start", "end"] as const).map((edge) => (
             <label key={edge}>
-              {t(edge === "start" ? "Inicio" : "Fin")} ({t("segundos")})
+              {edge === "start" ? t("Start") : t("End")} ({t("seconds")})
               <input
                 type="number"
                 step={0.01}

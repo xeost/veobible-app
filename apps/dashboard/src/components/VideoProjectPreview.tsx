@@ -117,9 +117,7 @@ export function VideoProjectPreview({
       setView("preview");
     } catch {
       if (!controller.signal.aborted)
-        setError(
-          "No se pudo preparar la previsualización. Inténtalo de nuevo.",
-        );
+        setError("The preview could not be prepared. Try again.");
     } finally {
       if (!controller.signal.aborted) setBusy(false);
     }
@@ -141,20 +139,18 @@ export function VideoProjectPreview({
           ) : (
             <Play size={15} />
           )}
-          {t(
-            busy
-              ? "Preparando previsualización…"
-              : stale
-                ? "Actualizar previsualización"
-                : "Previsualizar",
-          )}
+          {busy
+            ? t("Preparing preview…")
+            : stale
+              ? t("Refresh preview")
+              : t("Preview")}
         </button>
         {preview && !stale && (
           <button
             type="button"
             className="icon-button"
-            aria-label={t("Actualizar previsualización")}
-            title={t("Actualizar previsualización")}
+            aria-label={t("Refresh preview")}
+            title={t("Refresh preview")}
             disabled={!ready || busy}
             onClick={() => void load()}
           >
@@ -167,7 +163,7 @@ export function VideoProjectPreview({
             className={view === "rendered" ? "active" : ""}
             onClick={() => setView("rendered")}
           >
-            {t("Video generado")}
+            {t("Video generated")}
           </button>
         )}
       </div>
@@ -183,9 +179,7 @@ export function VideoProjectPreview({
           style={{ width: "100%", borderRadius: 12 }}
           errorFallback={() => (
             <p className="notice">
-              {t(
-                "No se pudo reproducir la previsualización. Vuelve a prepararla.",
-              )}
+              {t("The preview could not be played. Prepare it again.")}
             </p>
           )}
         />
@@ -197,7 +191,7 @@ export function VideoProjectPreview({
           src={media("video")}
           onError={() =>
             setError(
-              "El video no está disponible. Puedes volver a generarlo con tus ajustes guardados.",
+              "The video is unavailable. You can generate it again with your saved settings.",
             )
           }
         />
@@ -205,13 +199,13 @@ export function VideoProjectPreview({
         <div className={`studio-preview-placeholder ${kind}`}>
           <FormatIcon size={40} />
           <strong>
-            {t(kind === "short" ? "Video vertical" : "Video horizontal")}
+            {t(kind === "short" ? "Portrait video" : "Landscape video")}
           </strong>
           <span>
             {t(
               ready
-                ? "Previsualiza el video con tus ajustes antes de generarlo."
-                : "Genera las voces de introducción y cierre para previsualizar el video.",
+                ? "Preview the video with your settings before generating it."
+                : "Generate the introduction and closing voices to preview the video.",
             )}
           </span>
         </div>

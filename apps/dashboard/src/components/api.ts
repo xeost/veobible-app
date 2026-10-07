@@ -1,4 +1,5 @@
 import { userMessage } from "../lib/presentation";
+import type { Language } from "../i18n/context";
 export async function api<T = any>(
   url: string,
   init: RequestInit = {},
@@ -15,7 +16,9 @@ export async function api<T = any>(
   if (!response.ok) throw new Error(userMessage(data.error, response.status));
   return data;
 }
-export const date = (value: string | null, language: "es" | "en" = "es") =>
+export const date = (value: string | null, language: Language = "en") =>
   value
-    ? new Date(value).toLocaleString(language === "en" ? "en-US" : "es-AR")
+    ? new Date(value).toLocaleString(
+        language === "en" ? "en-US" : language === "pt" ? "pt-BR" : "es-AR",
+      )
     : "—";

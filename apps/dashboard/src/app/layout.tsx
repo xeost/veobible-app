@@ -19,8 +19,9 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
+  const cookieLang = (await cookies()).get("veo_language")?.value;
   const language =
-    (await cookies()).get("veo_language")?.value === "en" ? "en" : "es";
+    cookieLang === "es" ? "es" : cookieLang === "pt" ? "pt" : "en";
   return (
     <html lang={language}>
       <body>

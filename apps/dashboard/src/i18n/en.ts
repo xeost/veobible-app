@@ -109,7 +109,6 @@ export const english: Record<string, string> = {
   "Marcar como publicado": "Mark as published",
   "Proyectos disponibles": "Available projects",
   "Videos publicados": "Published videos",
-
   "Settings de voz": "Narration settings",
   "Settings de proyectos": "Project settings",
   "Mínimo: 0×, sin sonido. Volumen original: 1× (100 %), sin cambios. Máximo: 4× (400 % del nivel original). Los valores entre 0× y 1× reducen el volumen; los valores mayores que 1× lo aumentan.":
@@ -198,7 +197,7 @@ export const english: Record<string, string> = {
   "El texto y la presentación de esta sección están definidos para este formato.":
     "The script and presentation of this section are defined for this format.",
   "Previsualización de voz": "Narration preview",
-  "Preparando voz…": "Preparing narration\u2026",
+  "Preparando voz…": "Preparing narration…",
   "Voz lista para escuchar": "Narration ready to listen",
   "Genera la voz de esta sección": "Generate narration for this section",
   "La voz estará disponible aquí cuando termine la preparación.":
@@ -218,7 +217,7 @@ export const english: Record<string, string> = {
   "El video se está creando. Puedes salir de esta página; la generación continúa.":
     "The video is being created. You can leave this page; generation will continue.",
   "Lectura del pasaje": "Passage reading",
-  "Cargando audio y versículos…": "Loading audio and verses\u2026",
+  "Cargando audio y versículos…": "Loading audio and verses…",
   "Prepara el audio para ajustar los tiempos":
     "Prepare the audio to adjust timing",
   "Sincronización del pasaje": "Passage synchronization",
@@ -244,10 +243,9 @@ export const english: Record<string, string> = {
   "Forma de onda del audio": "Audio waveform",
   "No se pudo cargar la forma de onda. Puedes ajustar los tiempos y reintentar.":
     "Could not load the waveform. You can adjust timing and try again.",
-  "Cargando forma de onda…": "Loading waveform\u2026",
+  "Cargando forma de onda…": "Loading waveform…",
   Pausar: "Pause",
   "Escuchar versículo": "Listen to verse",
-
   "Volver a los proyectos": "Back to projects",
   "Abrir proyecto": "Open project",
   "Cargando proyecto…": "Loading project…",
@@ -269,7 +267,7 @@ export const english: Record<string, string> = {
   Duración: "Duration",
   "Publicado por": "Published by",
   Nota: "Note",
-  "Cargando historial…": "Loading history\u2026",
+  "Cargando historial…": "Loading history…",
   "Configurar publicación": "Configure publishing",
   "Pega el enlace de publicación del sitio público. Los ajustes se conservan para las próximas publicaciones.":
     "Paste the public site publishing link. Settings are saved for future publications.",
@@ -284,7 +282,6 @@ export const english: Record<string, string> = {
   "Preparando publicación": "Preparing publication",
   Publicando: "Publishing",
   Cancelada: "Cancelled",
-
   ". Puedes cerrar el editor; tu progreso se guarda automáticamente.":
     ". You can close the editor; your progress is saved automatically.",
   "Abrir menú": "Open menu",
@@ -560,4 +557,21 @@ export const english: Record<string, string> = {
   "Creando el video": "Creating the video",
   "Narración y audio del video": "Narration and video audio",
   "365 DÍAS · HORIZONTAL": "365 DAYS · LANDSCAPE",
+  Dashboard: "Dashboard",
+  "Daily Dose": "Daily Dose",
+  "365 Days": "365 Days",
+  Cancelar: "Cancel",
+  VeoBible: "VeoBible",
+  "VeoBible Dashboard": "VeoBible Dashboard",
+  Video: "Video",
+  Short: "Short",
+  Long: "Long",
+  "Short Videos": "Short Videos",
+  "Long Videos": "Long Videos",
+  "Español (latinoamericano)": "Spanish (Latin American)",
+  "Inglés (americano)": "English (American)",
+  "Portugués (de Brasil)": "Portuguese (Brazil)",
+  English: "English",
+  Português: "Portuguese",
+  Spanish: "Spanish",
 };

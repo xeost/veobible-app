@@ -93,13 +93,11 @@ export function SyncVideoProjectsModal({
         }}
       >
         <div className="generation-queue-heading">
-          <h2 id="sync-projects-title">
-            {t("Sincronizar presets de proyectos")}
-          </h2>
+          <h2 id="sync-projects-title">{t("Sync project presets")}</h2>
           <button
             type="button"
             className="icon-button"
-            aria-label={t("Cerrar")}
+            aria-label={t("Close")}
             disabled={busy}
             onClick={close}
           >
@@ -108,7 +106,7 @@ export function SyncVideoProjectsModal({
         </div>
         <p className="muted">
           {t(
-            "Se añadirán los pasajes propuestos que aún no tengan un proyecto para esta versión. Tus proyectos existentes conservarán todos sus cambios.",
+            "Suggested passages without a project for this version will be added. Your existing projects will keep all their changes.",
           )}
         </p>
         <p className="eyebrow">
@@ -120,11 +118,11 @@ export function SyncVideoProjectsModal({
           </p>
         )}
         {loading ? (
-          <p className="empty">{t("Cargando versiones…")}</p>
+          <p className="empty">{t("Loading versions…")}</p>
         ) : versions.length ? (
           <fieldset disabled={busy} className="voice-settings-fields">
             <label>
-              {t("Versión bíblica")}
+              {t("Bible version")}
               <select
                 required
                 value={version}
@@ -145,28 +143,24 @@ export function SyncVideoProjectsModal({
         ) : (
           <p className="notice">
             {t(
-              "Añade una versión de la Biblia antes de crear un proyecto. Si no tienes acceso, solicita ayuda al administrador.",
+              "Add a Bible version before creating a project. If you do not have access, ask the administrator for help.",
             )}
           </p>
         )}
         {result && (
           <p className="success" role="status">
             {result.added
-              ? `${t("Proyectos nuevos añadidos:")} ${result.added}.`
-              : t("No hay proyectos nuevos para añadir.")}
+              ? `${t("New projects added:")} ${result.added}.`
+              : t("There are no new projects to add.")}
           </p>
         )}
         <div className="modal-footer">
           <button type="button" disabled={busy} onClick={close}>
-            {t("Cerrar")}
+            {t("Close")}
           </button>
           <button className="primary" disabled={loading || busy || !version}>
             {busy ? <LoaderCircle size={16} /> : <RefreshCw size={16} />}{" "}
-            {t(
-              busy
-                ? "Sincronizando proyectos…"
-                : "Sincronizar presets de proyectos",
-            )}
+            {busy ? t("Syncing projects…") : t("Sync project presets")}
           </button>
         </div>
       </form>

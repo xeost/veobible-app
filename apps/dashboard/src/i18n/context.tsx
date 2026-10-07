@@ -6,25 +6,28 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { spanish } from "./es";
 import { english } from "./en";
-export type Language = "es" | "en";
+import { portuguese } from "./pt";
+export type Language = "es" | "en" | "pt";
 const Context = createContext({
-  language: "es" as Language,
+  language: "en" as Language,
   setLanguage: (_: Language) => {},
   t: (text: string): string => text,
 });
 export function I18nProvider({
-  initialLanguage,
+  initialLanguage = "en",
   children,
 }: {
-  initialLanguage: Language;
+  initialLanguage?: Language;
   children: ReactNode;
 }) {
   const [language, updateLanguage] = useState(initialLanguage);
   useEffect(() => {
     try {
       const saved = localStorage.getItem("veo-language");
-      if (saved === "es" || saved === "en") updateLanguage(saved);
+      if (saved === "es" || saved === "en" || saved === "pt")
+        updateLanguage(saved);
     } catch {}
   }, []);
   useEffect(() => {
@@ -38,8 +41,12 @@ export function I18nProvider({
       localStorage.setItem("veo-language", value);
     } catch {}
   };
-  const t = (text: string) =>
-    language === "en" ? (english[text] ?? text) : text;
+  const t = (text: string) => {
+    if (language === "es") return spanish[text] ?? text;
+    if (language === "pt") return portuguese[text] ?? text;
+    if (language === "en") return english[text] ?? text;
+    return text;
+  };
   return (
     <Context.Provider value={{ language, setLanguage, t }}>
       {children}

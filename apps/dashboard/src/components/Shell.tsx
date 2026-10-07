@@ -30,8 +30,8 @@ const items = [
   ["/", "Dashboard", LayoutDashboard],
   ["/short-videos", "Short Videos", Clapperboard],
   ["/long-videos", "Long Videos", Film],
-  ["/bible-versions", "Versiones de la Biblia", BookOpen],
-  ["/deployments", "Publicaciones", Rocket],
+  ["/bible-versions", "Bible versions", BookOpen],
+  ["/deployments", "Publications", Rocket],
   ["/settings", "Settings", Settings],
 ] as const;
 export function Shell({ children, user }: { children: ReactNode; user: User }) {
@@ -114,10 +114,10 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
           <BrandLogo />
           <div>
             <strong>{t("VeoBible")}</strong>
-            <small>{t("PRODUCCIÓN DE VIDEOS")}</small>
+            <small>{t("VIDEO PRODUCTION")}</small>
           </div>
         </Link>
-        <div className="nav-label">{t("TUS PROYECTOS")}</div>
+        <div className="nav-label">{t("YOUR PROJECTS")}</div>
         <nav>
           {items
             .filter(
@@ -143,7 +143,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
           <button
             type="button"
             className="local-card generation-queue-card"
-            aria-label={t("Abrir cola de generación")}
+            aria-label={t("Open generation queue")}
             onClick={() => {
               setQueueOpen(true);
               setOpen(false);
@@ -152,20 +152,16 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
           >
             <span className={queue.connected ? "dot green" : "dot"} />
             <strong>
-              {t(
-                queue.connected
-                  ? "Generación disponible"
-                  : "Generación no disponible",
-              )}
+              {queue.connected
+                ? t("Generation available")
+                : t("Generation unavailable")}
             </strong>
             <p>
-              {t(
-                queue.items.some((item) => item.status === "running")
-                  ? "Generación en curso"
-                  : queue.items.some((item) => item.status === "queued")
-                    ? "Generaciones en espera"
-                    : "Sin generaciones pendientes",
-              )}
+              {queue.items.some((item) => item.status === "running")
+                ? t("Generation in progress")
+                : queue.items.some((item) => item.status === "queued")
+                  ? t("Generations waiting")
+                  : t("No pending generations")}
             </p>
             {pending.length > 0 && (
               <>
@@ -174,17 +170,17 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
                     pending.find((item) => item.status === "running")
                       ?.progress ?? 0
                   }
-                  label={t("Tarea actual")}
+                  label={t("Current task")}
                 />
                 <GenerationProgress
                   value={queue.summary?.progress ?? 0}
-                  label={t("Cola completa")}
+                  label={t("Entire queue")}
                 />
               </>
             )}
             <span className="queue-card-link">
               <ListOrdered size={15} />
-              {t("Ver cola")}
+              {t("View queue")}
               <b>{pending.length}</b>
             </span>
           </button>
@@ -198,12 +194,12 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
           <div className="breadcrumb">
             <button
               className="mobile-toggle icon-button"
-              aria-label={t("Abrir menú")}
+              aria-label={t("Open menu")}
               onClick={() => setOpen(!open)}
             >
               <Menu size={20} />
             </button>
-            <span>{t("Mis proyectos")}</span>
+            <span>{t("My projects")}</span>
             <ChevronRight size={14} />
             <b>{t(title)}</b>
           </div>
@@ -211,8 +207,8 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
             <button
               type="button"
               className="user-button"
-              aria-label={t("Abrir mi perfil")}
-              title={t("Mi perfil")}
+              aria-label={t("Open my profile")}
+              title={t("My profile")}
               onClick={() => setProfile(true)}
             >
               <span className="profile-avatar">
@@ -223,13 +219,13 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
               <span className="user-info">
                 <strong>{account.name || account.username}</strong>
                 <small>
-                  {t(account.role === "admin" ? "Administrador" : "Editor")}
+                  {account.role === "admin" ? t("Administrator") : t("Editor")}
                 </small>
               </span>
             </button>
             <button
               className="icon-button"
-              aria-label={t("Cerrar sesión")}
+              aria-label={t("Sign out")}
               onClick={async () => {
                 await api("auth/logout", { method: "POST" });
                 window.location.assign("/login");
