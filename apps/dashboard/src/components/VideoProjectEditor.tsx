@@ -31,6 +31,7 @@ import {
   generationStage,
   voiceFailureMessage,
 } from "../lib/presentation";
+import { effectiveReadingVolume } from "../lib/project-settings";
 import { settingsSchema, type RenderRequest } from "../lib/video-schema";
 import { type VideoRow, type VideoKind } from "./video-project";
 import {
@@ -71,6 +72,8 @@ export function VideoProjectEditor({
   const { t } = useI18n();
   const [project, setProject] = useState<VideoRow | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
+  const [versionVolume, setVersionVolume] = useState(1);
+  const readingVolumeValue = effectiveReadingVolume(settings, versionVolume);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const [analysis, setAnalysis] = useState<Inspection | null>(null);
@@ -151,6 +154,7 @@ export function VideoProjectEditor({
       try {
         const data = await api<{ video: VideoRow; defaults: Settings }>(base);
         if (!live) return;
+        setVersionVolume(data.defaults.volumeMultiplier);
         if (!initialized) {
           const values = settingsSchema.parse(
             data.video.settings && data.video.settings !== "{}"
@@ -579,6 +583,7 @@ export function VideoProjectEditor({
   };
   const readingVolume = (
     <div className="reading-volume-settings">
+      <hr className="reading-settings-divider" />
       <label>
         {t("Reading volume")}
         <div className="volume-control">
@@ -586,9 +591,9 @@ export function VideoProjectEditor({
             type="range"
             min={0}
             max={4}
-            step={0.05}
-            value={settings.volumeMultiplier}
-            disabled={locked}
+            step={0.1}
+            value={readingVolumeValue}
+            disabled={locked || !settings.overrideReadingVolume}
             onChange={(e) =>
               setSettings({
                 ...settings,
@@ -596,9 +601,29 @@ export function VideoProjectEditor({
               })
             }
           />
-          <output>{settings.volumeMultiplier.toFixed(2)}×</output>
+          <output>{readingVolumeValue.toFixed(2)}×</output>
         </div>
       </label>
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          checked={settings.overrideReadingVolume}
+          disabled={locked}
+          onChange={(event) =>
+            setSettings((current) => ({
+              ...current,
+              overrideReadingVolume: event.target.checked,
+            }))
+          }
+        />
+        {t("Use a custom reading volume for this project")}
+      </label>
+      <p className="muted">
+        {t(
+          "Unchecked: uses the default reading volume for this Bible version.",
+        )}
+      </p>
+      <hr className="reading-settings-divider" />
       <p className="muted">
         {t("Save synchronization changes before leaving.")}
       </p>
@@ -874,7 +899,7 @@ export function VideoProjectEditor({
             key={projectId + ":" + voiceRevision}
             kind={kind}
             endpoint={endpoint}
-            settings={settings}
+            settings={{ ...settings, volumeMultiplier: readingVolumeValue }}
             cues={cues}
             ready={Boolean(analysis && !analyzing && voicesReady)}
             playbackRef={previewPlayback}

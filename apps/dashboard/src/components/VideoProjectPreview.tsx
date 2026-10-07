@@ -78,7 +78,11 @@ export function VideoProjectPreview({
   }, [stop]);
   useImperativeHandle(playbackRef, () => ({ stop, dispose }), [stop, dispose]);
   useLayoutEffect(() => dispose, [dispose]);
-  useLayoutEffect(() => stop, [view, ready, stop]);
+  useLayoutEffect(() => {
+    // A tab change is stopped before rendering by the modal; cleanup here would
+    // clear the incoming tab's media after React has already replaced the DOM.
+    if (view === "composition" && !ready) stop();
+  }, [view, ready, stop]);
   const attachPlayer = useCallback((next: PlayerRef | null) => {
     // Player handles briefly detach on updates; retain the latest one for teardown.
     if (next) player.current = next;

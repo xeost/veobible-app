@@ -1877,6 +1877,11 @@ audio {
 .reading-volume-settings {
   margin-top: 20px;
 }
+.reading-settings-divider {
+  border: 0;
+  border-top: 1px solid #ffffff0d;
+  margin: 18px 0;
+}
 .reading-volume-settings label,
 .reading-volume-settings .muted {
   font-size: 10px;

@@ -90,3 +90,30 @@ test("project defaults are manual and isolate matching version IDs by language a
     sqlite.close();
   }
 });
+
+test("reading volume inherits current version defaults unless the project explicitly overrides them", async () => {
+  const { effectiveReadingVolume } = await import("./project-settings");
+  const { settingsSchema } = await import("./video-schema");
+  const inherited = settingsSchema.parse({ volumeMultiplier: 3 });
+  assert.equal(inherited.overrideReadingVolume, false);
+  assert.equal(effectiveReadingVolume(inherited, 1.5), 1.5);
+  assert.equal(effectiveReadingVolume(inherited, 2.5), 2.5);
+  assert.equal(
+    effectiveReadingVolume({ ...inherited, overrideReadingVolume: true }, 1.5),
+    3,
+  );
+  assert.equal(
+    effectiveReadingVolume(
+      { volumeMultiplier: 0, overrideReadingVolume: true },
+      1.5,
+    ),
+    0,
+  );
+  assert.equal(effectiveReadingVolume(inherited, 0), 0);
+  assert.equal(
+    settingsSchema.parse(
+      JSON.parse(JSON.stringify({ ...inherited, overrideReadingVolume: true })),
+    ).overrideReadingVolume,
+    true,
+  );
+});

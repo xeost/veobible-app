@@ -9,6 +9,7 @@ import { settingsSchema, renderSchema } from "./video-schema";
 import { videoFetch } from "./video-client";
 import {
   loadProjectSettings,
+  effectiveReadingVolume,
   versionProjectSettings,
 } from "./project-settings";
 import { loadVoiceSettings } from "./voice-settings";
@@ -389,6 +390,18 @@ export async function videoApi(
     const settings = settingsSchema.parse(
       parts[2] === "voices" ? JSON.parse(project.settings) : values,
     );
+    const defaults = versionProjectSettings(
+      await loadProjectSettings(database, project.kind),
+      project.locale,
+      project.version_code,
+    );
+    const generationSettings = {
+      ...settings,
+      volumeMultiplier: effectiveReadingVolume(
+        settings,
+        defaults.volumeMultiplier,
+      ),
+    };
     const voiceTemplates = (await loadVoiceSettings(database, project.kind))[
       project.locale
     ];
@@ -398,7 +411,7 @@ export async function videoApi(
       outputEnvironment,
       version,
       passage: JSON.parse(project.passage),
-      settings,
+      settings: generationSettings,
       voiceTemplates,
     };
     if (parts[2] === "voices") {

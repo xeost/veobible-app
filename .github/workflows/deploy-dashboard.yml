@@ -65,8 +65,8 @@ jobs:
       DASHBOARD_D1_DATABASE_NAME: ${{ vars.DASHBOARD_D1_DATABASE_NAME }}
       DASHBOARD_VIDEO_API_URL: ${{ vars.DASHBOARD_VIDEO_API_URL }}
       DASHBOARD_DOMAIN: ${{ vars.DASHBOARD_DOMAIN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      DASHBOARD_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.DASHBOARD_CLOUDFLARE_ACCOUNT_ID }}
+      DASHBOARD_CLOUDFLARE_API_TOKEN: ${{ secrets.DASHBOARD_CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -90,8 +90,8 @@ jobs:
           pnpm deploy:production --check
           pnpm deploy:production --dry-run
         env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          PROXY_API_TOKEN: ${{ secrets.PROXY_API_TOKEN }}
+          DASHBOARD_JWT_SECRET: ${{ secrets.DASHBOARD_JWT_SECRET }}
+          DASHBOARD_PROXY_API_TOKEN: ${{ secrets.DASHBOARD_PROXY_API_TOKEN }}
           DASHBOARD_PUBLISH_API_TOKEN: ${{ secrets.DASHBOARD_PUBLISH_API_TOKEN }}
           DASHBOARD_PUBLISH_ACCOUNT_ID: ${{ vars.DASHBOARD_PUBLISH_ACCOUNT_ID }}
       - name: Apply production database migrations
@@ -99,7 +99,7 @@ jobs:
       - name: Deploy Worker and runtime secrets
         run: pnpm deploy:production
         env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          PROXY_API_TOKEN: ${{ secrets.PROXY_API_TOKEN }}
+          DASHBOARD_JWT_SECRET: ${{ secrets.DASHBOARD_JWT_SECRET }}
+          DASHBOARD_PROXY_API_TOKEN: ${{ secrets.DASHBOARD_PROXY_API_TOKEN }}
           DASHBOARD_PUBLISH_API_TOKEN: ${{ secrets.DASHBOARD_PUBLISH_API_TOKEN }}
           DASHBOARD_PUBLISH_ACCOUNT_ID: ${{ vars.DASHBOARD_PUBLISH_ACCOUNT_ID }}

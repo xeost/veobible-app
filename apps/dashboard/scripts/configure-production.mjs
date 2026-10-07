@@ -105,27 +105,38 @@ if (
   console.log("Production Worker configuration prepared.");
 }
 
-export function runtimeSecrets(environment = process.env) {
-  const secrets = {};
+/** Translate app-scoped deployment credentials to Wrangler's required names. */
+export function wranglerEnvironment(environment = process.env) {
   for (const name of [
-    "CLOUDFLARE_ACCOUNT_ID",
-    "CLOUDFLARE_API_TOKEN",
-    "JWT_SECRET",
-    "PROXY_API_TOKEN",
+    "DASHBOARD_CLOUDFLARE_ACCOUNT_ID",
+    "DASHBOARD_CLOUDFLARE_API_TOKEN",
   ]) {
     if (!environment[name])
       throw new Error(`Missing deployment environment variable: ${name}`);
   }
+  return {
+    ...environment,
+    CLOUDFLARE_ACCOUNT_ID: environment.DASHBOARD_CLOUDFLARE_ACCOUNT_ID,
+    CLOUDFLARE_API_TOKEN: environment.DASHBOARD_CLOUDFLARE_API_TOKEN,
+  };
+}
+
+export function runtimeSecrets(environment = process.env) {
+  wranglerEnvironment(environment);
+  const secrets = {};
   for (const name of ["JWT_SECRET", "PROXY_API_TOKEN"]) {
-    if (Buffer.byteLength(environment[name]) < 32)
-      throw new Error(`${name} must contain at least 32 bytes.`);
-    secrets[name] = environment[name];
+    const inputName = `DASHBOARD_${name}`;
+    if (!environment[inputName])
+      throw new Error(`Missing deployment environment variable: ${inputName}`);
+    if (Buffer.byteLength(environment[inputName]) < 32)
+      throw new Error(`${inputName} must contain at least 32 bytes.`);
+    secrets[name] = environment[inputName];
   }
   if (environment.DASHBOARD_PUBLISH_API_TOKEN) {
     secrets.CLOUDFLARE_API_TOKEN = environment.DASHBOARD_PUBLISH_API_TOKEN;
     secrets.CLOUDFLARE_ACCOUNT_ID =
       environment.DASHBOARD_PUBLISH_ACCOUNT_ID ||
-      environment.CLOUDFLARE_ACCOUNT_ID;
+      environment.DASHBOARD_CLOUDFLARE_ACCOUNT_ID;
   }
   return secrets;
 }

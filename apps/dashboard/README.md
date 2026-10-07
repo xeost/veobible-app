@@ -89,7 +89,7 @@ Create a dedicated dashboard D1 database and configure these GitHub variables:
 | Variable                     | Value                                                                                                                  |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `DASHBOARD_D1_DATABASE_ID`   | Required: UUID of the dashboard database.                                                                              |
-| `DASHBOARD_VIDEO_API_URL`    | Required: HTTPS URL of the video proxy tunnel, accessible from the Worker. This is separate from the public Bible API. |
+| `DASHBOARD_VIDEO_API_URL`    | Optional; defaults to `https://api-proxy-tool.veobible.com`, the proxy tunnel URL. |
 | `DASHBOARD_D1_DATABASE_NAME` | Optional; defaults to `veobible-dashboard-production`.                                                                 |
 | `DASHBOARD_DOMAIN`           | Optional; defaults to `dash.veobible.com`.                                                                             |
 
@@ -97,13 +97,13 @@ Configure these GitHub secrets in the repository or its `production` environment
 
 | Secret                        | Purpose                                                                                                                            |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `CLOUDFLARE_ACCOUNT_ID`       | Cloudflare account hosting the Worker and D1 database.                                                                             |
-| `CLOUDFLARE_API_TOKEN`        | Deployment credential with Workers Scripts Write, D1 Edit, and Workers Routes Write permissions for the relevant account and zone. |
-| `JWT_SECRET`                  | Random authentication secret of at least 32 bytes.                                                                                 |
-| `PROXY_API_TOKEN`             | Random secret of at least 32 bytes, matching the proxy configuration.                                                              |
+| `DASHBOARD_CLOUDFLARE_ACCOUNT_ID`       | Cloudflare account hosting the Worker and D1 database.                                                                             |
+| `DASHBOARD_CLOUDFLARE_API_TOKEN`        | Deployment credential with Workers Scripts Write, D1 Edit, and Workers Routes Write permissions for the relevant account and zone. |
+| `DASHBOARD_JWT_SECRET`                  | Random authentication secret of at least 32 bytes.                                                                                 |
+| `DASHBOARD_PROXY_API_TOKEN`             | Random secret of at least 32 bytes, matching the proxy configuration.                                                              |
 | `DASHBOARD_PUBLISH_API_TOKEN` | Optional separate token for reading the public site's Workers Builds, with Workers Builds Read permission.                         |
 
-`DASHBOARD_PUBLISH_ACCOUNT_ID` is an optional GitHub variable for the public site's account; it defaults to the deployment account when the publication token is provided. The deployment token is never automatically stored inside the Worker.
+`DASHBOARD_PUBLISH_ACCOUNT_ID` is an optional GitHub variable for the public site's account; it defaults to `DASHBOARD_CLOUDFLARE_ACCOUNT_ID` when the publication token is provided. The deployment token is never automatically stored inside the Worker. GitHub configuration uses only `DASHBOARD_` names. Deployment scripts map these to Wrangler credentials and Worker bindings (`JWT_SECRET` and `PROXY_API_TOKEN`) internally.
 
 The production build resolves configuration from these variables and rejects placeholder database IDs, example proxy URLs, or invalid domains. Before migrating, the Action checks required credentials and performs a deployment dry run. The deployment uploads runtime secrets together with the Worker using a temporary file with restricted permissions. Optional secrets omitted from later runs retain their existing values; delete them explicitly with Wrangler when no longer needed.
 

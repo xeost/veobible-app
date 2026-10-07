@@ -55,3 +55,13 @@ export function versionProjectSettings(
     }
   );
 }
+
+/** Resolve inheritance at use time so updated version defaults apply to existing projects. */
+export function effectiveReadingVolume(
+  project: { volumeMultiplier: number; overrideReadingVolume: boolean },
+  versionVolume: number,
+) {
+  return project.overrideReadingVolume
+    ? project.volumeMultiplier
+    : versionVolume;
+}

@@ -10,6 +10,7 @@ import {
   assertProductionBuild,
   loadProductionEnvironment,
   runtimeSecrets,
+  wranglerEnvironment,
 } from "./configure-production.mjs";
 
 loadProductionEnvironment();
@@ -43,7 +44,7 @@ if (args.includes("--check")) {
     const result = spawnSync("pnpm", command, {
       cwd: dashboardRoot,
       stdio: "inherit",
-      env: process.env,
+      env: wranglerEnvironment(),
     });
     if (result.error) throw result.error;
     process.exitCode = result.status ?? 1;

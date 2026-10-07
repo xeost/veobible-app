@@ -33,6 +33,7 @@ test("render contract rejects invalid paths, versions and settings", () => {
 test("project settings discard obsolete narration controls while preserving all editable rendering values", () => {
   const input = {
     volumeMultiplier: 1.5,
+    overrideReadingVolume: false,
     passageOffsets: { startSeconds: -0.25, endSeconds: 0.5 },
     verseOffsets: [
       {
@@ -52,6 +53,7 @@ test("project settings discard obsolete narration controls while preserving all 
     input,
   );
   assert.deepEqual(Object.keys(settingsSchema.parse({})).sort(), [
+    "overrideReadingVolume",
     "passageOffsets",
     "verseOffsets",
     "volumeMultiplier",

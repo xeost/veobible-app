@@ -1,4 +1,8 @@
 export const portuguese: Record<string, string> = {
+  "Use a custom reading volume for this project":
+    "Usar um volume de leitura próprio para este projeto",
+  "Unchecked: uses the default reading volume for this Bible version.":
+    "Desmarcado: usa o volume de leitura padrão desta versão da Bíblia.",
   "Analyze the audio again to update verse timings.":
     "Analisar o áudio novamente para atualizar os tempos dos versículos.",
   "Generate the introduction and closing voices before generating the video.":

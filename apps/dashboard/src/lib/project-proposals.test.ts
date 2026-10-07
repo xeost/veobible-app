@@ -78,6 +78,7 @@ test("project sync only adds missing slugs within a format and Bible version, re
     const saved = sqlite.prepare("SELECT * FROM video_projects").get()!;
     assert.deepEqual(JSON.parse(String(saved.settings)), {
       volumeMultiplier: 1.5,
+      overrideReadingVolume: false,
       passageOffsets: { startSeconds: 0, endSeconds: 0 },
       verseOffsets: [],
     });

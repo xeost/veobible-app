@@ -5,6 +5,7 @@ const point = z.object({
 });
 export const settingsSchema = z.object({
   volumeMultiplier: z.number().min(0).max(4).default(1),
+  overrideReadingVolume: z.boolean().default(false),
   passageOffsets: z
     .object({
       startSeconds: z.number().finite(),

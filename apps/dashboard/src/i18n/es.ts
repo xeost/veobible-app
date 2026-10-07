@@ -1,4 +1,8 @@
 export const spanish: Record<string, string> = {
+  "Use a custom reading volume for this project":
+    "Usar un volumen de lectura propio para este proyecto",
+  "Unchecked: uses the default reading volume for this Bible version.":
+    "Sin marcar: se usa el volumen de lectura predeterminado de esta versión de la Biblia.",
   "Analyze the audio again to update verse timings.":
     "Volver a analizar el audio para actualizar los tiempos de los versículos.",
   "Generate the introduction and closing voices before generating the video.":

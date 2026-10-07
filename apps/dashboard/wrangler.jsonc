@@ -33,7 +33,7 @@
         },
       ],
       "vars": {
-        "VIDEO_API_URL": "https://video-api.example.com",
+        "VIDEO_API_URL": "https://api-proxy-tool.veobible.com",
       },
       "workers_dev": false,
       "preview_urls": false,

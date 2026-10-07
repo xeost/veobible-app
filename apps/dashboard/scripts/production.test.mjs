@@ -5,6 +5,7 @@ import {
   productionConfig,
   assertProductionBuild,
   runtimeSecrets,
+  wranglerEnvironment,
 } from "./configure-production.mjs";
 const source = readSourceConfig();
 source.env.production.d1_databases[0].database_id =
@@ -18,6 +19,12 @@ const environment = {
 test("production configuration retains local bindings and targets the dashboard domain and dedicated database", () => {
   const config = productionConfig(source, environment);
   assert.deepEqual(config.d1_databases, source.d1_databases);
+  assert.equal(
+    productionConfig(readSourceConfig(), {
+      DASHBOARD_D1_DATABASE_ID: environment.DASHBOARD_D1_DATABASE_ID,
+    }).env.production.vars.VIDEO_API_URL,
+    "https://api-proxy-tool.veobible.com",
+  );
   assert.equal(config.vars.VIDEO_API_URL, "http://127.0.0.1:8430");
   assert.equal(
     config.env.production.d1_databases[0].database_id,
@@ -98,19 +105,19 @@ test("deploying a development or stale generated configuration is rejected", () 
 
 test("runtime secrets require signing and generation credentials and never reuse the deployment token for publishing", () => {
   const env = {
-    CLOUDFLARE_ACCOUNT_ID: "test-account",
-    CLOUDFLARE_API_TOKEN: "deploy-token",
-    JWT_SECRET: "j".repeat(32),
-    PROXY_API_TOKEN: "v".repeat(32),
+    DASHBOARD_CLOUDFLARE_ACCOUNT_ID: "test-account",
+    DASHBOARD_CLOUDFLARE_API_TOKEN: "deploy-token",
+    DASHBOARD_JWT_SECRET: "j".repeat(32),
+    DASHBOARD_PROXY_API_TOKEN: "v".repeat(32),
   };
   assert.throws(() => runtimeSecrets({}), /Missing deployment/);
   assert.throws(
-    () => runtimeSecrets({ ...env, JWT_SECRET: "short" }),
+    () => runtimeSecrets({ ...env, DASHBOARD_JWT_SECRET: "short" }),
     /32 bytes/,
   );
   assert.deepEqual(runtimeSecrets(env), {
-    JWT_SECRET: env.JWT_SECRET,
-    PROXY_API_TOKEN: env.PROXY_API_TOKEN,
+    JWT_SECRET: env.DASHBOARD_JWT_SECRET,
+    PROXY_API_TOKEN: env.DASHBOARD_PROXY_API_TOKEN,
   });
   assert.deepEqual(
     runtimeSecrets({
@@ -118,10 +125,31 @@ test("runtime secrets require signing and generation credentials and never reuse
       DASHBOARD_PUBLISH_API_TOKEN: "read-only-publish-token",
     }),
     {
-      JWT_SECRET: env.JWT_SECRET,
-      PROXY_API_TOKEN: env.PROXY_API_TOKEN,
+      JWT_SECRET: env.DASHBOARD_JWT_SECRET,
+      PROXY_API_TOKEN: env.DASHBOARD_PROXY_API_TOKEN,
       CLOUDFLARE_ACCOUNT_ID: "test-account",
       CLOUDFLARE_API_TOKEN: "read-only-publish-token",
     },
   );
+});
+
+test("deployment credentials are app-scoped and override unrelated monorepo credentials", () => {
+  const credentials = {
+    DASHBOARD_CLOUDFLARE_ACCOUNT_ID: "dashboard-account",
+    DASHBOARD_CLOUDFLARE_API_TOKEN: "dashboard-token",
+    CLOUDFLARE_ACCOUNT_ID: "other-account",
+    CLOUDFLARE_API_TOKEN: "other-token",
+  };
+  const mapped = wranglerEnvironment(credentials);
+  assert.equal(mapped.CLOUDFLARE_ACCOUNT_ID, "dashboard-account");
+  assert.equal(mapped.CLOUDFLARE_API_TOKEN, "dashboard-token");
+  assert.throws(
+    () =>
+      wranglerEnvironment({
+        CLOUDFLARE_ACCOUNT_ID: "other-account",
+        CLOUDFLARE_API_TOKEN: "other-token",
+      }),
+    /DASHBOARD_CLOUDFLARE_ACCOUNT_ID/,
+  );
+  assert.equal(credentials.CLOUDFLARE_API_TOKEN, "other-token");
 });

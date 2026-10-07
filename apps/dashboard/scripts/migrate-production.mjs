@@ -5,6 +5,7 @@ import {
   readSourceConfig,
   productionConfig,
   loadProductionEnvironment,
+  wranglerEnvironment,
 } from "./configure-production.mjs";
 
 loadProductionEnvironment();
@@ -17,10 +18,6 @@ if (
   throw new Error(
     "Run build:production before applying production migrations.",
   );
-for (const name of ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]) {
-  if (!process.env[name])
-    throw new Error(`Missing deployment environment variable: ${name}`);
-}
 const result = spawnSync(
   "pnpm",
   [
@@ -36,7 +33,7 @@ const result = spawnSync(
     "--env",
     "production",
   ],
-  { cwd: dashboardRoot, stdio: "inherit", env: process.env },
+  { cwd: dashboardRoot, stdio: "inherit", env: wranglerEnvironment() },
 );
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;
