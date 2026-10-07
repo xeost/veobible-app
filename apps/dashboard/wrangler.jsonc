@@ -1,8 +1,10 @@
 {
-  "name": "veobible-dashboard-dev",
+  "name": "veobible-dashboard",
   "main": "vinext/server/fetch-handler",
   "compatibility_date": "2026-09-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "assets": {
     "directory": "dist/client",
     "binding": "ASSETS",
@@ -13,13 +15,13 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "veobible-dashboard",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_name": "dashboard",
+      "database_id": "801ce9e8-ed31-4c53-9d92-c467b98522c6",
       "migrations_dir": "migrations",
     },
   ],
   "vars": {
-    "VIDEO_API_URL": "http://127.0.0.1:8430",
+    "VIDEO_API_URL": "https://api-proxy-tool.veobible.com",
   },
   "env": {
     "production": {
@@ -27,8 +29,8 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "veobible-dashboard-production",
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_name": "dashboard",
+          "database_id": "801ce9e8-ed31-4c53-9d92-c467b98522c6",
           "migrations_dir": "migrations",
         },
       ],
