@@ -94,7 +94,7 @@ test("Bible version CRUD isolates languages and protects existing projects", asy
     );
     sqlite
       .prepare(
-        "INSERT INTO video_projects(kind,bible_version_id,passage_id,title,passage) VALUES ('short',?,'passage','Video','{}')",
+        "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage) VALUES ('short',?,'passage','Video','{}')",
       )
       .run(spanish!.id);
     assert.equal(

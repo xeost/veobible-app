@@ -40,6 +40,7 @@ export async function syncVideoProjects(
   kind: "short" | "long",
   version: BibleVersion,
   values: unknown,
+  outputEnvironment: "production" | "development" = "production",
 ) {
   const proposals = projectProposalsSchema.parse(values);
   const settings = JSON.stringify(
@@ -52,11 +53,11 @@ export async function syncVideoProjects(
     ),
   );
   let added = 0;
-  for (let offset = 0; offset < proposals.length; offset += 1600) {
+  for (let offset = 0; offset < proposals.length; offset += 1400) {
     const statements = [];
-    const batch = proposals.slice(offset, offset + 1600);
-    for (let row = 0; row < batch.length; row += 16) {
-      const values = batch.slice(row, row + 16).map((proposal) => {
+    const batch = proposals.slice(offset, offset + 1400);
+    for (let row = 0; row < batch.length; row += 14) {
+      const values = batch.slice(row, row + 14).map((proposal) => {
         const passage = {
           id: proposal.slug,
           book: proposal.start.book,
@@ -75,13 +76,14 @@ export async function syncVideoProjects(
           proposal.title,
           JSON.stringify(passage),
           settings,
+          outputEnvironment,
         ];
       });
       // Keep each statement below the 100 bound parameters supported by D1.
       statements.push(
         database
           .prepare(
-            `INSERT INTO video_projects(kind,bible_version_id,passage_id,title,passage,settings) VALUES ${values.map(() => "(?,?,?,?,?,?)").join(",")} ON CONFLICT(kind,bible_version_id,passage_id) DO NOTHING`,
+            `INSERT INTO video_projects(kind,bible_version_id,slug,title,passage,settings,output_environment) VALUES ${values.map(() => "(?,?,?,?,?,?,?)").join(",")} ON CONFLICT(kind,bible_version_id,slug) DO NOTHING`,
           )
           .bind(...values.flat()),
       );

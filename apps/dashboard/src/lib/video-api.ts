@@ -1,4 +1,8 @@
 import { projectProposalsSchema, syncVideoProjects } from "./project-proposals";
+import {
+  existingProjectsSchema,
+  syncExistingProjects,
+} from "./existing-projects";
 import { type BibleVersion } from "./bible-versions";
 import { z } from "zod";
 import { settingsSchema, renderSchema } from "./video-schema";
@@ -26,13 +30,14 @@ type Project = {
   project_id: number;
   kind: "short" | "long";
   passage: string;
-  passage_id: string;
+  slug: string;
   settings: string;
   title: string;
   version_id: number;
   version_code: string;
   locale: "es" | "en" | "pt";
   label: string;
+  output_environment: "production" | "development";
 };
 export async function videoApi(
   req: Request,
@@ -50,11 +55,11 @@ export async function videoApi(
           )
           .all()
       ).results,
-      used: await database
-        .prepare("SELECT count(*) total FROM video_projects WHERE used=1")
+      published: await database
+        .prepare("SELECT count(*) total FROM video_projects WHERE published=1")
         .first(),
-      unused: await database
-        .prepare("SELECT count(*) total FROM video_projects WHERE used=0")
+      unpublished: await database
+        .prepare("SELECT count(*) total FROM video_projects WHERE published=0")
         .first(),
       recent: (
         await database
@@ -64,16 +69,16 @@ export async function videoApi(
     });
   if (parts[0] === "generation-queue" && method === "GET") {
     try {
-      const response = await videoFetch(
-        `/v1/queue?outputEnvironment=${outputEnvironment}`,
-      );
+      const response = await videoFetch("/v1/queue");
       if (!response.ok) throw new Error("Queue unavailable");
       const data = (await response.json()) as {
         items: { projectId: number; kind: string; status: string }[];
+        summary: { progress: number; completed: number; total: number };
       };
       const projects = (await database.prepare(select).all<Project>()).results;
       return json({
         connected: true,
+        summary: data.summary,
         items: data.items
           .filter((item) => ["queued", "running"].includes(item.status))
           .flatMap((item) => {
@@ -93,7 +98,11 @@ export async function videoApi(
           }),
       });
     } catch {
-      return json({ connected: false, items: [] });
+      return json({
+        connected: false,
+        items: [],
+        summary: { progress: 0, completed: 0, total: 0 },
+      });
     }
   }
   if (parts[0] !== "videos") return null;
@@ -104,7 +113,7 @@ export async function videoApi(
       videos: (
         await database
           .prepare(
-            `${select} WHERE p.kind=?${version && version !== "all" ? " AND v.id=?" : ""} ORDER BY p.id DESC`,
+            `${select} WHERE p.kind=?${version && version !== "all" ? " AND v.id=?" : ""} ORDER BY p.id ASC`,
           )
           .bind(
             ...(version && version !== "all"
@@ -157,7 +166,7 @@ export async function videoApi(
     };
     const existing = await database
       .prepare(
-        `${select} WHERE p.kind=? AND p.passage_id=? AND v.locale=? AND v.code=?`,
+        `${select} WHERE p.kind=? AND p.slug=? AND v.locale=? AND v.code=?`,
       )
       .bind(input.kind, input.slug, version.locale, version.code)
       .first<Project>();
@@ -178,7 +187,7 @@ export async function videoApi(
     );
     const result = await database
       .prepare(
-        "INSERT INTO video_projects(kind,bible_version_id,passage_id,title,passage,settings) VALUES (?,?,?,?,?,?)",
+        "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage,settings,output_environment) VALUES (?,?,?,?,?,?,?)",
       )
       .bind(
         input.kind,
@@ -187,6 +196,7 @@ export async function videoApi(
         input.title,
         JSON.stringify(passage),
         JSON.stringify(settings),
+        outputEnvironment,
       )
       .run();
     return json({ id: result.meta.last_row_id }, 201);
@@ -223,7 +233,38 @@ export async function videoApi(
         502,
       );
     }
-    return json(await syncVideoProjects(database, kind, version, proposals));
+    return json(
+      await syncVideoProjects(
+        database,
+        kind,
+        version,
+        proposals,
+        outputEnvironment,
+      ),
+    );
+  }
+  if (parts[1] === "sync-existing" && !parts[2] && method === "POST") {
+    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    let data;
+    try {
+      const response = await videoFetch(
+        `/v1/projects/existing?kind=${kind}&outputEnvironment=${outputEnvironment}`,
+      );
+      if (!response.ok) throw new Error("Existing project discovery failed");
+      data = existingProjectsSchema.parse(await response.json());
+    } catch (cause) {
+      console.error("Existing project discovery failed", cause);
+      return json(
+        {
+          error:
+            "No se pudieron sincronizar los proyectos existentes. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+        },
+        502,
+      );
+    }
+    return json(
+      await syncExistingProjects(database, kind, data, outputEnvironment),
+    );
   }
   const id = z.coerce.number().int().positive().parse(parts[1]);
   const project = await database
@@ -244,16 +285,20 @@ export async function videoApi(
   const query = new URLSearchParams({
     kind: project.kind,
     version: project.version_code,
-    passage: project.passage_id,
-    outputEnvironment,
+    passage: project.slug,
+    outputEnvironment: project.output_environment,
   });
   const state = async () => {
     try {
       const response = await videoFetch(`/v1/projects/${id}/state?${query}`);
       if (!response.ok) throw new Error("State unavailable");
-      return (await response.json()) as { status: string; result: unknown };
+      return (await response.json()) as {
+        status: string;
+        result: unknown;
+        progress: number;
+      };
     } catch {
-      return { status: "unavailable", result: null };
+      return { status: "unavailable", result: null, progress: 0 };
     }
   };
   if (!parts[2] && method === "GET") {
@@ -262,6 +307,7 @@ export async function videoApi(
       video: {
         ...project,
         status: current.status,
+        progress: current.progress,
         result: current.result ? JSON.stringify(current.result) : null,
       },
       defaults: settingsSchema.parse(
@@ -277,18 +323,18 @@ export async function videoApi(
     const input = z
       .object({
         settings: settingsSchema.optional(),
-        used: z.boolean().optional(),
+        published: z.boolean().optional(),
       })
       .parse(await req.json());
     if (["queued", "running"].includes((await state()).status))
       return json({ error: "Espera a que termine la generación" }, 409);
     await database
       .prepare(
-        "UPDATE video_projects SET settings=COALESCE(?,settings),used=COALESCE(?,used),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
+        "UPDATE video_projects SET settings=COALESCE(?,settings),published=COALESCE(?,published),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
       )
       .bind(
         input.settings ? JSON.stringify(input.settings) : null,
-        input.used === undefined ? null : Number(input.used),
+        input.published === undefined ? null : Number(input.published),
         id,
       )
       .run();
@@ -314,7 +360,7 @@ export async function videoApi(
     if (url.searchParams.has("download"))
       headers.set(
         "Content-Disposition",
-        `attachment; filename="${project.passage_id}.${asset === "thumbnail" ? "jpg" : "mp4"}"`,
+        `attachment; filename="${project.slug}.${asset === "thumbnail" ? "jpg" : "mp4"}"`,
       );
     return new Response(response.body, { status: response.status, headers });
   }
@@ -339,7 +385,7 @@ export async function videoApi(
     const common = {
       projectId: id,
       kind: project.kind,
-      outputEnvironment,
+      outputEnvironment: project.output_environment,
       version,
       passage: JSON.parse(project.passage),
       settings,

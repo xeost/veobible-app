@@ -16,12 +16,13 @@ CREATE TABLE video_projects (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  kind TEXT NOT NULL CHECK(kind IN ('short','long')),
  bible_version_id INTEGER NOT NULL REFERENCES bible_versions(id),
- passage_id TEXT NOT NULL, title TEXT NOT NULL, passage TEXT NOT NULL CHECK(json_valid(passage)),
+ slug TEXT NOT NULL, title TEXT NOT NULL, passage TEXT NOT NULL CHECK(json_valid(passage)),
  settings TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(settings)),
- used INTEGER NOT NULL DEFAULT 0 CHECK(used IN (0,1)),
+ published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
+ output_environment TEXT NOT NULL DEFAULT 'production' CHECK(output_environment IN ('production','development')),
  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
- UNIQUE(kind,bible_version_id,passage_id)
+ UNIQUE(kind,bible_version_id,slug)
 );
 CREATE TABLE site_settings (key TEXT PRIMARY KEY,value TEXT NOT NULL CHECK(json_valid(value) OR key LIKE 'deploy_hook:%'),updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE deployments (
@@ -30,6 +31,6 @@ CREATE TABLE deployments (
  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
  completed_at TEXT,duration_ms INTEGER
 );
-CREATE INDEX video_projects_kind_used ON video_projects(kind,used);
+CREATE INDEX video_projects_kind_published ON video_projects(kind,published);
 CREATE INDEX deployments_target_created ON deployments(target,created_at);
 INSERT INTO dashboard_users(username,name,password_hash,role) VALUES ('admin','Admin','pbkdf2:100000:veobible-default-admin:f30b6acc5af87fc4112d9ea2c3294d037e8a5910ed1c08175159fffa7bf32141','admin');

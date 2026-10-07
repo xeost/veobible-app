@@ -865,18 +865,50 @@ tbody tr:last-child td {
   background: #8c60dc0e;
   color: #a68bce;
 }
+.project-published-button {
+  color: #7acaab;
+  background: #59be9518;
+  border-color: #59be9540;
+}
+.project-published-button:hover {
+  background: #59be9528;
+  border-color: #59be9560;
+}
 .pagination {
   padding: 14px 22px;
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   font-size: 10px;
   color: var(--muted);
 }
 .pagination > div {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+.pagination-page-size {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 0 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.pagination-page-size select {
+  width: auto;
+  min-width: 64px;
+  height: 34px;
+  padding: 6px 10px;
+  border-color: var(--line);
+  background: var(--raised);
+  font-size: 12px;
+  cursor: pointer;
 }
 .empty {
   text-align: center;
@@ -2068,14 +2100,18 @@ audio {
 .bible-versions-menu .spin {
   animation: voice-spin 1s linear infinite;
 }
-.bible-version-row {
+.bible-version-row,
+.video-project-row {
   cursor: pointer;
 }
 .bible-version-row:hover,
-.bible-version-row:focus-visible {
+.bible-version-row:focus-visible,
+.video-project-row:hover,
+.video-project-row:focus-visible {
   background: var(--raised);
 }
-.bible-version-row:focus-visible {
+.bible-version-row:focus-visible,
+.video-project-row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -2119,4 +2155,58 @@ audio {
   .manual-passage-points {
     grid-template-columns: 1fr;
   }
+}
+
+.generation-progress {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+.generation-progress-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #a398af;
+  font-size: 11px;
+}
+.generation-progress-heading b {
+  color: #dcc8f6;
+  font-variant-numeric: tabular-nums;
+}
+.generation-progress progress {
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  appearance: none;
+  background: #332b40;
+}
+.generation-progress progress::-webkit-progress-bar {
+  background: #332b40;
+}
+.generation-progress progress::-webkit-progress-value {
+  background: #a879e2;
+  border-radius: 6px;
+}
+.generation-progress progress::-moz-progress-bar {
+  background: #a879e2;
+  border-radius: 6px;
+}
+.generation-queue-card > .generation-progress {
+  margin-top: 12px;
+}
+.generation-queue-card .queue-card-link {
+  margin-top: 16px;
+}
+.generation-queue-dialog > .generation-progress {
+  margin: 16px 0;
+}
+.section-card > .generation-progress {
+  width: auto;
+  margin: 0 18px 14px;
+}
+.project-preview-panel > .generation-progress {
+  margin-top: 12px;
 }

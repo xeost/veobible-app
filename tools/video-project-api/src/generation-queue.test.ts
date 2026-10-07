@@ -9,8 +9,19 @@ const job = (id: string): QueueJob => ({
 test("development work does not mark the production project as pending", async () => {
   const queue = new GenerationQueue();
   let release!: () => void;
-  const gate = new Promise<void>(resolve => { release = resolve; });
-  queue.enqueue({ projectId: 1, kind: "short", type: "intro", outputEnvironment: "development" }, job("dev-intro"), () => gate);
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  queue.enqueue(
+    {
+      projectId: 1,
+      kind: "short",
+      type: "intro",
+      outputEnvironment: "development",
+    },
+    job("dev-intro"),
+    () => gate,
+  );
   assert.equal(queue.hasPending(1, "intro"), false);
   assert.equal(queue.hasPending(1, "intro", "development"), true);
   assert.equal(queue.snapshot()[0].outputEnvironment, "development");
@@ -106,4 +117,83 @@ test("a failed task does not block later projects and queue snapshots omit priva
   assert.equal(queue.snapshot()[1].status, "done");
   assert.equal("result" in queue.snapshot()[0], false);
   assert.equal("error" in queue.snapshot()[0], false);
+});
+
+test("queue progress includes completed work, waiting work and the active task, then resets for a new batch", async () => {
+  const queue = new GenerationQueue();
+  const first = job("first"),
+    second = job("second"),
+    next = job("next");
+  let releaseFirst!: () => void,
+    releaseSecond!: () => void,
+    releaseNext!: () => void;
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  const secondGate = new Promise<void>((resolve) => {
+    releaseSecond = resolve;
+  });
+  const nextGate = new Promise<void>((resolve) => {
+    releaseNext = resolve;
+  });
+  queue.enqueue(
+    {
+      projectId: 1,
+      kind: "short",
+      type: "intro",
+      outputEnvironment: "development",
+    },
+    first,
+    () => firstGate,
+  );
+  queue.enqueue(
+    { projectId: 2, kind: "long", type: "video" },
+    second,
+    () => secondGate,
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  first.progress = 40;
+  assert.equal(queue.snapshot()[0].progress, 40);
+  assert.equal(queue.snapshot()[1].progress, 0);
+  assert.deepEqual(queue.summary(), { progress: 20, completed: 0, total: 2 });
+  assert.deepEqual(queue.summary("development"), {
+    progress: 40,
+    completed: 0,
+    total: 1,
+  });
+  releaseFirst();
+  await new Promise((resolve) => setImmediate(resolve));
+  second.progress = 20;
+  assert.deepEqual(queue.summary(), { progress: 60, completed: 1, total: 2 });
+  assert.equal(queue.snapshot()[0].progress, 100);
+  second.progress = 110;
+  assert.equal(queue.snapshot()[1].progress, 100);
+  assert.equal(queue.summary().progress, 99);
+  releaseSecond();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(queue.summary(), { progress: 100, completed: 2, total: 2 });
+  queue.enqueue(
+    { projectId: 3, kind: "short", type: "outro" },
+    next,
+    () => nextGate,
+  );
+  assert.deepEqual(queue.summary(), { progress: 0, completed: 0, total: 1 });
+  releaseNext();
+  await new Promise((resolve) => setImmediate(resolve));
+});
+test("failed work is settled in the queue total while retaining its last individual progress", async (context) => {
+  context.mock.method(console, "error", () => {});
+  const queue = new GenerationQueue(),
+    failed = job("failure");
+  queue.enqueue(
+    { projectId: 1, kind: "short", type: "intro" },
+    failed,
+    async () => {
+      failed.progress = 35;
+      throw new Error("Synthetic failure");
+    },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(queue.snapshot()[0].progress, 35);
+  assert.deepEqual(queue.summary(), { progress: 100, completed: 1, total: 1 });
 });

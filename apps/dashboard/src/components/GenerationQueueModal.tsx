@@ -1,4 +1,5 @@
 "use client";
+import { GenerationProgress } from "./GenerationProgress";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import {
@@ -85,6 +86,12 @@ export function GenerationQueueModal({
           <RefreshCw size={16} />
         </button>
       </div>
+      {pending.length > 0 && (
+        <GenerationProgress
+          value={state.summary?.progress ?? 0}
+          label={t("Cola completa")}
+        />
+      )}
       {!state.connected && (
         <p className="notice">
           {t(
@@ -127,6 +134,10 @@ export function GenerationQueueModal({
                       ? ` · ${t(generationStage(item.stage, item.status))}`
                       : ""}
                 </span>
+                <GenerationProgress
+                  value={item.progress}
+                  label={t("Progreso")}
+                />
               </span>
               <ArrowUpRight size={18} aria-label={t("Abrir proyecto")} />
             </Link>

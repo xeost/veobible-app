@@ -47,7 +47,7 @@ test("one migration creates numeric project tables and only the requested admin"
       "INSERT INTO bible_versions(locale,code,label) VALUES ('es','same','Spanish'),('en','same','English')",
     );
     db.exec(
-      "INSERT INTO video_projects(kind,bible_version_id,passage_id,title,passage) VALUES ('short',1,'test','Project','{}'),('short',2,'test','Project','{}')",
+      "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage) VALUES ('short',1,'test','Project','{}'),('short',2,'test','Project','{}')",
     );
     assert.deepEqual(
       db
@@ -57,10 +57,10 @@ test("one migration creates numeric project tables and only the requested admin"
       [1, 2],
     );
     assert.equal(
-      db.prepare("SELECT sum(used) total FROM video_projects").get()?.total,
+      db.prepare("SELECT sum(published) total FROM video_projects").get()?.total,
       0,
     );
-    assert.throws(() => db.exec("UPDATE video_projects SET used=2"), /CHECK/);
+    assert.throws(() => db.exec("UPDATE video_projects SET published=2"), /CHECK/);
     assert.throws(
       () => db.exec("UPDATE video_projects SET bible_version_id=99 WHERE id=1"),
       /FOREIGN KEY/,
@@ -69,6 +69,10 @@ test("one migration creates numeric project tables and only the requested admin"
       .prepare("PRAGMA table_info(video_projects)")
       .all()
       .map((row) => row.name);
+    assert.ok(columns.includes("published"));
+    assert.ok(!columns.includes("used"));
+    assert.ok(columns.includes("slug"));
+    assert.ok(!columns.includes("passage_id"));
     assert.ok(!columns.includes("status"));
     assert.ok(!columns.includes("published_at"));
   } finally {

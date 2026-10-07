@@ -20,6 +20,7 @@ import type { User } from "../lib/auth";
 import { api } from "./api";
 import { UserProfileModal } from "./UserProfileModal";
 import { BrandLogo } from "./BrandLogo";
+import { GenerationProgress } from "./GenerationProgress";
 import { GenerationQueueModal } from "./GenerationQueueModal";
 import {
   queueChangedEvent,
@@ -42,6 +43,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
   const [queue, setQueue] = useState<GenerationQueueState>({
     connected: false,
     items: [],
+    summary: { progress: 0, completed: 0, total: 0 },
   });
   const refreshQueue = useRef<() => void>(() => {});
   const [account, setAccount] = useState(user);
@@ -102,6 +104,9 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   const title = items.find((i) => isActive(i[0]))?.[1] ?? "Dashboard";
+  const pending = queue.items.filter((item) =>
+    ["queued", "running"].includes(item.status),
+  );
   return (
     <div className="shell">
       <aside className={open ? "sidebar expanded" : "sidebar"}>
@@ -162,16 +167,25 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
                     : "Sin generaciones pendientes",
               )}
             </p>
+            {pending.length > 0 && (
+              <>
+                <GenerationProgress
+                  value={
+                    pending.find((item) => item.status === "running")
+                      ?.progress ?? 0
+                  }
+                  label={t("Tarea actual")}
+                />
+                <GenerationProgress
+                  value={queue.summary?.progress ?? 0}
+                  label={t("Cola completa")}
+                />
+              </>
+            )}
             <span className="queue-card-link">
               <ListOrdered size={15} />
               {t("Ver cola")}
-              <b>
-                {
-                  queue.items.filter((item) =>
-                    ["queued", "running"].includes(item.status),
-                  ).length
-                }
-              </b>
+              <b>{pending.length}</b>
             </span>
           </button>
           <div className="sidebar-note">

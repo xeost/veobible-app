@@ -16,7 +16,7 @@ test("numeric editor URLs resolve the saved video project", () => {
     for (const kind of ["short", "long"]) {
       const creation = db
         .prepare(
-          "INSERT INTO video_projects(kind,bible_version_id,passage_id,title,passage) VALUES (?,1,?,'Test','{}')",
+          "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage) VALUES (?,1,?,'Test','{}')",
         )
         .run(kind, kind);
       const id = String(creation.lastInsertRowid);

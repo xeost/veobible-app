@@ -18,7 +18,9 @@ Requiere Node 22+, pnpm y FFmpeg/ffprobe. Instala únicamente este paquete y cop
 
 Para modelos locales, el único servicio compartido es `voice-generator`: por defecto usa `../voice-generator/cli.py` y su `.venv/bin/python`. `VIDEO_TTS_SCRIPT` y las variables `TTS_PYTHON` permiten otra instalación. Las CLI no participan en esta llamada.
 
-El dashboard envía `outputEnvironment` según su `NODE_ENV` tanto al generar como al consultar voces y reproducir archivos. La API admite `production` (por defecto) y `development` por solicitud, por lo que puede atender ambos entornos con salidas independientes. El material se comparte entre ambos entornos.
+El dashboard guarda el entorno de archivos por proyecto y envía `outputEnvironment` al generar, consultar voces y reproducir archivos. Los proyectos nuevos siguen su `NODE_ENV`; los importados siguen el entorno del dashboard que solicita la sincronización. La API admite `production` (por defecto) y `development` por solicitud, por lo que puede atender ambos entornos con salidas independientes. El material se comparte entre ambos entornos.
+
+`GET /v1/projects/existing?kind=short|long&outputEnvironment=production|development` descubre proyectos en `outputs/<version>/<slug>` o `outputs-dev/<version>/<slug>` según el entorno solicitado del working dir correspondiente. Usa los presets y la metadata del proyecto para reconstruir los pasajes, y lee `status.json` en el directorio de salidas seleccionado para traducir las marcas de uso a publicación, aisladas por idioma y versión. Los archivos internos aportan offsets, volumen y opciones de audio; admite los nombres internos anteriores. Mantiene ambos entornos separados, no importa código de las CLI y no modifica sus archivos. Devuelve los proyectos válidos, el número de omitidos y los IDs con trabajo activo. Los videos ya presentes se reconocen como generados aunque no tengan `render-result.json`.
 
 ## HTTP y persistencia
 
@@ -65,3 +67,5 @@ La conversión inicial conserva exactamente los 100 pasajes de `tools/shorts-dai
 `pnpm check` verifica también las composiciones TSX. `pnpm test` ejecuta una prueba desde una copia aislada de la API, sin carpetas hermanas de CLI/dashboard, con fuentes sintéticas y un adaptador de voz de prueba.
 
 `pnpm test:render` agrega renders completos de ambos formatos y verifica que solo queden MP4/JPG/WAV en los directorios de proyectos. Remotion necesita puertos locales y descarga su navegador en el paquete de la API si falta.
+
+Generation queue responses include individual progress percentages and a batch summary. A batch starts when an idle queue receives work and includes tasks added before it drains. Total progress weights each task equally, retains finished tasks until the next batch, and counts failed tasks as settled. Video progress combines preparation stages with renderer progress; speech progress uses provider stages and local sampling percentages when available.

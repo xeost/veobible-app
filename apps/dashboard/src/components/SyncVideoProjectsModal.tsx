@@ -93,7 +93,9 @@ export function SyncVideoProjectsModal({
         }}
       >
         <div className="generation-queue-heading">
-          <h2 id="sync-projects-title">{t("Sincronizar proyectos")}</h2>
+          <h2 id="sync-projects-title">
+            {t("Sincronizar presets de proyectos")}
+          </h2>
           <button
             type="button"
             className="icon-button"
@@ -160,7 +162,11 @@ export function SyncVideoProjectsModal({
           </button>
           <button className="primary" disabled={loading || busy || !version}>
             {busy ? <LoaderCircle size={16} /> : <RefreshCw size={16} />}{" "}
-            {t(busy ? "Sincronizando proyectos…" : "Sincronizar proyectos")}
+            {t(
+              busy
+                ? "Sincronizando proyectos…"
+                : "Sincronizar presets de proyectos",
+            )}
           </button>
         </div>
       </form>

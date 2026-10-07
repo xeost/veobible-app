@@ -1,3 +1,7 @@
+import {
+  voiceStageProgress,
+  samplingProgress,
+} from "../../generation-progress.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -457,7 +461,9 @@ export async function generateVoice(
   context: VoiceContext,
   force = false,
   part?: VoicePart,
+  onProgress?: (progress: number) => void,
 ): Promise<void> {
+  onProgress?.(5);
   const parts = part ? [part] : allParts;
   await fs.mkdir(outputDir, { recursive: true });
   const rendered = await renderVoiceScripts(context);
@@ -469,6 +475,7 @@ export async function generateVoice(
     parts.map((name) => [name, rendered[name]]),
   );
   if (config.ttsProvider === "elevenlabs") {
+    onProgress?.(20);
     await generateElevenLabsVoice(
       outputDir,
       context.locale,
@@ -476,6 +483,7 @@ export async function generateVoice(
       force,
       parts,
     );
+    onProgress?.(100);
     return;
   }
   if (config.ttsProvider !== "chatterbox")
@@ -541,6 +549,7 @@ export async function generateVoice(
           process.stdout.write("\n");
         }
         stage = next;
+        onProgress?.(voiceStageProgress(next));
         stageStarted = Date.now();
         if (tty) showProgress();
         else console.log(stage);
@@ -560,6 +569,10 @@ export async function generateVoice(
       });
       child.stderr.on("data", (chunk: Buffer) => {
         stderrTail = (stderrTail + chunk.toString()).slice(-6000);
+        const progress = /generating/i.test(stage)
+          ? samplingProgress(stderrTail)
+          : undefined;
+        if (progress !== undefined) onProgress?.(progress);
       });
       const finish = (error?: Error) => {
         if (finished) return;
@@ -590,6 +603,7 @@ export async function generateVoice(
         );
       });
     });
+    onProgress?.(100);
   } finally {
     await fs.rm(staging, { recursive: true, force: true });
   }

@@ -81,7 +81,7 @@ test("project sync only adds missing slugs within a format and Bible version, re
     assert.equal(JSON.parse(String(saved.settings)).volumeMultiplier, 1.5);
     assert.equal(JSON.parse(String(saved.passage)).endBook, "exodus");
     sqlite.exec(
-      "UPDATE video_projects SET title='User title',settings='{\"volumeMultiplier\":3}',used=1",
+      "UPDATE video_projects SET title='User title',settings='{\"volumeMultiplier\":3}',published=1",
     );
     const original = sqlite.prepare("SELECT * FROM video_projects").get();
     assert.deepEqual(

@@ -142,7 +142,12 @@ for (const [kind, outputEnvironment] of [["short", "production"], ["long", "prod
     const output = projectDir(kind, fresh.version.id, fresh.passage.id, outputEnvironment);
     await assert.rejects(fs.stat(sources), { code: "ENOENT" });
     await assert.rejects(fs.stat(output), { code: "ENOENT" });
-    await generateProjectVoice(fresh, part);
+    const progress: number[] = [];
+    await generateProjectVoice(fresh, part, value => progress.push(value));
+    assert.equal(progress[0], 5);
+    assert.equal(progress.at(-1), 99);
+    assert.ok(progress.some(value => value > 10 && value < 99));
+    assert.ok(progress.every(value => value >= 0 && value <= 100));
     assert.ok((await fs.stat(output)).isDirectory());
     assert.deepEqual((await fs.readdir(sources)).sort(), [voiceFilename(part,"txt"), voiceFilename(part), "2-versiculos.txt", "README.md"].sort());
     assert.ok((await fs.stat(path.join(sources, voiceFilename(part)))).size > 44);

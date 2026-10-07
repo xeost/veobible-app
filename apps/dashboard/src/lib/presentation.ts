@@ -29,6 +29,7 @@ export function generationStage(stage: string | null, status: string): string {
 }
 
 const messages = new Set([
+  "No se pudieron sincronizar los proyectos existentes. Comprueba que la generación esté disponible y vuelve a intentarlo.",
   "No se pudieron cargar los libros. Comprueba que esta versión esté disponible y vuelve a intentarlo.",
   "Ya existe un proyecto con este nombre corto para la versión seleccionada.",
   "No se pudieron sincronizar los proyectos. Comprueba que la generación esté disponible y vuelve a intentarlo.",

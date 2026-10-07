@@ -1,5 +1,12 @@
 import { loadProjectProposals } from "./project-proposals.js";
-import { availableBibleBooks, availableBibleVersions } from "./bible-versions.js";
+import {
+  discoverExistingProjects,
+  existingRenderResult,
+} from "./existing-projects.js";
+import {
+  availableBibleBooks,
+  availableBibleVersions,
+} from "./bible-versions.js";
 import http from "node:http";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
@@ -9,6 +16,7 @@ import { timingSafeEqual } from "node:crypto";
 import { renderSchema } from "./protocol.js";
 import { z } from "zod";
 import { GenerationQueue } from "./generation-queue.js";
+import { clampProgress } from "./generation-progress.js";
 import { generationFailureReason } from "./generation-failure.js";
 const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -16,8 +24,15 @@ const toolRoot = path.resolve(
 );
 if (fs.existsSync(path.join(toolRoot, ".env")))
   process.loadEnvFile(path.join(toolRoot, ".env"));
-const { render, inspection, projectDir, sourceDir, voiceFilename, videoFilename, generateProjectVoice } =
-  await import("./pipeline.js");
+const {
+  render,
+  inspection,
+  projectDir,
+  sourceDir,
+  voiceFilename,
+  videoFilename,
+  generateProjectVoice,
+} = await import("./pipeline.js");
 const token = process.env.VIDEO_API_TOKEN;
 if (!token || token.length < 32)
   throw new Error("VIDEO_API_TOKEN must contain at least 32 characters");
@@ -33,6 +48,7 @@ type Job = {
   id: string;
   status: "queued" | "running" | "done" | "failed";
   stage: string;
+  progress?: number;
   lastCallbackStatus?: string;
   callbackError?: string;
   result?: unknown;
@@ -92,23 +108,69 @@ const server = http.createServer(async (req, res) => {
         videoProjectProtocolVersion: 1,
         active: generationQueue.pendingCount,
       });
-    if (url.pathname === "/v1/video-project-proposals" && req.method === "GET") {
-      const kind = z.enum(["short","long"]).parse(url.searchParams.get("kind"));
-      const locale = renderSchema.shape.version.shape.locale.parse(url.searchParams.get("locale"));
-      const code = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
-      return json(res,200,{proposals:await loadProjectProposals(kind,{locale,code})});
+    if (url.pathname === "/v1/projects/existing" && req.method === "GET") {
+      const kind = z
+        .enum(["short", "long"])
+        .parse(url.searchParams.get("kind"));
+      return json(res, 200, {
+        ...(await discoverExistingProjects(kind, {
+          outputEnvironment: renderSchema.shape.outputEnvironment.parse(
+            url.searchParams.get("outputEnvironment") ?? undefined,
+          ),
+        })),
+        activeProjectIds: generationQueue
+          .snapshot()
+          .filter(
+            (item) =>
+              item.kind === kind && ["queued", "running"].includes(item.status),
+          )
+          .map((item) => item.projectId),
+      });
+    }
+    if (
+      url.pathname === "/v1/video-project-proposals" &&
+      req.method === "GET"
+    ) {
+      const kind = z
+        .enum(["short", "long"])
+        .parse(url.searchParams.get("kind"));
+      const locale = renderSchema.shape.version.shape.locale.parse(
+        url.searchParams.get("locale"),
+      );
+      const code = renderSchema.shape.version.shape.id.parse(
+        url.searchParams.get("version"),
+      );
+      return json(res, 200, {
+        proposals: await loadProjectProposals(kind, { locale, code }),
+      });
     }
     if (url.pathname === "/v1/bible-versions/books" && req.method === "GET") {
-      const locale = renderSchema.shape.version.shape.locale.parse(url.searchParams.get("locale"));
-      const code = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
-      return json(res,200,{books:await availableBibleBooks(locale,code)});
+      const locale = renderSchema.shape.version.shape.locale.parse(
+        url.searchParams.get("locale"),
+      );
+      const code = renderSchema.shape.version.shape.id.parse(
+        url.searchParams.get("version"),
+      );
+      return json(res, 200, { books: await availableBibleBooks(locale, code) });
     }
     if (url.pathname === "/v1/bible-versions" && req.method === "GET")
       return json(res, 200, { versions: await availableBibleVersions() });
     if (url.pathname === "/v1/queue" && req.method === "GET") {
       const requested = url.searchParams.get("outputEnvironment");
-      const environment = requested === null ? null : renderSchema.shape.outputEnvironment.parse(requested);
-      return json(res, 200, { items: generationQueue.snapshot().filter(item => environment === null || (item.outputEnvironment ?? "production") === environment) });
+      const environment =
+        requested === null
+          ? null
+          : renderSchema.shape.outputEnvironment.parse(requested);
+      return json(res, 200, {
+        summary: generationQueue.summary(environment ?? undefined),
+        items: generationQueue
+          .snapshot()
+          .filter(
+            (item) =>
+              environment === null ||
+              (item.outputEnvironment ?? "production") === environment,
+          ),
+      });
     }
     if (url.pathname === "/v1/analyze" && req.method === "POST") {
       const input = analysisSchema.parse(await body(req));
@@ -119,15 +181,57 @@ const server = http.createServer(async (req, res) => {
       });
       return json(res, 200, result);
     }
-    if (parts[1] === "projects" && parts[3] === "state" && req.method === "GET") {
+    if (
+      parts[1] === "projects" &&
+      parts[3] === "state" &&
+      req.method === "GET"
+    ) {
       const projectId = z.coerce.number().int().positive().parse(parts[2]);
-      const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
-      const version = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
-      const passage = renderSchema.shape.passage.shape.id.parse(url.searchParams.get("passage"));
-      const environment = renderSchema.shape.outputEnvironment.parse(url.searchParams.get("outputEnvironment") ?? undefined);
-      const active = generationQueue.snapshot().find(item => item.projectId === projectId && item.kind === kind && (item.outputEnvironment ?? "production") === environment && item.type === "video" && ["queued","running"].includes(item.status));
-      const result = await fsp.readFile(path.join(sourceDir(kind,version,passage,environment),"render-result.json"),"utf8").then(value => JSON.parse(value), () => null);
-      return json(res,200,{status:active?.status ?? (result ? "ready" : "draft"),stage:active?.stage ?? "",result});
+      const kind = z
+        .enum(["short", "long"])
+        .parse(url.searchParams.get("kind"));
+      const version = renderSchema.shape.version.shape.id.parse(
+        url.searchParams.get("version"),
+      );
+      const passage = renderSchema.shape.passage.shape.id.parse(
+        url.searchParams.get("passage"),
+      );
+      const environment = renderSchema.shape.outputEnvironment.parse(
+        url.searchParams.get("outputEnvironment") ?? undefined,
+      );
+      const active = generationQueue
+        .snapshot()
+        .find(
+          (item) =>
+            item.projectId === projectId &&
+            item.kind === kind &&
+            (item.outputEnvironment ?? "production") === environment &&
+            item.type === "video" &&
+            ["queued", "running"].includes(item.status),
+        );
+      const result =
+        (await fsp
+          .readFile(
+            path.join(
+              sourceDir(kind, version, passage, environment),
+              "render-result.json",
+            ),
+            "utf8",
+          )
+          .then(
+            (value) => JSON.parse(value),
+            () => null,
+          )) ??
+        (await existingRenderResult(
+          projectDir(kind, version, passage, environment),
+          kind,
+        ));
+      return json(res, 200, {
+        status: active?.status ?? (result ? "ready" : "draft"),
+        stage: active?.stage ?? "",
+        progress: active?.progress ?? (result ? 100 : 0),
+        result,
+      });
     }
     if (parts[1] === "projects" && parts[3] === "voices") {
       const projectId = z.coerce.number().int().positive().parse(parts[2]);
@@ -135,14 +239,25 @@ const server = http.createServer(async (req, res) => {
         const kind = z
           .enum(["short", "long"])
           .parse(url.searchParams.get("kind"));
-        const version = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
-        const passage = renderSchema.shape.passage.shape.id.parse(url.searchParams.get("passage"));
-      const environment = renderSchema.shape.outputEnvironment.parse(url.searchParams.get("outputEnvironment") ?? undefined);
+        const version = renderSchema.shape.version.shape.id.parse(
+          url.searchParams.get("version"),
+        );
+        const passage = renderSchema.shape.passage.shape.id.parse(
+          url.searchParams.get("passage"),
+        );
+        const environment = renderSchema.shape.outputEnvironment.parse(
+          url.searchParams.get("outputEnvironment") ?? undefined,
+        );
         const state = voiceJobs.get(`${environment}:${projectId}`) ?? {};
         const voices = await Promise.all(
           (["intro", "outro"] as const).map(async (part) => {
             const available = await fsp
-              .stat(path.join(sourceDir(kind, version, passage, environment), voiceFilename(part)))
+              .stat(
+                path.join(
+                  sourceDir(kind, version, passage, environment),
+                  voiceFilename(part),
+                ),
+              )
               .then(
                 (stat) => stat.size > 0,
                 () => false,
@@ -150,7 +265,15 @@ const server = http.createServer(async (req, res) => {
             const job = state[part];
             return [
               part,
-              { available, status: job?.status ?? "idle", failureReason: job?.failureReason },
+              {
+                available,
+                status: job?.status ?? "idle",
+                progress:
+                  job?.status === "done"
+                    ? 100
+                    : (job?.progress ?? (available ? 100 : 0)),
+                failureReason: job?.failureReason,
+              },
             ] as const;
           }),
         );
@@ -163,8 +286,16 @@ const server = http.createServer(async (req, res) => {
         if (input.projectId !== projectId)
           return json(res, 400, { error: "Project mismatch" });
         if (
-          generationQueue.hasPending(projectId, input.part, input.outputEnvironment) ||
-          generationQueue.hasPending(projectId, "video", input.outputEnvironment)
+          generationQueue.hasPending(
+            projectId,
+            input.part,
+            input.outputEnvironment,
+          ) ||
+          generationQueue.hasPending(
+            projectId,
+            "video",
+            input.outputEnvironment,
+          )
         )
           return json(res, 409, { error: "Project already active" });
         if (generationQueue.pendingCount >= 20)
@@ -174,16 +305,27 @@ const server = http.createServer(async (req, res) => {
           status: "queued",
           stage: "Queued",
         };
-        const state = voiceJobs.get(`${input.outputEnvironment}:${projectId}`) ?? {};
+        const state =
+          voiceJobs.get(`${input.outputEnvironment}:${projectId}`) ?? {};
         state[input.part] = job;
         voiceJobs.set(`${input.outputEnvironment}:${projectId}`, state);
         generationQueue.enqueue(
-          { projectId, kind: input.kind, outputEnvironment: input.outputEnvironment, type: input.part },
+          {
+            projectId,
+            kind: input.kind,
+            outputEnvironment: input.outputEnvironment,
+            type: input.part,
+          },
           job,
           async () => {
             job.status = "running";
             try {
-              await generateProjectVoice(input, input.part);
+              await generateProjectVoice(input, input.part, (progress) => {
+                job.progress = Math.max(
+                  job.progress ?? 0,
+                  clampProgress(progress),
+                );
+              });
               job.status = "done";
             } catch (error) {
               console.error("Voice generation failed", error);
@@ -200,7 +342,13 @@ const server = http.createServer(async (req, res) => {
       if (input.callback && !origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));
-      if (generationQueue.hasPending(input.projectId, "video", input.outputEnvironment))
+      if (
+        generationQueue.hasPending(
+          input.projectId,
+          "video",
+          input.outputEnvironment,
+        )
+      )
         return json(res, 409, { error: "Project already active" });
       if (generationQueue.pendingCount >= 20)
         return json(res, 503, { error: "Render queue is full" });
@@ -235,16 +383,27 @@ const server = http.createServer(async (req, res) => {
         }
       };
       generationQueue.enqueue(
-        { projectId: input.projectId, kind: input.kind, outputEnvironment: input.outputEnvironment, type: "video" },
+        {
+          projectId: input.projectId,
+          kind: input.kind,
+          outputEnvironment: input.outputEnvironment,
+          type: "video",
+        },
         job,
         async () => {
           job.status = "running";
           job.stage = "Starting";
           void notify();
           try {
-            job.result = await render(input, (stage) => {
+            job.result = await render(input, (stage, progress) => {
+              const stageChanged = job.stage !== stage;
               job.stage = stage;
-              void notify();
+              if (progress !== undefined)
+                job.progress = Math.max(
+                  job.progress ?? 0,
+                  clampProgress(progress),
+                );
+              if (stageChanged) void notify();
             });
             job.status = "done";
             job.stage = "Complete";
@@ -276,9 +435,15 @@ const server = http.createServer(async (req, res) => {
       const kind = z
         .enum(["short", "long"])
         .parse(url.searchParams.get("kind"));
-      const version = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
-      const passage = renderSchema.shape.passage.shape.id.parse(url.searchParams.get("passage"));
-      const environment = renderSchema.shape.outputEnvironment.parse(url.searchParams.get("outputEnvironment") ?? undefined);
+      const version = renderSchema.shape.version.shape.id.parse(
+        url.searchParams.get("version"),
+      );
+      const passage = renderSchema.shape.passage.shape.id.parse(
+        url.searchParams.get("passage"),
+      );
+      const environment = renderSchema.shape.outputEnvironment.parse(
+        url.searchParams.get("outputEnvironment") ?? undefined,
+      );
       const asset = z
         .union([
           z.enum(["video", "thumbnail", "intro", "outro"]),
@@ -291,7 +456,10 @@ const server = http.createServer(async (req, res) => {
       const file = asset.startsWith("reading-")
         ? reading?.sections[Number(asset.slice(8))]?.file
         : asset === "intro" || asset === "outro"
-          ? path.join(sourceDir(kind, version, passage, environment), voiceFilename(asset))
+          ? path.join(
+              sourceDir(kind, version, passage, environment),
+              voiceFilename(asset),
+            )
           : path.join(
               projectDir(kind, version, passage, environment),
               asset === "video" ? videoFilename(kind) : "thumbnail.jpg",

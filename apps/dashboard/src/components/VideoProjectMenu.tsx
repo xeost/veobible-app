@@ -1,13 +1,23 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { MoreVertical, RefreshCw, Settings } from "lucide-react";
+import {
+  MoreVertical,
+  RefreshCw,
+  Settings,
+  FolderSync,
+  LoaderCircle,
+} from "lucide-react";
 import { useI18n } from "../i18n/context";
 export function VideoProjectMenu({
   onSettings,
   onSync,
+  onSyncExisting,
+  syncingExisting,
 }: {
   onSettings: () => void;
   onSync: () => void;
+  onSyncExisting: () => void;
+  syncingExisting: boolean;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -83,7 +93,27 @@ export function VideoProjectMenu({
             }}
           >
             <RefreshCw size={16} />
-            {t("Sincronizar proyectos")}
+            {t("Sincronizar presets de proyectos")}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={syncingExisting}
+            onClick={() => {
+              setOpen(false);
+              onSyncExisting();
+            }}
+          >
+            {syncingExisting ? (
+              <LoaderCircle size={16} />
+            ) : (
+              <FolderSync size={16} />
+            )}
+            {t(
+              syncingExisting
+                ? "Sincronizando proyectos existentes…"
+                : "Sincronizar proyectos existentes",
+            )}
           </button>
         </div>
       )}

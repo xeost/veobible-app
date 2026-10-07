@@ -36,6 +36,7 @@ import {
   readingTimeline,
   type Inspection,
 } from "../lib/video-timing";
+import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
 type Settings = RenderRequest["settings"];
@@ -43,6 +44,7 @@ type VoiceState = {
   available: boolean;
   status: string;
   failureReason?: string;
+  progress?: number;
 };
 type Voices = Record<"intro" | "outro", VoiceState>;
 const emptyVoices: Voices = {
@@ -256,7 +258,7 @@ export function VideoProjectEditor({
       });
       setVoices((current) => ({
         ...current,
-        [part]: { ...current[part], status: "queued" },
+        [part]: { ...current[part], status: "queued", progress: 0 },
       }));
       setSettings((current) => ({
         ...current,
@@ -385,6 +387,12 @@ export function VideoProjectEditor({
             )}
           </div>
         </div>
+        {pending && (
+          <GenerationProgress
+            value={voice.progress ?? 0}
+            label={t("Generación de voz")}
+          />
+        )}
         <div
           id={`section-${part}`}
           hidden={!expanded.has(part)}
@@ -716,6 +724,12 @@ export function VideoProjectEditor({
             <span className={`badge ${project.status}`}>
               {t(statusLabel(project.status))}
             </span>
+            {active && (
+              <GenerationProgress
+                value={project.progress ?? 0}
+                label={t("Generación de video")}
+              />
+            )}
             {result && (
               <div className="preview-actions">
                 <a className="button" href={`${media("video")}&download=1`}>
@@ -733,20 +747,22 @@ export function VideoProjectEditor({
                       await api(endpoint(), {
                         method: "PATCH",
                         body: JSON.stringify({
-                          used: !project.used,
+                          published: !project.published,
                         }),
                       });
                       setNotice(
-                        project.used
-                          ? "Marca de uso eliminada."
-                          : "Marcado como usado.",
+                        project.published
+                          ? "Marcado como no publicado."
+                          : "Marcado como publicado.",
                       );
                     })
                   }
                 >
                   <Check size={15} />
                   {t(
-                    project.used ? "Marcar como no usado" : "Marcar como usado",
+                    project.published
+                      ? "Marcar como no publicado"
+                      : "Marcar como publicado",
                   )}
                 </button>
               </div>

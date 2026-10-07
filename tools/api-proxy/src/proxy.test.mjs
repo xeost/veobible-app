@@ -6,6 +6,7 @@ import { createProxy, routeFor } from "./proxy.mjs";
 test("routes only registered video namespaces", () => {
   for (const p of [
     "/v1/projects/x",
+    "/v1/projects/existing",
     "/v1/jobs",
     "/v1/analyze",
     "/v1/queue",

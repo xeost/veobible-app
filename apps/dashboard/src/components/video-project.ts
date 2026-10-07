@@ -4,8 +4,10 @@ export type VideoRow = {
   kind: string;
   project_id: number;
   status: string;
+  progress: number;
   settings: string | null;
-  used: number;
+  published: number;
+  output_environment: "production" | "development";
   version_id: number;
   version_code: string;
   locale: string;

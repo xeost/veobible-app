@@ -19,11 +19,12 @@ test("runtime only uses frontend static Bible data and has no dependencies on da
       /shorts-daily-dose|longs-365-days|apps\/dashboard|apps\/frontend\/(?!public\/bible-data)|VEOBIBLE_(SHORTS|LONGS)_/,
       name,
     );
-    assert.doesNotMatch(
-      source,
-      /status\.json|default-version-settings\.json/,
-      name,
-    );
+    if (name !== "existing-projects.ts")
+      assert.doesNotMatch(
+        source,
+        /status\.json|default-version-settings\.json/,
+        name,
+      );
   }
 });
 

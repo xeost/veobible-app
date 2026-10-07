@@ -250,7 +250,11 @@ export async function renderEpisodeVideo(
   voices?: VoiceTracks,
   workDir = path.dirname(output),
   volumeMultiplier = 1,
-  renderOptions: { concurrency?: number; background?: string } = {},
+  renderOptions: {
+    concurrency?: number;
+    background?: string;
+    onProgress?: (progress: number) => void;
+  } = {},
 ): Promise<VideoResult> {
   validateReadingVolume(volumeMultiplier);
   if (
@@ -437,6 +441,7 @@ export async function renderEpisodeVideo(
       audioCodec: "aac",
       onProgress: ({ progress }) => {
         if (progress !== undefined) {
+          renderOptions.onProgress?.(progress);
           const pct = Math.round(progress * 100);
           if (pct !== lastPct) {
             lastPct = pct;

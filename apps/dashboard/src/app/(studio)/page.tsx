@@ -54,11 +54,16 @@ export default function Dashboard() {
           ],
           [
             CheckCheck,
-            "Sin usar",
-            data?.unused?.total ?? 0,
+            "No publicados",
+            data?.unpublished?.total ?? 0,
             "Proyectos disponibles",
           ],
-          [Send, "Usados", data?.used?.total ?? 0, "Proyectos utilizados"],
+          [
+            Send,
+            "Publicados",
+            data?.published?.total ?? 0,
+            "Videos publicados",
+          ],
         ].map(([Icon, label, note, sub]: any) => (
           <div className="stat" key={label}>
             <div className="stat-top">
@@ -108,7 +113,7 @@ export default function Dashboard() {
                 <th>{t("Proyecto")}</th>
                 <th>{t("Formato")}</th>
                 <th>{t("Versión")}</th>
-                <th>{t("Uso")}</th>
+                <th>{t("Publicación")}</th>
                 <th>{t("Actualizado")}</th>
               </tr>
             </thead>
@@ -126,7 +131,7 @@ export default function Dashboard() {
                   <td>{p.label}</td>
                   <td>
                     <span className="badge">
-                      {t(p.used ? "Usado" : "Sin usar")}
+                      {t(p.published ? "Publicado" : "No publicado")}
                     </span>
                   </td>
                   <td className="muted">{date(p.updated_at, language)}</td>
