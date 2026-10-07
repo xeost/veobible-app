@@ -7,8 +7,8 @@ import {
   saveSocialSettings,
   socialSettingsSchema,
 } from "./social-settings";
-import { outroTitle as shortOutro } from "../../../../tools/video-generator-api/src/engines/short/social";
-import { outroTitle as longOutro } from "../../../../tools/video-generator-api/src/engines/long/social";
+import { outroTitle as shortOutro } from "../../../../tools/video-project-api/src/engines/short/social";
+import { outroTitle as longOutro } from "../../../../tools/video-project-api/src/engines/long/social";
 test("social settings start empty without inserting rows and persist all languages without changing other site settings", async () => {
   const sqlite = new DatabaseSync(":memory:");
   try {

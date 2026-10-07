@@ -1,13 +1,15 @@
 export type VideoRow = {
-  id: string;
+  id: number;
   title: string;
   kind: string;
-  position: number;
-  project_id: string | null;
+  project_id: number;
   status: string;
   settings: string | null;
-  published_at: string | null;
-  used_at?: string | null;
+  used: number;
+  version_id: number;
+  version_code: string;
+  locale: string;
+  label: string;
   result: string | null;
   updated_at: string | null;
 };

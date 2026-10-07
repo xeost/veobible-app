@@ -50,12 +50,8 @@ test("site configuration persists updates and keeps legacy dashboard history sep
         "utf8",
       ),
     );
-    db.exec("INSERT INTO deployments(id,status) VALUES ('legacy','requested')");
     db.exec(
-      readFileSync(
-        new URL("../../migrations/0006_site_deployments.sql", import.meta.url),
-        "utf8",
-      ),
+      "INSERT INTO deployments(status,target) VALUES ('requested','dashboard')",
     );
     const save = db.prepare(
       "INSERT INTO site_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
@@ -73,18 +69,17 @@ test("site configuration persists updates and keeps legacy dashboard history sep
       "",
     );
     db.exec(
-      "INSERT INTO deployments(id,status,target,message) VALUES ('public','requested','site','Site update')",
+      "INSERT INTO deployments(status,target,message) VALUES ('requested','site','Site update')",
     );
     const history = db
       .prepare("SELECT id FROM deployments WHERE target='site'")
       .all();
     assert.deepEqual(
       history.map((row) => row.id),
-      ["public"],
+      [2],
     );
     assert.equal(
-      db.prepare("SELECT target FROM deployments WHERE id='legacy'").get()
-        ?.target,
+      db.prepare("SELECT target FROM deployments WHERE id=1").get()?.target,
       "dashboard",
     );
   } finally {

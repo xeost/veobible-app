@@ -1,6 +1,6 @@
 export type GenerationQueueItem = {
   id: string;
-  projectId: string;
+  projectId: number;
   type: "intro" | "outro" | "video";
   status: "queued" | "running" | "done" | "failed";
   stage: string;

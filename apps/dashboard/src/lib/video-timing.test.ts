@@ -9,7 +9,7 @@ import {
   validVerseTimings,
   waveformWindow,
 } from "./video-timing";
-import { applyVerseOffsets } from "../../../../tools/video-generator-api/src/engines/short/verse-timing";
+import { applyVerseOffsets } from "../../../../tools/video-project-api/src/engines/short/verse-timing";
 const cues = [
   { reference: "Juan 3:14", text: "Primero", start: 0, end: 4.00042 },
   { reference: "Juan 3:15", text: "Segundo", start: 4.00042, end: 9 },

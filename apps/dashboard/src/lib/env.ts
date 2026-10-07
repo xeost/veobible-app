@@ -4,7 +4,6 @@ export interface Bindings {
   JWT_SECRET: string;
   VIDEO_API_URL: string;
   VIDEO_API_TOKEN: string;
-  DASHBOARD_CALLBACK_URL: string;
   CF_ACCESS_CLIENT_ID?: string;
   CF_ACCESS_CLIENT_SECRET?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;

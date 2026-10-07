@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { db, bindings } from "./env";
 import { signToken, verifyToken } from "./jwt";
 export interface User {
-  id: string;
+  id: number;
   username: string;
   name: string;
   email: string;
@@ -15,15 +15,15 @@ export async function currentUser(token?: string): Promise<User | null> {
   if (!payload) return null;
   return db()
     .prepare(
-      "SELECT id,username,name,email,role FROM users WHERE id=? AND auth_version=? AND active=1",
+      "SELECT id,username,name,email,role FROM dashboard_users WHERE id=? AND auth_version=? AND active=1",
     )
     .bind(payload.userId, payload.authVersion)
     .first<User>();
 }
 
-export async function createUserToken(userId: string) {
+export async function createUserToken(userId: number) {
   const user = await db()
-    .prepare("SELECT auth_version FROM users WHERE id=? AND active=1")
+    .prepare("SELECT auth_version FROM dashboard_users WHERE id=? AND active=1")
     .bind(userId)
     .first<{ auth_version: number }>();
   if (!user) throw new Error("User unavailable");

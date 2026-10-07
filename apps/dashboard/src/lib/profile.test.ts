@@ -12,12 +12,6 @@ test("profile updates normalize usernames and protect passwords and invalidate p
       "utf8",
     ),
   );
-  sqlite.exec(
-    readFileSync(
-      new URL("../../migrations/0007_jwt_authentication.sql", import.meta.url),
-      "utf8",
-    ),
-  );
   assert.equal(
     sqlite
       .prepare(
@@ -27,7 +21,7 @@ test("profile updates normalize usernames and protect passwords and invalidate p
     0,
   );
   const user = {
-    id: "one",
+    id: 1001,
     username: "editor",
     name: "Original",
     email: "",
@@ -36,12 +30,12 @@ test("profile updates normalize usernames and protect passwords and invalidate p
   const originalHash = await passwordHash("original-password");
   sqlite
     .prepare(
-      "INSERT INTO users(id,username,name,password_hash,role) VALUES (?,?,?,?,?)",
+      "INSERT INTO dashboard_users(id,username,name,password_hash,role) VALUES (?,?,?,?,?)",
     )
     .run(user.id, user.username, user.name, originalHash, user.role);
   sqlite
     .prepare(
-      "INSERT INTO users(id,username,name,password_hash,role) VALUES ('two','taken','Other',?,'admin')",
+      "INSERT INTO dashboard_users(id,username,name,password_hash,role) VALUES (1002,'taken','Other',?,'admin')",
     )
     .run(originalHash);
   type Statement = {
@@ -101,8 +95,9 @@ test("profile updates normalize usernames and protect passwords and invalidate p
   assert.equal(updated.username, "new.editor");
   assert.equal(updated.name, "New name");
   assert.equal(
-    sqlite.prepare("SELECT password_hash FROM users WHERE id='one'").get()
-      ?.password_hash,
+    sqlite
+      .prepare("SELECT password_hash FROM dashboard_users WHERE id=1001")
+      .get()?.password_hash,
     originalHash,
   );
   await assert.rejects(
@@ -126,8 +121,9 @@ test("profile updates normalize usernames and protect passwords and invalidate p
     /Contraseña actual incorrecta/,
   );
   assert.equal(
-    sqlite.prepare("SELECT auth_version FROM users WHERE id='one'").get()
-      ?.auth_version,
+    sqlite
+      .prepare("SELECT auth_version FROM dashboard_users WHERE id=1001")
+      .get()?.auth_version,
     0,
   );
   await saveProfile(
@@ -140,13 +136,14 @@ test("profile updates normalize usernames and protect passwords and invalidate p
     }),
   );
   const hash = sqlite
-    .prepare("SELECT password_hash FROM users WHERE id='one'")
+    .prepare("SELECT password_hash FROM dashboard_users WHERE id=1001")
     .get()?.password_hash as string;
   assert.equal(await verifyPassword("replacement-password", hash), true);
   assert.equal(await verifyPassword("original-password", hash), false);
   assert.equal(
-    sqlite.prepare("SELECT auth_version FROM users WHERE id='one'").get()
-      ?.auth_version,
+    sqlite
+      .prepare("SELECT auth_version FROM dashboard_users WHERE id=1001")
+      .get()?.auth_version,
     1,
   );
   assert.throws(() =>

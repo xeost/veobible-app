@@ -112,7 +112,7 @@ for (const [kind, outputEnvironment] of [["short", "production"], ["long", "prod
   }
   const input = renderSchema.parse({
     id: randomUUID(),
-    projectId: randomUUID(),
+    projectId: Math.floor(Math.random() * 1000000) + 1,
     kind,
     outputEnvironment,
     version: { id: "rv1909", locale: "es", label: "Test version" },
@@ -137,7 +137,7 @@ for (const [kind, outputEnvironment] of [["short", "production"], ["long", "prod
   assert.ok(preview.scripts.intro.length > 0);
   // Either narration must be able to create a completely new project on its own.
   for (const part of ["intro", "outro"] as const) {
-    const fresh = { ...input, projectId: randomUUID(), passage: { ...input.passage, id: `fresh-${part}` } };
+    const fresh = { ...input, projectId: Math.floor(Math.random() * 1000000) + 1, passage: { ...input.passage, id: `fresh-${part}` } };
     const sources = sourceDir(kind, fresh.version.id, fresh.passage.id, outputEnvironment);
     const output = projectDir(kind, fresh.version.id, fresh.passage.id, outputEnvironment);
     await assert.rejects(fs.stat(sources), { code: "ENOENT" });
@@ -187,6 +187,7 @@ for (const [kind, outputEnvironment] of [["short", "production"], ["long", "prod
       "3-outro.txt",
       "3-outro.wav",
       "README.md",
+      "render-result.json",
     ]);
   }
 }

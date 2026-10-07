@@ -29,11 +29,11 @@ export const settingsSchema = z.object({
 });
 export const renderSchema = z.object({
   id: z.string().uuid(),
-  projectId: z.string().uuid(),
+  projectId: z.number().int().positive(),
   kind: z.enum(["short", "long"]),
   outputEnvironment: z.enum(["production", "development"]).default("production"),
   version: z.object({
-    id: z.enum(["rv1909", "spabll", "kjv", "web", "arc"]),
+    id: z.string().min(1).max(60).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
     locale: z.enum(["es", "en", "pt"]),
     label: z.string(),
   }),
@@ -64,7 +64,7 @@ export const renderSchema = z.object({
       facebook: z.string().trim().max(100),
     })
     .default({ youtube: "", x: "", instagram: "", tiktok: "", facebook: "" }),
-  callback: z.object({ url: z.string().url(), token: z.string().min(32) }),
+  callback: z.object({ url: z.string().url(), token: z.string().min(32) }).optional(),
 });
 export const resultSchema = z.object({
   output: z.string(),

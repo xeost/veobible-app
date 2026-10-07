@@ -1,31 +1,34 @@
 "use client";
+import { SyncVideoProjectsModal } from "./SyncVideoProjectsModal";
+import { VideoProjectMenu } from "./VideoProjectMenu";
+import { CreateVideoProjectModal } from "./CreateVideoProjectModal";
 import { useI18n } from "../i18n/context";
 import { userMessage } from "../lib/presentation";
 import { useEffect, useState, useCallback } from "react";
 import {
   Search,
   Check,
-  RefreshCw,
   Clapperboard,
   Film,
   ArrowRight,
   ChevronLeft,
   ChevronRight,
-  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, date } from "./api";
-import { type VideoRow, videoStatusLabels as labels } from "./video-project";
+import { type VideoRow } from "./video-project";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
 export function Videos({ kind }: { kind: "short" | "long" }) {
   const { t, language } = useI18n();
   const searchParams = useSearchParams();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [canEditSettings, setCanEditSettings] = useState(false);
   const [rows, setRows] = useState<VideoRow[]>([]),
     [versions, setVersions] = useState<any[]>([]),
-    [version, setVersion] = useState(searchParams.get("version") || "rv1909"),
+    [version, setVersion] = useState(searchParams.get("version") || "all"),
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [page, setPage] = useState(0),
@@ -33,6 +36,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     [error, setError] = useState("");
   const load = useCallback(async () => {
     try {
+      setError("");
       const data = await api(`videos?kind=${kind}&version=${version}`);
       setRows(data.videos);
       setLoading(false);
@@ -53,21 +57,14 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     setLoading(true);
     setPage(0);
     void load();
-    const timer = setInterval(load, 5000);
-    return () => clearInterval(timer);
   }, [load]);
   const Icon = kind === "short" ? Clapperboard : Film;
   const projectHref = (row: VideoRow) =>
-    `/${kind === "short" ? "short-videos" : "long-videos"}/${encodeURIComponent(row.id)}?version=${encodeURIComponent(version)}`;
+    `/${kind === "short" ? "short-videos" : "long-videos"}/${String(row.id)}`;
   const filtered = rows.filter(
     (r) =>
       (r.title + " " + r.id).toLowerCase().includes(query.toLowerCase()) &&
-      (filter === "all" ||
-        (filter === "published"
-          ? r.published_at
-          : filter === "unpublished"
-            ? !r.published_at
-            : r.status === filter)),
+      (filter === "all" || (filter === "used" ? Boolean(r.used) : !r.used)),
   );
   const pages = Math.max(1, Math.ceil(filtered.length / 20));
   const currentPage = Math.min(page, pages - 1);
@@ -92,13 +89,17 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           </p>
         </div>
         <div className="project-top-actions">
-          <button type="button" onClick={() => setSettingsOpen(true)}>
-            <Settings size={16} />
-            {t("Settings")}
+          <button
+            type="button"
+            className="primary"
+            onClick={() => setCreateOpen(true)}
+          >
+            {t("Nuevo proyecto de video")}
           </button>
-          <button onClick={load}>
-            <RefreshCw size={16} /> {t("Actualizar")}
-          </button>
+          <VideoProjectMenu
+            onSettings={() => setSettingsOpen(true)}
+            onSync={() => setSyncOpen(true)}
+          />
         </div>
       </div>
       <div className="video-summary">
@@ -109,13 +110,13 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
         </div>
         <div>
           <span className="dot green" />
-          <strong>{rows.filter((r) => r.status === "ready").length}</strong>
-          <span>{t("generados")}</span>
+          <strong>{rows.filter((r) => !r.used).length}</strong>
+          <span>{t("Sin usar")}</span>
         </div>
         <div>
           <Check size={17} />
-          <strong>{rows.filter((r) => r.published_at).length}</strong>
-          <span>{t("publicados")}</span>
+          <strong>{rows.filter((r) => r.used).length}</strong>
+          <span>{t("Usados")}</span>
         </div>
       </div>
       {error && (
@@ -142,28 +143,26 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             value={version}
             onChange={(e) => setVersion(e.target.value)}
           >
-            {versions.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.locale.toUpperCase()} · {v.label}
-              </option>
-            ))}
+            <option value="all">{t("Todas las versiones")}</option>
+            {versions
+              .filter((v) => v.id !== null)
+              .map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.locale.toUpperCase()} · {v.label}
+                </option>
+              ))}
           </select>
           <select
-            aria-label={t("Filtrar estado")}
+            aria-label={t("Filtrar uso")}
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
               setPage(0);
             }}
           >
-            <option value="all">{t("Todos los estados")}</option>
-            {Object.entries(labels).map(([id, label]) => (
-              <option value={id} key={id}>
-                {t(label)}
-              </option>
-            ))}
-            <option value="published">{t("Publicados")}</option>
-            <option value="unpublished">{t("Sin publicar")}</option>
+            <option value="all">{t("Todos los proyectos")}</option>
+            <option value="used">{t("Usados")}</option>
+            <option value="unused">{t("Sin usar")}</option>
           </select>
         </div>
         <div className="table-wrap">
@@ -172,8 +171,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               <tr>
                 <th>#</th>
                 <th>{t("Proyecto de video")}</th>
-                <th>{t("Estado")}</th>
-                <th>{t("Publicación")}</th>
+                <th>{t("Uso")}</th>
                 <th>{t("Actualizado")}</th>
                 <th />
               </tr>
@@ -181,10 +179,10 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             <tbody>
               {filtered
                 .slice(currentPage * 20, (currentPage + 1) * 20)
-                .map((row) => (
+                .map((row, index) => (
                   <tr key={row.id}>
                     <td className="muted">
-                      {String(row.position).padStart(3, "0")}
+                      {String(currentPage * 20 + index + 1).padStart(3, "0")}
                     </td>
                     <td>
                       <Link
@@ -198,31 +196,28 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                           {row.title}
                           <small>
                             {t(kind === "short" ? "Daily Dose" : "365 Days")} ·{" "}
-                            {version.toUpperCase()}
+                            {row.locale.toUpperCase()} · {row.label}
                           </small>
                         </span>
                       </Link>
                     </td>
                     <td>
-                      <span className={`badge ${row.status}`}>
-                        <span className="dot" />
-                        {t(labels[row.status])}
-                      </span>
-                    </td>
-                    <td>
-                      {row.published_at ? (
-                        <span className="published">
-                          <Check size={14} /> {t("Publicado")}
-                        </span>
-                      ) : (
-                        <span className="muted">
-                          {t(
-                            row.used_at
-                              ? "Usado anteriormente"
-                              : "Sin publicar",
-                          )}
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await api(`videos/${row.id}`, {
+                              method: "PATCH",
+                              body: JSON.stringify({ used: !row.used }),
+                            });
+                            await load();
+                          } catch (cause) {
+                            setError(userMessage(cause));
+                          }
+                        }}
+                      >
+                        {t(row.used ? "Usado" : "Sin usar")}
+                      </button>
                     </td>
                     <td className="muted">{date(row.updated_at, language)}</td>
                     <td>
@@ -238,10 +233,17 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                 ))}
             </tbody>
           </table>
-          {loading && <div className="empty">{t("Cargando catálogo…")}</div>}
+          {loading && <div className="empty">{t("Cargando proyectos…")}</div>}
           {!loading && !filtered.length && (
             <div className="empty">
-              {t("No hay videos que coincidan con estos filtros.")}
+              {t(
+                rows.length === 0 &&
+                  version === "all" &&
+                  !query &&
+                  filter === "all"
+                  ? "Crea tu primer proyecto de video para comenzar."
+                  : "No hay videos que coincidan con estos filtros.",
+              )}
             </div>
           )}
         </div>
@@ -270,6 +272,29 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           </div>
         </div>
       </section>
+      {createOpen && (
+        <CreateVideoProjectModal
+          kind={kind}
+          close={() => {
+            setCreateOpen(false);
+            void load();
+          }}
+        />
+      )}
+      {syncOpen && (
+        <SyncVideoProjectsModal
+          kind={kind}
+          selectedVersion={version}
+          close={() => setSyncOpen(false)}
+          onSynced={(id) => {
+            setQuery("");
+            setFilter("all");
+            setPage(0);
+            if (version === String(id)) void load();
+            else setVersion(String(id));
+          }}
+        />
+      )}
       {settingsOpen && (
         <VoiceSettingsModal
           kind={kind}

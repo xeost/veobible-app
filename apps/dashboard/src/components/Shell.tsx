@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ListOrdered,
   Settings,
+  BookOpen,
 } from "lucide-react";
 import type { User } from "../lib/auth";
 import { api } from "./api";
@@ -28,7 +29,8 @@ const items = [
   ["/", "Dashboard", LayoutDashboard],
   ["/short-videos", "Short Videos", Clapperboard],
   ["/long-videos", "Long Videos", Film],
-  ["/deployments", "Actualizaciones", Rocket],
+  ["/bible-versions", "Versiones de la Biblia", BookOpen],
+  ["/deployments", "Publicaciones", Rocket],
   ["/settings", "Settings", Settings],
 ] as const;
 export function Shell({ children, user }: { children: ReactNode; user: User }) {
@@ -115,8 +117,9 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
           {items
             .filter(
               ([href]) =>
-                !["/deployments", "/settings"].includes(href) ||
-                user.role === "admin",
+                !["/deployments", "/settings", "/bible-versions"].includes(
+                  href,
+                ) || user.role === "admin",
             )
             .map(([href, label, Icon]) => (
               <Link
@@ -188,7 +191,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
             </button>
             <span>{t("Mis proyectos")}</span>
             <ChevronRight size={14} />
-            <b>{title}</b>
+            <b>{t(title)}</b>
           </div>
           <div className="header-actions">
             <button

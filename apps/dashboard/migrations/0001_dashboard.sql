@@ -1,12 +1,35 @@
 PRAGMA foreign_keys = ON;
-CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT NOT NULL, email TEXT NOT NULL DEFAULT '', password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('admin','editor')), active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
-CREATE TABLE sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL);
-CREATE TABLE login_attempts (key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, reset_at INTEGER NOT NULL);
-CREATE TABLE versions (id TEXT PRIMARY KEY, locale TEXT NOT NULL, label TEXT NOT NULL);
-CREATE TABLE version_settings (kind TEXT NOT NULL CHECK(kind IN ('short','long')), version_id TEXT NOT NULL REFERENCES versions(id), settings TEXT NOT NULL CHECK(json_valid(settings)), PRIMARY KEY(kind,version_id));
-CREATE TABLE catalog (id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('short','long')), passage_id TEXT NOT NULL, title TEXT NOT NULL, passage TEXT NOT NULL CHECK(json_valid(passage)), position INTEGER NOT NULL, UNIQUE(kind,passage_id));
-CREATE TABLE projects (id TEXT PRIMARY KEY, catalog_id TEXT NOT NULL REFERENCES catalog(id), version_id TEXT NOT NULL REFERENCES versions(id), status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','queued','running','ready','failed')), published_at TEXT, settings TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(settings)), result TEXT CHECK(result IS NULL OR json_valid(result)), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), UNIQUE(catalog_id,version_id));
-CREATE TABLE jobs (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), status TEXT NOT NULL CHECK(status IN ('queued','running','done','failed')), stage TEXT NOT NULL DEFAULT 'Queued', snapshot TEXT NOT NULL CHECK(json_valid(snapshot)), result TEXT CHECK(result IS NULL OR json_valid(result)), error TEXT, callback_hash TEXT NOT NULL, created_by TEXT REFERENCES users(id), created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
-CREATE UNIQUE INDEX jobs_one_active ON jobs(project_id) WHERE status IN ('queued','running');
-CREATE INDEX jobs_status ON jobs(status);
-CREATE TABLE deployments (id TEXT PRIMARY KEY, status TEXT NOT NULL, external_id TEXT, message TEXT NOT NULL DEFAULT '', created_by TEXT REFERENCES users(id), details TEXT, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+CREATE TABLE dashboard_users (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+ name TEXT NOT NULL, email TEXT NOT NULL DEFAULT '', password_hash TEXT NOT NULL,
+ role TEXT NOT NULL CHECK(role IN ('admin','editor')), active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+ auth_version INTEGER NOT NULL DEFAULT 0,
+ created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE TABLE bible_versions (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ locale TEXT NOT NULL CHECK(locale IN ('es','en','pt')), code TEXT NOT NULL, label TEXT NOT NULL,
+ UNIQUE(locale,code)
+);
+CREATE TABLE video_projects (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ kind TEXT NOT NULL CHECK(kind IN ('short','long')),
+ bible_version_id INTEGER NOT NULL REFERENCES bible_versions(id),
+ passage_id TEXT NOT NULL, title TEXT NOT NULL, passage TEXT NOT NULL CHECK(json_valid(passage)),
+ settings TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(settings)),
+ used INTEGER NOT NULL DEFAULT 0 CHECK(used IN (0,1)),
+ created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+ updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+ UNIQUE(kind,bible_version_id,passage_id)
+);
+CREATE TABLE site_settings (key TEXT PRIMARY KEY,value TEXT NOT NULL CHECK(json_valid(value) OR key LIKE 'deploy_hook:%'),updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE deployments (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,status TEXT NOT NULL,external_id TEXT,message TEXT NOT NULL DEFAULT '',
+ created_by INTEGER REFERENCES dashboard_users(id),details TEXT,target TEXT NOT NULL DEFAULT 'site',
+ created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+ completed_at TEXT,duration_ms INTEGER
+);
+CREATE INDEX video_projects_kind_used ON video_projects(kind,used);
+CREATE INDEX deployments_target_created ON deployments(target,created_at);
+INSERT INTO dashboard_users(username,name,password_hash,role) VALUES ('admin','Admin','pbkdf2:100000:veobible-default-admin:f30b6acc5af87fc4112d9ea2c3294d037e8a5910ed1c08175159fffa7bf32141','admin');

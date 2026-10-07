@@ -9,7 +9,7 @@
     "build:dashboard": "pnpm --dir apps/dashboard build",
     "start:api-proxy": "node tools/api-proxy/src/index.mjs",
     "tunnel:api-proxy": "node tools/api-proxy/scripts/tunnel.mjs",
-    "start:video-generator": "pnpm --dir tools/video-generator-api start",
+    "start:video-project": "pnpm --dir tools/video-project-api start",
     "db:dashboard:local": "pnpm --dir apps/dashboard db:migrate:local",
     "db:dashboard:remote": "pnpm --dir apps/dashboard db:migrate:remote"
   }

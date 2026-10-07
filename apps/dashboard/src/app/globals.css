@@ -2040,3 +2040,83 @@ audio {
 .section-stack {
   width: 100%;
 }
+
+.bible-versions-menu,
+.project-actions-menu {
+  position: relative;
+}
+.bible-versions-dropdown,
+.project-actions-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px #0003;
+}
+.bible-versions-dropdown button,
+.project-actions-dropdown button {
+  width: 100%;
+  justify-content: flex-start;
+  white-space: nowrap;
+  border: 0;
+}
+.bible-versions-menu .spin {
+  animation: voice-spin 1s linear infinite;
+}
+.bible-version-row {
+  cursor: pointer;
+}
+.bible-version-row:hover,
+.bible-version-row:focus-visible {
+  background: var(--raised);
+}
+.bible-version-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.bible-versions-table th:last-child,
+.bible-versions-table td:last-child {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+.bible-versions-table th:last-child {
+  text-align: center;
+}
+.bible-versions-table td:last-child .project-top-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.manual-passage-points,
+.manual-passage-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.manual-passage-point {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+.manual-passage-point legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+.manual-passage-point input,
+.manual-passage-point select {
+  width: 100%;
+}
+@media (max-width: 600px) {
+  .manual-passage-points {
+    grid-template-columns: 1fr;
+  }
+}

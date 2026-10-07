@@ -5,7 +5,7 @@ export type QueueJob = {
   stage: string;
 };
 type Entry = {
-  projectId: string;
+  projectId: number;
   outputEnvironment?: "production" | "development";
   kind: "short" | "long";
   type: GenerationType;
@@ -21,7 +21,7 @@ export class GenerationQueue {
       ["queued", "running"].includes(job.status),
     ).length;
   }
-  hasPending(projectId: string, type: GenerationType, environment: "production" | "development" = "production") {
+  hasPending(projectId: number, type: GenerationType, environment: "production" | "development" = "production") {
     return this.entries.some(
       (entry) =>
         entry.projectId === projectId &&

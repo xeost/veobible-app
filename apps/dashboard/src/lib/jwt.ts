@@ -12,13 +12,13 @@ function secretKey(secret: string) {
 }
 
 export async function signToken(
-  userId: string,
+  userId: number,
   authVersion: number,
   secret: string,
 ) {
   return new SignJWT({ authVersion })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setSubject(userId)
+    .setSubject(String(userId))
     .setIssuer(issuer)
     .setAudience(audience)
     .setIssuedAt()
@@ -29,7 +29,7 @@ export async function signToken(
 export async function verifyToken(
   token: string,
   secret: string,
-): Promise<{ userId: string; authVersion: number } | null> {
+): Promise<{ userId: number; authVersion: number } | null> {
   const key = secretKey(secret);
   try {
     const { payload } = await jwtVerify(token, key, {
@@ -41,11 +41,16 @@ export async function verifyToken(
     if (
       typeof payload.sub !== "string" ||
       !payload.sub ||
+      !/^[1-9][0-9]*$/.test(payload.sub) ||
+      !Number.isSafeInteger(Number(payload.sub)) ||
       !Number.isSafeInteger(payload.authVersion) ||
       (payload.authVersion as number) < 0
     )
       return null;
-    return { userId: payload.sub, authVersion: payload.authVersion as number };
+    return {
+      userId: Number(payload.sub),
+      authVersion: payload.authVersion as number,
+    };
   } catch {
     return null;
   }

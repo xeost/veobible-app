@@ -4,9 +4,22 @@ import http from "node:http";
 import { once } from "node:events";
 import { createProxy, routeFor } from "./proxy.mjs";
 test("routes only registered video namespaces", () => {
-  for (const p of ["/v1/projects/x", "/v1/jobs", "/v1/analyze", "/v1/queue"])
+  for (const p of [
+    "/v1/projects/x",
+    "/v1/jobs",
+    "/v1/analyze",
+    "/v1/queue",
+    "/v1/bible-versions",
+    "/v1/video-project-proposals",
+  ])
     assert.equal(routeFor(p), "video");
-  for (const p of ["/", "/v1/batches", "/v1/jobs-extra", "/anything"])
+  for (const p of [
+    "/",
+    "/v1/batches",
+    "/v1/jobs-extra",
+    "/v1/bible-versions-extra",
+    "/anything",
+  ])
     assert.equal(routeFor(p), null);
 });
 test("auth, aggregate health, forwarding and unavailable upstream", async () => {
@@ -46,6 +59,30 @@ test("auth, aggregate health, forwarding and unavailable upstream", async () => 
     });
     assert.equal(response.status, 202);
     assert.equal((await response.json()).path, "/v1/jobs?x=1");
+    const versions = await fetch(`${base}/v1/bible-versions`, options);
+    assert.equal(versions.status, 202);
+    assert.deepEqual(await versions.json(), {
+      path: "/v1/bible-versions",
+      auth: `Bearer ${token}`,
+    });
+    const books = await fetch(
+      `${base}/v1/bible-versions/books?locale=es&version=rv1909`,
+      options,
+    );
+    assert.equal(books.status, 202);
+    assert.equal(
+      (await books.json()).path,
+      "/v1/bible-versions/books?locale=es&version=rv1909",
+    );
+    const proposals = await fetch(
+      `${base}/v1/video-project-proposals?kind=long&locale=es&version=rv1909`,
+      options,
+    );
+    assert.equal(proposals.status, 202);
+    assert.equal(
+      (await proposals.json()).path,
+      "/v1/video-project-proposals?kind=long&locale=es&version=rv1909",
+    );
     assert.equal((await fetch(`${base}/v1/batches`, options)).status, 404);
     await new Promise((r) => upstream.close(r));
     assert.equal((await fetch(`${base}/health`, options)).status, 503);

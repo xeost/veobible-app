@@ -1,7 +1,15 @@
+import { bibleBooksSchema } from "../../../lib/manual-video-project";
+import {
+  bibleVersionSchema,
+  syncBibleVersions,
+  listBibleVersions,
+  saveBibleVersion,
+  deleteBibleVersion,
+  BibleVersionError,
+} from "../../../lib/bible-versions";
 import {
   loadProjectSettings,
   saveProjectSettings,
-  versionProjectSettings,
 } from "../../../lib/project-settings";
 import {
   isDeployHookUrl,
@@ -13,15 +21,12 @@ import { userMessage } from "../../../lib/presentation";
 import { db, bindings } from "../../../lib/env";
 import { currentUser, createUserToken } from "../../../lib/auth";
 import {
-  digest,
   passwordHash,
   verifyPassword,
   sessionCookie,
-  equal,
 } from "../../../lib/security";
-import { settingsSchema, renderSchema } from "../../../lib/video-schema";
 import { videoFetch } from "../../../lib/video-client";
-import { applyUpdate, syncJobs } from "../../../lib/jobs";
+import { videoApi } from "../../../lib/video-api";
 import { z } from "zod";
 import {
   loadVoiceSettings,
@@ -31,8 +36,6 @@ import {
   loadSocialSettings,
   saveSocialSettings,
 } from "../../../lib/social-settings";
-const outputEnvironment =
-  process.env.NODE_ENV === "production" ? "production" : "development";
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) =>
   Response.json(value, {
     status,
@@ -62,18 +65,6 @@ async function handle(req: Request) {
     .find((s) => s.startsWith("veo_session="))
     ?.slice(12);
   const secure = url.protocol === "https:";
-  if (parts[0] === "jobs" && parts[2] === "callback" && method === "POST") {
-    const job = await database
-      .prepare("SELECT callback_hash FROM jobs WHERE id=?")
-      .bind(parts[1])
-      .first<{ callback_hash: string }>();
-    const token =
-      req.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
-    if (!job || !equal(job.callback_hash, await digest(token)))
-      return json({ error: "Unauthorized" }, 401);
-    await applyUpdate(parts[1], await body());
-    return json({ ok: true });
-  }
   if (method !== "GET" && req.headers.get("origin") !== url.origin)
     return json({ error: "Origen no permitido" }, 403);
   if (parts.join("/") === "auth/login" && method === "POST") {
@@ -84,9 +75,9 @@ async function handle(req: Request) {
       })
       .parse(await body());
     const user = await database
-      .prepare("SELECT * FROM users WHERE username=? AND active=1")
+      .prepare("SELECT * FROM dashboard_users WHERE username=? AND active=1")
       .bind(input.username)
-      .first<{ id: string; password_hash: string }>();
+      .first<{ id: number; password_hash: string }>();
     if (!user || !(await verifyPassword(input.password, user.password_hash)))
       return json({ error: "Usuario o contraseña incorrectos" }, 401);
     const token = await createUserToken(user.id);
@@ -99,6 +90,79 @@ async function handle(req: Request) {
   const admin = () => {
     if (user.role !== "admin") throw new Error("Se requiere administrador");
   };
+  if (parts[0] === "versions") {
+    if (parts.length === 1 && method === "GET")
+      return json({ versions: await listBibleVersions(database) });
+    if (parts.length === 3 && parts[2] === "books" && method === "GET") {
+      const id = z.coerce.number().int().positive().parse(parts[1]);
+      const version = await database
+        .prepare("SELECT locale,code FROM bible_versions WHERE id=?")
+        .bind(id)
+        .first<{ locale: string; code: string }>();
+      if (!version) return json({ error: "Versión inexistente" }, 404);
+      try {
+        const response = await videoFetch(
+          "/v1/bible-versions/books?" +
+            new URLSearchParams({
+              locale: version.locale,
+              version: version.code,
+            }),
+        );
+        if (!response.ok) throw new Error("Bible books unavailable");
+        return json({
+          books: bibleBooksSchema.parse(
+            ((await response.json()) as { books: unknown }).books,
+          ),
+        });
+      } catch (error) {
+        console.error("Bible books unavailable", error);
+        return json(
+          {
+            error:
+              "No se pudieron cargar los libros. Comprueba que esta versión esté disponible y vuelve a intentarlo.",
+          },
+          502,
+        );
+      }
+    }
+    admin();
+    if (parts.length === 2 && parts[1] === "sync" && method === "POST") {
+      let versions: unknown;
+      try {
+        const response = await videoFetch("/v1/bible-versions");
+        if (!response.ok) throw new Error("Version discovery failed");
+        versions = ((await response.json()) as { versions?: unknown }).versions;
+        z.array(bibleVersionSchema).parse(versions);
+      } catch (error) {
+        console.error("Bible version discovery failed", error);
+        return json(
+          {
+            error:
+              "No se pudieron sincronizar las versiones. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+          },
+          502,
+        );
+      }
+      return json(await syncBibleVersions(database, versions));
+    }
+    if (parts.length === 1 && method === "POST")
+      return json(
+        { version: await saveBibleVersion(database, await body()) },
+        201,
+      );
+    if (parts.length === 2) {
+      const id = z.coerce.number().int().positive().parse(parts[1]);
+      if (method === "PATCH")
+        return json({
+          version: await saveBibleVersion(database, await body(), id),
+        });
+      if (method === "DELETE") {
+        await deleteBibleVersion(database, id);
+        return json({ ok: true });
+      }
+    }
+    return json({ error: "Ruta no encontrada" }, 404);
+  }
   if (parts.join("/") === "settings/voice-templates") {
     const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
     if (method === "GET")
@@ -151,7 +215,7 @@ async function handle(req: Request) {
         users: (
           await database
             .prepare(
-              "SELECT id,username,name,email,role,active,created_at FROM users ORDER BY created_at",
+              "SELECT id,username,name,email,role,active,created_at FROM dashboard_users ORDER BY created_at",
             )
             .all()
         ).results,
@@ -160,10 +224,9 @@ async function handle(req: Request) {
       const input = userSchema.parse(await body());
       await database
         .prepare(
-          "INSERT INTO users(id,username,name,email,role,password_hash) VALUES (?,?,?,?,?,?)",
+          "INSERT INTO dashboard_users(username,name,email,role,password_hash) VALUES (?,?,?,?,?)",
         )
         .bind(
-          crypto.randomUUID(),
           input.username,
           input.name,
           input.email,
@@ -181,7 +244,7 @@ async function handle(req: Request) {
           password: z.string().min(12).max(256).optional(),
         })
         .parse(await body());
-      if (parts[1] === user.id)
+      if (Number(parts[1]) === user.id)
         return json(
           {
             error: "No puedes cambiar tu propio rol o acceso desde esta lista",
@@ -190,7 +253,7 @@ async function handle(req: Request) {
         );
       await database
         .prepare(
-          "UPDATE users SET active=COALESCE(?,active),role=COALESCE(?,role),password_hash=COALESCE(?,password_hash),auth_version=auth_version+1 WHERE id=?",
+          "UPDATE dashboard_users SET active=COALESCE(?,active),role=COALESCE(?,role),password_hash=COALESCE(?,password_hash),auth_version=auth_version+1 WHERE id=?",
         )
         .bind(
           input.active === undefined ? null : Number(input.active),
@@ -202,403 +265,8 @@ async function handle(req: Request) {
       return json({ ok: true });
     }
   }
-  if (parts[0] === "versions" && method === "GET")
-    return json({
-      versions: (await database.prepare("SELECT * FROM versions").all())
-        .results,
-    });
-  if (parts[0] === "summary" && method === "GET") {
-    await syncJobs();
-    return json({
-      catalog: (
-        await database
-          .prepare("SELECT kind,count(*) total FROM catalog GROUP BY kind")
-          .all()
-      ).results,
-      states: (
-        await database
-          .prepare("SELECT status,count(*) total FROM projects GROUP BY status")
-          .all()
-      ).results,
-      published: await database
-        .prepare(
-          "SELECT count(*) total FROM projects WHERE published_at IS NOT NULL",
-        )
-        .first(),
-      recent: (
-        await database
-          .prepare(
-            "SELECT p.*,c.title,c.kind,v.label FROM projects p JOIN catalog c ON c.id=p.catalog_id JOIN versions v ON v.id=p.version_id WHERE p.result IS NOT NULL OR p.status<>'draft' OR p.published_at IS NOT NULL ORDER BY p.updated_at DESC LIMIT 8",
-          )
-          .all()
-      ).results,
-    });
-  }
-  if (parts[0] === "videos" && method === "GET" && !parts[1]) {
-    await syncJobs();
-    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
-    const version = url.searchParams.get("version") ?? "rv1909";
-    const rows = await database
-      .prepare(
-        "SELECT c.*,p.id project_id,COALESCE(p.status,'draft') status,p.published_at,p.used_at,p.settings,p.result,p.updated_at FROM catalog c LEFT JOIN projects p ON p.catalog_id=c.id AND p.version_id=? WHERE c.kind=? ORDER BY c.position",
-      )
-      .bind(version, kind)
-      .all();
-    return json({ videos: rows.results });
-  }
-  if (parts[0] === "videos" && parts[1]) {
-    if (method === "GET" && !parts[2]) await syncJobs();
-    const catalog = await database
-      .prepare("SELECT * FROM catalog WHERE id=?")
-      .bind(decodeURIComponent(parts[1]))
-      .first<{ id: string; kind: "short" | "long"; passage: string }>();
-    if (!catalog) return json({ error: "Video inexistente" }, 404);
-    const expectedKind = url.searchParams.get("kind");
-    if (expectedKind && expectedKind !== catalog.kind)
-      return json({ error: "Video inexistente" }, 404);
-    const versionId = url.searchParams.get("version") ?? "rv1909";
-    const version = await database
-      .prepare("SELECT * FROM versions WHERE id=?")
-      .bind(versionId)
-      .first<{ id: string; locale: string; label: string }>();
-    if (!version) return json({ error: "Versión inexistente" }, 400);
-    const defaults = settingsSchema.parse(
-      versionProjectSettings(
-        await loadProjectSettings(database, catalog.kind),
-        version.locale,
-        version.id,
-      ),
-    );
-    if (method === "POST" || method === "PATCH")
-      await database
-        .prepare(
-          "INSERT INTO projects(id,catalog_id,version_id,settings) VALUES (?,?,?,?) ON CONFLICT(catalog_id,version_id) DO NOTHING",
-        )
-        .bind(
-          crypto.randomUUID(),
-          catalog.id,
-          version.id,
-          JSON.stringify(defaults),
-        )
-        .run();
-    const project = await database
-      .prepare("SELECT * FROM projects WHERE catalog_id=? AND version_id=?")
-      .bind(catalog.id, version.id)
-      .first<{
-        id: string;
-        settings: string;
-        status: string;
-        result: string | null;
-      }>();
-    if (method === "GET" && !parts[2]) {
-      const video = await database
-        .prepare(
-          "SELECT c.*,p.id project_id,COALESCE(p.status,'draft') status,p.published_at,p.used_at,p.settings,p.result,p.updated_at FROM catalog c LEFT JOIN projects p ON p.catalog_id=c.id AND p.version_id=? WHERE c.id=?",
-        )
-        .bind(version.id, catalog.id)
-        .first();
-      return json({
-        video,
-        defaults,
-      });
-    }
-    if (parts[2] === "analyze" && method === "POST") {
-      const input = settingsSchema.parse(await body());
-      const response = await videoFetch("/v1/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: project?.id,
-          kind: catalog.kind,
-          outputEnvironment:
-            process.env.NODE_ENV === "production"
-              ? "production"
-              : "development",
-          version,
-          passage: JSON.parse(catalog.passage),
-          settings: input,
-          voiceTemplates: (await loadVoiceSettings(database, catalog.kind))[
-            version.locale as "es" | "en" | "pt"
-          ],
-        }),
-      });
-      return new Response(response.body, {
-        status: response.status,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
-    }
-    if (parts[2] === "voices" && project) {
-      if (method === "GET") {
-        const response = await videoFetch(
-          `/v1/projects/${project.id}/voices?${new URLSearchParams({ kind: catalog.kind, outputEnvironment, version: version.id, passage: JSON.parse(catalog.passage).id })}`,
-        );
-        if (!response.ok)
-          return json(
-            {
-              error:
-                "No se pudo conectar. Inténtalo de nuevo en unos momentos.",
-            },
-            503,
-          );
-        return json(await response.json());
-      }
-      if (method === "POST") {
-        if (["queued", "running"].includes(project.status))
-          return json({ error: "Espera a que termine la generación" }, 409);
-        const { part } = z
-          .object({ part: z.enum(["intro", "outro"]) })
-          .parse(await body());
-        const voiceTemplates = (
-          await loadVoiceSettings(database, catalog.kind)
-        )[version.locale as "es" | "en" | "pt"];
-        if (!voiceTemplates[part])
-          return json(
-            {
-              error:
-                "Configura los textos de voz en Settings antes de generar.",
-            },
-            400,
-          );
-        const response = await videoFetch(`/v1/projects/${project.id}/voices`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            projectId: project.id,
-            kind: catalog.kind,
-            outputEnvironment:
-              process.env.NODE_ENV === "production"
-                ? "production"
-                : "development",
-            version,
-            passage: JSON.parse(catalog.passage),
-            settings: settingsSchema.parse(JSON.parse(project.settings)),
-            part,
-            voiceTemplates,
-          }),
-        });
-        if (response.status === 409)
-          return json({ error: "Espera a que termine la generación" }, 409);
-        if (!response.ok)
-          return json(
-            {
-              error:
-                "No se pudo conectar. Inténtalo de nuevo en unos momentos.",
-            },
-            503,
-          );
-        return json(await response.json(), 202);
-      }
-    }
-    if (parts[2] === "media" && method === "GET") {
-      if (!project) return json({ error: "Sin archivos" }, 404);
-      const asset = z
-        .union([
-          z.enum(["video", "thumbnail", "intro", "outro"]),
-          z.string().regex(/^reading-\d+$/),
-        ])
-        .parse(url.searchParams.get("asset"));
-      const response = await videoFetch(
-        `/v1/projects/${project.id}/media/${asset}?${new URLSearchParams({ kind: catalog.kind, outputEnvironment, version: version.id, passage: JSON.parse(catalog.passage).id })}`,
-        {
-          headers: req.headers.has("range")
-            ? { Range: req.headers.get("range")! }
-            : {},
-        },
-      );
-      const headers = new Headers();
-      for (const name of [
-        "content-type",
-        "content-length",
-        "content-range",
-        "accept-ranges",
-      ]) {
-        const value = response.headers.get(name);
-        if (value) headers.set(name, value);
-      }
-      headers.set("Cache-Control", "no-store");
-      if (url.searchParams.get("download") === "1")
-        headers.set(
-          "Content-Disposition",
-          `attachment; filename="${JSON.parse(catalog.passage).id}.${asset === "thumbnail" ? "jpg" : "mp4"}"`,
-        );
-      return new Response(response.body, { status: response.status, headers });
-    }
-    if (method === "PATCH" && project) {
-      if (["queued", "running"].includes(project.status))
-        return json({ error: "Espera a que termine la generación" }, 409);
-      const input = z
-        .object({
-          settings: settingsSchema.optional(),
-          published: z.boolean().optional(),
-        })
-        .parse(await body());
-      await database
-        .prepare(
-          "UPDATE projects SET settings=COALESCE(?,settings),published_at=CASE WHEN ? IS NULL THEN published_at WHEN ?=1 THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE NULL END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
-        )
-        .bind(
-          input.settings ? JSON.stringify(input.settings) : null,
-          input.published === undefined ? null : Number(input.published),
-          Number(input.published),
-          project.id,
-        )
-        .run();
-      return json({ ok: true });
-    }
-    if (parts[2] === "render" && method === "POST" && project) {
-      if (["queued", "running"].includes(project.status))
-        return json({ error: "Ya hay un trabajo activo" }, 409);
-      const input = settingsSchema.parse(await body());
-      const id = crypto.randomUUID(),
-        token = crypto.randomUUID() + crypto.randomUUID();
-      const base = bindings().DASHBOARD_CALLBACK_URL;
-      if (!base) throw new Error("Configura DASHBOARD_CALLBACK_URL");
-      const voiceTemplates = (await loadVoiceSettings(database, catalog.kind))[
-        version.locale as "es" | "en" | "pt"
-      ];
-      if (
-        input.clipAudioMode !== "video" &&
-        (!voiceTemplates.intro || !voiceTemplates.outro)
-      )
-        return json(
-          {
-            error: "Configura los textos de voz en Settings antes de generar.",
-          },
-          400,
-        );
-      const snapshot = {
-        id,
-        projectId: project.id,
-        kind: catalog.kind,
-        outputEnvironment,
-        version,
-        passage: JSON.parse(catalog.passage),
-        settings: input,
-        voiceTemplates,
-        socialAccounts: (await loadSocialSettings(database))[
-          version.locale as "es" | "en" | "pt"
-        ],
-      };
-      const request = renderSchema.parse({
-        ...snapshot,
-        callback: {
-          url: `${base.replace(/\/$/, "")}/api/jobs/${id}/callback`,
-          token,
-        },
-      });
-      await database.batch([
-        database
-          .prepare(
-            "INSERT INTO jobs(id,project_id,status,snapshot,callback_hash,created_by) VALUES (?,?,'queued',?,?,?)",
-          )
-          .bind(
-            id,
-            project.id,
-            JSON.stringify(snapshot),
-            await digest(token),
-            user.id,
-          ),
-        database
-          .prepare(
-            "UPDATE projects SET status='queued',settings=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
-          )
-          .bind(JSON.stringify(input), project.id),
-      ]);
-      try {
-        const response = await videoFetch("/v1/jobs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(request),
-        });
-        if (!response.ok)
-          await applyUpdate(id, {
-            status: "failed",
-            stage: "Rechazado",
-            error: (await response.text()).slice(0, 6000),
-          });
-      } catch {
-        /* Acceptance can be ambiguous on timeout; next sync resolves it. */
-      }
-      return json({ ok: true, jobId: id }, 202);
-    }
-  }
-  if (parts[0] === "jobs" && method === "GET") {
-    await syncJobs();
-    return json({
-      jobs: (
-        await database
-          .prepare(
-            "SELECT id,project_id,status,stage,snapshot,result,error,created_at,updated_at FROM jobs ORDER BY created_at DESC LIMIT 100",
-          )
-          .all()
-      ).results,
-    });
-  }
-  if (parts[0] === "generation-queue" && method === "GET") {
-    try {
-      const response = await videoFetch(
-        `/v1/queue?outputEnvironment=${outputEnvironment}`,
-      );
-      if (!response.ok) return json({ connected: false, items: [] });
-      const { items } = z
-        .object({
-          items: z
-            .array(
-              z.object({
-                id: z.string().uuid(),
-                projectId: z.string().uuid(),
-                kind: z.enum(["short", "long"]),
-                type: z.enum(["intro", "outro", "video"]),
-                status: z.enum(["queued", "running", "done", "failed"]),
-                stage: z.string(),
-                position: z.number().nullable(),
-                createdAt: z.string(),
-              }),
-            )
-            .max(100),
-        })
-        .parse(await response.json());
-      // Reconcile render results even when their editor is no longer open.
-      await syncJobs();
-      if (items.length === 0) return json({ connected: true, items: [] });
-      const projectIds = [...new Set(items.map((item) => item.projectId))];
-      const projects = (
-        await database
-          .prepare(
-            `SELECT p.id,p.catalog_id,p.version_id,c.title,c.kind FROM projects p JOIN catalog c ON c.id=p.catalog_id WHERE p.id IN (${projectIds.map(() => "?").join(",")})`,
-          )
-          .bind(...projectIds)
-          .all<{
-            id: string;
-            catalog_id: string;
-            version_id: string;
-            title: string;
-            kind: string;
-          }>()
-      ).results;
-      const byId = new Map(projects.map((project) => [project.id, project]));
-      return json({
-        connected: true,
-        items: items.flatMap((item) => {
-          const project = byId.get(item.projectId);
-          if (!project || project.kind !== item.kind) return [];
-          return [
-            {
-              ...item,
-              title: project.title,
-              version: project.version_id,
-              href: `/${item.kind === "short" ? "short-videos" : "long-videos"}/${encodeURIComponent(project.catalog_id)}?version=${encodeURIComponent(project.version_id)}`,
-            },
-          ];
-        }),
-      });
-    } catch {
-      return json({ connected: false, items: [] });
-    }
-  }
+  const videoResponse = await videoApi(req, database);
+  if (videoResponse) return videoResponse;
   if (parts[0] === "health" && method === "GET") {
     try {
       const response = await videoFetch("/health");
@@ -664,13 +332,13 @@ async function handle(req: Request) {
         const input = z
           .object({ message: z.string().trim().max(500).default("") })
           .parse(await body());
-        const id = crypto.randomUUID();
-        await database
+        const creation = await database
           .prepare(
-            "INSERT INTO deployments(id,status,created_by,message,target) VALUES (?,'requested',?,?,'site')",
+            "INSERT INTO deployments(status,created_by,message,target) VALUES ('requested',?,?,'site')",
           )
-          .bind(id, user.id, input.message)
+          .bind(user.id, input.message)
           .run();
+        const id = creation.meta.last_row_id;
         let status = "unknown";
         try {
           const response = await fetch(hookUrl, {
@@ -773,7 +441,7 @@ async function handle(req: Request) {
           deployments: (
             await database
               .prepare(
-                "SELECT d.id,d.status,d.message,d.created_at,d.completed_at,d.duration_ms,(d.external_id IS NOT NULL) AS trackable,u.name AS created_by_name FROM deployments d LEFT JOIN users u ON u.id=d.created_by WHERE d.target='site' ORDER BY d.created_at DESC LIMIT 50",
+                "SELECT d.id,d.status,d.message,d.created_at,d.completed_at,d.duration_ms,(d.external_id IS NOT NULL) AS trackable,u.name AS created_by_name FROM deployments d LEFT JOIN dashboard_users u ON u.id=d.created_by WHERE d.target='site' ORDER BY d.created_at DESC LIMIT 50",
               )
               .all()
           ).results,
@@ -787,7 +455,7 @@ async function route(req: Request) {
   try {
     return await handle(req);
   } catch (error) {
-    if (error instanceof ProfileError)
+    if (error instanceof ProfileError || error instanceof BibleVersionError)
       return json({ error: error.message }, error.status);
     if (error instanceof z.ZodError)
       return json(
@@ -804,4 +472,10 @@ async function route(req: Request) {
     );
   }
 }
-export { route as GET, route as POST, route as PATCH, route as PUT };
+export {
+  route as GET,
+  route as POST,
+  route as PATCH,
+  route as PUT,
+  route as DELETE,
+};

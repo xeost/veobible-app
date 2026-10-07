@@ -8,12 +8,10 @@
     "typecheck": "tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote --env production",
-    "db:import": "node scripts/import-cli.mjs",
     "db:admin": "node scripts/create-admin.mjs",
     "test": "node --import tsx --test src/lib/*.test.ts",
     "build:production": "CLOUDFLARE_ENV=production vinext build",
-    "format:check": "prettier --check src scripts vite.config.ts",
-    "db:import-media": "node scripts/import-media.mjs"
+    "format:check": "prettier --check src scripts vite.config.ts"
   },
   "dependencies": {
     "jose": "^6.2.12",

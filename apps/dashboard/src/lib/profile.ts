@@ -45,9 +45,9 @@ export async function saveProfile(
 ): Promise<User> {
   const username = input.username ?? user.username;
   const duplicate = await database
-    .prepare("SELECT id FROM users WHERE username=? AND id<>?")
+    .prepare("SELECT id FROM dashboard_users WHERE username=? AND id<>?")
     .bind(username, user.id)
-    .first<{ id: string }>();
+    .first<{ id: number }>();
   if (duplicate)
     throw new ProfileError(
       "Ese nombre de usuario ya está en uso. Elige otro.",
@@ -56,7 +56,7 @@ export async function saveProfile(
   let hash: string | undefined;
   if (input.password) {
     const row = await database
-      .prepare("SELECT password_hash FROM users WHERE id=?")
+      .prepare("SELECT password_hash FROM dashboard_users WHERE id=?")
       .bind(user.id)
       .first<{ password_hash: string }>();
     if (
@@ -69,7 +69,7 @@ export async function saveProfile(
   const statements = [
     database
       .prepare(
-        "UPDATE users SET username=?,name=?,email=?,password_hash=COALESCE(?,password_hash),auth_version=auth_version+CASE WHEN ? IS NULL THEN 0 ELSE 1 END WHERE id=?",
+        "UPDATE dashboard_users SET username=?,name=?,email=?,password_hash=COALESCE(?,password_hash),auth_version=auth_version+CASE WHEN ? IS NULL THEN 0 ELSE 1 END WHERE id=?",
       )
       .bind(
         username,
@@ -83,7 +83,7 @@ export async function saveProfile(
   try {
     await database.batch(statements);
   } catch (error) {
-    if (/UNIQUE.*users.username/i.test(String(error)))
+    if (/UNIQUE.*dashboard_users.username/i.test(String(error)))
       throw new ProfileError(
         "Ese nombre de usuario ya está en uso. Elige otro.",
         409,

@@ -19,7 +19,7 @@ const file = path.resolve("imports/admin.sql");
 await fs.mkdir(path.dirname(file), { recursive: true });
 await fs.writeFile(
   file,
-  `INSERT INTO users(id,username,name,email,password_hash,role) VALUES (${[randomUUID(), username, process.env.DASHBOARD_ADMIN_NAME ?? username, process.env.DASHBOARD_ADMIN_EMAIL ?? "", hash, "admin"].map(q).join(",")}) ON CONFLICT(username) DO NOTHING;\n`,
+  `INSERT INTO dashboard_users(username,name,email,password_hash,role) VALUES (${[username, process.env.DASHBOARD_ADMIN_NAME ?? username, process.env.DASHBOARD_ADMIN_EMAIL ?? "", hash, "admin"].map(q).join(",")}) ON CONFLICT(username) DO NOTHING;\n`,
   { mode: 0o600 },
 );
 console.log(

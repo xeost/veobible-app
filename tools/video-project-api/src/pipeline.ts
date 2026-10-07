@@ -244,7 +244,7 @@ export async function render(
       "Settings source: dashboard database",
       "Text: 2-versiculos.txt", "",
     ].join("\n"), "utf8");
-    return {
+    const savedResult = {
       ...result,
       output,
       video: path.join(output, videoFilename(input.kind)),
@@ -260,6 +260,8 @@ export async function render(
       ],
       verseCues: cues,
     };
+    await fs.writeFile(path.join(sources, "render-result.json"), JSON.stringify(savedResult), "utf8");
+    return savedResult;
   } finally {
     await fs.rm(work, { recursive: true, force: true });
   }

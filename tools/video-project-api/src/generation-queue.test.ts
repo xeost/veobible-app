@@ -10,9 +10,9 @@ test("development work does not mark the production project as pending", async (
   const queue = new GenerationQueue();
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
-  queue.enqueue({ projectId: "same-project", kind: "short", type: "intro", outputEnvironment: "development" }, job("dev-intro"), () => gate);
-  assert.equal(queue.hasPending("same-project", "intro"), false);
-  assert.equal(queue.hasPending("same-project", "intro", "development"), true);
+  queue.enqueue({ projectId: 1, kind: "short", type: "intro", outputEnvironment: "development" }, job("dev-intro"), () => gate);
+  assert.equal(queue.hasPending(1, "intro"), false);
+  assert.equal(queue.hasPending(1, "intro", "development"), true);
   assert.equal(queue.snapshot()[0].outputEnvironment, "development");
   release();
   await gate;
@@ -32,7 +32,7 @@ test("voices from the same project and renders from other projects run in submis
     outro = job("outro"),
     video = job("video");
   queue.enqueue(
-    { projectId: "first", kind: "short", type: "intro" },
+    { projectId: 1, kind: "short", type: "intro" },
     intro,
     async () => {
       order.push("intro");
@@ -40,14 +40,14 @@ test("voices from the same project and renders from other projects run in submis
     },
   );
   queue.enqueue(
-    { projectId: "first", kind: "short", type: "outro" },
+    { projectId: 1, kind: "short", type: "outro" },
     outro,
     async () => {
       order.push("outro");
     },
   );
   queue.enqueue(
-    { projectId: "second", kind: "long", type: "video" },
+    { projectId: 2, kind: "long", type: "video" },
     video,
     async () => {
       order.push("video");
@@ -56,8 +56,8 @@ test("voices from the same project and renders from other projects run in submis
   );
   await Promise.resolve();
   assert.equal(queue.pendingCount, 3);
-  assert.equal(queue.hasPending("first", "intro"), true);
-  assert.equal(queue.hasPending("first", "video"), false);
+  assert.equal(queue.hasPending(1, "intro"), true);
+  assert.equal(queue.hasPending(1, "video"), false);
   assert.deepEqual(
     queue.snapshot().map((item) => [item.status, item.position]),
     [
@@ -72,7 +72,7 @@ test("voices from the same project and renders from other projects run in submis
   await Promise.resolve();
   assert.deepEqual(order, ["intro", "outro", "video"]);
   assert.equal(queue.pendingCount, 0);
-  assert.equal(queue.hasPending("first", "intro"), false);
+  assert.equal(queue.hasPending(1, "intro"), false);
 });
 test("a failed task does not block later projects and queue snapshots omit private job data", async (context) => {
   context.mock.method(console, "error", () => {});
@@ -87,14 +87,14 @@ test("a failed task does not block later projects and queue snapshots omit priva
     error: "private",
   };
   queue.enqueue(
-    { projectId: "first", kind: "short", type: "intro" },
+    { projectId: 1, kind: "short", type: "intro" },
     failed,
     async () => {
       throw new Error("Synthetic generation failure");
     },
   );
   queue.enqueue(
-    { projectId: "second", kind: "long", type: "video" },
+    { projectId: 2, kind: "long", type: "video" },
     job("success"),
     async () => {
       complete();

@@ -22,9 +22,7 @@ export default function Dashboard() {
       .catch((e) => setError(userMessage(e)));
   }, []);
   const count = (kind: string) =>
-    data?.catalog.find((v: any) => v.kind === kind)?.total ?? 0;
-  const state = (status: string) =>
-    data?.states.find((v: any) => v.status === status)?.total ?? 0;
+    data?.projects.find((v: any) => v.kind === kind)?.total ?? 0;
   return (
     <>
       <div className="page-heading">
@@ -56,16 +54,11 @@ export default function Dashboard() {
           ],
           [
             CheckCheck,
-            "Videos generados",
-            state("ready"),
-            "Listos para compartir",
+            "Sin usar",
+            data?.unused?.total ?? 0,
+            "Proyectos disponibles",
           ],
-          [
-            Send,
-            "Publicados",
-            data?.published?.total ?? 0,
-            "Marcados en redes sociales",
-          ],
+          [Send, "Usados", data?.used?.total ?? 0, "Proyectos utilizados"],
         ].map(([Icon, label, note, sub]: any) => (
           <div className="stat" key={label}>
             <div className="stat-top">
@@ -102,35 +95,6 @@ export default function Dashboard() {
             </Link>
           </div>
         </section>
-        <section className="panel">
-          <div className="panel-heading">
-            <h3>{t("En producción")}</h3>
-            <span className="badge running">
-              {state("running") + state("queued")} {t("activos")}
-            </span>
-          </div>
-          {["draft", "queued", "running", "failed"].map((s) => (
-            <div className="state-line" key={s}>
-              <span>
-                <i className={`dot ${s === "running" ? "green" : ""}`} />
-                {t(
-                  {
-                    draft: "Borradores",
-                    queued: "En cola",
-                    running: "Generando",
-                    failed: "Requieren atención",
-                  }[s] ?? "",
-                )}
-              </span>
-              <b>{state(s)}</b>
-            </div>
-          ))}
-          <p className="panel-note">
-            {t(
-              "Tus ajustes y el progreso de cada video se guardan automáticamente.",
-            )}
-          </p>
-        </section>
       </div>
       <section className="panel">
         <div className="panel-heading">
@@ -144,7 +108,7 @@ export default function Dashboard() {
                 <th>{t("Proyecto")}</th>
                 <th>{t("Formato")}</th>
                 <th>{t("Versión")}</th>
-                <th>{t("Estado")}</th>
+                <th>{t("Uso")}</th>
                 <th>{t("Actualizado")}</th>
               </tr>
             </thead>
@@ -153,9 +117,7 @@ export default function Dashboard() {
                 <tr key={p.id}>
                   <td>
                     <Link
-                      href={
-                        p.kind === "short" ? "/short-videos" : "/long-videos"
-                      }
+                      href={`/${p.kind === "short" ? "short-videos" : "long-videos"}/${p.id}`}
                     >
                       {p.title}
                     </Link>
@@ -163,8 +125,8 @@ export default function Dashboard() {
                   <td>{t(p.kind === "short" ? "Short" : "Long")}</td>
                   <td>{p.label}</td>
                   <td>
-                    <span className={`badge ${p.status}`}>
-                      {t(statusLabel(p.status))}
+                    <span className="badge">
+                      {t(p.used ? "Usado" : "Sin usar")}
                     </span>
                   </td>
                   <td className="muted">{date(p.updated_at, language)}</td>

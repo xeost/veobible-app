@@ -1,4 +1,86 @@
 export const english: Record<string, string> = {
+  "Título del proyecto": "Project title",
+  "Nombre corto": "Short name",
+  "Número de episodio": "Episode number",
+  "Inicio del pasaje": "Passage start",
+  "Final del pasaje": "Passage end",
+  "Libro de inicio": "Start book",
+  "Libro de final": "End book",
+  "Capítulo de inicio": "Start chapter",
+  "Capítulo de final": "End chapter",
+  "Versículo de inicio": "Start verse",
+  "Versículo de final": "End verse",
+  "Cargando libros…": "Loading books…",
+  "Debe ser único para esta versión. Usa letras minúsculas, números y guiones, sin espacios.":
+    "It must be unique for this version. Use lowercase letters, numbers and hyphens, without spaces.",
+  "Revisa el título, el nombre corto y los límites del pasaje.":
+    "Check the title, short name and passage boundaries.",
+  "No se pudieron cargar los libros. Comprueba que esta versión esté disponible y vuelve a intentarlo.":
+    "Books could not be loaded. Check that this version is available and try again.",
+  "Ya existe un proyecto con este nombre corto para la versión seleccionada.":
+    "A project with this short name already exists for the selected version.",
+  "Opciones de proyectos": "Project options",
+  "Sincronizar proyectos": "Sync projects",
+  "Sincronizando proyectos…": "Syncing projects…",
+  "Proyectos nuevos añadidos:": "New projects added:",
+  "No hay proyectos nuevos para añadir.": "There are no new projects to add.",
+  "Se añadirán los pasajes propuestos que aún no tengan un proyecto para esta versión. Tus proyectos existentes conservarán todos sus cambios.":
+    "Suggested passages without a project for this version will be added. Your existing projects will keep all their changes.",
+  "No se pudieron sincronizar los proyectos. Comprueba que la generación esté disponible y vuelve a intentarlo.":
+    "Projects could not be synced. Check that generation is available and try again.",
+  "Opciones de versiones": "Version options",
+  "Sincronizar versiones": "Sync versions",
+  "Sincronizando versiones…": "Syncing versions…",
+  "Versiones nuevas añadidas:": "New versions added:",
+  "No hay versiones nuevas para añadir.": "There are no new versions to add.",
+  "No se pudieron sincronizar las versiones. Comprueba que la generación esté disponible y vuelve a intentarlo.":
+    "Versions could not be synced. Check that generation is available and try again.",
+  "Versiones de la Biblia": "Bible versions",
+  "Administra las versiones disponibles para tus proyectos de video.":
+    "Manage the versions available for your video projects.",
+  "Añadir versión": "Add version",
+  "Editar versión": "Edit version",
+  "Eliminar versión": "Delete version",
+  "Código de versión": "Version code",
+  Proyectos: "Projects",
+  Acciones: "Actions",
+  "Cargando versiones…": "Loading versions…",
+  "Todavía no hay versiones. Añade una para comenzar a crear proyectos.":
+    "There are no versions yet. Add one to start creating projects.",
+  "Versión guardada.": "Version saved.",
+  "Versión eliminada.": "Version deleted.",
+  "Esta versión tiene proyectos asociados.":
+    "This version has associated projects.",
+  "Esta versión tiene proyectos asociados. Puedes cambiar su nombre, pero no su idioma o código ni eliminarla.":
+    "This version has associated projects. You can change its name, but you cannot change its language or code or delete it.",
+  "Ya existe una versión con este código en el idioma seleccionado.":
+    "A version with this code already exists in the selected language.",
+  "Revisa el nombre, el idioma y el código de la versión.":
+    "Check the version name, language and code.",
+  "¿Quieres eliminar esta versión?": "Do you want to delete this version?",
+  "Usa el código de la versión bíblica disponible: letras minúsculas, números y guiones, sin espacios.":
+    "Use the code of the available Bible version: lowercase letters, numbers and hyphens, without spaces.",
+  "Añade una versión de la Biblia antes de crear un proyecto. Si no tienes acceso, solicita ayuda al administrador.":
+    "Add a Bible version before creating a project. If you do not have access, ask the administrator for help.",
+  "Crea tu primer proyecto de video para comenzar.":
+    "Create your first video project to get started.",
+  "Nuevo proyecto de video": "New video project",
+  "Crear proyecto": "Create project",
+  Usados: "Used",
+  "Sin usar": "Unused",
+  Usado: "Used",
+  Uso: "Usage",
+  "Filtrar uso": "Filter usage",
+  "Todos los proyectos": "All projects",
+  "Todas las versiones": "All versions",
+  "Cargando proyectos…": "Loading projects…",
+  "Marca de uso eliminada.": "Usage mark removed.",
+  "Marcado como usado.": "Marked as used.",
+  "Marcar como no usado": "Mark as unused",
+  "Marcar como usado": "Mark as used",
+  "Proyectos disponibles": "Available projects",
+  "Proyectos utilizados": "Used projects",
+
   "Settings de voz": "Narration settings",
   "Settings de proyectos": "Project settings",
   "Mínimo: 0×, sin sonido. Volumen original: 1× (100 %), sin cambios. Máximo: 4× (400 % del nivel original). Los valores entre 0× y 1× reducen el volumen; los valores mayores que 1× lo aumentan.":
@@ -183,6 +265,7 @@ export const english: Record<string, string> = {
   "Acceso privado · Usuarios del dashboard": "Private access · Dashboard users",
   "Actividad reciente": "Recent activity",
   Actualizaciones: "Updates",
+  Publicaciones: "Publications",
   "Actualizaciones publicadas": "Published updates",
   Actualización: "Update",
   Actualizado: "Updated",

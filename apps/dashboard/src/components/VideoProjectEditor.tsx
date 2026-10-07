@@ -51,12 +51,10 @@ const emptyVoices: Voices = {
 };
 export function VideoProjectEditor({
   kind,
-  catalogId,
-  version,
+  projectId,
 }: {
   kind: VideoKind;
-  catalogId: string;
-  version: string;
+  projectId: string;
 }) {
   const { t, language } = useI18n();
   const [project, setProject] = useState<VideoRow | null>(null);
@@ -79,18 +77,17 @@ export function VideoProjectEditor({
   const voicePlayers = useRef<
     Partial<Record<"intro" | "outro", HTMLAudioElement>>
   >({});
-  const [jobs, setJobs] = useState<any[]>([]);
   const projectState = useRef(project);
   projectState.current = project;
   const voiceState = useRef(voices);
   voiceState.current = voices;
-  const base = `videos/${encodeURIComponent(catalogId)}?version=${encodeURIComponent(version)}&kind=${kind}`;
+  const base = `videos/${encodeURIComponent(projectId)}?kind=${kind}`;
   const endpoint = useCallback(
     (action = "") =>
-      `videos/${encodeURIComponent(catalogId)}${action ? `/${action}` : ""}?version=${encodeURIComponent(version)}&kind=${kind}`,
-    [catalogId, version, kind],
+      `videos/${encodeURIComponent(projectId)}${action ? `/${action}` : ""}?kind=${kind}`,
+    [projectId, kind],
   );
-  const backHref = `/${kind === "short" ? "short-videos" : "long-videos"}?version=${encodeURIComponent(version)}`;
+  const backHref = `/${kind === "short" ? "short-videos" : "long-videos"}`;
   const media = (asset: string) => `/api/${endpoint("media")}&asset=${asset}`;
   useEffect(() => {
     setExpanded(new Set());
@@ -504,7 +501,8 @@ export function VideoProjectEditor({
             {t("Volver a los proyectos")}
           </Link>
           <p className="eyebrow">
-            {t("EDITOR DE PROYECTO")} · {version.toUpperCase()}
+            {t("EDITOR DE PROYECTO")} ·{" "}
+            {(project?.version_code ?? "").toUpperCase()}
           </p>
           <h1>{project.title}</h1>
           <p className="muted">
@@ -735,22 +733,20 @@ export function VideoProjectEditor({
                       await api(endpoint(), {
                         method: "PATCH",
                         body: JSON.stringify({
-                          published: !project.published_at,
+                          used: !project.used,
                         }),
                       });
                       setNotice(
-                        project.published_at
-                          ? "Marca de publicación eliminada."
-                          : "Marcado como publicado.",
+                        project.used
+                          ? "Marca de uso eliminada."
+                          : "Marcado como usado.",
                       );
                     })
                   }
                 >
                   <Check size={15} />
                   {t(
-                    project.published_at
-                      ? "Quitar publicación"
-                      : "Marcar publicado",
+                    project.used ? "Marcar como no usado" : "Marcar como usado",
                   )}
                 </button>
               </div>
@@ -801,44 +797,6 @@ export function VideoProjectEditor({
               </p>
             )}
           </section>
-          <details
-            className="panel studio-history"
-            onToggle={(event) => {
-              if (event.currentTarget.open)
-                void api("jobs")
-                  .then((data) =>
-                    setJobs(
-                      data.jobs.filter(
-                        (job: any) => job.project_id === project.project_id,
-                      ),
-                    ),
-                  )
-                  .catch((cause) => setError(userMessage(cause)));
-            }}
-          >
-            <summary>
-              <Clock size={16} />
-              {t("Historial")}
-            </summary>
-            {jobs.length ? (
-              jobs.map((job) => (
-                <div className="studio-history-item" key={job.id}>
-                  <span className={`badge ${job.status}`}>
-                    {t(statusLabel(job.status))}
-                  </span>
-                  <small>{date(job.created_at, language)}</small>
-                  <p>{t(generationStage(job.stage, job.status))}</p>
-                  {job.error && (
-                    <p className="error">{t(userMessage(job.error))}</p>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="muted">
-                {t("Sin trabajos de generación para este proyecto.")}
-              </p>
-            )}
-          </details>
           {result?.descriptions && (
             <details className="panel studio-history">
               <summary>{t("Textos de publicación")}</summary>

@@ -13,11 +13,8 @@ test("project defaults are manual and isolate matching version IDs by language a
   const sqlite = new DatabaseSync(":memory:");
   try {
     sqlite.exec(
-      "CREATE TABLE site_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL); CREATE TABLE version_settings(kind TEXT,version_id TEXT,settings TEXT)",
-    );
-    sqlite.exec(
       readFileSync(
-        new URL("../../migrations/0008_project_settings.sql", import.meta.url),
+        new URL("../../migrations/0001_dashboard.sql", import.meta.url),
         "utf8",
       ),
     );

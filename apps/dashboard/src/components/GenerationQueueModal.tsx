@@ -34,9 +34,6 @@ export function GenerationQueueModal({
   const pending = state.items.filter((item) =>
     ["queued", "running"].includes(item.status),
   );
-  const recent = state.items
-    .filter((item) => ["done", "failed"].includes(item.status))
-    .reverse();
   return (
     <dialog
       ref={dialog}
@@ -100,11 +97,8 @@ export function GenerationQueueModal({
           <p className="empty">{t("No hay generaciones pendientes.")}</p>
         )}
         {pending.length > 0 && <h3>{t("En proceso y en espera")}</h3>}
-        {[...pending, ...recent].map((item, index) => (
+        {pending.map((item) => (
           <div key={item.id}>
-            {index === pending.length && recent.length > 0 && (
-              <h3>{t("Terminados recientemente")}</h3>
-            )}
             <Link
               href={item.href}
               onClick={close}

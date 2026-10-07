@@ -34,7 +34,7 @@ test(
     const workspace = await fs.mkdtemp(
       path.join(os.tmpdir(), "veobible-api-isolated-"),
     );
-    const isolated = path.join(workspace, "tools", "video-generator-api");
+    const isolated = path.join(workspace, "tools", "video-project-api");
     await fs.mkdir(isolated, { recursive: true });
     try {
       for (const name of ["src", "package.json", "tsconfig.json"]) {

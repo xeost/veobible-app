@@ -1,7 +1,11 @@
 import http from "node:http";
 
 export function routeFor(pathname) {
-  if (/^\/v1\/(?:projects|jobs|analyze|queue)(?:\/|$)/.test(pathname))
+  if (
+    /^\/v1\/(?:projects|jobs|analyze|queue|bible-versions|video-project-proposals)(?:\/|$)/.test(
+      pathname,
+    )
+  )
     return "video";
   return null;
 }

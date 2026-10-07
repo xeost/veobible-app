@@ -5,10 +5,10 @@ import { signToken, verifyToken, tokenLifetimeSeconds } from "./jwt";
 
 const secret = "test-secret-for-jwt-signing-with-at-least-32-bytes";
 test("JWTs authenticate only the signed user and version and expire after 30 days", async () => {
-  const token = await signToken("user-one", 2, secret);
+  const token = await signToken(1, 2, secret);
   assert.equal(token.split(".").length, 3);
   assert.deepEqual(await verifyToken(token, secret), {
-    userId: "user-one",
+    userId: 1,
     authVersion: 2,
   });
   const payload = JSON.parse(
@@ -25,7 +25,7 @@ test("JWTs authenticate only the signed user and version and expire after 30 day
     null,
   );
   assert.equal(await verifyToken("old-opaque-session-token", secret), null);
-  await assert.rejects(signToken("user", 0, ""), /JWT_SECRET/);
+  await assert.rejects(signToken(1, 0, ""), /JWT_SECRET/);
 });
 
 test("expired tokens, wrong algorithms and invalid claims are rejected", async () => {
@@ -38,7 +38,7 @@ test("expired tokens, wrong algorithms and invalid claims are rejected", async (
   ] as const) {
     const token = await new SignJWT({ authVersion: version })
       .setProtectedHeader({ alg: algorithm })
-      .setSubject("user")
+      .setSubject("1")
       .setIssuer(issuer)
       .setAudience("veobible-dashboard")
       .setIssuedAt()

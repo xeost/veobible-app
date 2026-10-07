@@ -25,7 +25,7 @@ if (proxyPort === videoPort)
 
 const services = {
   video: {
-    directory: "video-generator-api",
+    directory: "video-project-api",
     entry: "src/server.ts",
     port: videoPort,
   },

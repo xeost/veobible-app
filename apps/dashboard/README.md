@@ -1,110 +1,86 @@
 # VeoBible Studio
 
-Dashboard privado con Next.js App Router y ViNext, inspirado en el layout del dashboard de referencia. Tiene su propia API y una D1 independiente del backend. No usa OpenNext ni R2. No modifica el frontend público.
+Dashboard privado con Next.js App Router y ViNext. Su API usa una base D1 exclusiva del dashboard. El generador de videos es un servicio independiente y recibe los ajustes desde el dashboard.
 
 ## Desarrollo
 
-Requiere Node 22+ y pnpm. Los paquetes se instalan por separado para conservar los lockfiles existentes:
+Requiere Node 22+ y pnpm. Instala los paquetes por separado:
 
 ```sh
 pnpm --dir apps/dashboard install
-pnpm --dir tools/video-generator-api install
+pnpm --dir tools/video-project-api install
 cp apps/dashboard/.dev.vars.example apps/dashboard/.dev.vars
 cp tools/api-proxy/.env.example tools/api-proxy/.env
-cp tools/video-generator-api/.env.example tools/video-generator-api/.env
+cp tools/video-project-api/.env.example tools/video-project-api/.env
 pnpm db:dashboard:local
-```
-
-Configura el mismo `VIDEO_API_TOKEN` aleatorio de 32+ caracteres en `.dev.vars` y en `.env` del proxy. El proxy inicia la API hija y le transmite su entorno. La API tiene motores, dependencias, plantillas y `.env` propios; configura sus fuentes multimedia y modelos como describe [su README](../../tools/video-generator-api/README.md). No necesita instalar ni conservar las CLI.
-
-Crea el primer administrador sin credenciales predeterminadas:
-
-```sh
-cd apps/dashboard
-DASHBOARD_ADMIN_USERNAME=admin DASHBOARD_ADMIN_PASSWORD='<12+ caracteres>' pnpm db:admin
-pnpm exec wrangler d1 execute DB --local --file imports/admin.sql
-cd ../..
 pnpm start:api-proxy
-# Otra terminal:
+# En otra terminal:
 pnpm dev:dashboard
 ```
 
-Abre http://localhost:3003. La autenticación usa JWT HS256 mediante jose, con vencimiento de 30 días y cookie HttpOnly/SameSite=Lax (Secure por HTTPS). Configura un JWT_SECRET aleatorio de al menos 32 bytes en .dev.vars y como secreto del Worker de producción (`wrangler secret put JWT_SECRET --env production`). No hay una tabla de sesiones ni de intentos de acceso. Las contraseñas usan PBKDF2 SHA-256 con 100.000 iteraciones y sal aleatoria. La API verifica firma, vencimiento, usuario activo, rol actual y auth_version en cada petición; exige mismo origen en mutaciones. Cambiar la contraseña o modificar el acceso de un usuario incrementa auth_version e invalida sus JWT anteriores. Al cambiar la contraseña propia se emite un JWT nuevo para conservar el acceso actual. Cerrar sesión elimina la cookie. Los callbacks tienen tokens individuales cuyo hash se guarda en D1. No hay secretos de respaldo.
+Abre http://localhost:3003. La migración inicial crea únicamente el administrador `admin`, con contraseña `admin123` almacenada como hash PBKDF2 SHA-256. Puedes cambiarla desde el perfil. Configura un `JWT_SECRET` aleatorio de al menos 32 bytes y el mismo `VIDEO_API_TOKEN` aleatorio de 32+ caracteres en el dashboard y el proxy. La API hija recibe el token del proxy; los motores y fuentes se configuran en [el generador](../../tools/video-project-api/README.md).
 
-Los administradores gestionan usuarios y deployments; los editores producen videos. El botón de usuarios del header permite crear, desactivar y cambiar roles. Cada usuario puede editar su perfil y contraseña.
+La autenticación usa JWT HS256 mediante jose, con vencimiento de 30 días y cookie HttpOnly/SameSite=Lax, Secure por HTTPS. Cada petición verifica el usuario activo, rol y `auth_version`; las mutaciones exigen el mismo origen. Cambiar la contraseña o el acceso invalida los JWT anteriores. No hay tablas de sesiones ni de intentos de acceso. Los administradores gestionan usuarios, settings y deployments; los editores producen videos.
 
-## Migraciones e importación
+## Base de datos
 
-Las migraciones SQL numeradas crean usuarios, catálogo, versiones, proyectos e historial de trabajos. Incluyen 100 pasajes de `popular-verses.json` (catálogo estructurado de `popular-verses.md`) y los 365 episodios. El estado se distingue por pasaje **y versión**. No se usa la base del backend: su futura integración debe tener otro binding/cliente.
+`migrations/0001_dashboard.sql` contiene todo el esquema y un único INSERT: el administrador inicial. Las tablas son:
 
-La migración 0007 elimina sessions y login_attempts y añade auth_version a users; los accesos anteriores requieren iniciar sesión de nuevo.
+- `dashboard_users`: usuarios y autenticación.
+- `bible_versions`: versiones bíblicas identificadas por idioma y código.
+- `video_projects`: pasaje, versión, formato, ajustes y marca de uso.
+- `site_settings`: configuración por clave.
+- `deployments`: publicaciones del sitio público.
 
-Añade migraciones nuevas para cambios futuros; no edites las ya aplicadas. Aplica el mismo historial con `wrangler d1 migrations apply DB --local` y `--remote --env production`. Wrangler registra el historial en `d1_migrations`.
+Los IDs de usuarios, versiones, proyectos y deployments son enteros autoincrementales. `site_settings` usa su clave natural. No existen `catalog`, `jobs`, `projects`, `users`, `versions` ni `version_settings`. Los proyectos no tienen campos de estado o publicación.
 
 ```sh
-cd apps/dashboard
-pnpm db:import
-pnpm exec wrangler d1 execute DB --local --file imports/cli.sql
-cd ../..
-pnpm --dir apps/dashboard db:import-media
+pnpm --dir apps/dashboard db:migrate:local
+# Solo para una base de producción preparada para este esquema:
+pnpm --dir apps/dashboard db:migrate:remote
 ```
 
-El importador lee `~/Documents/veobible-shorts/outputs` y `~/Documents/veobible-longs/outputs`. Admite las variables `VEOBIBLE_SHORTS_OUTPUT_DIR`, `VEOBIBLE_LONGS_OUTPUT_DIR` y sus respectivas `WORKING_DIR`; para otras rutas, expórtalas antes de importar. El script de importación no carga los `.env` de las CLI.
+La consolidación sustituye el historial anterior y requiere reconstruir una base existente; no constituye una migración incremental de sus datos. Wrangler registra la migración en `d1_migrations`. La base local se almacena en `apps/dashboard/.wrangler/state/v3/d1`. No hay inserciones automáticas de proyectos o settings.
 
-Importa `status.json`, outputs existentes, volumen predeterminado y por proyecto, offsets de pasaje y versículos, metadatos y descripciones. Conserva la marca “usado” de la CLI por separado de la publicación: no presupone que se haya subido a redes. Un render sin estado, como el episodio de prueba, se importa como generado y sin publicar. Si el render no existe se conservan el registro y los ajustes como pendiente.
+## Proyectos y generación
 
-El SQL completa los drafts iniciales vacíos; repetirlo no sobrescribe proyectos editados o importados. Todos los pasajes tienen un proyecto real en D1 por cada versión, incluso si nunca se generaron. Los SQL y manifiestos generados quedan en `imports/`, ignorado por Git. El importador multimedia consulta los IDs reales en D1 y copia archivos sin mover ni borrar originales; usa clonación del filesystem cuando está disponible. Para producción aplica el SQL con `--remote --env production` y añade `--remote` al importador multimedia. El material permanece en la laptop.
+En `/short-videos` y `/long-videos`, «Nuevo proyecto» pide versión, título, nombre corto y los libros, capítulos y versículos de inicio y final. Los largos requieren número de episodio. Los libros disponibles y sus límites se consultan al generador para la versión seleccionada; los pasajes se introducen manualmente y pueden cruzar libros. El servidor valida los extremos y rechaza nombres cortos duplicados dentro del formato y la versión. No hay una lista estática de pasajes en el dashboard. Las versiones se gestionan en `/bible-versions`. Los listados muestran proyectos creados y distinguen usados y sin usar.
 
-Las CLI mantienen su comportamiento. La importación es explícita y unidireccional; los cambios futuros hechos en CLI no se sincronizan automáticamente. El catálogo del importador pertenece a `resources/catalog/` del dashboard: borrar las CLI en el futuro no afecta al arranque, los catálogos ni los renders.
+El menú de opciones de cada listado ofrece «Sincronizar proyectos». Su modal permite elegir una versión bíblica y añadir las propuestas del formato correspondiente obtenidas del generador. La comparación usa formato, versión y el `slug` de la propuesta, conservado en `video_projects.passage_id`; no hace falta una columna duplicada ni una migración adicional. Repetir la sincronización no duplica proyectos, ni actualiza títulos, pasajes, ajustes o marcas de uso existentes. Los proyectos nuevos toman los ajustes de volumen actuales del formato, idioma y versión. Los títulos usan los nombres de libros de esa versión y los largos conservan el número de episodio.
 
-## Producción y tunnel
+El editor compartido se abre en `/short-videos/<id>` o `/long-videos/<id>` con el ID numérico del proyecto. Los cortos son verticales 9:16; los largos, horizontales 16:9. Intro y cierre son secciones fijas; cada tramo de lectura permite sincronizar versículos mediante waveform, recorte y reproducción. Las secciones comienzan colapsadas y las voces de intro/cierre se pueden generar y reproducir desde sus cabeceras.
 
-1. Crea una D1 exclusiva (`wrangler d1 create veobible-dashboard-production`). Reemplaza el UUID de ejemplo en `env.production.d1_databases` de `wrangler.jsonc`. Nunca reutilices el UUID del backend.
-2. Configura las URLs reales de `VIDEO_API_URL` (hostname del tunnel) y `DASHBOARD_CALLBACK_URL` (dashboard Worker) en `env.production.vars`.
-3. Guarda `VIDEO_API_TOKEN` con `wrangler secret put VIDEO_API_TOKEN --env production`. Si usas Cloudflare Access, guarda también `CF_ACCESS_CLIENT_ID` y `CF_ACCESS_CLIENT_SECRET`.
-4. Aplica migraciones, SQL de usuario e importación con `--remote --env production`.
-5. Compila con `CLOUDFLARE_ENV=production pnpm build` dentro de `apps/dashboard`. Publica explícitamente con `pnpm exec wrangler deploy --config dist/server/wrangler.json` (config generado por ViNext).
-6. En la laptop, configura `DASHBOARD_ORIGINS` en el `.env` del proxy con el origen real del dashboard y los orígenes locales que uses. Arranca `pnpm start:api-proxy`. Configura un Cloudflare Tunnel nombrado hacia `http://127.0.0.1:8420`, instala `cloudflared`, define `CLOUDFLARE_TUNNEL_TOKEN` y ejecuta `pnpm tunnel:api-proxy`.
+Los ajustes se guardan en `video_projects`. Al abrir el editor, el estado se obtiene del generador: su cola informa si hay un render activo y los archivos indican si hay un resultado disponible. No se guarda un historial de renders en D1 ni se necesitan callbacks. El resultado se conserva en `_internal/render-result.json` junto a los archivos del proyecto y sigue disponible tras reiniciar el servicio.
 
-El navegador llama únicamente a la API del dashboard; esta usa el proxy directamente en desarrollo y HTTPS/tunnel en producción. No se exponen tokens al navegador. El proxy solo registra la API de video, pero permite añadir namespaces futuros detrás del mismo tunnel.
+El cuadro inferior del sidebar abre la cola global de voces y videos. Solo muestra tareas activas o pendientes, con enlaces al editor. Puedes cambiar de proyecto mientras se procesa una generación. La cola es serial, admite hasta 20 tareas y reside en memoria: no reanuda tareas pendientes después de reiniciar el servicio. Los archivos ya generados permanecen en disco.
 
-Deployments publica el **sitio público VeoBible** (`apps/frontend`, veobible.com). Aplica la migración `0006_site_deployments.sql` antes de usarlo. «Configurar» guarda la URL del deploy hook en `site_settings` con la clave `deploy_hook:veobible:site`, usando un upsert con fecha de modificación, como el dashboard de referencia. Una cadena vacía desactiva las publicaciones; `SITE_DEPLOY_HOOK` sirve de respaldo solo cuando todavía no hay un ajuste guardado. Los hooks anteriores del dashboard no se reutilizan y su historial queda separado. Configura `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` para consultar el estado de Workers Builds. Sin esas credenciales, las solicitudes quedan pendientes de confirmación. Solo los administradores pueden consultar o modificar la configuración y publicar; las mutaciones requieren el mismo origen.
+El layout consulta la cola cada 3 segundos si hay pendientes y cada 30 segundos en reposo; también al enviar tareas, abrir el modal o regresar a la pestaña. El editor consulta periódicamente solo mientras tiene una generación pendiente. Los listados se actualizan al guardar o sincronizar proyectos.
 
-## Archivos y estados
+`SHORTS_WORKING_DIR` y `LONGS_WORKING_DIR` separan los formatos:
 
-Los listados `/short-videos` y `/long-videos` abren páginas propias en `/short-videos/[id]?version=…` y `/long-videos/[id]?version=…`. Ambas reutilizan `VideoProjectEditor`, conservan la versión bíblica seleccionada y cargan el proyecto directamente, sin abrir un modal. Los videos cortos usan formato vertical 9:16 (1080×1920); los largos, horizontal 16:9 (1920×1080).
+- `material/`: fuentes de video, voz y audio bíblico.
+- `outputs/<version>/<passage>/`: producción y herramientas CLI.
+- `outputs-dev/<version>/<passage>/`: dashboard en desarrollo.
 
-El editor se organiza en bloques colapsables de intro, lectura por tramo de audio y cierre (al menos tres). La intro y el cierre son fijos. Cada uno permite generar su propia voz y escucharla sin renderizar el video; el servicio procesa estas tareas en la misma cola que los renders y conserva los WAV bajo `media/sources`. El estado se consulta por proyecto; al reiniciar el servicio los audios siguen disponibles. Reinicia la API de video tras actualizar su código para habilitar `/v1/projects/:id/voices`.
-
-La sincronización decodifica el audio real con Web Audio y muestra su forma de onda con zoom, extremos arrastrables, ajustes por teclado de 0,01 s (0,1 s con Shift) y escucha por versículo. Los controles aplican límites por tramo y por los versículos vecinos. Los tiempos se expresan respecto a cada tramo en la interfaz y se convierten a offsets sobre la lectura completa al guardar, usando el mismo contrato que el render. «Guardar cambios» conserva la sincronización en D1 y «Generar video» incluye los ajustes actuales en el trabajo. Los elementos visuales y fondos no se editan aquí.
-
-El editor permite buscar y filtrar videos por versión, ajustar volumen, modo de audio, offsets y fondo; inspeccionar texto/contexto, guiones y tiempos; reutilizar o regenerar voces; renderizar, previsualizar, descargar y marcar publicaciones manualmente. Las publicaciones no envían mensajes ni suben archivos a redes.
-
-D1 guarda la copia de ajustes de cada trabajo, resultados, guiones, descripciones, referencias a fuentes, tiempos, errores y marcas de uso/publicación. Los callbacks actualizan D1 sin depender del navegador. La consulta periódica reconcilia callbacks fallidos. Tras reiniciar la API, los trabajos perdidos se marcan interrumpidos durante la siguiente reconciliación; puedes reintentarlos desde sus ajustes. Si la laptop está apagada se conserva el estado hasta que vuelva a responder. No hay reanudación automática después de reiniciar.
-
-La cola procesa un trabajo a la vez y admite hasta 20. `SHORTS_WORKING_DIR` y `LONGS_WORKING_DIR` definen directorios independientes para cada formato. En esta laptop son `/Users/fabian/Documents/veobible-shorts` y `/Users/fabian/Documents/veobible-longs`:
-
-- `material/videos/` y `material/voices/`: clips y muestras de voz.
-- `media/sources/<UUID>/`: voces fuente conservadas entre renders.
-- `outputs/<UUID>/`: video y miniatura finales.
-
-No borres `media/sources/` si quieres reutilizar las voces exactas. Los audios bíblicos se pueden configurar con `VIDEO_AUDIO_DIR` para usar la biblioteca externa. El fondo elegido automáticamente se guarda en los ajustes al terminar para regenerarlo después.
-
-La API usa directamente análisis, voces y render; no llama a `prepareShort`, `prepareEpisode`, `markUsed` ni a escritores de ajustes. No crea `status.json`, `default-version-settings.json` ni ajustes de proyecto en disco. Solo usa archivos temporales de síntesis/render, que limpia al terminar. Conserva materiales y entorno de modelos originales para reproducir una generación.
+Ambos entornos usan la estructura de las CLI, con video, miniatura, textos y `_internal/` para voces y datos auxiliares. Los ajustes y marcas de uso de las CLI no se sincronizan automáticamente con el dashboard.
 
 ## Settings
 
-Los modales Settings de Short Videos y Long Videos tienen las pestañas «Settings de voz» y «Settings de proyectos». La segunda permite guardar manualmente volumeMultiplier (0–4) por idioma y versión, separado por formato, en site_settings con claves project_settings:short y project_settings:long. Los identificadores de versión se agrupan dentro del idioma, por lo que el mismo identificador puede tener valores distintos en es/en/pt. No hay inserciones iniciales; un campo vacío usa volumen 1. Los nuevos proyectos toman estos valores y los existentes conservan sus ajustes. La migración 0008 elimina version_settings sin insertar valores en site_settings. El importador de las CLI conserva los ajustes de cada proyecto, pero no importa valores predeterminados por versión.
+En `/bible-versions`, los administradores crean, editan y eliminan versiones con nombre, idioma y código. Los códigos son únicos dentro del idioma; las versiones registradas alimentan los selectores y los ajustes por versión. Si hay proyectos asociados, solo se puede cambiar el nombre, para conservar las referencias y los archivos de esos proyectos. No se insertan versiones automáticamente. El menú de opciones ofrece «Sincronizar versiones»: consulta al generador, que descubre las versiones disponibles en `bible-data` y sus nombres desde `metadata.name` de cada índice. Solo se insertan pares nuevos de idioma y código; no se modifican ni eliminan los registros existentes.
 
-Los botones Settings de `/short-videos` y `/long-videos` abren los textos de intro y outro para los tres idiomas. Se almacenan por separado en `site_settings` con las claves `voice_templates:short` y `voice_templates:long`, sin inserciones iniciales. Los administradores pueden editarlos y los editores consultarlos. El dashboard envía los textos del formato e idioma correspondiente en `voiceTemplates` al analizar, generar una voz o renderizar. Los trabajos encolados conservan su copia de los textos. El generador no necesita archivos de plantillas; si falta un texto necesario, se solicita configurarlo antes de generar.
+En `/settings` se configuran manualmente cuentas de YouTube, X, Instagram, TikTok y Facebook por idioma, guardadas bajo `social_accounts` en `site_settings`. Los campos vacíos omiten esas redes del cierre.
 
-Los administradores configuran en `/settings` las cuentas de YouTube, X, Instagram, TikTok y Facebook para español, inglés y portugués. Se guardan como un objeto por idioma en `site_settings`, clave `social_accounts`. No se insertan cuentas iniciales al abrir la página, desde migraciones ni desde scripts; los campos empiezan vacíos y se guardan solo al enviar el formulario. Cada render enviado desde el dashboard incluye una copia de las cuentas guardadas del idioma correspondiente; los campos vacíos omiten esas redes del cierre. Los trabajos ya encolados conservan la copia que recibieron al enviarse.
+Los modales Settings de cada formato incluyen «Settings de voz» y «Settings de proyectos». Las plantillas de intro/outro se guardan bajo `voice_templates:short` y `voice_templates:long`. El volumen por idioma y código de versión se guarda bajo `project_settings:short` y `project_settings:long`; el deslizador va de 0 a 4, con 1 como volumen original, y doble clic restablece 1. Los nuevos proyectos toman estos valores y los existentes conservan sus ajustes. No se precargan valores desde migraciones o scripts.
 
-## Cola de generación
+Cada tarea recibe una copia de las plantillas y cuentas relevantes. El generador no consulta D1 directamente ni necesita archivos locales de cuentas o plantillas.
 
-El cuadro inferior del sidebar abre la cola global. La cola del servicio local procesa intro, outro y video en orden, permite ambas voces del mismo proyecto y continúa al cambiar de página o cerrar el editor. Los items enlazan al proyecto y versión correspondientes. Se admiten hasta 20 trabajos pendientes y se muestran los últimos 100 trabajos de la sesión del servicio; la cola de voces reside en memoria y requiere mantener el servicio local en ejecución. Los resultados de render continúan reconciliándose con los trabajos guardados en la base de datos.
+## Producción y deployments
 
-El layout consulta `/api/generation-queue` cada 3 segundos cuando hay pendientes y cada 30 segundos en reposo; también actualiza al enviar un trabajo, abrir el modal o volver a la pestaña. El editor solo consulta estados de proyecto y voz periódicamente cuando tiene una generación pendiente.
+Crea una D1 exclusiva del dashboard y configura su UUID en `env.production.d1_databases` de `wrangler.jsonc`. Configura `VIDEO_API_URL` con el hostname del tunnel y guarda `JWT_SECRET`, `VIDEO_API_TOKEN` y, si corresponde, credenciales de Cloudflare Access como secretos del Worker. Prepara la base con la migración única. Compila con `pnpm --dir apps/dashboard build:production` y publica explícitamente con Wrangler usando el archivo generado `dist/server/wrangler.json`.
+
+El navegador llama únicamente al dashboard, que se comunica con el proxy local o mediante HTTPS/tunnel. Configura `DASHBOARD_ORIGINS` en el proxy y consulta [su documentación](../../tools/api-proxy/README.md) para el tunnel.
+
+Deployments publica el sitio público VeoBible. «Configurar» guarda el deploy hook en `site_settings`, clave `deploy_hook:veobible:site`. Una cadena vacía desactiva la publicación; `SITE_DEPLOY_HOOK` es respaldo únicamente si no hay un ajuste guardado. `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` permiten consultar Workers Builds. El historial de deployments es independiente de la generación de videos.
 
 ## Verificación
 
@@ -112,6 +88,7 @@ El layout consulta `/api/generation-queue` cada 3 segundos cuando hay pendientes
 pnpm --dir apps/dashboard typecheck
 pnpm --dir apps/dashboard test
 pnpm --dir apps/dashboard build
-pnpm --dir tools/video-generator-api check
+pnpm --dir tools/video-project-api check
+pnpm --dir tools/video-project-api test:render
 pnpm --dir tools/api-proxy test
 ```

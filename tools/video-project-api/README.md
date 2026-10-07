@@ -1,4 +1,4 @@
-# VeoBible Video Generator API
+# VeoBible Video Project API
 
 Servicio Node local autónomo con análisis bíblico, síntesis de voces y composiciones Remotion propias en `src/engines/short` y `src/engines/long`. No importa código, dependencias, catálogos, outputs ni configuración de las CLI o del dashboard. Usa los datos bíblicos estáticos del frontend sin importar su código. Su contrato HTTP está en `src/protocol.ts`.
 
@@ -24,17 +24,41 @@ El dashboard envía `outputEnvironment` según su `NODE_ENV` tanto al generar co
 
 Rutas autenticadas con Bearer token de 32+ caracteres:
 
+- `GET /v1/video-project-proposals?kind=short|long&locale=es|en|pt&version=<code>`: lee las propuestas de `material/video-project-presets.json` del working dir correspondiente y añade títulos con los nombres de libros de la versión seleccionada.
+- `GET /v1/bible-versions/books?locale=es|en|pt&version=<code>`: libros, nombres y límites de capítulos y versículos de la versión seleccionada para la creación manual de proyectos.
+- `GET /v1/bible-versions`: descubre versiones por idioma y código en el directorio compartido `bible-data`; toma el nombre de los metadatos de cada índice y vuelve a leerlo en cada consulta.
 - `GET /health`: disponibilidad y trabajos activos.
 - `POST /v1/analyze`: texto, contexto, guiones, cortes, tiempos y fondos.
-- `POST /v1/jobs`: render con UUID, pasaje, versión, ajustes y callback autenticado.
-- `GET /v1/jobs/:id`: progreso efímero para reconciliar D1.
+- `POST /v1/jobs`: render con identificador de tarea, ID numérico de proyecto, pasaje, versión y ajustes. El callback autenticado es opcional; el dashboard no lo utiliza.
+- `GET /v1/jobs/:id`: progreso efímero de una tarea de render.
+- `GET /v1/queue`: tareas de voces y videos; el dashboard muestra solo las activas o pendientes.
+- `GET /v1/projects/:id/state`: estado derivado de la cola activa y resultado guardado en los archivos del proyecto.
 - `GET /v1/projects/:id/media/:asset?kind=short|long&version=rv1909&passage=<id>&outputEnvironment=production|development>`: video, thumbnail, intro/outro; soporta Range.
 
-Los callbacks solo pueden dirigirse a `DASHBOARD_ORIGINS`. La cola es serial y admite hasta 20 trabajos. D1 guarda estados, guiones, ajustes y snapshots; la API guarda progreso temporal en RAM. Tras un reinicio no se reanudan renders; el dashboard permite reintentar con los ajustes conservados.
+Los callbacks opcionales solo pueden dirigirse a `DASHBOARD_ORIGINS`. La cola es serial y admite hasta 20 trabajos. El dashboard conserva los ajustes y la marca de uso en D1, sin tabla de trabajos ni estado persistido. La API guarda progreso temporal en RAM y escribe `_internal/render-result.json` al completar el render. Tras reiniciar conserva los resultados en disco, pero no reanuda renders pendientes; se pueden volver a generar desde los ajustes del proyecto.
 
 Las voces y sus textos se conservan en `_internal/1-intro.{wav,txt}` y `_internal/3-outro.{wav,txt}`, junto a `2-versiculos.txt`, `0-metadata.txt` y `README.md`. Los ajustes siguen en la base de datos: el dashboard no necesita ni crea `2-passage-audio-offsets.json`, `2-passage-audio-settings.json`, `2-verse-text-offsets.json` o `default-version-settings.json`. Los archivos existentes de las CLI se conservan; no se importan automáticamente sus ajustes ni su estado al dashboard. `status.json` pertenece al registro de publicaciones utilizadas de las CLI, no al renderizado. Los archivos auxiliares de síntesis y render son temporales.
 
-La importación histórica es opcional y pertenece al dashboard: `apps/dashboard/scripts/import-cli.mjs` prepara SQL usando su propia copia del catálogo y lee outputs antiguos solo cuando se invoca; `import-media.mjs` copia multimedia tras aplicar ese SQL. No forma parte del arranque ni del render.
+Los proyectos del dashboard se crean manualmente. Los avances de las CLI no se sincronizan automáticamente con la base del dashboard.
+
+## Propuestas de proyectos
+
+Cada formato tiene una lista en `<WORKING_DIR>/material/video-project-presets.json`. Ambos archivos usan la misma estructura, independiente del idioma o versión bíblica:
+
+```json
+[
+  {
+    "id": 1,
+    "slug": "john-3-14-19",
+    "start": { "book": "john", "chapter": 3, "verse": 14 },
+    "end": { "book": "john", "chapter": 3, "verse": 19 }
+  }
+]
+```
+
+`id` es el número de propuesta dentro de la lista y no un ID de proyecto de la base de datos. En largos conserva el número original de episodio. `slug` conserva el identificador textual de la CLI: el pasaje original en cortos y `episode-001`, `episode-002`, etc. en largos. Ambos extremos incluyen siempre libro, capítulo y versículo, por lo que pueden abarcar libros diferentes.
+
+La conversión inicial conserva exactamente los 100 pasajes de `tools/shorts-daily-dose/popular-verses.json` y los 365 episodios de `tools/longs-365-days/episodes.json`, en su orden original, incluidos los 40 episodios que cruzan libros. Los archivos fuente de las CLI no se modifican. El generador vuelve a leer la lista correspondiente en cada solicitud. Los menús de Short Videos y Long Videos del dashboard sincronizan estas propuestas por versión bíblica, insertando solo los slugs que faltan. Los libros inicial y final se conservan al convertir la propuesta al contrato de render; los largos incluyen el número de episodio.
 
 ## Verificación
 

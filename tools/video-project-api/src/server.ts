@@ -1,3 +1,5 @@
+import { loadProjectProposals } from "./project-proposals.js";
+import { availableBibleBooks, availableBibleVersions } from "./bible-versions.js";
 import http from "node:http";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
@@ -70,7 +72,7 @@ const analysisSchema = renderSchema
     settings: true,
     voiceTemplates: true,
   })
-  .extend({ projectId: z.string().uuid() });
+  .extend({ projectId: z.number().int().positive() });
 const idSchema = z.string().uuid();
 const server = http.createServer(async (req, res) => {
   try {
@@ -86,10 +88,23 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/health")
       return json(res, 200, {
         ok: true,
-        service: "veobible-video-generator",
+        service: "veobible-video-project",
         videoProjectProtocolVersion: 1,
         active: generationQueue.pendingCount,
       });
+    if (url.pathname === "/v1/video-project-proposals" && req.method === "GET") {
+      const kind = z.enum(["short","long"]).parse(url.searchParams.get("kind"));
+      const locale = renderSchema.shape.version.shape.locale.parse(url.searchParams.get("locale"));
+      const code = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
+      return json(res,200,{proposals:await loadProjectProposals(kind,{locale,code})});
+    }
+    if (url.pathname === "/v1/bible-versions/books" && req.method === "GET") {
+      const locale = renderSchema.shape.version.shape.locale.parse(url.searchParams.get("locale"));
+      const code = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
+      return json(res,200,{books:await availableBibleBooks(locale,code)});
+    }
+    if (url.pathname === "/v1/bible-versions" && req.method === "GET")
+      return json(res, 200, { versions: await availableBibleVersions() });
     if (url.pathname === "/v1/queue" && req.method === "GET") {
       const requested = url.searchParams.get("outputEnvironment");
       const environment = requested === null ? null : renderSchema.shape.outputEnvironment.parse(requested);
@@ -104,8 +119,18 @@ const server = http.createServer(async (req, res) => {
       });
       return json(res, 200, result);
     }
+    if (parts[1] === "projects" && parts[3] === "state" && req.method === "GET") {
+      const projectId = z.coerce.number().int().positive().parse(parts[2]);
+      const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+      const version = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
+      const passage = renderSchema.shape.passage.shape.id.parse(url.searchParams.get("passage"));
+      const environment = renderSchema.shape.outputEnvironment.parse(url.searchParams.get("outputEnvironment") ?? undefined);
+      const active = generationQueue.snapshot().find(item => item.projectId === projectId && item.kind === kind && (item.outputEnvironment ?? "production") === environment && item.type === "video" && ["queued","running"].includes(item.status));
+      const result = await fsp.readFile(path.join(sourceDir(kind,version,passage,environment),"render-result.json"),"utf8").then(value => JSON.parse(value), () => null);
+      return json(res,200,{status:active?.status ?? (result ? "ready" : "draft"),stage:active?.stage ?? "",result});
+    }
     if (parts[1] === "projects" && parts[3] === "voices") {
-      const projectId = idSchema.parse(parts[2]);
+      const projectId = z.coerce.number().int().positive().parse(parts[2]);
       if (req.method === "GET") {
         const kind = z
           .enum(["short", "long"])
@@ -172,7 +197,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/v1/jobs" && req.method === "POST") {
       const input = renderSchema.parse(await body(req));
-      if (!origins.has(new URL(input.callback.url).origin))
+      if (input.callback && !origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));
       if (generationQueue.hasPending(input.projectId, "video", input.outputEnvironment))
@@ -182,6 +207,7 @@ const server = http.createServer(async (req, res) => {
       const job: Job = { id: input.id, status: "queued", stage: "Queued" };
       jobs.set(job.id, job);
       const notify = async () => {
+        if (!input.callback) return;
         const status = job.status;
         try {
           const response = await fetch(input.callback.url, {
@@ -246,7 +272,7 @@ const server = http.createServer(async (req, res) => {
       parts[3] === "media" &&
       req.method === "GET"
     ) {
-      const id = idSchema.parse(parts[2]);
+      const id = z.coerce.number().int().positive().parse(parts[2]);
       const kind = z
         .enum(["short", "long"])
         .parse(url.searchParams.get("kind"));

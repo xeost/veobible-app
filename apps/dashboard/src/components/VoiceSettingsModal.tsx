@@ -29,7 +29,7 @@ export function VoiceSettingsModal({
   const [projectSettings, setProjectSettings] =
     useState<ProjectSettings>(emptyProjectSettings);
   const [versions, setVersions] = useState<
-    { id: string; locale: string; label: string }[]
+    { id: number | null; code: string; locale: string; label: string }[]
   >([]);
   const [loading, setLoading] = useState(true),
     [loadFailed, setLoadFailed] = useState(false),
@@ -47,9 +47,14 @@ export function VoiceSettingsModal({
       api<{ settings: ProjectSettings }>(
         `settings/project-settings?kind=${kind}`,
       ),
-      api<{ versions: { id: string; locale: string; label: string }[] }>(
-        "versions",
-      ),
+      api<{
+        versions: {
+          id: number | null;
+          code: string;
+          locale: string;
+          label: string;
+        }[];
+      }>("versions"),
     ])
       .then(([voice, projects, catalog]) => {
         if (live) {
@@ -237,13 +242,13 @@ export function VoiceSettingsModal({
                       .filter((version) => version.locale === locale)
                       .map((version) => (
                         <label
-                          key={`${locale}/${version.id}`}
-                          htmlFor={`project-volume-${locale}-${version.id}`}
+                          key={`${locale}/${version.code}`}
+                          htmlFor={`project-volume-${locale}-${version.code}`}
                         >
                           {version.label} · {t("Volumen de lectura")}
                           <div className="volume-control">
                             <input
-                              id={`project-volume-${locale}-${version.id}`}
+                              id={`project-volume-${locale}-${version.code}`}
                               type="range"
                               min={0}
                               max={4}
@@ -254,12 +259,12 @@ export function VoiceSettingsModal({
                                   ...current,
                                   [locale]: {
                                     ...current[locale],
-                                    [version.id]: { volumeMultiplier: 1 },
+                                    [version.code]: { volumeMultiplier: 1 },
                                   },
                                 }))
                               }
                               value={
-                                projectSettings[locale][version.id]
+                                projectSettings[locale][version.code]
                                   ?.volumeMultiplier ?? 1
                               }
                               onChange={(event) =>
@@ -267,7 +272,7 @@ export function VoiceSettingsModal({
                                   ...current,
                                   [locale]: {
                                     ...current[locale],
-                                    [version.id]: {
+                                    [version.code]: {
                                       volumeMultiplier:
                                         event.target.valueAsNumber,
                                     },
@@ -276,10 +281,10 @@ export function VoiceSettingsModal({
                               }
                             />
                             <output
-                              htmlFor={`project-volume-${locale}-${version.id}`}
+                              htmlFor={`project-volume-${locale}-${version.code}`}
                             >
                               {(
-                                projectSettings[locale][version.id]
+                                projectSettings[locale][version.code]
                                   ?.volumeMultiplier ?? 1
                               ).toFixed(2)}
                               ×

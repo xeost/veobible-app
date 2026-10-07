@@ -138,9 +138,14 @@ export default function Deployments() {
             <RefreshCw size={16} />
             {t("Actualizar")}
           </button>
-          <button onClick={configure} disabled={busy}>
-            <Settings size={16} />
-            {t("Configurar")}
+          <button
+            type="button"
+            aria-label={t("Configurar")}
+            title={t("Configurar")}
+            onClick={configure}
+            disabled={busy}
+          >
+            <Settings size={16} aria-hidden="true" />
           </button>
           <button
             className="primary"

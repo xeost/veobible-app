@@ -29,6 +29,12 @@ export function generationStage(stage: string | null, status: string): string {
 }
 
 const messages = new Set([
+  "No se pudieron cargar los libros. Comprueba que esta versión esté disponible y vuelve a intentarlo.",
+  "Ya existe un proyecto con este nombre corto para la versión seleccionada.",
+  "No se pudieron sincronizar los proyectos. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+  "No se pudieron sincronizar las versiones. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+  "Esta versión tiene proyectos asociados. Puedes cambiar su nombre, pero no su idioma o código ni eliminarla.",
+  "Ya existe una versión con este código en el idioma seleccionado.",
   "Configura los textos de voz en Settings antes de generar.",
   "Ese nombre de usuario ya está en uso. Elige otro.",
   "No tienes permiso para realizar esta acción.",
