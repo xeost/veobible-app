@@ -91,7 +91,6 @@ test("existing production outputs import scoped publication, manual timings and 
         },
       ],
       volumeMultiplier: 1.75,
-      clipAudioMode: "mix",
       background: "bg-2.mp4",
     });
     await fs.writeFile(

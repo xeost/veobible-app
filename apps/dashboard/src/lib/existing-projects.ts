@@ -39,7 +39,6 @@ export async function syncExistingProjects(
   database: D1Database,
   kind: "short" | "long",
   values: unknown,
-  outputEnvironment: "production" | "development" = "production",
 ) {
   const input = existingProjectsSchema.parse(values);
   const versions = (
@@ -55,7 +54,6 @@ export async function syncExistingProjects(
         slug: string;
         settings: string;
         published: number;
-        output_environment: string;
       }>()
   ).results;
   let updated = 0,
@@ -85,8 +83,7 @@ export async function syncExistingProjects(
     if (
       JSON.stringify(settingsSchema.parse(JSON.parse(existing.settings))) ===
         settings &&
-      Boolean(existing.published) === row.published &&
-      existing.output_environment === outputEnvironment
+      Boolean(existing.published) === row.published
     ) {
       unchanged++;
       continue;
@@ -94,9 +91,9 @@ export async function syncExistingProjects(
     statements.push(
       database
         .prepare(
-          "UPDATE video_projects SET settings=?,published=?,output_environment=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
+          "UPDATE video_projects SET settings=?,published=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
         )
-        .bind(settings, Number(row.published), outputEnvironment, existing.id),
+        .bind(settings, Number(row.published), existing.id),
     );
     updated++;
   }

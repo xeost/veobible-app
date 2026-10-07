@@ -92,7 +92,7 @@ test("existing project sync only updates matching states, never inserts projects
     });
     const project = sqlite.prepare("SELECT * FROM video_projects").get()!;
     assert.equal(project.published, 1);
-    assert.equal(project.output_environment, "production");
+    assert.equal("output_environment" in project, false);
     assert.deepEqual(
       JSON.parse(String(project.settings)).verseOffsets,
       row.settings.verseOffsets,
@@ -105,6 +105,7 @@ test("existing project sync only updates matching states, never inserts projects
         JSON.stringify({
           ...JSON.parse(String(project.settings)),
           reuseVoices: false,
+          clipAudioMode: "mix",
         }),
         project.id,
       );
@@ -165,7 +166,11 @@ test("existing project sync only updates matching states, never inserts projects
     );
     const updated = sqlite.prepare("SELECT * FROM video_projects").get()!;
     assert.equal(updated.published, 0);
-    assert.equal(JSON.parse(String(updated.settings)).reuseVoices, false);
+    assert.equal("reuseVoices" in JSON.parse(String(updated.settings)), false);
+    assert.equal(
+      "clipAudioMode" in JSON.parse(String(updated.settings)),
+      false,
+    );
     assert.equal(JSON.parse(String(updated.settings)).volumeMultiplier, 3);
     assert.deepEqual(
       JSON.parse(String(updated.settings)).verseOffsets,
@@ -204,8 +209,7 @@ test("existing project sync only updates matching states, never inserts projects
       0,
     );
     assert.equal(
-      (await syncExistingProjects(database, "short", input, "development"))
-        .updated,
+      (await syncExistingProjects(database, "short", input)).updated,
       1,
     );
     assert.equal(
@@ -213,14 +217,7 @@ test("existing project sync only updates matching states, never inserts projects
       1,
     );
     assert.equal(
-      sqlite
-        .prepare("SELECT output_environment FROM video_projects WHERE id=?")
-        .get(project.id)?.output_environment,
-      "development",
-    );
-    assert.equal(
-      (await syncExistingProjects(database, "short", input, "development"))
-        .unchanged,
+      (await syncExistingProjects(database, "short", input)).unchanged,
       1,
     );
   } finally {

@@ -7,7 +7,6 @@ export type VideoRow = {
   progress: number;
   settings: string | null;
   published: number;
-  output_environment: "production" | "development";
   version_id: number;
   version_code: string;
   locale: string;

@@ -297,7 +297,6 @@ for (const [kind, outputEnvironment] of [
     const cliOffsets = path.join(voices, "2-passage-audio-offsets.json");
     const cliSettings = '{"startSeconds":0,"endSeconds":0}\n';
     await fs.writeFile(cliOffsets, cliSettings);
-    input.settings.reuseVoices = false;
     const introVoice = await fs.readFile(
       path.join(voices, voiceFilename("intro")),
     );

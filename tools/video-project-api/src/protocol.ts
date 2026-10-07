@@ -5,8 +5,6 @@ const point = z.object({
 });
 export const settingsSchema = z.object({
   volumeMultiplier: z.number().min(0).max(4).default(1),
-  clipAudioMode: z.enum(["voice", "mix", "video"]).default("voice"),
-  reuseVoices: z.boolean().default(true),
   passageOffsets: z
     .object({
       startSeconds: z.number().finite(),
@@ -31,9 +29,15 @@ export const renderSchema = z.object({
   id: z.string().uuid(),
   projectId: z.number().int().positive(),
   kind: z.enum(["short", "long"]),
-  outputEnvironment: z.enum(["production", "development"]).default("production"),
+  outputEnvironment: z
+    .enum(["production", "development"])
+    .default("production"),
   version: z.object({
-    id: z.string().min(1).max(60).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    id: z
+      .string()
+      .min(1)
+      .max(60)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
     locale: z.enum(["es", "en", "pt"]),
     label: z.string(),
   }),
@@ -64,7 +68,9 @@ export const renderSchema = z.object({
       facebook: z.string().trim().max(100),
     })
     .default({ youtube: "", x: "", instagram: "", tiktok: "", facebook: "" }),
-  callback: z.object({ url: z.string().url(), token: z.string().min(32) }).optional(),
+  callback: z
+    .object({ url: z.string().url(), token: z.string().min(32) })
+    .optional(),
 });
 export const resultSchema = z.object({
   output: z.string(),

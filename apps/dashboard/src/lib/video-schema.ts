@@ -5,8 +5,6 @@ const point = z.object({
 });
 export const settingsSchema = z.object({
   volumeMultiplier: z.number().min(0).max(4).default(1),
-  clipAudioMode: z.enum(["voice", "mix", "video"]).default("voice"),
-  reuseVoices: z.boolean().default(true),
   passageOffsets: z
     .object({
       startSeconds: z.number().finite(),

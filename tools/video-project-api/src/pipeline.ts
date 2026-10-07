@@ -308,7 +308,7 @@ export async function render(
         `Final video: ../${videoFilename(input.kind)}`,
         `Thumbnail: ../thumbnail.jpg (frame at ${result.thumbnailTime.toFixed(6)} s)`,
         `Background: ${result.background}`,
-        `Narration mode: ${input.settings.clipAudioMode}`,
+        "Narration mode: voice",
         `Reading volume: ${input.settings.volumeMultiplier}x`,
         `Reading duration: ${result.readingDuration.toFixed(2)} s`,
         `Video duration: ${result.duration.toFixed(2)} s`,

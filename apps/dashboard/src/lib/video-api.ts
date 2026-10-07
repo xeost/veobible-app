@@ -36,7 +36,6 @@ type Project = {
   version_code: string;
   locale: "es" | "en" | "pt";
   label: string;
-  output_environment: "production" | "development";
 };
 export async function videoApi(
   req: Request,
@@ -205,7 +204,7 @@ export async function videoApi(
     );
     const result = await database
       .prepare(
-        "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage,settings,output_environment) VALUES (?,?,?,?,?,?,?)",
+        "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage,settings) VALUES (?,?,?,?,?,?)",
       )
       .bind(
         input.kind,
@@ -214,7 +213,6 @@ export async function videoApi(
         input.title,
         JSON.stringify(passage),
         JSON.stringify(settings),
-        outputEnvironment,
       )
       .run();
     return json({ id: result.meta.last_row_id }, 201);
@@ -251,15 +249,7 @@ export async function videoApi(
         502,
       );
     }
-    return json(
-      await syncVideoProjects(
-        database,
-        kind,
-        version,
-        proposals,
-        outputEnvironment,
-      ),
-    );
+    return json(await syncVideoProjects(database, kind, version, proposals));
   }
   if (parts[1] === "sync-existing" && !parts[2] && method === "POST") {
     const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
@@ -280,9 +270,7 @@ export async function videoApi(
         502,
       );
     }
-    return json(
-      await syncExistingProjects(database, kind, data, outputEnvironment),
-    );
+    return json(await syncExistingProjects(database, kind, data));
   }
   const id = z.coerce.number().int().positive().parse(parts[1]);
   const project = await database
@@ -304,7 +292,7 @@ export async function videoApi(
     kind: project.kind,
     version: project.version_code,
     passage: project.slug,
-    outputEnvironment: project.output_environment,
+    outputEnvironment,
   });
   const state = async () => {
     try {
@@ -399,11 +387,7 @@ export async function videoApi(
   ) {
     const values = (await req.json()) as Record<string, unknown>;
     const settings = settingsSchema.parse(
-      parts[2] === "voices"
-        ? JSON.parse(project.settings)
-        : parts[2] === "render"
-          ? { ...values, reuseVoices: true, clipAudioMode: "voice" }
-          : values,
+      parts[2] === "voices" ? JSON.parse(project.settings) : values,
     );
     const voiceTemplates = (await loadVoiceSettings(database, project.kind))[
       project.locale
@@ -411,7 +395,7 @@ export async function videoApi(
     const common = {
       projectId: id,
       kind: project.kind,
-      outputEnvironment: project.output_environment,
+      outputEnvironment,
       version,
       passage: JSON.parse(project.passage),
       settings,

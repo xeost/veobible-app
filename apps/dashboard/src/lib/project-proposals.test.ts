@@ -76,7 +76,11 @@ test("project sync only adds missing slugs within a format and Bible version, re
       { added: 1, total: 1 },
     );
     const saved = sqlite.prepare("SELECT * FROM video_projects").get()!;
-    assert.equal(JSON.parse(String(saved.settings)).volumeMultiplier, 1.5);
+    assert.deepEqual(JSON.parse(String(saved.settings)), {
+      volumeMultiplier: 1.5,
+      passageOffsets: { startSeconds: 0, endSeconds: 0 },
+      verseOffsets: [],
+    });
     assert.equal(JSON.parse(String(saved.passage)).endBook, "exodus");
     sqlite.exec(
       "UPDATE video_projects SET title='User title',settings='{\"volumeMultiplier\":3}',published=1",

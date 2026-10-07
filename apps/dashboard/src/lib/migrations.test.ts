@@ -78,6 +78,7 @@ test("one migration creates numeric project tables and only the requested admin"
     assert.ok(columns.includes("slug"));
     assert.ok(!columns.includes("passage_id"));
     assert.ok(!columns.includes("status"));
+    assert.ok(!columns.includes("output_environment"));
     assert.ok(!columns.includes("published_at"));
   } finally {
     db.close();

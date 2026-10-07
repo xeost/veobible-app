@@ -29,3 +29,31 @@ test("render contract rejects invalid paths, versions and settings", () => {
     updateSchema.parse({ status: "done", stage: "Complete" }),
   );
 });
+
+test("project settings discard obsolete narration controls while preserving all editable rendering values", () => {
+  const input = {
+    volumeMultiplier: 1.5,
+    passageOffsets: { startSeconds: -0.25, endSeconds: 0.5 },
+    verseOffsets: [
+      {
+        reference: "John 3:16",
+        startOffsetSeconds: 0.1,
+        endOffsetSeconds: -0.2,
+      },
+    ],
+    background: "bg-2.mp4",
+  };
+  assert.deepEqual(
+    settingsSchema.parse({
+      ...input,
+      reuseVoices: false,
+      clipAudioMode: "video",
+    }),
+    input,
+  );
+  assert.deepEqual(Object.keys(settingsSchema.parse({})).sort(), [
+    "passageOffsets",
+    "verseOffsets",
+    "volumeMultiplier",
+  ]);
+});

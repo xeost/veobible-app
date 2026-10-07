@@ -341,8 +341,6 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/v1/jobs" && req.method === "POST") {
       const input = renderSchema.parse(await body(req));
-      input.settings.reuseVoices = true;
-      input.settings.clipAudioMode = "voice";
       if (input.callback && !origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));

@@ -248,10 +248,6 @@ export async function discoverExistingProjects(
               })
               .parse(JSON.parse(defaults)).volumeMultiplier;
         }
-        const mode = metadataField(metadata, "Audio de intro y outro");
-        if (mode)
-          settings.clipAudioMode =
-            settingsSchema.shape.clipAudioMode.parse(mode);
         const background = /(?:^|, )([a-zA-Z0-9_.-]+\.mp4) \(boomerang/.exec(
           metadataField(metadata, "Vídeos") ?? "",
         )?.[1];

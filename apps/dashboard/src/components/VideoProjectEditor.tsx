@@ -248,7 +248,7 @@ export function VideoProjectEditor({
         "Some verse timings fall outside the passage or have a start after the end. Review the start and end adjustments.",
       );
     }
-    return settingsSchema.parse({ ...settingsRef.current, reuseVoices: true });
+    return settingsSchema.parse(settingsRef.current);
   };
   const save = async () => {
     await api(endpoint(), {
@@ -294,11 +294,6 @@ export function VideoProjectEditor({
       setVoices((current) => ({
         ...current,
         [part]: { ...current[part], status: "queued", progress: 0 },
-      }));
-      setSettings((current) => ({
-        ...current,
-        clipAudioMode: "voice",
-        reuseVoices: true,
       }));
       setVoiceRevision((value) => value + 1);
       window.dispatchEvent(new Event(queueChangedEvent));
@@ -680,13 +675,7 @@ export function VideoProjectEditor({
               void perform(async () => {
                 await api(endpoint("render"), {
                   method: "POST",
-                  body: JSON.stringify(
-                    settingsSchema.parse({
-                      ...checkedSettings(),
-                      clipAudioMode: "voice",
-                      reuseVoices: true,
-                    }),
-                  ),
+                  body: JSON.stringify(checkedSettings()),
                 });
                 window.dispatchEvent(new Event(queueChangedEvent));
                 setNotice("Video queued for generation.");
