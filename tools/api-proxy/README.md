@@ -1,11 +1,11 @@
 # VeoBible API Proxy
 
-Proxy HTTP local basado en el ejemplo. Inicia únicamente `video-project-api`, propaga su entorno y escucha en `127.0.0.1:8420`; la API hija usa `127.0.0.1:8422`. Todas las rutas, incluida `/health`, requieren el `VIDEO_API_TOKEN` compartido con el dashboard.
+Local HTTP proxy based on the example configuration. Starts only `video-project-api`, forwards its environment, and listens on `127.0.0.1:8420`; the child API uses `127.0.0.1:8422`. All routes, including `/health`, require the `VIDEO_API_TOKEN` shared with the dashboard.
 
-Copia `.env.example` a `.env`, configura un token aleatorio de 32+ caracteres y `DASHBOARD_ORIGINS`; ejecuta `pnpm start:api-proxy` desde la raíz. Un fallo del proceso hijo detiene el proxy. Se preservan streaming, Range y query strings. Las señales detienen ambos procesos.
+Copy `.env.example` to `.env`, set a random 32+ character token and `DASHBOARD_ORIGINS`; run `pnpm start:api-proxy` from the repository root. A crash in the child process stops the proxy. Streaming, Range headers, and query strings are preserved. Termination signals stop both processes.
 
-En producción instala `cloudflared`, configura un tunnel nombrado hacia `http://127.0.0.1:8420`, define `CLOUDFLARE_TUNNEL_TOKEN` y ejecuta `pnpm tunnel:api-proxy`. No se crean tunnels ni se publica nada automáticamente. Puedes proteger el hostname con Cloudflare Access y configurar un service token en el dashboard.
+In production, install `cloudflared`, configure a named tunnel pointing to `http://127.0.0.1:8420`, set `CLOUDFLARE_TUNNEL_TOKEN`, and run `pnpm tunnel:api-proxy`. No tunnels are created or published automatically. You can protect the hostname with Cloudflare Access and configure a service token in the dashboard.
 
-Namespaces registrados: `/v1/jobs`, `/v1/projects`, `/v1/analyze`, `/v1/queue`, `/v1/bible-versions` y `/v1/video-project-proposals`. `/health` agrega la disponibilidad de video. Para añadir otra API, registra el proceso en `index.mjs` y sus rutas en `proxy.mjs`; el mismo tunnel sirve ambas.
+Registered namespaces: `/v1/jobs`, `/v1/projects`, `/v1/analyze`, `/v1/queue`, `/v1/bible-versions`, and `/v1/video-project-proposals`. `/health` aggregates video availability. To add another API, register its process in `index.mjs` and its routes in `proxy.mjs`; the same tunnel serves both.
 
-Consulta [el README del dashboard](../../apps/dashboard/README.md). `pnpm --dir tools/api-proxy test` verifica autenticación, rutas, forwarding y desconexión del upstream.
+See [the dashboard README](../../apps/dashboard/README.md). `pnpm --dir tools/api-proxy test` verifies authentication, routing, forwarding, and upstream disconnection handling.

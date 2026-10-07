@@ -1,51 +1,51 @@
 # VeoBible Video Project API
 
-Servicio Node local autónomo con análisis bíblico, síntesis de voces y composiciones Remotion propias en `src/engines/short` y `src/engines/long`. No importa código, dependencias, catálogos, outputs ni configuración de las CLI o del dashboard. Usa los datos bíblicos estáticos del frontend sin importar su código. Su contrato HTTP está en `src/protocol.ts`.
+Self-contained local Node service with Bible passage analysis, voice synthesis, and proprietary Remotion compositions in `src/engines/short` and `src/engines/long`. It does not import code, dependencies, catalogs, outputs, or configuration from the CLIs or dashboard. It uses static Bible data from the frontend without importing frontend code. Its HTTP contract is defined in `src/protocol.ts`.
 
-## Instalación y fuentes
+## Installation and Assets
 
-Requiere Node 22+, pnpm y FFmpeg/ffprobe. Instala únicamente este paquete y copia `.env.example` a `.env`. Arranca con `pnpm start` desde esta carpeta, o mediante `pnpm start:api-proxy` desde la raíz. El proxy transmite el token compartido; las variables de proceso prevalecen sobre el `.env` propio de esta API.
+Requires Node 22+, pnpm, and FFmpeg/ffprobe. Install only this package and copy `.env.example` to `.env`. Start with `pnpm start` from this folder, or via `pnpm start:api-proxy` from the repository root. The proxy passes the shared token; process environment variables take precedence over this API's own `.env`.
 
-- `apps/frontend/public/bible-data/<locale>/<version>/index.json` y `<book>/<chapter>.json`: datos bíblicos estáticos compartidos con el sitio público. La ruta es fija, relativa al repositorio, e independiente del directorio de ejecución; no es configurable.
-- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/bible-audio/<version>/`: audios originales de capítulos; alternativa `VIDEO_AUDIO_DIR`. Se mantiene la nomenclatura existente `NN-book-chapter.mp3` o `.m4a`.
-- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/videos/`: `0-intro.mp4`, `0-outro.mp4` y fondos `bg-N.mp4`.
-- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/voices/`: muestras para Chatterbox (`es.mp3`, `en.mp3`, `pt.mp3`, con variantes por intro/outro).
-- Los textos de narración se configuran por formato e idioma en los botones Settings de Short Videos y Long Videos. Se guardan en `site_settings` y se reciben en `voiceTemplates` para analizar, generar voces o renderizar; no se leen plantillas locales. Las cuentas sociales se configuran en Settings del dashboard, se guardan en `site_settings` y se reciben en `socialAccounts` de cada solicitud de render. No se leen cuentas desde archivos locales; si no se envían cuentas, las redes se omiten del cierre.
+- `apps/frontend/public/bible-data/<locale>/<version>/index.json` and `<book>/<chapter>.json`: static Bible data shared with the public site. This path is fixed, relative to the repository, and independent of the working directory; it is not configurable.
+- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/bible-audio/<version>/`: original chapter audio files; alternative `VIDEO_AUDIO_DIR`. Existing naming convention `NN-book-chapter.mp3` or `.m4a` is preserved.
+- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/videos/`: `0-intro.mp4`, `0-outro.mp4`, and background clips `bg-N.mp4`.
+- `<SHORTS_WORKING_DIR|LONGS_WORKING_DIR>/material/voices/`: voice samples for Chatterbox (`es.mp3`, `en.mp3`, `pt.mp3`, with intro/outro variants).
+- Narration scripts are configured per format and language in the Settings modals of Short Videos and Long Videos. They are stored in `site_settings` and received in `voiceTemplates` when analyzing, generating voices, or rendering; no local templates are read. Social accounts are configured in dashboard Settings, stored in `site_settings`, and received in `socialAccounts` on each render request. No accounts are read from local files; if no accounts are provided, social links are omitted from the outro.
 
-`SHORTS_WORKING_DIR` y `LONGS_WORKING_DIR` definen las raíces por formato (rutas absolutas o relativas al paquete). En esta laptop apuntan a `/Users/fabian/Documents/veobible-shorts` y `/Users/fabian/Documents/veobible-longs`. Cada raíz contiene `material/{videos,voices,bible-audio}`, `outputs/<version>/<passage>` para producción y las CLI, y `outputs-dev/<version>/<passage>` para el dashboard en desarrollo, con la misma estructura que las CLI: `short.mp4` o `episode.mp4`, `thumbnail.jpg`, textos de publicación y `_internal/`. Los audios bíblicos pueden seguir en su biblioteca externa mediante `VIDEO_AUDIO_DIR` o las opciones por formato. Sin variables se usa `work/short` y `work/long` dentro del paquete. Las variables anteriores `VIDEO_MEDIA_DIR` y `VIDEO_SHORT/LONG_WORKING_DIR` ya no se usan.
+`SHORTS_WORKING_DIR` and `LONGS_WORKING_DIR` define the root directories per format (absolute paths or relative to the package). On this machine they point to `/Users/fabian/Documents/veobible-shorts` and `/Users/fabian/Documents/veobible-longs`. Each root contains `material/{videos,voices,bible-audio}`, `outputs/<version>/<passage>` for production and CLI tools, and `outputs-dev/<version>/<passage>` for the development dashboard, using the same structure as the CLIs: `short.mp4` or `episode.mp4`, `thumbnail.jpg`, publication texts, and `_internal/`. Bible audios can remain in an external library via `VIDEO_AUDIO_DIR` or per-format options. Without variables, `work/short` and `work/long` inside the package are used. The former variables `VIDEO_MEDIA_DIR` and `VIDEO_SHORT/LONG_WORKING_DIR` are no longer used.
 
-`VIDEO_SHORT_*` y `VIDEO_LONG_*` permiten configurar cada motor por separado: `VIDEOS_DIR`, `AUDIO_DIR`, `FFMPEG`, `RENDER_CONCURRENCY`, `TTS_PROVIDER`, `TTS_PYTHON`, `TTS_MODEL`, `TTS_MODEL_ES/EN/PT`, `TTS_DEVICE`, `TTS_VOICE_PROMPT`, `TTS_VOICE_PROMPT_ES/EN/PT`, y `TTS_VOICE_PROMPT_<locale>_INTRO/OUTRO`. Las cuentas sociales provienen de Settings del dashboard. También se admiten `ELEVENLABS_API_KEY`, `ELEVENLABS_MODEL` y `ELEVENLABS_VOICE_ES/EN/PT` por motor.
+`VIDEO_SHORT_*` and `VIDEO_LONG_*` allow configuring each engine separately: `VIDEOS_DIR`, `AUDIO_DIR`, `FFMPEG`, `RENDER_CONCURRENCY`, `TTS_PROVIDER`, `TTS_PYTHON`, `TTS_MODEL`, `TTS_MODEL_ES/EN/PT`, `TTS_DEVICE`, `TTS_VOICE_PROMPT`, `TTS_VOICE_PROMPT_ES/EN/PT`, and `TTS_VOICE_PROMPT_<locale>_INTRO/OUTRO`. Social accounts come from dashboard Settings. `ELEVENLABS_API_KEY`, `ELEVENLABS_MODEL`, and `ELEVENLABS_VOICE_ES/EN/PT` are also supported per engine.
 
-Para modelos locales, el único servicio compartido es `voice-generator`: por defecto usa `../voice-generator/cli.py` y su `.venv/bin/python`. `VIDEO_TTS_SCRIPT` y las variables `TTS_PYTHON` permiten otra instalación. Las CLI no participan en esta llamada.
+For local models, the only shared service is `voice-generator`: by default it uses `../voice-generator/cli.py` and its `.venv/bin/python`. `VIDEO_TTS_SCRIPT` and the `TTS_PYTHON` variables allow using a different installation. The CLIs are not involved in this call.
 
-El dashboard guarda el entorno de archivos por proyecto y envía `outputEnvironment` al generar, consultar voces y reproducir archivos. Los proyectos nuevos siguen su `NODE_ENV`; los importados siguen el entorno del dashboard que solicita la sincronización. La API admite `production` (por defecto) y `development` por solicitud, por lo que puede atender ambos entornos con salidas independientes. El material se comparte entre ambos entornos.
+The dashboard tracks the file environment per project and passes `outputEnvironment` when generating, querying voices, and playing files. New projects follow their `NODE_ENV`; imported projects follow the environment of the dashboard that requests synchronization. The API supports `production` (default) and `development` per request, allowing it to serve both environments with independent outputs. Materials are shared between both environments.
 
-`GET /v1/projects/existing?kind=short|long&outputEnvironment=production|development` descubre proyectos en `outputs/<version>/<slug>` o `outputs-dev/<version>/<slug>` según el entorno solicitado del working dir correspondiente. Usa los presets y la metadata del proyecto para reconstruir los pasajes, y lee `status.json` en el directorio de salidas seleccionado para traducir las marcas de uso a publicación, aisladas por idioma y versión. Los archivos internos aportan offsets, volumen y opciones de audio; admite los nombres internos anteriores. Mantiene ambos entornos separados, no importa código de las CLI y no modifica sus archivos. Devuelve los proyectos válidos, el número de omitidos y los IDs con trabajo activo. Los videos ya presentes se reconocen como generados aunque no tengan `render-result.json`.
+`GET /v1/projects/existing?kind=short|long&outputEnvironment=production|development` discovers projects in `outputs/<version>/<slug>` or `outputs-dev/<version>/<slug>` according to the requested environment of the respective working directory. It uses project presets and metadata to reconstruct passages, and reads `status.json` in the selected output directory to translate usage flags into publication status, isolated by language and version. Internal files provide offsets, volume, and audio options; legacy internal naming conventions are supported. It keeps both environments separate, imports no CLI code, and does not modify CLI files. It returns valid projects, skipped counts, and IDs with active tasks. Videos already present are recognized as generated even if they lack `render-result.json`.
 
-## HTTP y persistencia
+## HTTP and Persistence
 
-Rutas autenticadas con Bearer token de 32+ caracteres:
+Routes authenticated with a 32+ character Bearer token:
 
-- `GET /v1/video-project-proposals?kind=short|long&locale=es|en|pt&version=<code>`: lee las propuestas de `material/video-project-presets.json` del working dir correspondiente y añade títulos con los nombres de libros de la versión seleccionada.
-- `GET /v1/bible-versions/books?locale=es|en|pt&version=<code>`: libros, nombres y límites de capítulos y versículos de la versión seleccionada para la creación manual de proyectos.
-- `GET /v1/bible-versions`: descubre versiones por idioma y código en el directorio compartido `bible-data`; toma el nombre de los metadatos de cada índice y vuelve a leerlo en cada consulta.
-- `GET /health`: disponibilidad y trabajos activos.
-- `POST /v1/analyze`: texto, contexto, guiones, cortes, tiempos y fondos.
-- `POST /v1/jobs`: render con identificador de tarea, ID numérico de proyecto, pasaje, versión y ajustes. El callback autenticado es opcional; el dashboard no lo utiliza.
-- `GET /v1/jobs/:id`: progreso efímero de una tarea de render.
-- `GET /v1/queue`: tareas de voces y videos; el dashboard muestra solo las activas o pendientes.
-- `GET /v1/projects/:id/state`: estado derivado de la cola activa y resultado guardado en los archivos del proyecto.
-- `GET /v1/projects/:id/media/:asset?kind=short|long&version=rv1909&passage=<id>&outputEnvironment=production|development>`: video, thumbnail, intro/outro; soporta Range.
+- `GET /v1/video-project-proposals?kind=short|long&locale=es|en|pt&version=<code>`: reads proposals from `material/video-project-presets.json` in the respective working directory and appends titles using book names from the selected version.
+- `GET /v1/bible-versions/books?locale=es|en|pt&version=<code>`: books, names, and chapter/verse bounds for the selected version to enable manual project creation.
+- `GET /v1/bible-versions`: discovers versions by language and code in the shared `bible-data` directory; reads the name from metadata in each index on every query.
+- `GET /health`: availability and active jobs.
+- `POST /v1/analyze`: text, context, scripts, cuts, timing, and backgrounds.
+- `POST /v1/jobs`: render with task ID, numeric project ID, passage, version, and settings. Authenticated callback is optional; the dashboard does not use it.
+- `GET /v1/jobs/:id`: ephemeral progress of a render task.
+- `GET /v1/queue`: voice and video tasks; the dashboard only shows active or pending ones.
+- `GET /v1/projects/:id/state`: state derived from active queue and output saved in project files.
+- `GET /v1/projects/:id/media/:asset?kind=short|long&version=rv1909&passage=<id>&outputEnvironment=production|development`: video, thumbnail, intro/outro; supports Range requests.
 
-Los callbacks opcionales solo pueden dirigirse a `DASHBOARD_ORIGINS`. La cola es serial y admite hasta 20 trabajos. El dashboard conserva los ajustes y la marca de uso en D1, sin tabla de trabajos ni estado persistido. La API guarda progreso temporal en RAM y escribe `_internal/render-result.json` al completar el render. Tras reiniciar conserva los resultados en disco, pero no reanuda renders pendientes; se pueden volver a generar desde los ajustes del proyecto.
+Optional callbacks can only target `DASHBOARD_ORIGINS`. The queue is serial and accepts up to 20 jobs. The dashboard preserves settings and usage flags in D1, without a jobs table or persisted state. The API stores temporary progress in RAM and writes `_internal/render-result.json` upon render completion. After restarting, results remain on disk, but pending renders are not resumed; they can be re-triggered from project settings.
 
-Las voces y sus textos se conservan en `_internal/1-intro.{wav,txt}` y `_internal/3-outro.{wav,txt}`, junto a `2-versiculos.txt`, `0-metadata.txt` y `README.md`. Los ajustes siguen en la base de datos: el dashboard no necesita ni crea `2-passage-audio-offsets.json`, `2-passage-audio-settings.json`, `2-verse-text-offsets.json` o `default-version-settings.json`. Los archivos existentes de las CLI se conservan; no se importan automáticamente sus ajustes ni su estado al dashboard. `status.json` pertenece al registro de publicaciones utilizadas de las CLI, no al renderizado. Los archivos auxiliares de síntesis y render son temporales.
+Voices and their texts are kept in `_internal/1-intro.{wav,txt}` and `_internal/3-outro.{wav,txt}`, alongside `2-versiculos.txt`, `0-metadata.txt`, and `README.md`. Settings remain in the database: the dashboard neither needs nor creates `2-passage-audio-offsets.json`, `2-passage-audio-settings.json`, `2-verse-text-offsets.json`, or `default-version-settings.json`. Existing CLI files are preserved; their settings and states are not automatically imported to the dashboard. `status.json` belongs to the CLI record of used publications, not rendering. Auxiliary synthesis and render files are temporary.
 
-Los proyectos del dashboard se crean manualmente. Los avances de las CLI no se sincronizan automáticamente con la base del dashboard.
+Dashboard projects are created manually. CLI progress does not automatically synchronize with the dashboard database.
 
-## Propuestas de proyectos
+## Project Proposals
 
-Cada formato tiene una lista en `<WORKING_DIR>/material/video-project-presets.json`. Ambos archivos usan la misma estructura, independiente del idioma o versión bíblica:
+Each format has a list in `<WORKING_DIR>/material/video-project-presets.json`. Both files use the same structure, independent of language or Bible version:
 
 ```json
 [
@@ -58,15 +58,15 @@ Cada formato tiene una lista en `<WORKING_DIR>/material/video-project-presets.js
 ]
 ```
 
-`id` es el número de propuesta dentro de la lista y no un ID de proyecto de la base de datos. En largos conserva el número original de episodio. `slug` conserva el identificador textual de la CLI: el pasaje original en cortos y `episode-001`, `episode-002`, etc. en largos. Ambos extremos incluyen siempre libro, capítulo y versículo, por lo que pueden abarcar libros diferentes.
+`id` is the proposal index within the list and not a database project ID. In long formats, it preserves the original episode number. `slug` preserves the CLI textual identifier: the original passage in shorts and `episode-001`, `episode-002`, etc. in longs. Both endpoints always include book, chapter, and verse, allowing them to span different books.
 
-La conversión inicial conserva exactamente los 100 pasajes de `tools/shorts-daily-dose/popular-verses.json` y los 365 episodios de `tools/longs-365-days/episodes.json`, en su orden original, incluidos los 40 episodios que cruzan libros. Los archivos fuente de las CLI no se modifican. El generador vuelve a leer la lista correspondiente en cada solicitud. Los menús de Short Videos y Long Videos del dashboard sincronizan estas propuestas por versión bíblica, insertando solo los slugs que faltan. Los libros inicial y final se conservan al convertir la propuesta al contrato de render; los largos incluyen el número de episodio.
+The initial conversion preserves exactly the 100 passages from `tools/shorts-daily-dose/popular-verses.json` and the 365 episodes from `tools/longs-365-days/episodes.json` in their original order, including the 40 episodes that cross book boundaries. CLI source files are not modified. The generator re-reads the respective list on each request. Short Videos and Long Videos menus in the dashboard synchronize these proposals per Bible version, inserting only missing slugs. Starting and ending books are preserved when converting the proposal to the render contract; longs include the episode number.
 
-## Verificación
+## Verification
 
-`pnpm check` verifica también las composiciones TSX. `pnpm test` ejecuta una prueba desde una copia aislada de la API, sin carpetas hermanas de CLI/dashboard, con fuentes sintéticas y un adaptador de voz de prueba.
+`pnpm check` also verifies TSX compositions. `pnpm test` runs a test from an isolated copy of the API without CLI/dashboard peer folders, using synthetic assets and a test voice adapter.
 
-`pnpm test:render` agrega renders completos de ambos formatos y verifica que solo queden MP4/JPG/WAV en los directorios de proyectos. Remotion necesita puertos locales y descarga su navegador en el paquete de la API si falta.
+`pnpm test:render` adds full renders of both formats and verifies that only MP4/JPG/WAV remain in project directories. Remotion requires local ports and downloads its browser to the API package if missing.
 
 Generation queue responses include individual progress percentages and a batch summary. A batch starts when an idle queue receives work and includes tasks added before it drains. Total progress weights each task equally, retains finished tasks until the next batch, and counts failed tasks as settled. Video progress combines preparation stages with renderer progress; speech progress uses provider stages and local sampling percentages when available.
 

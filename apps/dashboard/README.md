@@ -1,10 +1,10 @@
 # VeoBible Studio
 
-Dashboard privado con Next.js App Router y ViNext. Su API usa una base D1 exclusiva del dashboard. El generador de videos es un servicio independiente y recibe los ajustes desde el dashboard.
+Private dashboard built with Next.js App Router and ViNext. Its API uses an exclusive D1 database for the dashboard. The video generator is an independent service and receives settings from the dashboard.
 
-## Desarrollo
+## Development
 
-Requiere Node 22+ y pnpm. Instala los paquetes por separado:
+Requires Node 22+ and pnpm. Install packages separately:
 
 ```sh
 pnpm --dir apps/dashboard install
@@ -14,79 +14,79 @@ cp tools/api-proxy/.env.example tools/api-proxy/.env
 cp tools/video-project-api/.env.example tools/video-project-api/.env
 pnpm db:dashboard:local
 pnpm start:api-proxy
-# En otra terminal:
+# In another terminal:
 pnpm dev:dashboard
 ```
 
-Abre http://localhost:3003. La migración inicial crea únicamente el administrador `admin`, con contraseña `admin123` almacenada como hash PBKDF2 SHA-256. Puedes cambiarla desde el perfil. Configura un `JWT_SECRET` aleatorio de al menos 32 bytes y el mismo `VIDEO_API_TOKEN` aleatorio de 32+ caracteres en el dashboard y el proxy. La API hija recibe el token del proxy; los motores y fuentes se configuran en [el generador](../../tools/video-project-api/README.md).
+Open <http://localhost:3003>. The initial migration only creates the `admin` user, with password `admin123` stored as a PBKDF2 SHA-256 hash. You can change it from your profile. Configure a random `JWT_SECRET` of at least 32 bytes and the same random 32+ character `VIDEO_API_TOKEN` in both the dashboard and the proxy. The child API receives the token from the proxy; engines and assets are configured in [the generator](../../tools/video-project-api/README.md).
 
-La autenticación usa JWT HS256 mediante jose, con vencimiento de 30 días y cookie HttpOnly/SameSite=Lax, Secure por HTTPS. Cada petición verifica el usuario activo, rol y `auth_version`; las mutaciones exigen el mismo origen. Cambiar la contraseña o el acceso invalida los JWT anteriores. No hay tablas de sesiones ni de intentos de acceso. Los administradores gestionan usuarios, settings y deployments; los editores producen videos.
+Authentication uses HS256 JWTs via jose, with 30-day expiration and HttpOnly/SameSite=Lax cookie, Secure over HTTPS. Each request verifies the active user, role, and `auth_version`; mutations require the same origin. Changing your password or access invalidates previous JWTs. There are no session or login-attempt tables. Administrators manage users, settings, and deployments; editors produce videos.
 
-## Base de datos
+## Database
 
-`migrations/0001_dashboard.sql` contiene todo el esquema y un único INSERT: el administrador inicial. Las tablas son:
+`migrations/0001_dashboard.sql` contains the complete schema and a single INSERT: the initial administrator. The tables are:
 
-- `dashboard_users`: usuarios y autenticación.
-- `bible_versions`: versiones bíblicas identificadas por idioma y código.
-- `video_projects`: pasaje, versión, formato, ajustes y marca de uso.
-- `site_settings`: configuración por clave.
-- `deployments`: publicaciones del sitio público.
+- `dashboard_users`: users and authentication.
+- `bible_versions`: Bible versions identified by language and code.
+- `video_projects`: passage, version, format, settings, and usage flag.
+- `site_settings`: configuration by key.
+- `deployments`: public site publications.
 
-Los IDs de usuarios, versiones, proyectos y deployments son enteros autoincrementales. `site_settings` usa su clave natural. No existen `catalog`, `jobs`, `projects`, `users`, `versions` ni `version_settings`. Los proyectos no tienen campos de estado o publicación.
+IDs for users, versions, projects, and deployments are auto-incrementing integers. `site_settings` uses its natural key. There are no `catalog`, `jobs`, `projects`, `users`, `versions`, or `version_settings` tables. Projects do not have status or publication fields.
 
 ```sh
 pnpm --dir apps/dashboard db:migrate:local
-# Solo para una base de producción preparada para este esquema:
+# Only for a production database prepared for this schema:
 pnpm --dir apps/dashboard db:migrate:remote
 ```
 
-La consolidación sustituye el historial anterior y requiere reconstruir una base existente; no constituye una migración incremental de sus datos. Wrangler registra la migración en `d1_migrations`. La base local se almacena en `apps/dashboard/.wrangler/state/v3/d1`. No hay inserciones automáticas de proyectos o settings.
+Consolidation replaces prior history and requires rebuilding an existing database; it is not an incremental migration of existing data. Wrangler tracks migrations in `d1_migrations`. The local database is stored in `apps/dashboard/.wrangler/state/v3/d1`. There are no automated project or settings insertions.
 
-## Proyectos y generación
+## Projects and Generation
 
-En `/short-videos` y `/long-videos`, «Nuevo proyecto» pide versión, título, nombre corto y los libros, capítulos y versículos de inicio y final. Los largos requieren número de episodio. Los libros disponibles y sus límites se consultan al generador para la versión seleccionada; los pasajes se introducen manualmente y pueden cruzar libros. El servidor valida los extremos y rechaza nombres cortos duplicados dentro del formato y la versión. No hay una lista estática de pasajes en el dashboard. Las versiones se gestionan en `/bible-versions`. Los listados muestran proyectos creados y distinguen publicados y no publicados.
+Under `/short-videos` and `/long-videos`, "New project" prompts for version, title, short name, and the starting and ending books, chapters, and verses. Long videos require an episode number. Available books and their boundaries are queried from the generator for the selected version; passages are entered manually and can cross book boundaries. The server validates endpoints and rejects duplicate short names within the format and version. There is no static list of passages in the dashboard. Versions are managed under `/bible-versions`. Listings display created projects and distinguish published and unpublished items.
 
-El menú de opciones de cada listado ofrece «Sincronizar presets de proyectos». Su modal permite elegir una versión bíblica y añadir las propuestas del formato correspondiente obtenidas del generador. La comparación usa formato, versión y el `slug` de la propuesta, almacenado en `video_projects.slug`. Repetir la sincronización no duplica proyectos, ni actualiza títulos, pasajes, ajustes o marcas de publicación existentes. Los proyectos nuevos toman los ajustes de volumen actuales del formato, idioma y versión. Los títulos usan los nombres de libros de esa versión y los largos conservan el número de episodio.
+The options menu on each listing offers "Sync project presets". Its modal allows selecting a Bible version and adding format proposals retrieved from the generator. Comparison uses format, version, and the proposal `slug`, stored in `video_projects.slug`. Repeating synchronization does not duplicate projects or overwrite existing titles, passages, settings, or publication flags. New projects adopt current volume settings for that format, language, and version. Titles use the book names of that version, and long formats preserve the episode number.
 
-«Sincronizar proyectos existentes» no abre un modal: consulta los directorios `outputs-dev/<version>/<slug>` en desarrollo o `outputs/<version>/<slug>` en producción, según el entorno del dashboard y el formato. Solo actualiza el estado de proyectos ya registrados, emparejados por formato, idioma, versión y slug; los directorios sin un par se ignoran y nunca se crean proyectos con esta acción. Importa la marca CLI de usado como publicado, los offsets de audio y versículos, el volumen, el modo de audio y el fondo. Conserva los títulos y los ajustes ausentes de los archivos del proyecto. No modifica los archivos de origen. Omite proyectos con archivos inválidos o tareas activas y muestra los recuentos de actualizados y sin cambios. Repetir la acción sin cambios conserva las fechas de actualización.
+"Sync existing projects" does not open a modal: it inspects `outputs-dev/<version>/<slug>` in development or `outputs/<version>/<slug>` in production, depending on dashboard environment and format. It only updates the state of already registered projects, matched by format, language, version, and slug; directories without a match are ignored, and new projects are never created by this action. It imports the CLI usage flag as published, audio and verse offsets, volume, audio mode, and background. It preserves titles and settings absent from project files. It does not modify source files. It skips projects with invalid files or active tasks, reporting updated and unchanged counts. Repeating the action without changes preserves update timestamps.
 
-Cada proyecto guarda `output_environment`: los proyectos nuevos del dashboard usan su entorno actual; los importados usan el entorno desde el que se sincronizan. Así el editor consulta y reproduce los archivos originales de las CLI incluso desde el dashboard en desarrollo. La cola incluye las tareas activas de ambos entornos.
+Each project saves `output_environment`: new dashboard projects use their current environment; imported projects use the environment from which they were synced. This allows the editor to query and playback original CLI files even from the development dashboard. The queue includes active tasks from both environments.
 
-El editor compartido se abre en `/short-videos/<id>` o `/long-videos/<id>` con el ID numérico del proyecto. Los cortos son verticales 9:16; los largos, horizontales 16:9. Intro y cierre son secciones fijas; cada tramo de lectura permite sincronizar versículos mediante waveform, recorte y reproducción. Las secciones comienzan colapsadas y las voces de intro/cierre se pueden generar y reproducir desde sus cabeceras.
+The shared editor opens at `/short-videos/<id>` or `/long-videos/<id>` with the numeric project ID. Shorts are vertical 9:16; longs are horizontal 16:9. Intro and outro are fixed sections; each reading segment allows synchronizing verses using waveforms, trimming, and playback. Sections start collapsed, and intro/outro narrations can be generated and played directly from their headers.
 
-Los ajustes se guardan en `video_projects`. Al abrir el editor, el estado se obtiene del generador: su cola informa si hay un render activo y los archivos indican si hay un resultado disponible. No se guarda un historial de renders en D1 ni se necesitan callbacks. El resultado se conserva en `_internal/render-result.json` junto a los archivos del proyecto y sigue disponible tras reiniciar el servicio.
+Settings are stored in `video_projects`. When opening the editor, state is retrieved from the generator: its queue reports if a render is active and files indicate whether an output is available. No render history is saved in D1, and no callbacks are required. The result is retained in `_internal/render-result.json` alongside project files and remains available after restarting the service.
 
-El cuadro inferior del sidebar abre la cola global de voces y videos. Solo muestra tareas activas o pendientes, con enlaces al editor. Puedes cambiar de proyecto mientras se procesa una generación. La cola es serial, admite hasta 20 tareas y reside en memoria: no reanuda tareas pendientes después de reiniciar el servicio. Los archivos ya generados permanecen en disco.
+The bottom sidebar widget opens the global narration and video queue. It only shows active or pending tasks, with links to the editor. You can switch projects while generation is processing. The queue is serial, accepts up to 20 tasks, and resides in memory: it does not resume pending tasks after restarting the service. Already generated files remain on disk.
 
-El layout consulta la cola cada 3 segundos si hay pendientes y cada 30 segundos en reposo; también al enviar tareas, abrir el modal o regresar a la pestaña. El editor consulta periódicamente solo mientras tiene una generación pendiente. Los listados se actualizan al guardar o sincronizar proyectos.
+The layout polls the queue every 3 seconds when there are pending tasks and every 30 seconds when idle; it also polls when submitting tasks, opening the modal, or switching back to the tab. The editor polls periodically only while it has a pending generation. Listings refresh when saving or syncing projects.
 
-`SHORTS_WORKING_DIR` y `LONGS_WORKING_DIR` separan los formatos:
+`SHORTS_WORKING_DIR` and `LONGS_WORKING_DIR` separate the formats:
 
-- `material/`: fuentes de video, voz y audio bíblico.
-- `outputs/<version>/<passage>/`: producción y herramientas CLI.
-- `outputs-dev/<version>/<passage>/`: dashboard en desarrollo.
+- `material/`: video, narration, and Bible audio sources.
+- `outputs/<version>/<passage>/`: production and CLI tools.
+- `outputs-dev/<version>/<passage>/`: dashboard in development.
 
-Ambos entornos usan la estructura de las CLI, con video, miniatura, textos y `_internal/` para voces y datos auxiliares. Los ajustes y marcas de uso de las CLI no se sincronizan automáticamente con el dashboard.
+Both environments use the CLI structure, with video, thumbnail, texts, and `_internal/` for narrations and auxiliary data. CLI settings and usage flags do not automatically synchronize with the dashboard.
 
 ## Settings
 
-En `/bible-versions`, los administradores crean, editan y eliminan versiones con nombre, idioma y código. Los códigos son únicos dentro del idioma; las versiones registradas alimentan los selectores y los ajustes por versión. Si hay proyectos asociados, solo se puede cambiar el nombre, para conservar las referencias y los archivos de esos proyectos. No se insertan versiones automáticamente. El menú de opciones ofrece «Sincronizar versiones»: consulta al generador, que descubre las versiones disponibles en `bible-data` y sus nombres desde `metadata.name` de cada índice. Solo se insertan pares nuevos de idioma y código; no se modifican ni eliminan los registros existentes.
+In `/bible-versions`, administrators create, edit, and delete versions with name, language, and code. Codes are unique within a language; registered versions populate selectors and per-version settings. If there are associated projects, only the name can be modified, preserving references and files for those projects. Versions are not inserted automatically. The options menu offers "Sync versions": it queries the generator, which discovers available versions in `bible-data` and their names from each index's `metadata.name`. Only new language and code pairs are inserted; existing records are neither modified nor deleted.
 
-En `/settings` se configuran manualmente cuentas de YouTube, X, Instagram, TikTok y Facebook por idioma, guardadas bajo `social_accounts` en `site_settings`. Los campos vacíos omiten esas redes del cierre.
+In `/settings`, YouTube, X, Instagram, TikTok, and Facebook accounts are manually configured per language, stored under `social_accounts` in `site_settings`. Empty fields omit those networks from the outro.
 
-Los modales Settings de cada formato incluyen «Settings de voz» y «Settings de proyectos». Las plantillas de intro/outro se guardan bajo `voice_templates:short` y `voice_templates:long`. El volumen por idioma y código de versión se guarda bajo `project_settings:short` y `project_settings:long`; el deslizador va de 0 a 4, con 1 como volumen original, y doble clic restablece 1. Los nuevos proyectos toman estos valores y los existentes conservan sus ajustes. No se precargan valores desde migraciones o scripts.
+The Settings modals for each format include "Voice settings" and "Project settings". Intro/outro templates are stored under `voice_templates:short` and `voice_templates:long`. Volume per language and version code is saved under `project_settings:short` and `project_settings:long`; the slider ranges from 0 to 4, with 1 as original volume, and double-click resets to 1. New projects inherit these values, while existing projects keep their settings. No values are preloaded from migrations or scripts.
 
-Cada tarea recibe una copia de las plantillas y cuentas relevantes. El generador no consulta D1 directamente ni necesita archivos locales de cuentas o plantillas.
+Each task receives a copy of relevant templates and accounts. The generator does not query D1 directly nor require local accounts or template files.
 
-## Producción y deployments
+## Production and Deployments
 
-Crea una D1 exclusiva del dashboard y configura su UUID en `env.production.d1_databases` de `wrangler.jsonc`. Configura `VIDEO_API_URL` con el hostname del tunnel y guarda `JWT_SECRET`, `VIDEO_API_TOKEN` y, si corresponde, credenciales de Cloudflare Access como secretos del Worker. Prepara la base con la migración única. Compila con `pnpm --dir apps/dashboard build:production` y publica explícitamente con Wrangler usando el archivo generado `dist/server/wrangler.json`.
+Create an exclusive D1 database for the dashboard and configure its UUID in `env.production.d1_databases` within `wrangler.jsonc`. Set `VIDEO_API_URL` to the tunnel hostname and store `JWT_SECRET`, `VIDEO_API_TOKEN`, and any Cloudflare Access credentials as Worker secrets. Prepare the database with the single migration. Build with `pnpm --dir apps/dashboard build:production` and publish explicitly with Wrangler using the generated `dist/server/wrangler.json`.
 
-El navegador llama únicamente al dashboard, que se comunica con el proxy local o mediante HTTPS/tunnel. Configura `DASHBOARD_ORIGINS` en el proxy y consulta [su documentación](../../tools/api-proxy/README.md) para el tunnel.
+The browser communicates exclusively with the dashboard, which communicates with the local proxy or over HTTPS/tunnel. Configure `DASHBOARD_ORIGINS` in the proxy and refer to [its documentation](../../tools/api-proxy/README.md) for tunnel setup.
 
-Deployments publica el sitio público VeoBible. «Configurar» guarda el deploy hook en `site_settings`, clave `deploy_hook:veobible:site`. Una cadena vacía desactiva la publicación; `SITE_DEPLOY_HOOK` es respaldo únicamente si no hay un ajuste guardado. `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` permiten consultar Workers Builds. El historial de deployments es independiente de la generación de videos.
+Deployments publishes the public VeoBible site. "Configure" stores the deploy hook in `site_settings`, under key `deploy_hook:veobible:site`. An empty string disables publishing; `SITE_DEPLOY_HOOK` serves as fallback only if no setting is saved. `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` enable querying Workers Builds. Deployment history is independent of video generation.
 
-## Verificación
+## Verification
 
 ```sh
 pnpm --dir apps/dashboard typecheck

@@ -262,11 +262,9 @@ export function UserProfileModal({
                       disabled={busy}
                       onChange={(e) => setLanguage(e.target.value as Language)}
                     >
-                      <option value="es">
-                        {t("Spanish (Latin American)")}
-                      </option>
-                      <option value="en">{t("English (American)")}</option>
-                      <option value="pt">{t("Portuguese (Brazil)")}</option>
+                      <option value="es">{t("Spanish")}</option>
+                      <option value="en">{t("English")}</option>
+                      <option value="pt">{t("Portuguese")}</option>
                     </select>
                   </div>
                 </label>

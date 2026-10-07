@@ -1,10 +1,10 @@
 # VeoBible Voice
 
-Herramienta Python genérica para sintetizar pistas de voz con Chatterbox. Recibe un JSON de guiones, un idioma y un directorio de salida. Por cada pista produce `<nombre>.txt` y `<nombre>.wav`. Los audios finales son WAV PCM de 24 bits a 48 kHz.
+Generic Python tool to synthesize voice tracks with Chatterbox. It receives a scripts JSON, a language, and an output directory. For each track, it produces `<name>.txt` and `<name>.wav`. The final audio files are 24-bit 48 kHz PCM WAVs.
 
-## Instalación
+## Installation
 
-Requiere Python 3.12, `ffmpeg` en `PATH` y los paquetes de [requirements.txt](requirements.txt). Crea el entorno virtual dentro de `tools/voice-generator`:
+Requires Python 3.12, `ffmpeg` in `PATH`, and the packages in [requirements.txt](requirements.txt). Create the virtual environment inside `tools/voice-generator`:
 
 ```bash
 cd tools/voice-generator
@@ -12,28 +12,28 @@ python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-`shorts-daily-dose` usa este intérprete de forma predeterminada para generar voces locales.
+`shorts-daily-dose` uses this interpreter by default to generate local voices.
 
-La primera carga del modelo puede descargar pesos desde Hugging Face. Chatterbox multilingüe admite español, inglés y portugués, entre otros idiomas. El modelo `latam` usa el checkpoint `ResembleAI/Chatterbox-Multilingual-es-mx-latam` y solo admite español. Si usas Hugging Face con autenticación, exporta `HF_TOKEN`.
+The initial model load may download weights from Hugging Face. Multilingual Chatterbox supports Spanish, English, and Portuguese, among other languages. The `latam` model uses the `ResembleAI/Chatterbox-Multilingual-es-mx-latam` checkpoint and only supports Spanish. If you use Hugging Face with authentication, export `HF_TOKEN`.
 
-## Uso
+## Usage
 
-Crea un JSON que asigne nombres de pista a textos, por ejemplo:
+Create a JSON mapping track names to texts, for example:
 
 ```json
 {
-  "bienvenida": "Bienvenidos a mi canal.",
-  "despedida": "Hasta la próxima."
+  "welcome": "Welcome to my channel.",
+  "farewell": "Until next time."
 }
 ```
 
-Después ejecuta:
+Then run:
 
 ```bash
-.venv/bin/python cli.py --scripts /ruta/a/guiones.json --language es --output-dir /ruta/a/salida --dry-run
-.venv/bin/python cli.py --scripts /ruta/a/guiones.json --language es --output-dir /ruta/a/salida
+.venv/bin/python cli.py --scripts /path/to/scripts.json --language en --output-dir /path/to/output --dry-run
+.venv/bin/python cli.py --scripts /path/to/scripts.json --language en --output-dir /path/to/output
 ```
 
-`--dry-run` valida y muestra los textos sin cargar el modelo ni escribir archivos. `--force` reemplaza pistas existentes. `--model latam` selecciona el modelo latinoamericano; el valor predeterminado es `multilingual`. `--device` admite `auto`, `mps`, `cuda` o `cpu`. `--voice-prompt` acepta una muestra WAV/MP3 común para todas las pistas. `--voice-prompts` acepta un JSON que asigna nombres de pista a rutas de muestras específicas; cada ruta prevalece sobre la muestra común. `--exaggeration` y `--cfg-weight` controlan la generación; ambos valen `0.5` por defecto.
+`--dry-run` validates and displays texts without loading the model or writing files. `--force` overwrites existing tracks. `--model latam` selects the Latin American model; default is `multilingual`. `--device` supports `auto`, `mps`, `cuda`, or `cpu`. `--voice-prompt` accepts a shared WAV/MP3 audio sample for all tracks. `--voice-prompts` accepts a JSON mapping track names to specific sample paths; each path takes precedence over the shared sample. `--exaggeration` and `--cfg-weight` control generation; both default to `0.5`.
 
-Los nombres de pista admiten letras minúsculas, números, guiones y guiones bajos, y deben comenzar con una letra. Una invocación genera todas las pistas con el modelo cargado una sola vez. `shorts-daily-dose` usa esta interfaz para sus intros y outros, con sus propias [plantillas](../shorts-daily-dose/voice-templates.json).
+Track names support lowercase letters, numbers, hyphens, and underscores, and must start with a letter. A single invocation generates all tracks with the model loaded only once. `shorts-daily-dose` uses this interface for its intros and outros, using its own [templates](../shorts-daily-dose/voice-templates.json).

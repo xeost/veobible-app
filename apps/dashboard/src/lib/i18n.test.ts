@@ -28,19 +28,13 @@ test("all dictionary values are non-empty strings", () => {
 });
 
 test("language selector labels translate correctly in Spanish and Brazilian Portuguese", () => {
-  assert.equal(
-    spanish["Spanish (Latin American)"],
-    "Español (latinoamericano)",
-  );
-  assert.equal(spanish["English (American)"], "Inglés (americano)");
-  assert.equal(spanish["Portuguese (Brazil)"], "Portugués (de Brasil)");
+  assert.equal(spanish["Spanish"], "Español");
+  assert.equal(spanish["English"], "Inglés");
+  assert.equal(spanish["Portuguese"], "Portugués");
 
-  assert.equal(
-    portuguese["Spanish (Latin American)"],
-    "Espanhol (latino-americano)",
-  );
-  assert.equal(portuguese["English (American)"], "Inglês (americano)");
-  assert.equal(portuguese["Portuguese (Brazil)"], "Português (do Brasil)");
+  assert.equal(portuguese["Spanish"], "Espanhol");
+  assert.equal(portuguese["English"], "Inglês");
+  assert.equal(portuguese["Portuguese"], "Português");
 });
 
 test("core UI sections translate to accurate Spanish and Portuguese", () => {
