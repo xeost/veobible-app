@@ -31,6 +31,7 @@ export const renderSchema = z.object({
   id: z.string().uuid(),
   projectId: z.string().uuid(),
   kind: z.enum(["short", "long"]),
+  outputEnvironment: z.enum(["production", "development"]).default("production"),
   version: z.object({
     id: z.enum(["rv1909", "spabll", "kjv", "web", "arc"]),
     locale: z.enum(["es", "en", "pt"]),

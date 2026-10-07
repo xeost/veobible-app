@@ -81,11 +81,6 @@ for (const kind of ["short", "long"]) {
   }
   for (const version of versions) {
     const dir = path.join(outputs, version);
-    const defaults = await settingsFile(dir, ["default-version-settings.json"]);
-    if (defaults)
-      sql.push(
-        `INSERT INTO version_settings VALUES (${q(kind)},${q(version)},${q(JSON.stringify(defaults))}) ON CONFLICT DO NOTHING;`,
-      );
     let entries = [];
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });

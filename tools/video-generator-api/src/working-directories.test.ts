@@ -21,7 +21,9 @@ test("configured format roots independently locate assets, generated voices and 
     import {projectDir,sourceDir} from './src/pipeline.ts';
     console.log(JSON.stringify([short,long].map((config,index)=>({
       root:config.workingDir, videos:config.videosDir, voices:config.voiceDir,
-      output:projectDir(index?'long':'short','project'),source:sourceDir(index?'long':'short','project')
+      output:projectDir(index?'long':'short','rv1909','project'),source:sourceDir(index?'long':'short','rv1909','project'),
+      development:projectDir(index?'long':'short','rv1909','project','development'),
+      developmentSource:sourceDir(index?'long':'short','rv1909','project','development')
     }))));`,
     ],
     {
@@ -43,8 +45,10 @@ test("configured format roots independently locate assets, generated voices and 
       root,
       videos: path.join(root, "material", "videos"),
       voices: path.join(root, "material", "voices"),
-      output: path.join(root, "outputs", "project"),
-      source: path.join(root, "media", "sources", "project"),
+      output: path.join(root, "outputs", "rv1909", "project"),
+      source: path.join(root, "outputs", "rv1909", "project", "_internal"),
+      development: path.join(root, "outputs-dev", "rv1909", "project"),
+      developmentSource: path.join(root, "outputs-dev", "rv1909", "project", "_internal"),
     })),
   );
 });

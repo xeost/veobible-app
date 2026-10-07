@@ -72,10 +72,11 @@ const {
   render,
   sourceDir,
   projectDir,
+  voiceFilename,
   generateProjectVoice,
 } = await import("../pipeline.js");
 const { renderSchema } = await import("../protocol.js");
-for (const kind of ["short", "long"] as const) {
+for (const [kind, outputEnvironment] of [["short", "production"], ["long", "production"], ["short", "development"], ["long", "development"]] as const) {
   const clips = path.join(working, "work", kind, "material", "videos");
   await fs.mkdir(clips, { recursive: true });
   if (process.env.VIDEO_SMOKE_RENDER === "1") {
@@ -113,6 +114,7 @@ for (const kind of ["short", "long"] as const) {
     id: randomUUID(),
     projectId: randomUUID(),
     kind,
+    outputEnvironment,
     version: { id: "rv1909", locale: "es", label: "Test version" },
     passage: {
       id: "standalone",
@@ -135,53 +137,56 @@ for (const kind of ["short", "long"] as const) {
   assert.ok(preview.scripts.intro.length > 0);
   // Either narration must be able to create a completely new project on its own.
   for (const part of ["intro", "outro"] as const) {
-    const fresh = { ...input, projectId: randomUUID() };
-    const sources = sourceDir(kind, fresh.projectId);
-    const output = projectDir(kind, fresh.projectId);
+    const fresh = { ...input, projectId: randomUUID(), passage: { ...input.passage, id: `fresh-${part}` } };
+    const sources = sourceDir(kind, fresh.version.id, fresh.passage.id, outputEnvironment);
+    const output = projectDir(kind, fresh.version.id, fresh.passage.id, outputEnvironment);
     await assert.rejects(fs.stat(sources), { code: "ENOENT" });
     await assert.rejects(fs.stat(output), { code: "ENOENT" });
     await generateProjectVoice(fresh, part);
     assert.ok((await fs.stat(output)).isDirectory());
-    assert.deepEqual(await fs.readdir(sources), [`${part}.wav`]);
-    assert.ok((await fs.stat(path.join(sources, `${part}.wav`))).size > 44);
+    assert.deepEqual((await fs.readdir(sources)).sort(), [voiceFilename(part,"txt"), voiceFilename(part), "2-versiculos.txt", "README.md"].sort());
+    assert.ok((await fs.stat(path.join(sources, voiceFilename(part)))).size > 44);
     await generateProjectVoice(fresh, part);
-    assert.deepEqual(await fs.readdir(sources), [`${part}.wav`]);
+    assert.deepEqual((await fs.readdir(sources)).sort(), [voiceFilename(part,"txt"), voiceFilename(part), "2-versiculos.txt", "README.md"].sort());
   }
-  const analyzed = await analyze(input);
-  const voices = sourceDir(kind, input.projectId);
-  await analyzed.m.voice.generateVoice(voices, analyzed.context, true);
-  assert.ok((await fs.stat(path.join(voices, "intro.wav"))).size > 44);
-  assert.ok(
-    !(await fs.readdir(voices)).some((name) => name.startsWith(".voice-")),
-  );
-  // The pipeline removes adapter text files; only multimedia stays under project media.
-  for (const name of ["intro.txt", "outro.txt"])
-    await fs.rm(path.join(voices, name));
-  const otherVoice = await fs.readFile(path.join(voices, "outro.wav"));
+  const voices = sourceDir(kind, input.version.id, input.passage.id, outputEnvironment);
   await generateProjectVoice(input, "intro");
-  assert.deepEqual(
-    await fs.readFile(path.join(voices, "outro.wav")),
-    otherVoice,
-  );
-  assert.ok((await fs.stat(path.join(voices, "intro.wav"))).size > 44);
-  assert.ok(
-    !(await fs.readdir(voices)).some(
-      (name) => name.endsWith(".txt") || name.startsWith(".voice-"),
-    ),
-  );
+  await generateProjectVoice(input, "outro");
+  const otherVoice = await fs.readFile(path.join(voices, voiceFilename("outro")));
+  await generateProjectVoice(input, "intro");
+  assert.deepEqual(await fs.readFile(path.join(voices, voiceFilename("outro"))), otherVoice);
+  assert.ok((await fs.stat(path.join(voices, voiceFilename("intro")))).size > 44);
+  assert.ok(!(await fs.readdir(voices)).some(name => name.startsWith(".voice-")));
+  assert.match(await fs.readFile(path.join(voices, voiceFilename("intro", "txt")), "utf8"), /Introducción/);
   if (process.env.VIDEO_SMOKE_RENDER === "1") {
+    const cliOffsets = path.join(voices, "2-passage-audio-offsets.json");
+    const cliSettings = "{\"startSeconds\":0,\"endSeconds\":0}\n";
+    await fs.writeFile(cliOffsets, cliSettings);
     const result = await render(input, () => {});
+    assert.equal(await fs.readFile(cliOffsets, "utf8"), cliSettings);
+    assert.deepEqual(await fs.readFile(path.join(voices, voiceFilename("outro"))), otherVoice);
     assert.ok((await fs.stat(result.video)).size > 100);
     assert.ok((await fs.stat(result.thumbnail)).size > 100);
     assert.equal(result.verseCues.length, kind === "short" ? 1 : 2);
     assert.ok(result.sources.every((file) => file.startsWith(working)));
     assert.deepEqual((await fs.readdir(path.dirname(result.video))).sort(), [
+      "_internal",
+      "instagram.txt",
       "thumbnail.jpg",
-      "video.mp4",
-    ]);
+      "tiktok.txt",
+      ...(kind === "short" ? ["short.mp4"] : ["episode.mp4"]),
+      "x.txt",
+      "youtube.txt",
+    ].sort());
     assert.deepEqual((await fs.readdir(voices)).sort(), [
-      "intro.wav",
-      "outro.wav",
+      "0-metadata.txt",
+      "1-intro.txt",
+      "1-intro.wav",
+      "2-passage-audio-offsets.json",
+      "2-versiculos.txt",
+      "3-outro.txt",
+      "3-outro.wav",
+      "README.md",
     ]);
   }
 }

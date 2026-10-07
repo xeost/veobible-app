@@ -17,7 +17,7 @@ test("password hashing and session security", async () => {
   assert.equal((await digest("token")).length, 64);
   assert.match(
     sessionCookie("token", true),
-    /HttpOnly; SameSite=Lax; Max-Age=604800; Secure/,
+    /HttpOnly; SameSite=Lax; Max-Age=2592000; Secure/,
   );
 });
 test("render contract rejects invalid paths, versions and settings", () => {

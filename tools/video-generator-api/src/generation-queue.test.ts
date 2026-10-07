@@ -6,6 +6,17 @@ const job = (id: string): QueueJob => ({
   status: "queued",
   stage: "Queued",
 });
+test("development work does not mark the production project as pending", async () => {
+  const queue = new GenerationQueue();
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  queue.enqueue({ projectId: "same-project", kind: "short", type: "intro", outputEnvironment: "development" }, job("dev-intro"), () => gate);
+  assert.equal(queue.hasPending("same-project", "intro"), false);
+  assert.equal(queue.hasPending("same-project", "intro", "development"), true);
+  assert.equal(queue.snapshot()[0].outputEnvironment, "development");
+  release();
+  await gate;
+});
 test("voices from the same project and renders from other projects run in submission order", async () => {
   const queue = new GenerationQueue();
   let release!: () => void;

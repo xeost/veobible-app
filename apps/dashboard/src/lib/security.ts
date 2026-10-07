@@ -1,3 +1,4 @@
+import { tokenLifetimeSeconds } from "./jwt";
 const encoder = new TextEncoder();
 export async function digest(value: string) {
   return Array.from(
@@ -45,6 +46,10 @@ export async function verifyPassword(password: string, stored: string) {
     equal(await passwordHash(password, parts[2]), stored)
   );
 }
-export function sessionCookie(token: string, secure: boolean, age = 86400 * 7) {
+export function sessionCookie(
+  token: string,
+  secure: boolean,
+  age = tokenLifetimeSeconds,
+) {
   return `veo_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure ? "; Secure" : ""}`;
 }

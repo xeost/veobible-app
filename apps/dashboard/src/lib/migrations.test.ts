@@ -50,7 +50,7 @@ test("every passage/version has a durable draft with independent state", () => {
       .prepare("SELECT id FROM projects ORDER BY id LIMIT 1")
       .get()?.id;
     db.exec(
-      readFileSync(new URL("0004_draft_projects.sql", directory), "utf8"),
+      readFileSync(new URL("0008_project_settings.sql", directory), "utf8"),
     );
     assert.equal(
       db.prepare("SELECT id FROM projects ORDER BY id LIMIT 1").get()?.id,

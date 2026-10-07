@@ -22,7 +22,12 @@ import {
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api, date } from "./api";
-import { userMessage, statusLabel, generationStage } from "../lib/presentation";
+import {
+  userMessage,
+  statusLabel,
+  generationStage,
+  voiceFailureMessage,
+} from "../lib/presentation";
 import { settingsSchema, type RenderRequest } from "../lib/video-schema";
 import { type VideoRow, type VideoKind } from "./video-project";
 import {
@@ -34,7 +39,11 @@ import {
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
 type Settings = RenderRequest["settings"];
-type VoiceState = { available: boolean; status: string };
+type VoiceState = {
+  available: boolean;
+  status: string;
+  failureReason?: string;
+};
 type Voices = Record<"intro" | "outro", VoiceState>;
 const emptyVoices: Voices = {
   intro: { available: false, status: "idle" },
@@ -447,9 +456,7 @@ export function VideoProjectEditor({
             )}
             {voice.status === "failed" && (
               <p className="error">
-                {t(
-                  "No se pudo generar la voz. Revisa la conexión y vuelve a intentarlo.",
-                )}
+                {t(voiceFailureMessage(voice.failureReason))}
               </p>
             )}
             <button

@@ -29,13 +29,15 @@ pnpm start:api-proxy
 pnpm dev:dashboard
 ```
 
-Abre http://localhost:3003. Las sesiones opacas y revocables viven en D1. Las contraseñas usan PBKDF2 SHA-256 con 100.000 iteraciones y sal aleatoria. La API verifica sesión y rol en cada petición, limita intentos de login y exige mismo origen en mutaciones. Los callbacks tienen tokens individuales cuyo hash se guarda en D1. No hay secretos de respaldo.
+Abre http://localhost:3003. La autenticación usa JWT HS256 mediante jose, con vencimiento de 30 días y cookie HttpOnly/SameSite=Lax (Secure por HTTPS). Configura un JWT_SECRET aleatorio de al menos 32 bytes en .dev.vars y como secreto del Worker de producción (`wrangler secret put JWT_SECRET --env production`). No hay una tabla de sesiones ni de intentos de acceso. Las contraseñas usan PBKDF2 SHA-256 con 100.000 iteraciones y sal aleatoria. La API verifica firma, vencimiento, usuario activo, rol actual y auth_version en cada petición; exige mismo origen en mutaciones. Cambiar la contraseña o modificar el acceso de un usuario incrementa auth_version e invalida sus JWT anteriores. Al cambiar la contraseña propia se emite un JWT nuevo para conservar el acceso actual. Cerrar sesión elimina la cookie. Los callbacks tienen tokens individuales cuyo hash se guarda en D1. No hay secretos de respaldo.
 
 Los administradores gestionan usuarios y deployments; los editores producen videos. El botón de usuarios del header permite crear, desactivar y cambiar roles. Cada usuario puede editar su perfil y contraseña.
 
 ## Migraciones e importación
 
-Las migraciones SQL numeradas crean usuarios, sesiones, catálogo, versiones, proyectos, ajustes predeterminados e historial de trabajos. Incluyen 100 pasajes de `popular-verses.json` (catálogo estructurado de `popular-verses.md`) y los 365 episodios. El estado se distingue por pasaje **y versión**. No se usa la base del backend: su futura integración debe tener otro binding/cliente.
+Las migraciones SQL numeradas crean usuarios, catálogo, versiones, proyectos e historial de trabajos. Incluyen 100 pasajes de `popular-verses.json` (catálogo estructurado de `popular-verses.md`) y los 365 episodios. El estado se distingue por pasaje **y versión**. No se usa la base del backend: su futura integración debe tener otro binding/cliente.
+
+La migración 0007 elimina sessions y login_attempts y añade auth_version a users; los accesos anteriores requieren iniciar sesión de nuevo.
 
 Añade migraciones nuevas para cambios futuros; no edites las ya aplicadas. Aplica el mismo historial con `wrangler d1 migrations apply DB --local` y `--remote --env production`. Wrangler registra el historial en `d1_migrations`.
 
@@ -91,6 +93,8 @@ No borres `media/sources/` si quieres reutilizar las voces exactas. Los audios b
 La API usa directamente análisis, voces y render; no llama a `prepareShort`, `prepareEpisode`, `markUsed` ni a escritores de ajustes. No crea `status.json`, `default-version-settings.json` ni ajustes de proyecto en disco. Solo usa archivos temporales de síntesis/render, que limpia al terminar. Conserva materiales y entorno de modelos originales para reproducir una generación.
 
 ## Settings
+
+Los modales Settings de Short Videos y Long Videos tienen las pestañas «Settings de voz» y «Settings de proyectos». La segunda permite guardar manualmente volumeMultiplier (0–4) por idioma y versión, separado por formato, en site_settings con claves project_settings:short y project_settings:long. Los identificadores de versión se agrupan dentro del idioma, por lo que el mismo identificador puede tener valores distintos en es/en/pt. No hay inserciones iniciales; un campo vacío usa volumen 1. Los nuevos proyectos toman estos valores y los existentes conservan sus ajustes. La migración 0008 elimina version_settings sin insertar valores en site_settings. El importador de las CLI conserva los ajustes de cada proyecto, pero no importa valores predeterminados por versión.
 
 Los botones Settings de `/short-videos` y `/long-videos` abren los textos de intro y outro para los tres idiomas. Se almacenan por separado en `site_settings` con las claves `voice_templates:short` y `voice_templates:long`, sin inserciones iniciales. Los administradores pueden editarlos y los editores consultarlos. El dashboard envía los textos del formato e idioma correspondiente en `voiceTemplates` al analizar, generar una voz o renderizar. Los trabajos encolados conservan su copia de los textos. El generador no necesita archivos de plantillas; si falta un texto necesario, se solicita configurarlo antes de generar.
 

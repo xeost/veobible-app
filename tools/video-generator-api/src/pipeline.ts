@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { outputRoot, mediaRoot } from "./working-directories.js";
+import { outputRoot, type OutputEnvironment } from "./working-directories.js";
 import * as short from "./engines/short/shorts.js";
 import * as long from "./engines/long/episodes.js";
 import * as shortVoice from "./engines/short/voice.js";
@@ -16,18 +16,45 @@ import { outroTitle as longOutro } from "./engines/long/social.js";
 import { publicationDescriptions as shortDescriptions } from "./engines/short/publication.js";
 import { publicationDescriptions as longDescriptions } from "./engines/long/publication.js";
 import type { RenderRequest } from "./protocol.js";
-export const projectDir = (kind: string, id: string) =>
-  path.join(outputRoot(kind), id);
-export const sourceDir = (kind: string, id: string) =>
-  path.join(mediaRoot(kind), "sources", id);
-async function prepareProjectDirectories(kind: string, id: string) {
-  const output = projectDir(kind, id);
-  const sources = sourceDir(kind, id);
-  await Promise.all([
-    fs.mkdir(output, { recursive: true }),
-    fs.mkdir(sources, { recursive: true }),
-  ]);
+export const projectDir = (kind: string, version: string, passage: string, environment: OutputEnvironment = "production") => {
+  for (const segment of [version, passage])
+    if (!/^[a-z0-9-]+$/.test(segment)) throw new Error("Invalid output identifier");
+  return path.join(outputRoot(kind, environment), version, passage);
+};
+export const sourceDir = (kind: string, version: string, passage: string, environment: OutputEnvironment = "production") =>
+  path.join(projectDir(kind, version, passage, environment), "_internal");
+export const voiceFilename = (part: "intro" | "outro", extension = "wav") =>
+  `${part === "intro" ? "1" : "3"}-${part}.${extension}`;
+export const videoFilename = (kind: string) => kind === "short" ? "short.mp4" : "episode.mp4";
+async function prepareProjectDirectories(input: Pick<RenderRequest, "kind" | "version" | "passage" | "outputEnvironment">) {
+  const output = projectDir(input.kind, input.version.id, input.passage.id, input.outputEnvironment);
+  const sources = sourceDir(input.kind, input.version.id, input.passage.id, input.outputEnvironment);
+  await fs.mkdir(sources, { recursive: true });
   return { output, sources };
+}
+async function generateNamedVoice(
+  sources: string,
+  voice: typeof shortVoice | typeof longVoice,
+  context: shortVoice.VoiceContext,
+  part: "intro" | "outro",
+) {
+  const staging = await fs.mkdtemp(path.join(sources, ".voice-"));
+  try {
+    await voice.generateVoice(staging, context, true, part);
+    for (const extension of ["wav", "txt"])
+      await fs.rename(path.join(staging, `${part}.${extension}`), path.join(sources, voiceFilename(part, extension)));
+  } finally {
+    await fs.rm(staging, { recursive: true, force: true });
+  }
+}
+async function writePassageFiles(sources: string, data: Awaited<ReturnType<typeof analyze>>["data"]) {
+  await fs.writeFile(path.join(sources, "2-versiculos.txt"), `${data.label} — ${data.index.metadata.name}\n\n${data.lines.join("\n")}\n`, "utf8");
+  try {
+    await fs.writeFile(path.join(sources, "README.md"),
+      "# Project files\n\n1-intro.wav and 3-outro.wav contain the narrations; their matching text files contain the spoken scripts.\n2-versiculos.txt contains the passage text. 0-metadata.txt describes the rendered video.\n\nDashboard timing and audio settings are stored in the database. CLI timing files, when present, are maintained by the CLI.\n", { flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  }
 }
 function modules(kind: "short" | "long") {
   return kind === "short"
@@ -109,23 +136,17 @@ export async function inspection(
 export async function generateProjectVoice(
   input: Pick<
     RenderRequest,
-    "kind" | "passage" | "version" | "settings" | "voiceTemplates" | "projectId"
+    "kind" | "passage" | "version" | "settings" | "voiceTemplates" | "projectId" | "outputEnvironment"
   >,
   part: "intro" | "outro",
 ) {
-  const { sources } = await prepareProjectDirectories(
-    input.kind,
-    input.projectId,
-  );
-  const { context, m } = await analyze({
+  const { sources } = await prepareProjectDirectories(input);
+  const { context, m, data } = await analyze({
     ...input,
     settings: { ...input.settings, verseOffsets: [] },
   });
-  try {
-    await m.voice.generateVoice(sources, context, true, part);
-  } finally {
-    await fs.rm(path.join(sources, `${part}.txt`), { force: true });
-  }
+  await writePassageFiles(sources, data);
+  await generateNamedVoice(sources, m.voice, context, part);
 }
 
 export async function render(
@@ -134,37 +155,28 @@ export async function render(
 ) {
   update("Analizando pasaje y tiempos");
   const { data, sections, cues, context, version, m } = await analyze(input);
-  const { output, sources } = await prepareProjectDirectories(
-    input.kind,
-    input.projectId,
-  );
+  const { output, sources } = await prepareProjectDirectories(input);
+  await writePassageFiles(sources, data);
   const scripts = await m.voice.renderVoiceScripts(context);
   let voices: shortVideo.VoiceTracks | undefined;
   if (input.settings.clipAudioMode !== "video") {
     const exists = await Promise.all(
-      ["intro.wav", "outro.wav"].map((f) =>
-        fs.access(path.join(sources, f)).then(
+      (["intro", "outro"] as const).map((part) =>
+        fs.access(path.join(sources, voiceFilename(part))).then(
           () => true,
           () => false,
         ),
       ),
     );
-    if (!input.settings.reuseVoices || !exists.every(Boolean)) {
-      update("Generando voces con IA local");
-      // Synthesis request files are temporary; D1 owns scripts and settings.
-      try {
-        await m.voice.generateVoice(sources, context, true);
-      } finally {
-        await Promise.all(
-          ["intro.txt", "outro.txt"].map((f) =>
-            fs.rm(path.join(sources, f), { force: true }),
-          ),
-        );
+    for (const [index, part] of (["intro", "outro"] as const).entries()) {
+      if (!input.settings.reuseVoices || !exists[index]) {
+        update("Generando voces con IA local");
+        await generateNamedVoice(sources, m.voice, context, part);
       }
     }
     voices = {
-      intro: path.join(sources, "intro.wav"),
-      outro: path.join(sources, "outro.wav"),
+      intro: path.join(sources, voiceFilename("intro")),
+      outro: path.join(sources, voiceFilename("outro")),
       mode: input.settings.clipAudioMode,
     };
   }
@@ -203,17 +215,41 @@ export async function render(
       path.join(work, "thumbnail.jpg"),
       result.thumbnailTime,
     );
-    await fs.rename(final, path.join(output, "video.mp4"));
+    await fs.rename(final, path.join(output, videoFilename(input.kind)));
     await fs.rename(
       path.join(work, "thumbnail.jpg"),
       path.join(output, "thumbnail.jpg"),
     );
+    const descriptions = m.descriptions(version.locale, title, data.lines);
+    for (const [name, text] of Object.entries(descriptions))
+      await fs.writeFile(path.join(output, name), text, "utf8");
+    await fs.writeFile(path.join(sources, "0-metadata.txt"), [
+      `Reference: ${data.label}`,
+      `Passage ID: ${input.passage.id}`,
+      `Language: ${version.locale}`,
+      `Version: ${data.index.metadata.name} (${version.id})`,
+      `Book: ${data.book.name} (${data.book.id})`,
+      `Start: ${input.passage.start.chapter}:${input.passage.start.verse}`,
+      `End: ${input.passage.end.chapter}:${input.passage.end.verse}`,
+      `Final video: ../${videoFilename(input.kind)}`,
+      `Thumbnail: ../thumbnail.jpg (frame at ${result.thumbnailTime.toFixed(6)} s)`,
+      `Background: ${result.background}`,
+      `Narration mode: ${input.settings.clipAudioMode}`,
+      `Reading volume: ${input.settings.volumeMultiplier}x`,
+      `Reading duration: ${result.readingDuration.toFixed(2)} s`,
+      `Video duration: ${result.duration.toFixed(2)} s`,
+      `Bible audio: ${sections.map(section => `${section.file} [${section.start.toFixed(6)}–${section.end.toFixed(6)} s]`).join(", ")}`,
+      `Passage offsets: start ${input.settings.passageOffsets.startSeconds} s; end ${input.settings.passageOffsets.endSeconds} s`,
+      `Verse timings: ${cues.map(cue => `${cue.reference} [${cue.start.toFixed(6)}–${cue.end.toFixed(6)} s]`).join(", ")}`,
+      "Settings source: dashboard database",
+      "Text: 2-versiculos.txt", "",
+    ].join("\n"), "utf8");
     return {
       ...result,
       output,
-      video: path.join(output, "video.mp4"),
+      video: path.join(output, videoFilename(input.kind)),
       thumbnail: path.join(output, "thumbnail.jpg"),
-      descriptions: m.descriptions(version.locale, title, data.lines),
+      descriptions,
       voiceScripts: scripts,
       sources: [
         ...sections.map((s) => s.file),

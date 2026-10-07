@@ -94,6 +94,14 @@ export function userMessage(error: unknown, status?: number): string {
   return "No se pudo completar la acción. Inténtalo de nuevo; si el problema continúa, contacta al administrador.";
 }
 
+export function voiceFailureMessage(reason?: string): string {
+  if (reason === "disk_full")
+    return "No hay espacio suficiente en el equipo que genera la voz. Libera espacio en disco y vuelve a intentarlo.";
+  if (reason === "interrupted")
+    return "El equipo interrumpió la generación de voz. Revisa el espacio en disco y cierra aplicaciones antes de volver a intentarlo.";
+  return "No se pudo generar la voz. Vuelve a intentarlo; si el problema continúa, contacta al administrador.";
+}
+
 export function jobSummary(job: {
   snapshot?: string | null;
   result?: string | null;

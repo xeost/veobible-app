@@ -1,5 +1,17 @@
 export const english: Record<string, string> = {
   "Settings de voz": "Narration settings",
+  "Settings de proyectos": "Project settings",
+  "Mínimo: 0×, sin sonido. Volumen original: 1× (100 %), sin cambios. Máximo: 4× (400 % del nivel original). Los valores entre 0× y 1× reducen el volumen; los valores mayores que 1× lo aumentan.":
+    "Minimum: 0×, muted. Original volume: 1× (100%), unchanged. Maximum: 4× (400% of the original level). Values between 0× and 1× reduce volume; values above 1× increase it.",
+  "0× · Sin sonido — 1× · Original — 4× · Máximo":
+    "0× · Muted — 1× · Original — 4× · Maximum",
+  "Cargando ajustes…": "Loading settings…",
+  "No se pudieron cargar los ajustes. Cierra y vuelve a abrir Settings.":
+    "Could not load settings. Close and reopen Settings.",
+  "No se pudieron guardar los ajustes. Vuelve a intentarlo.":
+    "Could not save settings. Try again.",
+  "Configura el volumen de lectura para nuevos proyectos en cada idioma y versión. Los proyectos existentes conservan sus ajustes.":
+    "Configure reading volume for new projects in each language and version. Existing projects keep their settings.",
   "Configura los textos de introducción y cierre en cada idioma. Se usarán en las próximas generaciones de voz y video.":
     "Configure introduction and closing scripts for each language. They will be used in future narration and video generations.",
   "Usa {reference} para el pasaje, {version} para la versión bíblica, {book} para el libro, {start} para el inicio y {end} para el final.":
@@ -82,8 +94,12 @@ export const english: Record<string, string> = {
     "The narration will be available here once preparation is complete.",
   "Genera el audio para escuchar esta sección antes de crear el video.":
     "Generate the audio to listen to this section before creating the video.",
-  "No se pudo generar la voz. Revisa la conexión y vuelve a intentarlo.":
-    "Could not generate narration. Check the connection and try again.",
+  "No hay espacio suficiente en el equipo que genera la voz. Libera espacio en disco y vuelve a intentarlo.":
+    "There is not enough space on the computer generating narration. Free up disk space and try again.",
+  "El equipo interrumpió la generación de voz. Revisa el espacio en disco y cierra aplicaciones antes de volver a intentarlo.":
+    "The computer interrupted narration generation. Check disk space and close applications before trying again.",
+  "No se pudo generar la voz. Vuelve a intentarlo; si el problema continúa, contacta al administrador.":
+    "Could not generate narration. Try again; if the problem persists, contact the administrator.",
   "Generar voz": "Generate narration",
   "Regenerar voz": "Regenerate narration",
   "La voz está en preparación. Puedes seguir revisando el proyecto.":

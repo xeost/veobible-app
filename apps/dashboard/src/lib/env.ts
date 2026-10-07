@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 export interface Bindings {
   DB: D1Database;
+  JWT_SECRET: string;
   VIDEO_API_URL: string;
   VIDEO_API_TOKEN: string;
   DASHBOARD_CALLBACK_URL: string;

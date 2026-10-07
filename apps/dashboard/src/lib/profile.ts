@@ -42,7 +42,6 @@ export async function saveProfile(
   database: ProfileDatabase,
   user: User,
   input: z.infer<typeof profileSchema>,
-  sessionHash: string,
 ): Promise<User> {
   const username = input.username ?? user.username;
   const duplicate = await database
@@ -70,16 +69,17 @@ export async function saveProfile(
   const statements = [
     database
       .prepare(
-        "UPDATE users SET username=?,name=?,email=?,password_hash=COALESCE(?,password_hash) WHERE id=?",
+        "UPDATE users SET username=?,name=?,email=?,password_hash=COALESCE(?,password_hash),auth_version=auth_version+CASE WHEN ? IS NULL THEN 0 ELSE 1 END WHERE id=?",
       )
-      .bind(username, input.name, input.email, hash ?? null, user.id),
+      .bind(
+        username,
+        input.name,
+        input.email,
+        hash ?? null,
+        hash ?? null,
+        user.id,
+      ),
   ];
-  if (hash)
-    statements.push(
-      database
-        .prepare("DELETE FROM sessions WHERE user_id=? AND token_hash<>?")
-        .bind(user.id, sessionHash),
-    );
   try {
     await database.batch(statements);
   } catch (error) {

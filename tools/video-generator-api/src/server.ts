@@ -7,13 +7,14 @@ import { timingSafeEqual } from "node:crypto";
 import { renderSchema } from "./protocol.js";
 import { z } from "zod";
 import { GenerationQueue } from "./generation-queue.js";
+import { generationFailureReason } from "./generation-failure.js";
 const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
 if (fs.existsSync(path.join(toolRoot, ".env")))
   process.loadEnvFile(path.join(toolRoot, ".env"));
-const { render, inspection, projectDir, sourceDir, generateProjectVoice } =
+const { render, inspection, projectDir, sourceDir, voiceFilename, videoFilename, generateProjectVoice } =
   await import("./pipeline.js");
 const token = process.env.VIDEO_API_TOKEN;
 if (!token || token.length < 32)
@@ -34,6 +35,7 @@ type Job = {
   callbackError?: string;
   result?: unknown;
   error?: string;
+  failureReason?: ReturnType<typeof generationFailureReason>;
 };
 const readingSources = new Map<
   string,
@@ -62,6 +64,7 @@ async function body(req: http.IncomingMessage) {
 const analysisSchema = renderSchema
   .pick({
     kind: true,
+    outputEnvironment: true,
     version: true,
     passage: true,
     settings: true,
@@ -87,12 +90,15 @@ const server = http.createServer(async (req, res) => {
         videoProjectProtocolVersion: 1,
         active: generationQueue.pendingCount,
       });
-    if (url.pathname === "/v1/queue" && req.method === "GET")
-      return json(res, 200, { items: generationQueue.snapshot() });
+    if (url.pathname === "/v1/queue" && req.method === "GET") {
+      const requested = url.searchParams.get("outputEnvironment");
+      const environment = requested === null ? null : renderSchema.shape.outputEnvironment.parse(requested);
+      return json(res, 200, { items: generationQueue.snapshot().filter(item => environment === null || (item.outputEnvironment ?? "production") === environment) });
+    }
     if (url.pathname === "/v1/analyze" && req.method === "POST") {
       const input = analysisSchema.parse(await body(req));
       const result = await inspection(input);
-      readingSources.set(input.projectId, {
+      readingSources.set(`${input.outputEnvironment}:${input.projectId}`, {
         kind: input.kind,
         sections: result.sections,
       });
@@ -104,11 +110,14 @@ const server = http.createServer(async (req, res) => {
         const kind = z
           .enum(["short", "long"])
           .parse(url.searchParams.get("kind"));
-        const state = voiceJobs.get(projectId) ?? {};
+        const version = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
+        const passage = renderSchema.shape.passage.shape.id.parse(url.searchParams.get("passage"));
+      const environment = renderSchema.shape.outputEnvironment.parse(url.searchParams.get("outputEnvironment") ?? undefined);
+        const state = voiceJobs.get(`${environment}:${projectId}`) ?? {};
         const voices = await Promise.all(
           (["intro", "outro"] as const).map(async (part) => {
             const available = await fsp
-              .stat(path.join(sourceDir(kind, projectId), `${part}.wav`))
+              .stat(path.join(sourceDir(kind, version, passage, environment), voiceFilename(part)))
               .then(
                 (stat) => stat.size > 0,
                 () => false,
@@ -116,7 +125,7 @@ const server = http.createServer(async (req, res) => {
             const job = state[part];
             return [
               part,
-              { available, status: job?.status ?? "idle" },
+              { available, status: job?.status ?? "idle", failureReason: job?.failureReason },
             ] as const;
           }),
         );
@@ -129,8 +138,8 @@ const server = http.createServer(async (req, res) => {
         if (input.projectId !== projectId)
           return json(res, 400, { error: "Project mismatch" });
         if (
-          generationQueue.hasPending(projectId, input.part) ||
-          generationQueue.hasPending(projectId, "video")
+          generationQueue.hasPending(projectId, input.part, input.outputEnvironment) ||
+          generationQueue.hasPending(projectId, "video", input.outputEnvironment)
         )
           return json(res, 409, { error: "Project already active" });
         if (generationQueue.pendingCount >= 20)
@@ -140,11 +149,11 @@ const server = http.createServer(async (req, res) => {
           status: "queued",
           stage: "Queued",
         };
-        const state = voiceJobs.get(projectId) ?? {};
+        const state = voiceJobs.get(`${input.outputEnvironment}:${projectId}`) ?? {};
         state[input.part] = job;
-        voiceJobs.set(projectId, state);
+        voiceJobs.set(`${input.outputEnvironment}:${projectId}`, state);
         generationQueue.enqueue(
-          { projectId, kind: input.kind, type: input.part },
+          { projectId, kind: input.kind, outputEnvironment: input.outputEnvironment, type: input.part },
           job,
           async () => {
             job.status = "running";
@@ -153,6 +162,7 @@ const server = http.createServer(async (req, res) => {
               job.status = "done";
             } catch (error) {
               console.error("Voice generation failed", error);
+              job.failureReason = generationFailureReason(error);
               job.status = "failed";
             }
           },
@@ -165,7 +175,7 @@ const server = http.createServer(async (req, res) => {
       if (!origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));
-      if (generationQueue.hasPending(input.projectId, "video"))
+      if (generationQueue.hasPending(input.projectId, "video", input.outputEnvironment))
         return json(res, 409, { error: "Project already active" });
       if (generationQueue.pendingCount >= 20)
         return json(res, 503, { error: "Render queue is full" });
@@ -199,7 +209,7 @@ const server = http.createServer(async (req, res) => {
         }
       };
       generationQueue.enqueue(
-        { projectId: input.projectId, kind: input.kind, type: "video" },
+        { projectId: input.projectId, kind: input.kind, outputEnvironment: input.outputEnvironment, type: "video" },
         job,
         async () => {
           job.status = "running";
@@ -240,22 +250,25 @@ const server = http.createServer(async (req, res) => {
       const kind = z
         .enum(["short", "long"])
         .parse(url.searchParams.get("kind"));
+      const version = renderSchema.shape.version.shape.id.parse(url.searchParams.get("version"));
+      const passage = renderSchema.shape.passage.shape.id.parse(url.searchParams.get("passage"));
+      const environment = renderSchema.shape.outputEnvironment.parse(url.searchParams.get("outputEnvironment") ?? undefined);
       const asset = z
         .union([
           z.enum(["video", "thumbnail", "intro", "outro"]),
           z.string().regex(/^reading-\d+$/),
         ])
         .parse(parts[4]);
-      const reading = readingSources.get(id);
+      const reading = readingSources.get(`${environment}:${id}`);
       if (asset.startsWith("reading-") && reading?.kind !== kind)
         return json(res, 404, { error: "Analyze the passage first" });
       const file = asset.startsWith("reading-")
         ? reading?.sections[Number(asset.slice(8))]?.file
         : asset === "intro" || asset === "outro"
-          ? path.join(sourceDir(kind, id), `${asset}.wav`)
+          ? path.join(sourceDir(kind, version, passage, environment), voiceFilename(asset))
           : path.join(
-              projectDir(kind, id),
-              asset === "video" ? "video.mp4" : "thumbnail.jpg",
+              projectDir(kind, version, passage, environment),
+              asset === "video" ? videoFilename(kind) : "thumbnail.jpg",
             );
       if (!file) return json(res, 404, { error: "Audio section not found" });
       let stat;

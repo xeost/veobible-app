@@ -6,6 +6,7 @@ export type QueueJob = {
 };
 type Entry = {
   projectId: string;
+  outputEnvironment?: "production" | "development";
   kind: "short" | "long";
   type: GenerationType;
   job: QueueJob;
@@ -20,16 +21,17 @@ export class GenerationQueue {
       ["queued", "running"].includes(job.status),
     ).length;
   }
-  hasPending(projectId: string, type: GenerationType) {
+  hasPending(projectId: string, type: GenerationType, environment: "production" | "development" = "production") {
     return this.entries.some(
       (entry) =>
         entry.projectId === projectId &&
         entry.type === type &&
+        (entry.outputEnvironment ?? "production") === environment &&
         ["queued", "running"].includes(entry.job.status),
     );
   }
   enqueue(
-    metadata: Pick<Entry, "projectId" | "kind" | "type">,
+    metadata: Pick<Entry, "projectId" | "kind" | "type" | "outputEnvironment">,
     job: QueueJob,
     run: () => Promise<void>,
   ) {

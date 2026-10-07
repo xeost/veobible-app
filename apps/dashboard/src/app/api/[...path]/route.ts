@@ -1,4 +1,9 @@
 import {
+  loadProjectSettings,
+  saveProjectSettings,
+  versionProjectSettings,
+} from "../../../lib/project-settings";
+import {
   isDeployHookUrl,
   deploymentStatus,
   type BuildStatus,
@@ -6,7 +11,7 @@ import {
 import { profileSchema, saveProfile, ProfileError } from "../../../lib/profile";
 import { userMessage } from "../../../lib/presentation";
 import { db, bindings } from "../../../lib/env";
-import { currentUser } from "../../../lib/auth";
+import { currentUser, createUserToken } from "../../../lib/auth";
 import {
   digest,
   passwordHash,
@@ -26,6 +31,8 @@ import {
   loadSocialSettings,
   saveSocialSettings,
 } from "../../../lib/social-settings";
+const outputEnvironment =
+  process.env.NODE_ENV === "production" ? "production" : "development";
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) =>
   Response.json(value, {
     status,
@@ -76,37 +83,13 @@ async function handle(req: Request) {
         password: z.string().min(1).max(256),
       })
       .parse(await body());
-    const key = await digest(
-      `${req.headers.get("cf-connecting-ip") ?? "local"}:${input.username.toLowerCase()}`,
-    );
-    const limit = await database
-      .prepare("SELECT attempts,reset_at FROM login_attempts WHERE key=?")
-      .bind(key)
-      .first<{ attempts: number; reset_at: number }>();
-    if (limit && limit.reset_at > Date.now() && limit.attempts >= 10)
-      return json({ error: "Espera unos minutos antes de reintentar" }, 429);
-    await database
-      .prepare(
-        "INSERT INTO login_attempts VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=CASE WHEN reset_at<? THEN 1 ELSE attempts+1 END,reset_at=CASE WHEN reset_at<? THEN excluded.reset_at ELSE reset_at END",
-      )
-      .bind(key, Date.now() + 900000, Date.now(), Date.now())
-      .run();
     const user = await database
       .prepare("SELECT * FROM users WHERE username=? AND active=1")
       .bind(input.username)
       .first<{ id: string; password_hash: string }>();
     if (!user || !(await verifyPassword(input.password, user.password_hash)))
       return json({ error: "Usuario o contraseña incorrectos" }, 401);
-    const token = crypto.randomUUID() + crypto.randomUUID();
-    await database.batch([
-      database
-        .prepare("INSERT INTO sessions VALUES (?,?,?)")
-        .bind(await digest(token), user.id, Date.now() + 86400 * 7 * 1000),
-      database.prepare("DELETE FROM login_attempts WHERE key=?").bind(key),
-      database
-        .prepare("DELETE FROM sessions WHERE expires_at<?")
-        .bind(Date.now()),
-    ]);
+    const token = await createUserToken(user.id);
     return json({ ok: true }, 200, {
       "Set-Cookie": sessionCookie(token, secure),
     });
@@ -127,6 +110,17 @@ async function handle(req: Request) {
       });
     }
   }
+  if (parts.join("/") === "settings/project-settings") {
+    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    if (method === "GET")
+      return json({ settings: await loadProjectSettings(database, kind) });
+    if (method === "PUT") {
+      admin();
+      return json({
+        settings: await saveProjectSettings(database, kind, await body()),
+      });
+    }
+  }
   if (parts.join("/") === "settings/social-accounts") {
     admin();
     if (method === "GET")
@@ -138,24 +132,16 @@ async function handle(req: Request) {
   }
   if (parts.join("/") === "auth/me" && method === "GET") return json({ user });
   if (parts.join("/") === "auth/logout" && method === "POST") {
-    if (cookie)
-      await database
-        .prepare("DELETE FROM sessions WHERE token_hash=?")
-        .bind(await digest(cookie))
-        .run();
     return json({ ok: true }, 200, {
       "Set-Cookie": sessionCookie("", secure, 0),
     });
   }
   if (parts.join("/") === "auth/profile" && method === "PATCH") {
     const input = profileSchema.parse(await body());
-    const updated = await saveProfile(
-      database,
-      user,
-      input,
-      await digest(cookie ?? ""),
-    );
-    return json({ ok: true, user: updated });
+    const updated = await saveProfile(database, user, input);
+    return json({ ok: true, user: updated }, 200, {
+      "Set-Cookie": sessionCookie(await createUserToken(user.id), secure),
+    });
   }
 
   if (parts[0] === "users") {
@@ -204,7 +190,7 @@ async function handle(req: Request) {
         );
       await database
         .prepare(
-          "UPDATE users SET active=COALESCE(?,active),role=COALESCE(?,role),password_hash=COALESCE(?,password_hash) WHERE id=?",
+          "UPDATE users SET active=COALESCE(?,active),role=COALESCE(?,role),password_hash=COALESCE(?,password_hash),auth_version=auth_version+1 WHERE id=?",
         )
         .bind(
           input.active === undefined ? null : Number(input.active),
@@ -212,10 +198,6 @@ async function handle(req: Request) {
           input.password ? await passwordHash(input.password) : null,
           parts[1],
         )
-        .run();
-      await database
-        .prepare("DELETE FROM sessions WHERE user_id=?")
-        .bind(parts[1])
         .run();
       return json({ ok: true });
     }
@@ -225,31 +207,6 @@ async function handle(req: Request) {
       versions: (await database.prepare("SELECT * FROM versions").all())
         .results,
     });
-  if (parts[0] === "settings") {
-    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
-    const version = z.string().min(1).parse(url.searchParams.get("version"));
-    if (method === "GET") {
-      const row = await database
-        .prepare(
-          "SELECT settings FROM version_settings WHERE kind=? AND version_id=?",
-        )
-        .bind(kind, version)
-        .first<{ settings: string }>();
-      return json({
-        settings: settingsSchema.parse(row ? JSON.parse(row.settings) : {}),
-      });
-    }
-    if (method === "PUT") {
-      const input = settingsSchema.parse(await body());
-      await database
-        .prepare(
-          "INSERT INTO version_settings VALUES (?,?,?) ON CONFLICT(kind,version_id) DO UPDATE SET settings=excluded.settings",
-        )
-        .bind(kind, version, JSON.stringify(input))
-        .run();
-      return json({ ok: true });
-    }
-  }
   if (parts[0] === "summary" && method === "GET") {
     await syncJobs();
     return json({
@@ -305,12 +262,13 @@ async function handle(req: Request) {
       .bind(versionId)
       .first<{ id: string; locale: string; label: string }>();
     if (!version) return json({ error: "Versión inexistente" }, 400);
-    const defaults = await database
-      .prepare(
-        "SELECT settings FROM version_settings WHERE kind=? AND version_id=?",
-      )
-      .bind(catalog.kind, version.id)
-      .first<{ settings: string }>();
+    const defaults = settingsSchema.parse(
+      versionProjectSettings(
+        await loadProjectSettings(database, catalog.kind),
+        version.locale,
+        version.id,
+      ),
+    );
     if (method === "POST" || method === "PATCH")
       await database
         .prepare(
@@ -320,9 +278,7 @@ async function handle(req: Request) {
           crypto.randomUUID(),
           catalog.id,
           version.id,
-          JSON.stringify(
-            settingsSchema.parse(defaults ? JSON.parse(defaults.settings) : {}),
-          ),
+          JSON.stringify(defaults),
         )
         .run();
     const project = await database
@@ -343,9 +299,7 @@ async function handle(req: Request) {
         .first();
       return json({
         video,
-        defaults: settingsSchema.parse(
-          defaults ? JSON.parse(defaults.settings) : {},
-        ),
+        defaults,
       });
     }
     if (parts[2] === "analyze" && method === "POST") {
@@ -356,6 +310,10 @@ async function handle(req: Request) {
         body: JSON.stringify({
           projectId: project?.id,
           kind: catalog.kind,
+          outputEnvironment:
+            process.env.NODE_ENV === "production"
+              ? "production"
+              : "development",
           version,
           passage: JSON.parse(catalog.passage),
           settings: input,
@@ -375,7 +333,7 @@ async function handle(req: Request) {
     if (parts[2] === "voices" && project) {
       if (method === "GET") {
         const response = await videoFetch(
-          `/v1/projects/${project.id}/voices?kind=${catalog.kind}`,
+          `/v1/projects/${project.id}/voices?${new URLSearchParams({ kind: catalog.kind, outputEnvironment, version: version.id, passage: JSON.parse(catalog.passage).id })}`,
         );
         if (!response.ok)
           return json(
@@ -410,6 +368,10 @@ async function handle(req: Request) {
           body: JSON.stringify({
             projectId: project.id,
             kind: catalog.kind,
+            outputEnvironment:
+              process.env.NODE_ENV === "production"
+                ? "production"
+                : "development",
             version,
             passage: JSON.parse(catalog.passage),
             settings: settingsSchema.parse(JSON.parse(project.settings)),
@@ -439,7 +401,7 @@ async function handle(req: Request) {
         ])
         .parse(url.searchParams.get("asset"));
       const response = await videoFetch(
-        `/v1/projects/${project.id}/media/${asset}?kind=${catalog.kind}`,
+        `/v1/projects/${project.id}/media/${asset}?${new URLSearchParams({ kind: catalog.kind, outputEnvironment, version: version.id, passage: JSON.parse(catalog.passage).id })}`,
         {
           headers: req.headers.has("range")
             ? { Range: req.headers.get("range")! }
@@ -511,6 +473,7 @@ async function handle(req: Request) {
         id,
         projectId: project.id,
         kind: catalog.kind,
+        outputEnvironment,
         version,
         passage: JSON.parse(catalog.passage),
         settings: input,
@@ -576,7 +539,9 @@ async function handle(req: Request) {
   }
   if (parts[0] === "generation-queue" && method === "GET") {
     try {
-      const response = await videoFetch("/v1/queue");
+      const response = await videoFetch(
+        `/v1/queue?outputEnvironment=${outputEnvironment}`,
+      );
       if (!response.ok) return json({ connected: false, items: [] });
       const { items } = z
         .object({

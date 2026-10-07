@@ -10,7 +10,6 @@ export function workingDirectory(kind: string) {
     throw new Error("Invalid video format");
   return workingDirectories[kind];
 }
-export const outputRoot = (kind: string) =>
-  path.join(workingDirectory(kind), "outputs");
-export const mediaRoot = (kind: string) =>
-  path.join(workingDirectory(kind), "media");
+export type OutputEnvironment = "production" | "development";
+export const outputRoot = (kind: string, environment: OutputEnvironment = "production") =>
+  path.join(workingDirectory(kind), environment === "development" ? "outputs-dev" : "outputs");

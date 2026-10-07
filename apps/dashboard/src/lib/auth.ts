@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
-import { db } from "./env";
-import { digest } from "./security";
+import { db, bindings } from "./env";
+import { signToken, verifyToken } from "./jwt";
 export interface User {
   id: string;
   username: string;
@@ -11,10 +11,21 @@ export interface User {
 export async function currentUser(token?: string): Promise<User | null> {
   const value = token ?? (await cookies()).get("veo_session")?.value;
   if (!value) return null;
+  const payload = await verifyToken(value, bindings().JWT_SECRET);
+  if (!payload) return null;
   return db()
     .prepare(
-      "SELECT u.id,u.username,u.name,u.email,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1",
+      "SELECT id,username,name,email,role FROM users WHERE id=? AND auth_version=? AND active=1",
     )
-    .bind(await digest(value), Date.now())
+    .bind(payload.userId, payload.authVersion)
     .first<User>();
+}
+
+export async function createUserToken(userId: string) {
+  const user = await db()
+    .prepare("SELECT auth_version FROM users WHERE id=? AND active=1")
+    .bind(userId)
+    .first<{ auth_version: number }>();
+  if (!user) throw new Error("User unavailable");
+  return signToken(userId, user.auth_version, bindings().JWT_SECRET);
 }
