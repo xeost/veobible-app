@@ -78,7 +78,7 @@ export function GenerationQueueModal({
           type="button"
           className="icon-button"
           aria-label={t("Refresh queue")}
-          title={t("Refresh queue")}
+          data-tooltip={t("Refresh queue")}
           onClick={refresh}
         >
           <RefreshCw size={16} />

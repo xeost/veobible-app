@@ -333,7 +333,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               type="button"
               className="icon-button"
               aria-label={t("First page")}
-              title={t("First page")}
+              data-tooltip={t("First page")}
               disabled={currentPage === 0}
               onClick={() => setPage(0)}
             >
@@ -359,7 +359,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               type="button"
               className="icon-button"
               aria-label={t("Last page")}
-              title={t("Last page")}
+              data-tooltip={t("Last page")}
               disabled={currentPage + 1 >= pages}
               onClick={() => setPage(pages - 1)}
             >

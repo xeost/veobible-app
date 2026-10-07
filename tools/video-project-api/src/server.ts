@@ -32,6 +32,7 @@ const {
   voiceFilename,
   videoFilename,
   generateProjectVoice,
+  existingProjectVoices,
 } = await import("./pipeline.js");
 const { createPreview, previewAsset } = await import("./preview.js");
 const token = process.env.PROXY_API_TOKEN;
@@ -340,6 +341,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/v1/jobs" && req.method === "POST") {
       const input = renderSchema.parse(await body(req));
+      input.settings.reuseVoices = true;
+      input.settings.clipAudioMode = "voice";
       if (input.callback && !origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));
@@ -351,6 +354,21 @@ const server = http.createServer(async (req, res) => {
         )
       )
         return json(res, 409, { error: "Project already active" });
+      if (
+        (["intro", "outro"] as const).some((part) =>
+          generationQueue.hasPending(
+            input.projectId,
+            part,
+            input.outputEnvironment,
+          ),
+        )
+      )
+        return json(res, 409, { error: "Wait for generation to finish" });
+      if (!(await existingProjectVoices(input)))
+        return json(res, 400, {
+          error:
+            "Generate the introduction and closing voices before generating the video.",
+        });
       if (generationQueue.pendingCount >= 20)
         return json(res, 503, { error: "Render queue is full" });
       const job: Job = { id: input.id, status: "queued", stage: "Queued" };

@@ -201,43 +201,53 @@ export async function generateProjectVoice(
   update(99);
 }
 
+/** Final renders only consume narration explicitly generated beforehand. */
+export async function existingProjectVoices(
+  input: Pick<
+    RenderRequest,
+    "kind" | "version" | "passage" | "outputEnvironment"
+  >,
+) {
+  const sources = sourceDir(
+    input.kind,
+    input.version.id,
+    input.passage.id,
+    input.outputEnvironment,
+  );
+  const tracks = {
+    intro: path.join(sources, voiceFilename("intro")),
+    outro: path.join(sources, voiceFilename("outro")),
+  };
+  const available = await Promise.all(
+    Object.values(tracks).map((file) =>
+      fs.stat(file).then(
+        (stat) => stat.isFile() && stat.size > 0,
+        () => false,
+      ),
+    ),
+  );
+  return available.every(Boolean) ? tracks : null;
+}
+
 export async function render(
   input: RenderRequest,
   update: (stage: string, progress?: number) => void,
 ) {
+  const existingVoices = await existingProjectVoices(input);
+  if (!existingVoices)
+    throw new Error(
+      "Generate the introduction and closing voices before generating the video.",
+    );
   update("Analizando pasaje y tiempos", 2);
   const { data, sections, cues, context, version, m } = await analyze(input);
   const { output, sources } = await prepareProjectDirectories(input);
   await writePassageFiles(sources, data);
   const scripts = await m.voice.renderVoiceScripts(context);
   update("Preparando narraciones", 20);
-  let voices: shortVideo.VoiceTracks | undefined;
-  if (input.settings.clipAudioMode !== "video") {
-    const exists = await Promise.all(
-      (["intro", "outro"] as const).map((part) =>
-        fs.access(path.join(sources, voiceFilename(part))).then(
-          () => true,
-          () => false,
-        ),
-      ),
-    );
-    for (const [index, part] of (["intro", "outro"] as const).entries()) {
-      if (!input.settings.reuseVoices || !exists[index]) {
-        update("Generando voces con IA local", 20 + index * 10);
-        await generateNamedVoice(sources, m.voice, context, part, (progress) =>
-          update(
-            "Generando voces con IA local",
-            20 + index * 10 + progress * 0.1,
-          ),
-        );
-      }
-    }
-    voices = {
-      intro: path.join(sources, voiceFilename("intro")),
-      outro: path.join(sources, voiceFilename("outro")),
-      mode: input.settings.clipAudioMode,
-    };
-  }
+  const voices: shortVideo.VoiceTracks = {
+    ...existingVoices,
+    mode: "voice",
+  };
   const work = await fs.mkdtemp(path.join(output, ".render-"));
   try {
     update("Renderizando con Remotion", 45);

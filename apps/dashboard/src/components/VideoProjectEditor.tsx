@@ -1,6 +1,12 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import {
   ChevronLeft,
   ChevronDown,
@@ -8,23 +14,20 @@ import {
   ChevronsUp,
   Mic,
   AudioLines,
-  LockKeyhole,
+  WandSparkles,
   Play,
   Pause,
   LoaderCircle,
   Save,
-  RefreshCw,
+  AudioWaveform,
   Download,
   Check,
-  Clock,
-  Film,
   Clapperboard,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
-import { api, date } from "./api";
+import { api } from "./api";
 import {
   userMessage,
-  statusLabel,
   generationStage,
   voiceFailureMessage,
 } from "../lib/presentation";
@@ -36,7 +39,13 @@ import {
   readingTimeline,
   type Inspection,
 } from "../lib/video-timing";
-import { VideoProjectPreview } from "./VideoProjectPreview";
+import { useProjectBreadcrumb } from "./ProjectBreadcrumb";
+import { VideoProjectPreviewModal } from "./VideoProjectPreviewModal";
+import {
+  VideoProjectPreview,
+  type VideoPreviewView,
+  type PreviewPlaybackHandle,
+} from "./VideoProjectPreview";
 import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
@@ -72,6 +81,10 @@ export function VideoProjectEditor({
   const [voiceError, setVoiceError] = useState("");
   const [notice, setNotice] = useState("");
   const [saved, setSaved] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const previewPlayback = useRef<PreviewPlaybackHandle | null>(null);
+  const [previewView, setPreviewView] =
+    useState<VideoPreviewView>("composition");
   useEffect(() => {
     if (!saved) return;
     const timer = setTimeout(() => setSaved(false), 2200);
@@ -100,9 +113,15 @@ export function VideoProjectEditor({
     [projectId, kind],
   );
   const backHref = `/${kind === "short" ? "short-videos" : "long-videos"}`;
+  useProjectBreadcrumb(
+    `${backHref}/${encodeURIComponent(projectId)}`,
+    String(project?.project_id) === projectId ? project?.title : undefined,
+  );
   const media = (asset: string) => `/api/${endpoint("media")}&asset=${asset}`;
   useEffect(() => {
     setExpanded(new Set());
+    setPreviewOpen(false);
+    setPreviewView("composition");
     setPlayingVoice(null);
     for (const player of Object.values(voicePlayers.current)) player.pause();
   }, [base]);
@@ -192,6 +211,12 @@ export function VideoProjectEditor({
   const active = Boolean(
     project && ["queued", "running"].includes(project.status),
   );
+  const voicesReady =
+    voices.intro.available &&
+    voices.outro.available &&
+    !Object.values(voices).some((voice) =>
+      ["queued", "running"].includes(voice.status),
+    );
   const editingLocked = busy || active;
   const locked = editingLocked;
   const timeline = readingTimeline(analysis?.sections ?? []);
@@ -223,7 +248,7 @@ export function VideoProjectEditor({
         "Some verse timings fall outside the passage or have a start after the end. Review the start and end adjustments.",
       );
     }
-    return settingsSchema.parse(settingsRef.current);
+    return settingsSchema.parse({ ...settingsRef.current, reuseVoices: true });
   };
   const save = async () => {
     await api(endpoint(), {
@@ -300,6 +325,9 @@ export function VideoProjectEditor({
       else next.add(id);
       return next;
     });
+  const toggleFromHeading = (id: string, event: MouseEvent<HTMLElement>) => {
+    if (!(event.target as Element).closest("button")) toggle(id);
+  };
   const sectionIds = [
     "intro",
     ...(timeline.length
@@ -313,27 +341,86 @@ export function VideoProjectEditor({
     title: string,
     summary: string,
     voice = false,
-  ) => (
-    <button
-      type="button"
-      className="section-heading"
-      aria-expanded={expanded.has(id)}
-      aria-controls={`section-${id}`}
-      onClick={() => toggle(id)}
-    >
-      <span className="section-number">{String(number).padStart(2, "0")}</span>
-      <span className={`section-role ${voice ? "voice" : "reading"}`}>
-        {voice ? <Mic size={15} /> : <AudioLines size={15} />}
-        {voice ? t("Voice") : t("Reading")}
-      </span>
-      <span className="section-heading-text">
-        <strong>{title}</strong>
-        <small>{summary}</small>
-      </span>
-      {voice && <LockKeyhole size={15} aria-label={t("Fixed section")} />}
+  ) => {
+    const content = (
+      <>
+        <span className="section-number">
+          {String(number).padStart(2, "0")}
+        </span>
+        <span className={`section-role ${voice ? "voice" : "reading"}`}>
+          {voice ? <Mic size={15} /> : <AudioLines size={15} />}
+          {voice ? t("Voice") : t("Reading")}
+        </span>
+        <span className="section-heading-text">
+          <strong>{title}</strong>
+          <small>{summary}</small>
+        </span>
+      </>
+    );
+    const chevron = (
       <ChevronDown size={18} className={expanded.has(id) ? "expanded" : ""} />
-    </button>
-  );
+    );
+    if (voice)
+      return (
+        <button
+          type="button"
+          className="section-heading"
+          aria-expanded={expanded.has(id)}
+          aria-controls={`section-${id}`}
+          onClick={() => toggle(id)}
+        >
+          {content}
+        </button>
+      );
+    return (
+      <div
+        className="reading-section-heading"
+        onClick={(event) => toggleFromHeading(id, event)}
+      >
+        <button
+          type="button"
+          className="section-heading"
+          aria-expanded={expanded.has(id)}
+          aria-controls={`section-${id}`}
+          onClick={() => toggle(id)}
+        >
+          {content}
+        </button>
+        <button
+          type="button"
+          className="analysis-retry"
+          aria-label={
+            analyzing
+              ? t("Loading audio and verses…")
+              : t("Analyze audio again")
+          }
+          data-tooltip={
+            analyzing
+              ? t("Loading audio and verses…")
+              : t("Analyze the audio again to update verse timings.")
+          }
+          disabled={analyzing || locked}
+          onClick={() => void inspect(settings)}
+        >
+          {analyzing ? (
+            <LoaderCircle size={16} className="voice-spinner" />
+          ) : (
+            <AudioWaveform size={17} />
+          )}
+        </button>
+        <button
+          type="button"
+          className="reading-section-expand icon-button"
+          aria-label={title}
+          aria-expanded={expanded.has(id)}
+          aria-controls={`section-${id}`}
+          onClick={() => toggle(id)}
+        >
+          {chevron}
+        </button>
+      </div>
+    );
+  };
   const voiceSection = (part: "intro" | "outro", number: number) => {
     const voice = voices[part];
     const pending = ["queued", "running"].includes(voice.status);
@@ -347,7 +434,10 @@ export function VideoProjectEditor({
       playingVoice === part ? t("Pause narration") : t("Listen to narration");
     return (
       <section className="section-card" key={part}>
-        <div className="voice-section-heading">
+        <div
+          className="voice-section-heading"
+          onClick={(event) => toggleFromHeading(part, event)}
+        >
           {sectionHeading(
             part,
             number,
@@ -363,32 +453,38 @@ export function VideoProjectEditor({
             <button
               type="button"
               aria-label={`${generateLabel} · ${title}`}
-              title={generateLabel}
+              data-tooltip={generateLabel}
               disabled={editingLocked || pending || !analysis}
               onClick={() => void generateVoice(part)}
             >
               {pending ? (
                 <LoaderCircle size={17} className="voice-spinner" />
-              ) : voice.available ? (
-                <RefreshCw size={17} />
               ) : (
-                <Mic size={17} />
+                <WandSparkles size={17} />
               )}
             </button>
-            {voice.available && !pending && (
-              <button
-                type="button"
-                aria-label={`${playLabel} · ${title}`}
-                title={playLabel}
-                onClick={() => void toggleVoicePlayback(part)}
-              >
-                {playingVoice === part ? (
-                  <Pause size={17} />
-                ) : (
-                  <Play size={17} />
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              aria-label={`${playLabel} · ${title}`}
+              data-tooltip={playLabel}
+              disabled={!voice.available || pending}
+              onClick={() => void toggleVoicePlayback(part)}
+            >
+              {playingVoice === part ? <Pause size={17} /> : <Play size={17} />}
+            </button>
+            <button
+              type="button"
+              className="voice-section-expand icon-button"
+              aria-label={title}
+              aria-expanded={expanded.has(part)}
+              aria-controls={`section-${part}`}
+              onClick={() => toggle(part)}
+            >
+              <ChevronDown
+                size={18}
+                className={expanded.has(part) ? "expanded" : ""}
+              />
+            </button>
           </div>
         </div>
         {pending && (
@@ -474,7 +570,7 @@ export function VideoProjectEditor({
               disabled={editingLocked || pending || !analysis}
               onClick={() => void generateVoice(part)}
             >
-              <Mic size={16} />
+              <WandSparkles size={16} />
               {pending
                 ? t("Preparing narration…")
                 : voice.available
@@ -486,6 +582,33 @@ export function VideoProjectEditor({
       </section>
     );
   };
+  const readingVolume = (
+    <div className="reading-volume-settings">
+      <label>
+        {t("Reading volume")}
+        <div className="volume-control">
+          <input
+            type="range"
+            min={0}
+            max={4}
+            step={0.05}
+            value={settings.volumeMultiplier}
+            disabled={locked}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                volumeMultiplier: Number(e.target.value),
+              })
+            }
+          />
+          <output>{settings.volumeMultiplier.toFixed(2)}×</output>
+        </div>
+      </label>
+      <p className="muted">
+        {t("Save synchronization changes before leaving.")}
+      </p>
+    </div>
+  );
   if (!project)
     return (
       <section className="panel">
@@ -501,7 +624,6 @@ export function VideoProjectEditor({
         </p>
       </section>
     );
-  const FormatIcon = kind === "short" ? Clapperboard : Film;
   return (
     <>
       <div className="page-heading project-studio-heading">
@@ -534,8 +656,26 @@ export function VideoProjectEditor({
             {saved ? t("Changes saved") : t("Save changes")}
           </button>
           <button
+            type="button"
+            onClick={() => {
+              setPreviewView("composition");
+              setPreviewOpen(true);
+            }}
+            aria-haspopup="dialog"
+          >
+            <Clapperboard size={16} />
+            {t("Preview")}
+          </button>
+          <button
             className="primary"
-            disabled={locked || !analysis || analyzing}
+            disabled={locked || !analysis || analyzing || !voicesReady}
+            data-tooltip={
+              !voicesReady
+                ? t(
+                    "Generate the introduction and closing voices before generating the video.",
+                  )
+                : undefined
+            }
             onClick={() =>
               void perform(async () => {
                 await api(endpoint("render"), {
@@ -544,6 +684,7 @@ export function VideoProjectEditor({
                     settingsSchema.parse({
                       ...checkedSettings(),
                       clipAudioMode: "voice",
+                      reuseVoices: true,
                     }),
                   ),
                 });
@@ -566,6 +707,18 @@ export function VideoProjectEditor({
           {t(error)}
         </p>
       )}
+      {voiceError && (
+        <p className="error" role="alert">
+          {t(voiceError)}
+        </p>
+      )}
+      {!voicesReady && (
+        <p className="muted">
+          {t(
+            "Generate the introduction and closing voices before generating the video.",
+          )}
+        </p>
+      )}
       {notice && (
         <p className="success" role="status">
           {t(notice)}
@@ -577,6 +730,14 @@ export function VideoProjectEditor({
             "The video is being created. You can leave this page; generation will continue.",
           )}
         </p>
+      )}
+      {active && (
+        <div className="project-render-progress">
+          <GenerationProgress
+            value={project.progress ?? 0}
+            label={t("Video generation")}
+          />
+        </div>
       )}
       <div className="project-studio-layout">
         <div className="section-stack">
@@ -640,6 +801,7 @@ export function VideoProjectEditor({
                         onTrim={trim}
                       />
                     )}
+                    {readingVolume}
                   </div>
                 </section>
               );
@@ -672,6 +834,7 @@ export function VideoProjectEditor({
                     )}
                   </p>
                 </div>
+                {readingVolume}
               </div>
             </section>
           )}
@@ -680,142 +843,10 @@ export function VideoProjectEditor({
               {t(analysisError)}
             </p>
           )}
-          <button
-            className="analysis-retry"
-            disabled={analyzing || locked}
-            onClick={() => void inspect(settings)}
-          >
-            <RefreshCw size={16} />
-            {analyzing
-              ? t("Loading audio and verses…")
-              : t("Analyze audio again")}
-          </button>
           {voiceSection("outro", sectionIds.length)}
         </div>
-        <aside className="project-studio-sidebar">
-          <section className="panel project-preview-panel">
-            <div className="panel-heading">
-              <h3>{t("Video preview")}</h3>
-              <span className="format-pill">
-                <FormatIcon size={14} />
-                {kind === "short" ? "9:16" : "16:9"}
-              </span>
-            </div>
-            <VideoProjectPreview
-              key={projectId + ":" + voiceRevision}
-              kind={kind}
-              endpoint={endpoint}
-              settings={settings}
-              cues={cues}
-              ready={Boolean(
-                analysis &&
-                !analyzing &&
-                voices.intro.available &&
-                voices.outro.available &&
-                !Object.values(voices).some((voice) =>
-                  ["queued", "running"].includes(voice.status),
-                ),
-              )}
-              rendered={Boolean(result)}
-              onBackground={(background) =>
-                setSettings((current) =>
-                  current.background === background
-                    ? current
-                    : { ...current, background },
-                )
-              }
-            />
-            <span className={`badge ${project.status}`}>
-              {t(statusLabel(project.status))}
-            </span>
-            {active && (
-              <GenerationProgress
-                value={project.progress ?? 0}
-                label={t("Video generation")}
-              />
-            )}
-            {result && (
-              <div className="preview-actions">
-                <a className="button" href={`${media("video")}&download=1`}>
-                  <Download size={15} />
-                  {t("Video")}
-                </a>
-                <a className="button" href={`${media("thumbnail")}&download=1`}>
-                  <Download size={15} />
-                  {t("Thumbnail")}
-                </a>
-                <button
-                  disabled={locked}
-                  onClick={() =>
-                    void perform(async () => {
-                      await api(endpoint(), {
-                        method: "PATCH",
-                        body: JSON.stringify({
-                          published: !project.published,
-                        }),
-                      });
-                      setNotice(
-                        project.published
-                          ? "Marked as unpublished."
-                          : "Marked as published.",
-                      );
-                    })
-                  }
-                >
-                  <Check size={15} />
-                  {project.published
-                    ? t("Mark as unpublished")
-                    : t("Mark as published")}
-                </button>
-              </div>
-            )}
-          </section>
-          <section className="panel studio-audio-settings">
-            <h3>
-              <AudioLines size={17} />
-              {t("Audio settings")}
-            </h3>
-            <label>
-              {t("Reading volume")}
-              <div className="volume-control">
-                <input
-                  type="range"
-                  min={0}
-                  max={4}
-                  step={0.05}
-                  value={settings.volumeMultiplier}
-                  disabled={locked}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      volumeMultiplier: Number(e.target.value),
-                    })
-                  }
-                />
-                <output>{settings.volumeMultiplier.toFixed(2)}×</output>
-              </div>
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={settings.reuseVoices}
-                disabled={locked}
-                onChange={(e) =>
-                  setSettings({ ...settings, reuseVoices: e.target.checked })
-                }
-              />
-              {t("Reuse existing voices (uncheck to generate them again)")}
-            </label>
-            <p className="muted">
-              {t("Save synchronization changes before leaving.")}
-            </p>
-            {voiceError && (
-              <p className="error" role="alert">
-                {t(voiceError)}
-              </p>
-            )}
-          </section>
-          {result?.descriptions && (
+        {result?.descriptions && (
+          <div className="project-studio-details">
             <details className="panel studio-history">
               <summary>{t("Publication texts")}</summary>
               {Object.entries(result.descriptions).map(([name, text]) => (
@@ -833,9 +864,78 @@ export function VideoProjectEditor({
                 </label>
               ))}
             </details>
-          )}
-        </aside>
+          </div>
+        )}
       </div>
+      {previewOpen && (
+        <VideoProjectPreviewModal
+          kind={kind}
+          view={previewView}
+          onViewChange={(view) => {
+            if (view === previewView) return;
+            previewPlayback.current?.stop();
+            setPreviewView(view);
+          }}
+          close={() => {
+            previewPlayback.current?.dispose();
+            setPreviewOpen(false);
+          }}
+        >
+          <VideoProjectPreview
+            key={projectId + ":" + voiceRevision}
+            kind={kind}
+            endpoint={endpoint}
+            settings={settings}
+            cues={cues}
+            ready={Boolean(analysis && !analyzing && voicesReady)}
+            playbackRef={previewPlayback}
+            view={previewView}
+            rendered={Boolean(result)}
+            onBackground={(background) =>
+              setSettings((current) =>
+                current.background === background
+                  ? current
+                  : { ...current, background },
+              )
+            }
+          />
+          {result && (
+            <div className="preview-actions">
+              <a className="button" href={`${media("video")}&download=1`}>
+                <Download size={15} />
+                {t("Video")}
+              </a>
+              <a className="button" href={`${media("thumbnail")}&download=1`}>
+                <Download size={15} />
+                {t("Thumbnail")}
+              </a>
+              <button
+                disabled={locked}
+                onClick={() =>
+                  void perform(async () => {
+                    await api(endpoint(), {
+                      method: "PATCH",
+                      body: JSON.stringify({
+                        published: !project.published,
+                      }),
+                    });
+                    setNotice(
+                      project.published
+                        ? "Marked as unpublished."
+                        : "Marked as published.",
+                    );
+                  })
+                }
+              >
+                <Check size={15} />
+                {project.published
+                  ? t("Mark as unpublished")
+                  : t("Mark as published")}
+              </button>
+            </div>
+          )}
+        </VideoProjectPreviewModal>
+      )}
     </>
   );
 }

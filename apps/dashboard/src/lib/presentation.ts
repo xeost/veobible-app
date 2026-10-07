@@ -43,6 +43,7 @@ export function generationStage(
 }
 
 const messages = new Set([
+  "Generate the introduction and closing voices before generating the video.",
   "Could not sync existing projects. Check that generation is available and try again.",
   "Books could not be loaded. Check that this version is available and try again.",
   "A project with this short name already exists for the selected version.",

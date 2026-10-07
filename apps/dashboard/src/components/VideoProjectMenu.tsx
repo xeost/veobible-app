@@ -57,7 +57,7 @@ export function VideoProjectMenu({
         type="button"
         className="icon-button"
         aria-label={t("Project options")}
-        title={t("Project options")}
+        data-tooltip={t("Project options")}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? "video-project-options" : undefined}

@@ -78,6 +78,48 @@ test(
       assert.equal(voiceData.intro.available, true);
       assert.equal(voiceData.intro.progress, 100);
       assert.equal(voiceData.outro.progress, 0);
+      const renderInput = {
+        id: "f862d477-633d-42a3-bb24-73c14a833fed",
+        projectId: 1,
+        kind: "short",
+        outputEnvironment: "production",
+        version: { id: "rv1909", locale: "es", label: "Reina Valera" },
+        passage: {
+          id: "john-3-16",
+          book: "john",
+          start: { chapter: 3, verse: 16 },
+          end: { chapter: 3, verse: 16 },
+        },
+        settings: { reuseVoices: false, clipAudioMode: "video" },
+      };
+      const submitRender = (input = renderInput) =>
+        fetch(`${base}/v1/jobs`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+      // Even legacy requests cannot bypass the requirement for both narration files.
+      const missingVoice = await submitRender();
+      assert.equal(missingVoice.status, 400);
+      assert.equal(
+        (await missingVoice.json()).error,
+        "Generate the introduction and closing voices before generating the video.",
+      );
+      await fs.writeFile(path.join(output, "_internal/3-outro.wav"), "");
+      assert.equal((await submitRender()).status, 400);
+      await fs.writeFile(path.join(output, "_internal/3-outro.wav"), "voice");
+      // Production narration must never make a development render eligible.
+      assert.equal(
+        (
+          await submitRender({
+            ...renderInput,
+            outputEnvironment: "development",
+          })
+        ).status,
+        400,
+      );
+      const rejectedQueue = await fetch(`${base}/v1/queue`, { headers });
+      assert.equal((await rejectedQueue.json()).summary.total, 0);
       const media = await fetch(`${base}/v1/projects/1/media/video?${query}`, {
         headers,
       });

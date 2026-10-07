@@ -399,7 +399,11 @@ export async function videoApi(
   ) {
     const values = (await req.json()) as Record<string, unknown>;
     const settings = settingsSchema.parse(
-      parts[2] === "voices" ? JSON.parse(project.settings) : values,
+      parts[2] === "voices"
+        ? JSON.parse(project.settings)
+        : parts[2] === "render"
+          ? { ...values, reuseVoices: true, clipAudioMode: "voice" }
+          : values,
     );
     const voiceTemplates = (await loadVoiceSettings(database, project.kind))[
       project.locale
@@ -443,17 +447,6 @@ export async function videoApi(
         headers: { "Content-Type": "application/json" },
       });
     }
-    if (
-      parts[2] === "render" &&
-      settings.clipAudioMode !== "video" &&
-      (!voiceTemplates.intro || !voiceTemplates.outro)
-    )
-      return json(
-        {
-          error: "Configure narration scripts in Settings before generating.",
-        },
-        400,
-      );
     const request = renderSchema.parse({
       ...common,
       id: crypto.randomUUID(),

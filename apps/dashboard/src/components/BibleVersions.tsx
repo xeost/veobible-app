@@ -124,7 +124,9 @@ export function BibleVersions() {
               type="button"
               className="icon-button"
               aria-label={t("Version options")}
-              title={syncing ? t("Syncing versions…") : t("Version options")}
+              data-tooltip={
+                syncing ? t("Syncing versions…") : t("Version options")
+              }
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-controls={menuOpen ? "bible-versions-menu" : undefined}
@@ -222,7 +224,7 @@ export function BibleVersions() {
                         type="button"
                         className="icon-button"
                         disabled={version.project_count > 0}
-                        title={
+                        data-tooltip={
                           version.project_count
                             ? t("This version has associated projects.")
                             : t("Delete version")

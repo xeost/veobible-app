@@ -1,4 +1,15 @@
 export const spanish: Record<string, string> = {
+  "Analyze the audio again to update verse timings.":
+    "Volver a analizar el audio para actualizar los tiempos de los versículos.",
+  "Generate the introduction and closing voices before generating the video.":
+    "Genera las voces de la introducción y el cierre antes de generar el video.",
+  Composition: "Composición",
+  "Preview source": "Tipo de previsualización",
+  "Composition (Remotion)": "Composición (Remotion)",
+  "No final video has been generated yet. Generate the video to preview it here.":
+    "Todavía no se ha generado un video final. Genera el video para previsualizarlo aquí.",
+  Home: "Inicio",
+  Breadcrumb: "Ruta de navegación",
   ". You can close the editor; your progress is saved automatically.":
     ". Puedes cerrar el editor; tu progreso se guarda automáticamente.",
   ". You can leave this page; generation will continue.":
@@ -392,8 +403,6 @@ export const spanish: Record<string, string> = {
   Requested: "Solicitada",
   "Requesting…": "Solicitando…",
   "Retry loading audio": "Reintentar carga de audio",
-  "Reuse existing voices (uncheck to generate them again)":
-    "Reutilizar voces existentes (desmarca para regenerarlas)",
   "Review text and audio": "Revisar texto y audio",
   "Review the detected cuts and adjust the timing of each verse.":
     "Revisa los cortes detectados y ajusta los tiempos de cada versículo.",

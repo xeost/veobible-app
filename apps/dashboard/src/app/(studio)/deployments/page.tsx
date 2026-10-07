@@ -138,7 +138,7 @@ export default function Deployments() {
           <button
             type="button"
             aria-label={t("Configure")}
-            title={t("Configure")}
+            data-tooltip={t("Configure")}
             onClick={configure}
             disabled={busy}
           >

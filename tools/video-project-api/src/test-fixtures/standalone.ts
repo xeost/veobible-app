@@ -164,8 +164,21 @@ for (const [kind, outputEnvironment] of [
     );
     await assert.rejects(fs.stat(sources), { code: "ENOENT" });
     await assert.rejects(fs.stat(output), { code: "ENOENT" });
+    await assert.rejects(
+      render(fresh, () =>
+        assert.fail("Rendering must not start without both voices"),
+      ),
+      /Generate the introduction and closing voices/,
+    );
+    await assert.rejects(fs.stat(output), { code: "ENOENT" });
     const progress: number[] = [];
     await generateProjectVoice(fresh, part, (value) => progress.push(value));
+    await assert.rejects(
+      render(fresh, () =>
+        assert.fail("A single voice is insufficient for rendering"),
+      ),
+      /Generate the introduction and closing voices/,
+    );
     assert.equal(progress[0], 5);
     assert.equal(progress.at(-1), 99);
     assert.ok(progress.some((value) => value > 10 && value < 99));
@@ -284,7 +297,15 @@ for (const [kind, outputEnvironment] of [
     const cliOffsets = path.join(voices, "2-passage-audio-offsets.json");
     const cliSettings = '{"startSeconds":0,"endSeconds":0}\n';
     await fs.writeFile(cliOffsets, cliSettings);
+    input.settings.reuseVoices = false;
+    const introVoice = await fs.readFile(
+      path.join(voices, voiceFilename("intro")),
+    );
     const result = await render(input, () => {});
+    assert.deepEqual(
+      await fs.readFile(path.join(voices, voiceFilename("intro"))),
+      introVoice,
+    );
     assert.equal(await fs.readFile(cliOffsets, "utf8"), cliSettings);
     assert.deepEqual(
       await fs.readFile(path.join(voices, voiceFilename("outro"))),
