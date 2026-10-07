@@ -36,11 +36,30 @@ import {
   loadSocialSettings,
   saveSocialSettings,
 } from "../../../lib/social-settings";
-const json = (value: unknown, status = 200, headers: HeadersInit = {}) =>
-  Response.json(value, {
-    status,
-    headers: { "Cache-Control": "no-store", ...headers },
-  });
+import { requestLanguage, translateServer } from "../../../lib/i18n-server";
+import type { Language } from "../../../i18n/context";
+
+const createJson =
+  (lang: Language) =>
+  (value: unknown, status = 200, headers: HeadersInit = {}) => {
+    let payload = value;
+    if (
+      value &&
+      typeof value === "object" &&
+      "error" in value &&
+      typeof (value as { error?: unknown }).error === "string"
+    ) {
+      payload = {
+        ...value,
+        error: translateServer((value as { error: string }).error, lang),
+      };
+    }
+    return Response.json(payload, {
+      status,
+      headers: { "Cache-Control": "no-store", ...headers },
+    });
+  };
+
 const userSchema = z.object({
   username: z.string().regex(/^[a-zA-Z0-9_.-]{3,60}$/),
   name: z.string().min(1).max(100),
@@ -48,14 +67,15 @@ const userSchema = z.object({
   role: z.enum(["admin", "editor"]),
   password: z.string().min(12).max(256),
 });
-async function handle(req: Request) {
+async function handle(req: Request, lang: Language) {
+  const json = createJson(lang);
   const url = new URL(req.url);
   const parts = url.pathname.slice(5).split("/");
   const method = req.method;
   const database = db();
   const body = async () => {
     if (Number(req.headers.get("content-length") || 0) > 1024 * 1024)
-      throw new Error("Solicitud demasiado grande");
+      throw new Error("Request too large");
     return req.json();
   };
   const cookie = req.headers
@@ -66,7 +86,7 @@ async function handle(req: Request) {
     ?.slice(12);
   const secure = url.protocol === "https:";
   if (method !== "GET" && req.headers.get("origin") !== url.origin)
-    return json({ error: "Origen no permitido" }, 403);
+    return json({ error: "Origin not allowed" }, 403);
   if (parts.join("/") === "auth/login" && method === "POST") {
     const input = z
       .object({
@@ -79,16 +99,16 @@ async function handle(req: Request) {
       .bind(input.username)
       .first<{ id: number; password_hash: string }>();
     if (!user || !(await verifyPassword(input.password, user.password_hash)))
-      return json({ error: "Usuario o contraseña incorrectos" }, 401);
+      return json({ error: "Incorrect username or password" }, 401);
     const token = await createUserToken(user.id);
     return json({ ok: true }, 200, {
       "Set-Cookie": sessionCookie(token, secure),
     });
   }
   const user = await currentUser(cookie ?? "");
-  if (!user) return json({ error: "Inicia sesión" }, 401);
+  if (!user) return json({ error: "Sign in" }, 401);
   const admin = () => {
-    if (user.role !== "admin") throw new Error("Se requiere administrador");
+    if (user.role !== "admin") throw new Error("Administrator required");
   };
   if (parts[0] === "versions") {
     if (parts.length === 1 && method === "GET")
@@ -99,7 +119,7 @@ async function handle(req: Request) {
         .prepare("SELECT locale,code FROM bible_versions WHERE id=?")
         .bind(id)
         .first<{ locale: string; code: string }>();
-      if (!version) return json({ error: "Versión inexistente" }, 404);
+      if (!version) return json({ error: "Version not found" }, 404);
       try {
         const response = await videoFetch(
           "/v1/bible-versions/books?" +
@@ -119,7 +139,7 @@ async function handle(req: Request) {
         return json(
           {
             error:
-              "No se pudieron cargar los libros. Comprueba que esta versión esté disponible y vuelve a intentarlo.",
+              "Books could not be loaded. Check that this version is available and try again.",
           },
           502,
         );
@@ -138,7 +158,7 @@ async function handle(req: Request) {
         return json(
           {
             error:
-              "No se pudieron sincronizar las versiones. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+              "Versions could not be synced. Check that generation is available and try again.",
           },
           502,
         );
@@ -161,7 +181,7 @@ async function handle(req: Request) {
         return json({ ok: true });
       }
     }
-    return json({ error: "Ruta no encontrada" }, 404);
+    return json({ error: "Route not found" }, 404);
   }
   if (parts.join("/") === "settings/voice-templates") {
     const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
@@ -247,7 +267,7 @@ async function handle(req: Request) {
       if (Number(parts[1]) === user.id)
         return json(
           {
-            error: "No puedes cambiar tu propio rol o acceso desde esta lista",
+            error: "You cannot change your own role or access from this list",
           },
           400,
         );
@@ -317,7 +337,7 @@ async function handle(req: Request) {
           return json(
             {
               error:
-                "La publicación de actualizaciones todavía no está disponible. Contacta al administrador.",
+                "Publishing updates is not available yet. Contact your administrator.",
             },
             400,
           );
@@ -325,7 +345,7 @@ async function handle(req: Request) {
           return json(
             {
               error:
-                "Revisa los datos y ajustes introducidos antes de continuar.",
+                "Review the information and settings you entered before continuing.",
             },
             400,
           );
@@ -449,27 +469,31 @@ async function handle(req: Request) {
       }
     }
   }
-  return json({ error: "Ruta no encontrada" }, 404);
+  return json({ error: "Route not found" }, 404);
 }
 async function route(req: Request) {
+  const lang = requestLanguage(req);
+  const json = createJson(lang);
   try {
-    return await handle(req);
+    return await handle(req, lang);
   } catch (error) {
     if (error instanceof ProfileError || error instanceof BibleVersionError)
       return json({ error: error.message }, error.status);
     if (error instanceof z.ZodError)
       return json(
         {
-          error: userMessage(error, 400),
+          error: userMessage(error, 400, lang),
         },
         400,
       );
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = error instanceof Error ? error.message : "Internal error";
     console.error(message);
-    return json(
-      { error: userMessage(error) },
-      message === "Se requiere administrador" ? 403 : 500,
-    );
+    const status = /Se requiere administrador|Administrator required/i.test(
+      message,
+    )
+      ? 403
+      : 500;
+    return json({ error: userMessage(error, status, lang) }, status);
   }
 }
 export {

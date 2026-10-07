@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from "react";
 import { spanish } from "./es";
-import { english } from "./en";
 import { portuguese } from "./pt";
 export type Language = "es" | "en" | "pt";
 const Context = createContext({
@@ -44,7 +43,6 @@ export function I18nProvider({
   const t = (text: string) => {
     if (language === "es") return spanish[text] ?? text;
     if (language === "pt") return portuguese[text] ?? text;
-    if (language === "en") return english[text] ?? text;
     return text;
   };
   return (

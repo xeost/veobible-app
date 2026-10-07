@@ -18,7 +18,7 @@ export const profileSchema = z
     if (value.password && !value.currentPassword)
       context.addIssue({
         code: "custom",
-        message: "Escribe tu contraseña actual.",
+        message: "Enter your current password.",
         path: ["currentPassword"],
       });
   });
@@ -50,7 +50,7 @@ export async function saveProfile(
     .first<{ id: number }>();
   if (duplicate)
     throw new ProfileError(
-      "Ese nombre de usuario ya está en uso. Elige otro.",
+      "This username is already in use. Choose another one.",
       409,
     );
   let hash: string | undefined;
@@ -63,7 +63,7 @@ export async function saveProfile(
       !row ||
       !(await verifyPassword(input.currentPassword ?? "", row.password_hash))
     )
-      throw new ProfileError("Contraseña actual incorrecta", 400);
+      throw new ProfileError("Incorrect current password", 400);
     hash = await passwordHash(input.password);
   }
   const statements = [
@@ -85,7 +85,7 @@ export async function saveProfile(
   } catch (error) {
     if (/UNIQUE.*dashboard_users.username/i.test(String(error)))
       throw new ProfileError(
-        "Ese nombre de usuario ya está en uso. Elige otro.",
+        "This username is already in use. Choose another one.",
         409,
       );
     throw error;

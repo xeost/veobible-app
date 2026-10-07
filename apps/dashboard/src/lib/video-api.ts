@@ -18,11 +18,10 @@ import {
   manualVideoProjectSchema,
   validateManualVideoProject,
 } from "./manual-video-project";
+import { requestLanguage, translateServer } from "./i18n-server";
 
 const outputEnvironment =
   process.env.NODE_ENV === "production" ? "production" : "development";
-const json = (value: unknown, status = 200) =>
-  Response.json(value, { status, headers: { "Cache-Control": "no-store" } });
 const select =
   "SELECT p.*,p.id project_id,v.id version_id,v.code version_code,v.locale,v.label FROM video_projects p JOIN bible_versions v ON v.id=p.bible_version_id";
 type Project = {
@@ -43,6 +42,25 @@ export async function videoApi(
   req: Request,
   database: D1Database,
 ): Promise<Response | null> {
+  const lang = requestLanguage(req);
+  const json = (value: unknown, status = 200) => {
+    let payload = value;
+    if (
+      value &&
+      typeof value === "object" &&
+      "error" in value &&
+      typeof (value as { error?: unknown }).error === "string"
+    ) {
+      payload = {
+        ...value,
+        error: translateServer((value as { error: string }).error, lang),
+      };
+    }
+    return Response.json(payload, {
+      status,
+      headers: { "Cache-Control": "no-store" },
+    });
+  };
   const url = new URL(req.url),
     parts = url.pathname.slice(5).split("/"),
     method = req.method;
@@ -131,7 +149,7 @@ export async function videoApi(
       .prepare("SELECT * FROM bible_versions WHERE id=?")
       .bind(input.versionId)
       .first<BibleVersion>();
-    if (!version) return json({ error: "Versión inexistente" }, 404);
+    if (!version) return json({ error: "Version not found" }, 404);
     let books;
     try {
       const response = await videoFetch(
@@ -150,7 +168,7 @@ export async function videoApi(
       return json(
         {
           error:
-            "No se pudieron cargar los libros. Comprueba que esta versión esté disponible y vuelve a intentarlo.",
+            "Books could not be loaded. Check that this version is available and try again.",
         },
         502,
       );
@@ -174,7 +192,7 @@ export async function videoApi(
       return json(
         {
           error:
-            "Ya existe un proyecto con este nombre corto para la versión seleccionada.",
+            "A project with this short name already exists for the selected version.",
         },
         409,
       );
@@ -210,7 +228,7 @@ export async function videoApi(
       .prepare("SELECT * FROM bible_versions WHERE id=?")
       .bind(input.versionId)
       .first<BibleVersion>();
-    if (!version) return json({ error: "Versión inexistente" }, 404);
+    if (!version) return json({ error: "Version not found" }, 404);
     let proposals: unknown;
     try {
       const query = new URLSearchParams({
@@ -228,7 +246,7 @@ export async function videoApi(
       return json(
         {
           error:
-            "No se pudieron sincronizar los proyectos. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+            "Projects could not be synced. Check that generation is available and try again.",
         },
         502,
       );
@@ -257,7 +275,7 @@ export async function videoApi(
       return json(
         {
           error:
-            "No se pudieron sincronizar los proyectos existentes. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+            "Could not sync existing projects. Check that generation is available and try again.",
         },
         502,
       );
@@ -276,7 +294,7 @@ export async function videoApi(
     (url.searchParams.get("kind") &&
       url.searchParams.get("kind") !== project.kind)
   )
-    return json({ error: "Video inexistente" }, 404);
+    return json({ error: "Video not found" }, 404);
   const version = {
     id: project.version_code,
     locale: project.locale,
@@ -327,7 +345,7 @@ export async function videoApi(
       })
       .parse(await req.json());
     if (["queued", "running"].includes((await state()).status))
-      return json({ error: "Espera a que termine la generación" }, 409);
+      return json({ error: "Wait for generation to finish" }, 409);
     await database
       .prepare(
         "UPDATE video_projects SET settings=COALESCE(?,settings),published=COALESCE(?,published),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
@@ -400,7 +418,7 @@ export async function videoApi(
       if (!voiceTemplates[part])
         return json(
           {
-            error: "Configura los textos de voz en Settings antes de generar.",
+            error: "Configure narration scripts in Settings before generating.",
           },
           400,
         );
@@ -431,7 +449,9 @@ export async function videoApi(
       (!voiceTemplates.intro || !voiceTemplates.outro)
     )
       return json(
-        { error: "Configura los textos de voz en Settings antes de generar." },
+        {
+          error: "Configure narration scripts in Settings before generating.",
+        },
         400,
       );
     const request = renderSchema.parse({
@@ -462,5 +482,5 @@ export async function videoApi(
       headers: { "Content-Type": "application/json" },
     });
   }
-  return json({ error: "Video inexistente" }, 404);
+  return json({ error: "Video not found" }, 404);
 }

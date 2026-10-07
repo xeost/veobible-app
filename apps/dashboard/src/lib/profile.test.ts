@@ -118,7 +118,7 @@ test("profile updates normalize usernames and protect passwords and invalidate p
         password: "replacement-password",
       }),
     ),
-    /Contraseña actual incorrecta/,
+    /Incorrect current password/,
   );
   assert.equal(
     sqlite

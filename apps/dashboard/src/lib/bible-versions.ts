@@ -36,18 +36,18 @@ async function findVersion(database: D1Database, id: number) {
     .prepare(`${select} WHERE v.id=? GROUP BY v.id`)
     .bind(id)
     .first<BibleVersion>();
-  if (!version) throw new BibleVersionError("Versión inexistente", 404);
+  if (!version) throw new BibleVersionError("Version not found", 404);
   return version;
 }
 const inUse = () =>
   new BibleVersionError(
-    "Esta versión tiene proyectos asociados. Puedes cambiar su nombre, pero no su idioma o código ni eliminarla.",
+    "This version has associated projects. You can change its name, but you cannot change its language or code or delete it.",
     409,
   );
 function duplicate(error: unknown): never {
   if (/UNIQUE constraint failed/i.test(String(error)))
     throw new BibleVersionError(
-      "Ya existe una versión con este código en el idioma seleccionado.",
+      "A version with this code already exists in the selected language.",
       409,
     );
   throw error;
