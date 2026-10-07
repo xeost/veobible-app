@@ -30,9 +30,9 @@ test("waveform clicks play to the fragment end and ignore the surrounding contex
   assert.equal(waveformSeekRange(cue, 40), null);
   assert.equal(waveformSeekRange(cue, 42), null);
 });
-test("trim handles cannot cross neighbors or exceed the section, including fractional boundaries", () => {
-  assert.equal(trimCue(cues, 0, "end", 8, 0, 9), 4.00042);
-  assert.equal(trimCue(cues, 1, "start", -5, 0, 9), 4.00042);
+test("trim handles reach both waveform edges beyond neighboring verses while retaining audio bounds", () => {
+  assert.equal(trimCue(cues, 0, "end", 8, 0, 9), 8);
+  assert.equal(trimCue(cues, 1, "start", -5, 0, 9), 0);
   assert.equal(trimCue(cues, 1, "end", 20, 0, 9), 9);
   assert.equal(trimCue(cues, 0, "start", -20, 0, 9), 0);
   assert.equal(trimCue(cues, 0, "start", 9, 0, 9), 3.98042);
@@ -55,8 +55,14 @@ test("saved trim offsets produce exactly the same timings in the video renderer"
       adjustedCues(cues, [{ ...offsets[0], endOffsetSeconds: 1 }]),
       9,
     ),
-    false,
+    true,
   );
+  assert.deepEqual(
+    adjustedCues(cues, [{ ...offsets[0], endOffsetSeconds: 1 }]),
+    applyVerseOffsets(cues, [{ ...offsets[0], endOffsetSeconds: 1 }]),
+  );
+  assert.equal(validVerseTimings([{ ...cues[0], start: 5, end: 4 }], 9), false);
+  assert.equal(validVerseTimings([{ ...cues[0], end: 10 }], 9), false);
 });
 test("multiple chapter sections map reading timeline time into source audio time", () => {
   const sections = readingTimeline([

@@ -144,6 +144,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
           <Audio
             key={i}
             src={section.file}
+            useWebAudioApi
             startFrom={Math.round(section.start * fps)}
             endAt={Math.round(section.end * fps)}
             // Delay into this segment: scheduleStart frames from the start of the reading scene

@@ -2210,3 +2210,29 @@ audio {
 .project-preview-panel > .generation-progress {
   margin-top: 12px;
 }
+
+.project-top-actions button {
+  transition:
+    background-color 0.25s,
+    border-color 0.25s,
+    color 0.25s;
+}
+.project-top-actions .save-confirmed {
+  color: #7de5ad;
+  border-color: #397654;
+  background: #193629;
+}
+.preview-view-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.preview-view-actions button {
+  font-size: 11px;
+  padding: 8px 10px;
+}
+.preview-view-actions .active {
+  border-color: #a879e2;
+  color: #dcc8f6;
+}

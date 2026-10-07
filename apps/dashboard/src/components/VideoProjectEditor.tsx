@@ -36,6 +36,7 @@ import {
   readingTimeline,
   type Inspection,
 } from "../lib/video-timing";
+import { VideoProjectPreview } from "./VideoProjectPreview";
 import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
@@ -70,6 +71,15 @@ export function VideoProjectEditor({
   const [analysisError, setAnalysisError] = useState("");
   const [voiceError, setVoiceError] = useState("");
   const [notice, setNotice] = useState("");
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), 2200);
+    return () => clearTimeout(timer);
+  }, [saved]);
+  useEffect(() => {
+    setSaved(false);
+  }, [settings, projectId]);
   const [voices, setVoices] = useState<Voices>(emptyVoices);
   const [voiceRevision, setVoiceRevision] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -210,7 +220,7 @@ export function VideoProjectEditor({
       )
     ) {
       throw new Error(
-        "Los tiempos de algunos versículos se superponen o están fuera del pasaje. Revisa los ajustes de inicio y fin.",
+        "Los tiempos de algunos versículos están fuera del pasaje o tienen el inicio después del final. Revisa los ajustes de inicio y fin.",
       );
     }
     return settingsSchema.parse(settingsRef.current);
@@ -222,7 +232,7 @@ export function VideoProjectEditor({
         settings: checkedSettings(),
       }),
     });
-    setNotice("Ajustes guardados.");
+    setSaved(true);
   };
   const trim = (reference: string, edge: "start" | "end", value: number) => {
     const original = analysis?.cues.find((cue) => cue.reference === reference);
@@ -267,9 +277,6 @@ export function VideoProjectEditor({
       }));
       setVoiceRevision((value) => value + 1);
       window.dispatchEvent(new Event(queueChangedEvent));
-      setNotice(
-        "La voz está en preparación. Puedes seguir revisando el proyecto.",
-      );
     });
   const toggleVoicePlayback = async (part: "intro" | "outro") => {
     const player = voicePlayers.current[part];
@@ -518,9 +525,16 @@ export function VideoProjectEditor({
           </p>
         </div>
         <div className="project-top-actions">
-          <button disabled={editingLocked} onClick={() => void perform(save)}>
-            <Save size={16} />
-            {t("Guardar cambios")}
+          <button
+            className={saved ? "save-confirmed" : undefined}
+            disabled={editingLocked}
+            onClick={() => {
+              setSaved(false);
+              void perform(save);
+            }}
+          >
+            {saved ? <Check size={16} /> : <Save size={16} />}
+            {t(saved ? "Cambios guardados" : "Guardar cambios")}
           </button>
           <button
             className="primary"
@@ -698,29 +712,30 @@ export function VideoProjectEditor({
                 {kind === "short" ? "9:16" : "16:9"}
               </span>
             </div>
-            {result ? (
-              <video
-                controls
-                preload="metadata"
-                className={`studio-video-preview ${kind}`}
-                src={media("video")}
-                onError={() =>
-                  setError(
-                    "El video no está disponible. Puedes volver a generarlo con tus ajustes guardados.",
-                  )
-                }
-              />
-            ) : (
-              <div className={`studio-preview-placeholder ${kind}`}>
-                <FormatIcon size={40} />
-                <strong>
-                  {t(kind === "short" ? "Video vertical" : "Video horizontal")}
-                </strong>
-                <span>
-                  {t("El video aparecerá aquí después de generarlo.")}
-                </span>
-              </div>
-            )}
+            <VideoProjectPreview
+              key={projectId + ":" + voiceRevision}
+              kind={kind}
+              endpoint={endpoint}
+              settings={settings}
+              cues={cues}
+              ready={Boolean(
+                analysis &&
+                !analyzing &&
+                voices.intro.available &&
+                voices.outro.available &&
+                !Object.values(voices).some((voice) =>
+                  ["queued", "running"].includes(voice.status),
+                ),
+              )}
+              rendered={Boolean(result)}
+              onBackground={(background) =>
+                setSettings((current) =>
+                  current.background === background
+                    ? current
+                    : { ...current, background },
+                )
+              }
+            />
             <span className={`badge ${project.status}`}>
               {t(statusLabel(project.status))}
             </span>

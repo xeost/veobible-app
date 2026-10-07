@@ -12,6 +12,6 @@ export async function videoFetch(path: string, init: RequestInit = {}) {
   return fetch(`${env.VIDEO_API_URL.replace(/\/$/, "")}${path}`, {
     ...init,
     headers,
-    signal: AbortSignal.timeout(30000),
+    signal: init.signal ?? AbortSignal.timeout(30000),
   });
 }

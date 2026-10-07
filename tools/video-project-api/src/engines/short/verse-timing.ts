@@ -182,14 +182,9 @@ export function applyVerseOffsets(
     const endOffsetSeconds = offset?.endOffsetSeconds ?? 0;
     const start = estimate.start + startOffsetSeconds;
     const end = estimate.end + endOffsetSeconds;
-    if (
-      start < 0 ||
-      end > duration + 1e-6 ||
-      end <= start ||
-      (cues.length && start < cues.at(-1)!.end - 1e-6)
-    ) {
+    if (start < 0 || end > duration + 1e-6 || end <= start) {
       throw new Error(
-        `Offsets for ${estimate.reference} in ${file} produce overlapping or invalid verse timings`,
+        `Offsets for ${estimate.reference} in ${file} produce invalid verse timings`,
       );
     }
     cues.push({ ...estimate, start, end });

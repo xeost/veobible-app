@@ -13,7 +13,7 @@
 
 import React from "react";
 import { Video } from "@remotion/media";
-import { useCurrentFrame, useVideoConfig, Audio } from "remotion";
+import { useCurrentFrame, useVideoConfig, Audio, Sequence } from "remotion";
 import {
   stagePhase,
   layoutVerse,
@@ -126,19 +126,30 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
 
       {/* Bible reading audio sections */}
       {sectionSchedule.map((section, i) => (
-        <Audio
+        <Sequence
           key={i}
-          src={section.file}
-          startFrom={Math.round(section.start * fps)}
-          endAt={Math.round(section.end * fps)}
-          // Delay into this segment: scheduleStart frames from the start of the reading scene
-          // Remotion offsets are controlled via Sequence wrapper in the root composition.
-          volume={
-            volumeMultiplier > 1
-              ? Math.min(volumeMultiplier, 4)
-              : volumeMultiplier
-          }
-        />
+          from={Math.round(section.scheduleStart * fps)}
+          durationInFrames={Math.max(
+            1,
+            Math.round((section.end - section.start) * fps),
+          )}
+          layout="none"
+        >
+          <Audio
+            key={i}
+            src={section.file}
+            useWebAudioApi
+            startFrom={Math.round(section.start * fps)}
+            endAt={Math.round(section.end * fps)}
+            // Delay into this segment: scheduleStart frames from the start of the reading scene
+            // Remotion offsets are controlled via Sequence wrapper in the root composition.
+            volume={
+              volumeMultiplier > 1
+                ? Math.min(volumeMultiplier, 4)
+                : volumeMultiplier
+            }
+          />
+        </Sequence>
       ))}
 
       {/* Voice-over for reading segment if voices provided */}

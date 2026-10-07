@@ -1,4 +1,18 @@
 export const english: Record<string, string> = {
+  Previsualizar: "Preview",
+  "Cambios guardados": "Changes saved",
+  "Preparando previsualización…": "Preparing preview…",
+  "Actualizar previsualización": "Refresh preview",
+  "Previsualiza el video con tus ajustes antes de generarlo.":
+    "Preview the video with your settings before generating it.",
+  "Genera las voces de introducción y cierre para previsualizar el video.":
+    "Generate the introduction and closing voices to preview the video.",
+  "No se pudo preparar la previsualización. Inténtalo de nuevo.":
+    "The preview could not be prepared. Try again.",
+  "No se pudo reproducir la previsualización. Vuelve a prepararla.":
+    "The preview could not be played. Prepare it again.",
+  "Los tiempos de algunos versículos están fuera del pasaje o tienen el inicio después del final. Revisa los ajustes de inicio y fin.":
+    "Some verse timings fall outside the passage or have a start after the end. Review the start and end adjustments.",
   "Tarea actual": "Current task",
   "Cola completa": "Entire queue",
   Progreso: "Progress",

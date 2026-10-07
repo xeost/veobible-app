@@ -33,6 +33,7 @@ const {
   videoFilename,
   generateProjectVoice,
 } = await import("./pipeline.js");
+const { createPreview, previewAsset } = await import("./preview.js");
 const token = process.env.VIDEO_API_TOKEN;
 if (!token || token.length < 32)
   throw new Error("VIDEO_API_TOKEN must contain at least 32 characters");
@@ -420,6 +421,13 @@ const server = http.createServer(async (req, res) => {
       );
       return json(res, 202, job);
     }
+    if (url.pathname === "/v1/preview" && req.method === "POST") {
+      return json(
+        res,
+        200,
+        await createPreview(renderSchema.parse(await body(req))),
+      );
+    }
     if (parts[1] === "jobs" && parts[2] && req.method === "GET") {
       const id = idSchema.parse(parts[2]);
       return jobs.has(id)
@@ -448,22 +456,31 @@ const server = http.createServer(async (req, res) => {
         .union([
           z.enum(["video", "thumbnail", "intro", "outro"]),
           z.string().regex(/^reading-\d+$/),
+          z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
         ])
         .parse(parts[4]);
       const reading = readingSources.get(`${environment}:${id}`);
       if (asset.startsWith("reading-") && reading?.kind !== kind)
         return json(res, 404, { error: "Analyze the passage first" });
-      const file = asset.startsWith("reading-")
-        ? reading?.sections[Number(asset.slice(8))]?.file
-        : asset === "intro" || asset === "outro"
-          ? path.join(
-              sourceDir(kind, version, passage, environment),
-              voiceFilename(asset),
-            )
-          : path.join(
-              projectDir(kind, version, passage, environment),
-              asset === "video" ? videoFilename(kind) : "thumbnail.jpg",
-            );
+      const file = asset.startsWith("preview-")
+        ? previewAsset(asset, {
+            projectId: id,
+            kind,
+            outputEnvironment: environment,
+            version,
+            passage,
+          })
+        : asset.startsWith("reading-")
+          ? reading?.sections[Number(asset.slice(8))]?.file
+          : asset === "intro" || asset === "outro"
+            ? path.join(
+                sourceDir(kind, version, passage, environment),
+                voiceFilename(asset),
+              )
+            : path.join(
+                projectDir(kind, version, passage, environment),
+                asset === "video" ? videoFilename(kind) : "thumbnail.jpg",
+              );
       if (!file) return json(res, 404, { error: "Audio section not found" });
       let stat;
       try {
@@ -487,14 +504,13 @@ const server = http.createServer(async (req, res) => {
         }
       }
       res.writeHead(range ? 206 : 200, {
-        "Content-Type":
-          asset === "video"
-            ? "video/mp4"
-            : asset === "thumbnail"
-              ? "image/jpeg"
-              : file.endsWith(".mp3")
-                ? "audio/mpeg"
-                : "audio/wav",
+        "Content-Type": file.endsWith(".mp4")
+          ? "video/mp4"
+          : asset === "thumbnail"
+            ? "image/jpeg"
+            : file.endsWith(".mp3")
+              ? "audio/mpeg"
+              : "audio/wav",
         "Content-Length": end - start + 1,
         "Accept-Ranges": "bytes",
         ...(range

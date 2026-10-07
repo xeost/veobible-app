@@ -240,22 +240,21 @@ const readingSilenceConst = 1;
 const transitionDuration = 0.5;
 
 /** Build one forward-and-reverse cycle, then loop it only for the reading. */
-export async function renderEpisodeVideo(
-  output: string,
+export async function prepareVideoComposition(
   sections: AudioSection[],
   videosDir: string,
   title: IntroTitle,
   outroTitle: OutroTitle,
   verseCues: VerseCue[],
   voices?: VoiceTracks,
-  workDir = path.dirname(output),
+  workDir = videosDir,
   volumeMultiplier = 1,
   renderOptions: {
     concurrency?: number;
     background?: string;
     onProgress?: (progress: number) => void;
   } = {},
-): Promise<VideoResult> {
+) {
   validateReadingVolume(volumeMultiplier);
   if (
     !sections.length ||
@@ -311,17 +310,16 @@ export async function renderEpisodeVideo(
   if (
     !verseCues.length ||
     verseCues.some(
-      (cue, i) =>
+      (cue) =>
         !cue.text ||
         !Number.isFinite(cue.start) ||
         !Number.isFinite(cue.end) ||
         cue.start < 0 ||
         cue.end > readingDuration + 1e-6 ||
-        cue.end <= cue.start ||
-        (i > 0 && cue.start < verseCues[i - 1].end - 1e-6),
+        cue.end <= cue.start,
     )
   ) {
-    throw new Error("The reading needs sequential, valid verse timings");
+    throw new Error("The reading needs valid verse timings");
   }
 
   const introVideo = introInfo.streams.find((s) => s.codec_type === "video")!;
@@ -338,7 +336,6 @@ export async function renderEpisodeVideo(
     throw new Error(`Invalid video format: ${intro}`);
 
   const fps = sourceFrameRate(frameRate);
-  const concurrency = renderOptions.concurrency ?? renderConcurrency();
   const readingLength = readingDuration + readingSilenceConst * 2;
   const totalFrames =
     Math.round(introLength * fps) +
@@ -354,7 +351,6 @@ export async function renderEpisodeVideo(
   );
 
   const staging = await fs.mkdtemp(path.join(workDir, ".video-"));
-  let cleanupMedia: (() => Promise<void>) | undefined;
   try {
     // Build boomerang (still uses FFmpeg — only the composition/render moves to Remotion)
     const boomerang = path.join(staging, "boomerang.mp4");
@@ -406,6 +402,65 @@ export async function renderEpisodeVideo(
       readingPalette,
     };
 
+    return {
+      props: compositionProps,
+      width,
+      height,
+      fps,
+      totalFrames,
+      totalDuration,
+      readingDuration,
+      background: path.basename(background),
+      thumbnailTime: introThumbnailTime(introLength, frameRate),
+      cleanup: () => fs.rm(staging, { recursive: true, force: true }),
+    };
+  } catch (error) {
+    await fs.rm(staging, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+export async function renderEpisodeVideo(
+  output: string,
+  sections: AudioSection[],
+  videosDir: string,
+  title: IntroTitle,
+  outroTitle: OutroTitle,
+  verseCues: VerseCue[],
+  voices?: VoiceTracks,
+  workDir = path.dirname(output),
+  volumeMultiplier = 1,
+  renderOptions: {
+    concurrency?: number;
+    background?: string;
+    onProgress?: (progress: number) => void;
+  } = {},
+): Promise<VideoResult> {
+  const prepared = await prepareVideoComposition(
+    sections,
+    videosDir,
+    title,
+    outroTitle,
+    verseCues,
+    voices,
+    workDir,
+    volumeMultiplier,
+    renderOptions,
+  );
+  const {
+    props: compositionProps,
+    width,
+    height,
+    fps,
+    totalFrames,
+    totalDuration,
+    readingDuration,
+    background,
+    thumbnailTime,
+  } = prepared;
+  const concurrency = renderOptions.concurrency ?? renderConcurrency();
+  let cleanupMedia: (() => Promise<void>) | undefined;
+  try {
     console.log(
       `Rendering complete video with Remotion (${fps.toFixed(3)} FPS, ${concurrency} workers)...`,
     );
@@ -453,13 +508,13 @@ export async function renderEpisodeVideo(
     process.stdout.write("\n");
 
     return {
-      background: path.basename(background),
+      background,
       duration: totalDuration,
       readingDuration,
-      thumbnailTime: introThumbnailTime(introLength, frameRate),
+      thumbnailTime,
     };
   } finally {
     await cleanupMedia?.();
-    await fs.rm(staging, { recursive: true, force: true });
+    await prepared.cleanup();
   }
 }

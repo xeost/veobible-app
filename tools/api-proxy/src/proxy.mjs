@@ -2,7 +2,7 @@ import http from "node:http";
 
 export function routeFor(pathname) {
   if (
-    /^\/v1\/(?:projects|jobs|analyze|queue|bible-versions|video-project-proposals)(?:\/|$)/.test(
+    /^\/v1\/(?:projects|jobs|analyze|preview|queue|bible-versions|video-project-proposals)(?:\/|$)/.test(
       pathname,
     )
   )

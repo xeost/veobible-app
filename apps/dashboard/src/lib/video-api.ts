@@ -345,6 +345,7 @@ export async function videoApi(
       .union([
         z.enum(["video", "thumbnail", "intro", "outro"]),
         z.string().regex(/^reading-\d+$/),
+        z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
       ])
       .parse(url.searchParams.get("asset"));
     const response = await videoFetch(
@@ -374,7 +375,10 @@ export async function videoApi(
       },
     });
   }
-  if (method === "POST" && ["analyze", "voices", "render"].includes(parts[2])) {
+  if (
+    method === "POST" &&
+    ["analyze", "voices", "render", "preview"].includes(parts[2])
+  ) {
     const values = (await req.json()) as Record<string, unknown>;
     const settings = settingsSchema.parse(
       parts[2] === "voices" ? JSON.parse(project.settings) : values,
@@ -422,6 +426,7 @@ export async function videoApi(
       });
     }
     if (
+      parts[2] === "render" &&
       settings.clipAudioMode !== "video" &&
       (!voiceTemplates.intro || !voiceTemplates.outro)
     )
@@ -434,12 +439,18 @@ export async function videoApi(
       id: crypto.randomUUID(),
       socialAccounts: (await loadSocialSettings(database))[project.locale],
     });
-    const response = await videoFetch("/v1/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-    });
-    if (response.ok)
+    const response = await videoFetch(
+      parts[2] === "preview" ? "/v1/preview" : "/v1/jobs",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+        ...(parts[2] === "preview"
+          ? { signal: AbortSignal.timeout(120000) }
+          : {}),
+      },
+    );
+    if (response.ok && parts[2] !== "preview")
       await database
         .prepare(
           "UPDATE video_projects SET settings=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",

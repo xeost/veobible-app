@@ -63,6 +63,7 @@ test(
           env: {
             ...env,
             VIDEO_SMOKE_RENDER: process.env.VIDEO_SMOKE_RENDER ?? "0",
+            VIDEO_SMOKE_PREVIEW: "1",
           },
           timeout: 230_000,
           maxBuffer: 3 * 1024 * 1024,

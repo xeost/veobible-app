@@ -48,10 +48,10 @@ export function trimBounds(
 ) {
   const cue = cues[index];
   return {
-    startMin: Math.max(sectionStart, cues[index - 1]?.end ?? sectionStart),
+    startMin: sectionStart,
     startMax: cue.end - 0.02,
     endMin: cue.start + 0.02,
-    endMax: Math.min(sectionEnd, cues[index + 1]?.start ?? sectionEnd),
+    endMax: sectionEnd,
   };
 }
 export function trimCue(
@@ -74,13 +74,12 @@ export function validVerseTimings(
   maxDuration: number,
 ): boolean {
   return cues.every(
-    (cue, index) =>
+    (cue) =>
       Number.isFinite(cue.start) &&
       Number.isFinite(cue.end) &&
       cue.start >= 0 &&
       cue.end <= maxDuration + 1e-6 &&
-      cue.end > cue.start &&
-      (index === 0 || cue.start >= cues[index - 1].end - 1e-6),
+      cue.end > cue.start,
   );
 }
 

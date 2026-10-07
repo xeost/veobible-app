@@ -39,7 +39,7 @@ const messages = new Set([
   "Configura los textos de voz en Settings antes de generar.",
   "Ese nombre de usuario ya está en uso. Elige otro.",
   "No tienes permiso para realizar esta acción.",
-  "Los tiempos de algunos versículos se superponen o están fuera del pasaje. Revisa los ajustes de inicio y fin.",
+  "Los tiempos de algunos versículos están fuera del pasaje o tienen el inicio después del final. Revisa los ajustes de inicio y fin.",
   "El corte de audio está fuera del pasaje. Revisa los ajustes de inicio y fin.",
   "El volumen de lectura debe estar entre 0 y 4.",
   "Faltan archivos necesarios para crear este video. Contacta al administrador.",

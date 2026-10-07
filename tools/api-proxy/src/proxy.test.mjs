@@ -9,6 +9,7 @@ test("routes only registered video namespaces", () => {
     "/v1/projects/existing",
     "/v1/jobs",
     "/v1/analyze",
+    "/v1/preview",
     "/v1/queue",
     "/v1/bible-versions",
     "/v1/video-project-proposals",
@@ -18,6 +19,7 @@ test("routes only registered video namespaces", () => {
     "/",
     "/v1/batches",
     "/v1/jobs-extra",
+    "/v1/preview-extra",
     "/v1/bible-versions-extra",
     "/anything",
   ])

@@ -188,12 +188,7 @@ export function VerseWaveform({
     await playRange(cue);
   };
   const handle = (edge: "start" | "end") => {
-    const bounds = trimBounds(
-      cues,
-      index,
-      timelineStart,
-      timelineStart + duration,
-    );
+    const bounds = trimBounds(cues, index, window.start, window.end);
     return (
       <button
         type="button"
@@ -219,7 +214,8 @@ export function VerseWaveform({
           move(
             edge,
             window.start +
-              ((event.clientX - box.left) / box.width) * visibleDuration,
+              Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)) *
+                visibleDuration,
           );
         }}
         onPointerUp={(event) => {

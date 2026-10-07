@@ -34,6 +34,9 @@ import { ReadingScene } from "./ReadingScene";
 import { OutroScene } from "./OutroScene";
 import type { ShortCompositionProps } from "./types";
 
+const resolveAsset = (source: string) =>
+  /^(?:https?:\/\/|\/)/.test(source) ? source : staticFile(source);
+
 // Fade opacity helpers --------------------------------------------------------
 const fadeIn = (frame: number, fps: number, durationSec: number): number =>
   Math.min(1, frame / Math.max(1, Math.round(durationSec * fps)));
@@ -98,23 +101,23 @@ export const VeoBibleShort: React.FC<ShortCompositionProps> = (props) => {
   } = {
     ...props,
     introVideoPath: props.introVideoPath
-      ? staticFile(props.introVideoPath)
+      ? resolveAsset(props.introVideoPath)
       : "",
     boomerangVideoPath: props.boomerangVideoPath
-      ? staticFile(props.boomerangVideoPath)
+      ? resolveAsset(props.boomerangVideoPath)
       : "",
     outroVideoPath: props.outroVideoPath
-      ? staticFile(props.outroVideoPath)
+      ? resolveAsset(props.outroVideoPath)
       : "",
     sections: props.sections.map((section) => ({
       ...section,
-      file: staticFile(section.file),
+      file: resolveAsset(section.file),
     })),
     voices: props.voices
       ? {
           ...props.voices,
-          intro: staticFile(props.voices.intro),
-          outro: staticFile(props.voices.outro),
+          intro: resolveAsset(props.voices.intro),
+          outro: resolveAsset(props.voices.outro),
         }
       : undefined,
   };
