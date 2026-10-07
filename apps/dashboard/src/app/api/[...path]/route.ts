@@ -305,8 +305,7 @@ async function handle(req: Request, lang: Language) {
       .prepare("SELECT value FROM site_settings WHERE key=?")
       .bind("deploy_hook:veobible:site")
       .first<{ value: string }>();
-    // A saved empty value explicitly disables publishing, including the environment fallback.
-    const hookUrl = hookRow ? hookRow.value : (env.SITE_DEPLOY_HOOK ?? "");
+    const hookUrl = hookRow?.value ?? "";
     if (parts[1] === "settings") {
       if (method === "GET") return json({ hookUrl });
       if (method === "POST") {

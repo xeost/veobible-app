@@ -62,12 +62,12 @@ function stop(exitCode = 0) {
   if (!children.size) process.exit(exitCode);
 }
 
-if (!process.env.VIDEO_API_TOKEN)
-  throw new Error("Set VIDEO_API_TOKEN in tools/api-proxy/.env");
+if (!process.env.PROXY_API_TOKEN)
+  throw new Error("Set PROXY_API_TOKEN in tools/api-proxy/.env");
 
 const server = createProxy({
   videoPort,
-  token: process.env.VIDEO_API_TOKEN,
+  token: process.env.PROXY_API_TOKEN,
   isRunning: (name) => children.has(name),
 });
 server.on("error", (error) => {

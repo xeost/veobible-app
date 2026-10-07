@@ -6,3 +6,7 @@ dist/
 !.env.example
 *.tsbuildinfo
 imports/
+
+# Generated ViNext state and local deployment configuration.
+.vinext/
+!.env.production.example

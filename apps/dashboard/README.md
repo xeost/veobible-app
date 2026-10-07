@@ -4,7 +4,7 @@ Private dashboard built with Next.js App Router and ViNext. Its API uses an excl
 
 ## Development
 
-Requires Node 22+ and pnpm. Install packages separately:
+Requires Node 24+ and pnpm 11.11.0. Install packages separately:
 
 ```sh
 pnpm --dir apps/dashboard install
@@ -18,7 +18,7 @@ pnpm start:api-proxy
 pnpm dev:dashboard
 ```
 
-Open <http://localhost:3003>. The initial migration only creates the `admin` user, with password `admin123` stored as a PBKDF2 SHA-256 hash. You can change it from your profile. Configure a random `JWT_SECRET` of at least 32 bytes and the same random 32+ character `VIDEO_API_TOKEN` in both the dashboard and the proxy. The child API receives the token from the proxy; engines and assets are configured in [the generator](../../tools/video-project-api/README.md).
+Open <http://localhost:3003>. The initial migration only creates the `admin` user, with password `admin123` stored as a PBKDF2 SHA-256 hash. You can change it from your profile. Configure a random `JWT_SECRET` of at least 32 bytes and the same random 32+ character `PROXY_API_TOKEN` in both the dashboard and the proxy. The child API receives the token from the proxy; engines and assets are configured in [the generator](../../tools/video-project-api/README.md).
 
 Authentication uses HS256 JWTs via jose, with 30-day expiration and HttpOnly/SameSite=Lax cookie, Secure over HTTPS. Each request verifies the active user, role, and `auth_version`; mutations require the same origin. Changing your password or access invalidates previous JWTs. There are no session or login-attempt tables. Administrators manage users, settings, and deployments; editors produce videos.
 
@@ -80,11 +80,50 @@ Each task receives a copy of relevant templates and accounts. The generator does
 
 ## Production and Deployments
 
-Create an exclusive D1 database for the dashboard and configure its UUID in `env.production.d1_databases` within `wrangler.jsonc`. Set `VIDEO_API_URL` to the tunnel hostname and store `JWT_SECRET`, `VIDEO_API_TOKEN`, and any Cloudflare Access credentials as Worker secrets. Prepare the database with the single migration. Build with `pnpm --dir apps/dashboard build:production` and publish explicitly with Wrangler using the generated `dist/server/wrangler.json`.
+The production Worker is `veobible-dashboard`, served at <https://dash.veobible.com>. Its custom domain requires an active Cloudflare zone. Worker preview URLs and the `workers.dev` hostname are disabled. Local development uses a separate Worker configuration and the proxy at port 8430.
+
+The GitHub Action in `.github/workflows/deploy-dashboard.yml` validates pull requests, then deploys pushes to `main` and manual runs through the GitHub `production` environment. It installs both the dashboard and video project packages because the editor shares video compositions with the generator. Deployments are serialized to avoid overlapping migrations.
+
+Create a dedicated dashboard D1 database and configure these GitHub variables:
+
+| Variable                     | Value                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `DASHBOARD_D1_DATABASE_ID`   | Required: UUID of the dashboard database.                                                                              |
+| `DASHBOARD_VIDEO_API_URL`    | Required: HTTPS URL of the video proxy tunnel, accessible from the Worker. This is separate from the public Bible API. |
+| `DASHBOARD_D1_DATABASE_NAME` | Optional; defaults to `veobible-dashboard-production`.                                                                 |
+| `DASHBOARD_DOMAIN`           | Optional; defaults to `dash.veobible.com`.                                                                             |
+
+Configure these GitHub secrets in the repository or its `production` environment:
+
+| Secret                        | Purpose                                                                                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_ACCOUNT_ID`       | Cloudflare account hosting the Worker and D1 database.                                                                             |
+| `CLOUDFLARE_API_TOKEN`        | Deployment credential with Workers Scripts Write, D1 Edit, and Workers Routes Write permissions for the relevant account and zone. |
+| `JWT_SECRET`                  | Random authentication secret of at least 32 bytes.                                                                                 |
+| `PROXY_API_TOKEN`             | Random secret of at least 32 bytes, matching the proxy configuration.                                                              |
+| `DASHBOARD_PUBLISH_API_TOKEN` | Optional separate token for reading the public site's Workers Builds, with Workers Builds Read permission.                         |
+
+`DASHBOARD_PUBLISH_ACCOUNT_ID` is an optional GitHub variable for the public site's account; it defaults to the deployment account when the publication token is provided. The deployment token is never automatically stored inside the Worker.
+
+The production build resolves configuration from these variables and rejects placeholder database IDs, example proxy URLs, or invalid domains. Before migrating, the Action checks required credentials and performs a deployment dry run. The deployment uploads runtime secrets together with the Worker using a temporary file with restricted permissions. Optional secrets omitted from later runs retain their existing values; delete them explicitly with Wrangler when no longer needed.
+
+The initial migration creates only `admin` with password `admin123`. Change this password from the profile after the first deployment. Settings, versions, and projects are configured manually through the interface.
+
+For a manual deployment, copy `.env.production.example` to the ignored `.env.production`, fill in its values, and run:
+
+```sh
+pnpm --dir apps/dashboard build:production
+pnpm --dir apps/dashboard deploy:production --check
+pnpm --dir apps/dashboard deploy:production --dry-run
+pnpm --dir apps/dashboard db:migrate:remote
+pnpm --dir apps/dashboard deploy:production
+```
+
+The build updates only the production configuration in `wrangler.jsonc`. Production is selected during compilation with `CLOUDFLARE_ENV=production`; deployment uses the generated `dist/server/wrangler.json` without `--env`, following [Cloudflare's Vite environment guidance](https://developers.cloudflare.com/workers/vite-plugin/reference/migrating-from-wrangler-dev/). Database migrations use the source configuration with `--env production`. The video services and their working directories remain on their own host; GitHub does not start them. All dashboard pages retain their `noindex` metadata and response header.
 
 The browser communicates exclusively with the dashboard, which communicates with the local proxy or over HTTPS/tunnel. Configure `DASHBOARD_ORIGINS` in the proxy and refer to [its documentation](../../tools/api-proxy/README.md) for tunnel setup.
 
-Deployments publishes the public VeoBible site. "Configure" stores the deploy hook in `site_settings`, under key `deploy_hook:veobible:site`. An empty string disables publishing; `SITE_DEPLOY_HOOK` serves as fallback only if no setting is saved. `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` enable querying Workers Builds. Deployment history is independent of video generation.
+Deployments publishes the public VeoBible site. "Configure" stores the deploy hook in `site_settings`, under key `deploy_hook:veobible:site`. The saved database value is the only source of this configuration. A missing or empty value disables publishing. `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` enable querying Workers Builds. Deployment history is independent of video generation.
 
 ## Verification
 

@@ -34,9 +34,9 @@ const {
   generateProjectVoice,
 } = await import("./pipeline.js");
 const { createPreview, previewAsset } = await import("./preview.js");
-const token = process.env.VIDEO_API_TOKEN;
+const token = process.env.PROXY_API_TOKEN;
 if (!token || token.length < 32)
-  throw new Error("VIDEO_API_TOKEN must contain at least 32 characters");
+  throw new Error("PROXY_API_TOKEN must contain at least 32 characters");
 const origins = new Set(
   (
     process.env.DASHBOARD_ORIGINS ??

@@ -1,5 +1,5 @@
 {
-  "name": "veobible-dashboard",
+  "name": "veobible-dashboard-dev",
   "main": "vinext/server/fetch-handler",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -19,7 +19,7 @@
     },
   ],
   "vars": {
-    "VIDEO_API_URL": "http://127.0.0.1:8420",
+    "VIDEO_API_URL": "http://127.0.0.1:8430",
   },
   "env": {
     "production": {
@@ -33,8 +33,19 @@
         },
       ],
       "vars": {
-        "VIDEO_API_URL": "https://api.example.com",
+        "VIDEO_API_URL": "https://video-api.example.com",
       },
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [
+        {
+          "pattern": "dash.veobible.com",
+          "custom_domain": true,
+        },
+      ],
     },
   },
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "workers_dev": false,
+  "preview_urls": false,
 }

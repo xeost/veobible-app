@@ -36,7 +36,7 @@ test(
         env: {
           ...process.env,
           PORT: String(port),
-          VIDEO_API_TOKEN: token,
+          PROXY_API_TOKEN: token,
           SHORTS_WORKING_DIR: directory,
           LONGS_WORKING_DIR: path.join(directory, "long"),
         },

@@ -5,6 +5,7 @@ import "./globals.css";
 export const metadata = {
   title: "VeoBible Dashboard",
   description: "Video production dashboard",
+  robots: { index: false, follow: false },
   icons: {
     icon: [
       { url: "/favicon.ico", type: "image/x-icon" },
