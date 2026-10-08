@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, AudioLines, ZoomIn, ZoomOut } from "lucide-react";
+import { Play, Pause, AudioLines, ZoomIn, ZoomOut, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import {
   type VerseCue,
@@ -14,6 +14,8 @@ export function VerseWaveform({
   src,
   sourceStart,
   sourceEnd,
+  sourceDuration,
+  onExpand,
   timelineStart,
   volumeMultiplier,
   cues,
@@ -23,6 +25,8 @@ export function VerseWaveform({
   src: string;
   sourceStart: number;
   sourceEnd: number;
+  sourceDuration: number;
+  onExpand: (edge: "start" | "end") => void;
   timelineStart: number;
   volumeMultiplier: number;
   cues: VerseCue[];
@@ -42,6 +46,7 @@ export function VerseWaveform({
   const [playing, setPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const [hasPlayhead, setHasPlayhead] = useState(false);
+  const [extraContext, setExtraContext] = useState({ before: 0, after: 0 });
   const [zoom, setZoom] = useState(1);
   const [revision, setRevision] = useState(0);
   const audio = useRef<HTMLAudioElement>(null);
@@ -106,8 +111,8 @@ export function VerseWaveform({
       controller.abort();
       audio.current?.pause();
     };
-  }, [src, sourceStart, duration, revision]);
-  const window = waveformWindow(focus, timelineStart, timelineStart + duration);
+  }, [src, revision]);
+  const window = waveformWindow({ start: focus.start - extraContext.before, end: focus.end + extraContext.after }, timelineStart, timelineStart + duration);
   const visibleDuration = window.end - window.start;
   useEffect(() => {
     if (latest.current[index]) setFocus(latest.current[index]);
@@ -116,7 +121,8 @@ export function VerseWaveform({
     setHasPlayhead(false);
     setZoom(1);
     if (scroll.current) scroll.current.scrollLeft = 0;
-  }, [cue?.reference, src, sourceStart, sourceEnd]);
+  }, [cue?.reference, src, sourceStart, sourceEnd, timelineStart]);
+  useEffect(() => setExtraContext({ before: 0, after: 0 }), [cue?.reference, src]);
   const peaks = useMemo(() => {
     if (!buffer || visibleDuration <= 0) return [];
     const channels = Array.from(
@@ -322,6 +328,23 @@ export function VerseWaveform({
           <AudioLines size={18} />
           <strong>{t("Synchronize text and audio")}</strong>
           <div>
+            {(["start", "end"] as const).map((edge) => {
+              const label = edge === "start" ? "Add up to 10 seconds of audio on the left" : "Add up to 10 seconds of audio on the right";
+              const unavailable = edge === "start" ? sourceStart <= 0 : sourceEnd >= sourceDuration - 0.001;
+              return <button
+                type="button" key={edge} className="waveform-context-button" aria-label={t(label)} data-tooltip={t(label)}
+                disabled={disabled || unavailable}
+                onClick={() => {
+                  onExpand(edge);
+                  setExtraContext((current) => ({ ...current,
+                    [edge === "start" ? "before" : "after"]: current[edge === "start" ? "before" : "after"] + 10,
+                  }));
+                }}
+              >
+                {edge === "start" ? <ArrowLeftToLine size={16} /> : <ArrowRightToLine size={16} />}
+                <span>+10 s</span>
+              </button>;
+            })}
             <button
               type="button"
               aria-label={t("Zoom out")}

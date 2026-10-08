@@ -49,6 +49,7 @@ import {
   type PreviewPlaybackHandle,
 } from "./VideoProjectPreview";
 import { GenerationProgress } from "./GenerationProgress";
+import { expandReadingContext } from "../../../../tools/video-project-api/src/reading-timeline";
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
 type Settings = RenderRequest["settings"];
@@ -314,6 +315,24 @@ export function VideoProjectEditor({
       };
     });
     setNotice("");
+  };
+  const expandSection = (sectionIndex: number, edge: "start" | "end") => {
+    if (!analysis) return;
+    const section = analysis.sections[sectionIndex];
+    const amount = Math.min(10, edge === "start" ? section.start : (section.sourceDuration ?? section.end) - section.end);
+    if (amount <= 0) return;
+    const change = { sectionIndex, beforeSeconds: edge === "start" ? amount : 0, afterSeconds: edge === "end" ? amount : 0 };
+    const expanded = expandReadingContext(analysis.sections, analysis.cues,
+      analysis.sections.map((entry) => entry.sourceDuration ?? entry.end), [change]);
+    setAnalysis({ ...analysis, ...expanded });
+    setSettings((current) => {
+      const previous = current.readingSectionPadding.find((entry) => entry.sectionIndex === sectionIndex);
+      return { ...current, readingSectionPadding: [
+        ...current.readingSectionPadding.filter((entry) => entry.sectionIndex !== sectionIndex),
+        { sectionIndex, beforeSeconds: (previous?.beforeSeconds ?? 0) + change.beforeSeconds,
+          afterSeconds: (previous?.afterSeconds ?? 0) + change.afterSeconds },
+      ] };
+    });
   };
   const generateVoice = (part: "intro" | "outro") =>
     perform(async () => {
@@ -878,6 +897,8 @@ export function VideoProjectEditor({
                         src={media(id)}
                         sourceStart={section.start}
                         sourceEnd={section.end}
+                        sourceDuration={section.sourceDuration ?? section.end}
+                        onExpand={(edge) => expandSection(section.index, edge)}
                         timelineStart={section.timelineStart}
                         volumeMultiplier={readingVolumeValue}
                         cues={verses}

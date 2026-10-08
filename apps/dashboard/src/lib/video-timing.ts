@@ -10,6 +10,7 @@ export interface VerseOffset {
   endOffsetSeconds: number;
 }
 export interface ReadingSection {
+  sourceDuration?: number;
   start: number;
   end: number;
 }

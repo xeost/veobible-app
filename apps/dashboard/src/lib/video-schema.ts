@@ -12,6 +12,11 @@ export const settingsSchema = z.object({
       endSeconds: z.number().finite(),
     })
     .default({ startSeconds: 0, endSeconds: 0 }),
+  readingSectionPadding: z.array(z.object({
+    sectionIndex: z.number().int().nonnegative(),
+    beforeSeconds: z.number().finite().nonnegative(),
+    afterSeconds: z.number().finite().nonnegative(),
+  })).max(1000).default([]),
   verseOffsets: z
     .array(
       z.object({

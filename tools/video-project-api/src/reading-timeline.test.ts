@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { trimReadingTail, buildVerseReading, applyReadingCuts } from "./reading-timeline.js";
+import { trimReadingTail, buildVerseReading, applyReadingCuts, expandReadingContext } from "./reading-timeline.js";
 import { verseTextPhases, verseAnimationSpans } from "./verse-animation.js";
 
 test("the adjusted final verse removes the extra wait before the outro", () => {
@@ -96,5 +96,48 @@ test("rendering keeps the editor's exact cuts instead of refreshed timing estima
   for (const invalid of [cuts.slice(1), [cuts[0], cuts[0]], [cuts[0], { ...cuts[1], reference: "unknown" }],
     [cuts[0], { ...cuts[1], end: 13 }], [cuts[0], { ...cuts[1], start: 11.5 }]]) {
     assert.throws(() => applyReadingCuts(estimates, invalid, 12));
+  }
+});
+
+test("expanding both ends preserves existing source cuts and shifts later chapters consistently", () => {
+  const sources = [{ file: "first.mp3", start: 30, end: 50 }, { file: "second.mp3", start: 15, end: 35 }];
+  const cues = [{ reference: "first", start: 1, end: 10 }, { reference: "last", start: 22, end: 35 }];
+  const padding = [{ sectionIndex: 0, beforeSeconds: 10, afterSeconds: 10 }, { sectionIndex: 1, beforeSeconds: 10, afterSeconds: 10 }];
+  const expanded = expandReadingContext(sources, cues, [100, 60], padding);
+  assert.deepEqual(expanded.sections.map(({ start, end }) => ({ start, end })), [{ start: 20, end: 60 }, { start: 5, end: 45 }]);
+  assert.deepEqual(expanded.cues.map(({ start, end }) => ({ start, end })), [{ start: 11, end: 20 }, { start: 52, end: 65 }]);
+  const before = buildVerseReading(sources, cues, [2, 2]);
+  const after = buildVerseReading(expanded.sections, expanded.cues, [2, 2]);
+  assert.deepEqual(after.sections, before.sections);
+  // Repeated clicks extend from the current range; persisted totals reproduce that range on reopening.
+  const repeated = expandReadingContext(expanded.sections, expanded.cues, [100, 60], [{ sectionIndex: 0, beforeSeconds: 10, afterSeconds: 0 }]);
+  const reopened = expandReadingContext(sources, cues, [100, 60], [{ ...padding[0], beforeSeconds: 20 }, padding[1]]);
+  assert.deepEqual(repeated, reopened);
+  // Newly exposed audio can be selected and rendered with exact source coordinates.
+  const adjusted = [{ ...expanded.cues[0], start: 0 }, { ...expanded.cues[1], end: 80 }];
+  const selected = buildVerseReading(expanded.sections, adjusted, [2, 2]);
+  assert.equal(selected.sections[0].start, 20);
+  assert.equal(selected.sections.at(-1)!.end, 45);
+});
+
+test("context expansion stops at real file boundaries and rejects unknown or repeated sections", () => {
+  const sources = [{ start: 4, end: 18 }];
+  const cues = [{ start: 0, end: 14 }];
+  const entry = { sectionIndex: 0, beforeSeconds: 10, afterSeconds: 10 };
+  const expanded = expandReadingContext(sources, cues, [20], [entry]);
+  assert.deepEqual(expanded.sections, [{ start: 0, end: 20 }]);
+  assert.deepEqual(expanded.cues, [{ start: 4, end: 18 }]);
+  assert.throws(() => expandReadingContext(sources, cues, [20], [entry, entry]));
+  assert.throws(() => expandReadingContext(sources, cues, [20], [{ ...entry, sectionIndex: 1 }]));
+  assert.throws(() => expandReadingContext(sources, cues, [20], [{ ...entry, beforeSeconds: -1 }]));
+});
+
+test("manual offsets can reach the new audio boundaries in both formats", async () => {
+  const cue = [{ reference: "last", text: "Last verse", start: 4, end: 18 }];
+  const offset = [{ reference: "last", startOffsetSeconds: -4, endOffsetSeconds: 2 }];
+  for (const kind of ["short", "long"]) {
+    const { applyVerseOffsets } = await import(`./engines/${kind}/verse-timing.js`);
+    assert.deepEqual(applyVerseOffsets(cue, offset, 20), [{ ...cue[0], start: 0, end: 20 }]);
+    assert.throws(() => applyVerseOffsets(cue, [{ ...offset[0], endOffsetSeconds: 3 }], 20));
   }
 });

@@ -2050,6 +2050,7 @@ audio {
   min-width: 0;
 }
 .sync-heading {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -2057,6 +2058,7 @@ audio {
   font-size: 11px;
 }
 .sync-heading > div {
+  flex-wrap: wrap;
   margin-left: auto;
   display: flex;
   gap: 4px;
@@ -2064,6 +2066,9 @@ audio {
 .sync-heading button {
   padding: 6px;
   background: transparent;
+}
+.waveform-context-button {
+  white-space: nowrap;
 }
 .sync-workspace > .muted {
   font-size: 10px;

@@ -1,4 +1,4 @@
-import { applyReadingCuts } from "./reading-timeline.js";
+import { applyReadingCuts, expandReadingContext } from "./reading-timeline.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { outputRoot, type OutputEnvironment } from "./working-directories.js";
@@ -129,18 +129,21 @@ export async function analyze(
   if (!version || version.locale !== input.version.locale)
     throw new Error("Invalid Bible version");
   const data = await m.passages.analyzePassageAudio(version, input.passage);
-  const sections = m.passages.applyPassageAudioOffsets(
+  const originalSections = m.passages.applyPassageAudioOffsets(
     data.sections,
     data.sourceDurations,
     input.settings.passageOffsets,
   );
   const estimates = await m.timing.estimateVerseCues(
-    data.timingInputs.map((v, i) => ({ ...v, section: sections[i] })),
+    data.timingInputs.map((v, i) => ({ ...v, section: originalSections[i] })),
   );
+  const expanded = expandReadingContext(originalSections, estimates, data.sourceDurations, input.settings.readingSectionPadding);
+  const sections = expanded.sections;
+  const sourceDuration = sections.reduce((total, section) => total + section.end - section.start, 0);
   const cues = applyReadingCuts(
-    input.readingCuts ? estimates : m.timing.applyVerseOffsets(estimates, input.settings.verseOffsets),
+    input.readingCuts ? expanded.cues : m.timing.applyVerseOffsets(expanded.cues, input.settings.verseOffsets, sourceDuration),
     input.readingCuts,
-    sections.reduce((total, section) => total + section.end - section.start, 0),
+    sourceDuration,
   );
   const context = m.voice.voiceContext(
     version,
@@ -161,7 +164,7 @@ export async function inspection(
   return {
     label: data.label,
     lines: data.lines,
-    sections,
+    sections: sections.map((section, index) => ({ ...section, sourceDuration: data.sourceDurations[index] })),
     cues,
     scripts: await m.voice.renderVoiceScripts(context),
     text: await m.passages.readPassageTextContext(

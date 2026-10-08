@@ -81,6 +81,7 @@ test("project sync only adds missing slugs within a format and Bible version, re
       overrideReadingVolume: false,
       passageOffsets: { startSeconds: 0, endSeconds: 0 },
       verseOffsets: [],
+      readingSectionPadding: [],
     });
     assert.equal(JSON.parse(String(saved.passage)).endBook, "exodus");
     sqlite.exec(

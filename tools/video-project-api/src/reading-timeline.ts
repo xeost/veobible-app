@@ -97,3 +97,37 @@ export function applyReadingCuts<T extends { reference: string; start: number; e
     return { ...cue, start: cut.start, end: cut.end };
   });
 }
+
+/** Expand available source context without changing existing verse cuts in the source files. */
+export function expandReadingContext<S extends { start: number; end: number }, C extends { start: number; end: number }>(
+  sections: S[], cues: C[], sourceDurations: number[],
+  padding: Array<{ sectionIndex: number; beforeSeconds: number; afterSeconds: number }>,
+) {
+  const entries = new Map(padding.map((entry) => [entry.sectionIndex, entry]));
+  if (entries.size !== padding.length || padding.some((entry) =>
+    !Number.isInteger(entry.sectionIndex) || entry.sectionIndex < 0 || entry.sectionIndex >= sections.length ||
+    !Number.isFinite(entry.beforeSeconds) || entry.beforeSeconds < 0 ||
+    !Number.isFinite(entry.afterSeconds) || entry.afterSeconds < 0))
+    throw new Error("Invalid reading context padding");
+  let originalOffset = 0;
+  let expandedOffset = 0;
+  const mappings = sections.map((section, index) => {
+    const entry = entries.get(index);
+    const start = Math.max(0, section.start - (entry?.beforeSeconds ?? 0));
+    const end = Math.min(sourceDurations[index], section.end + (entry?.afterSeconds ?? 0));
+    if (!Number.isFinite(end) || end <= start) throw new Error("Invalid source audio duration");
+    const mapping = { originalStart: originalOffset, originalEnd: originalOffset + section.end - section.start,
+      shift: expandedOffset - originalOffset + section.start - start, section: { ...section, start, end } };
+    originalOffset = mapping.originalEnd;
+    expandedOffset += end - start;
+    return mapping;
+  });
+  return {
+    sections: mappings.map((mapping) => mapping.section),
+    cues: cues.map((cue) => {
+      const mapping = mappings.find((entry) => cue.start >= entry.originalStart - 1e-6 && cue.start < entry.originalEnd - 1e-6);
+      if (!mapping) throw new Error("Verse has no source reading section");
+      return { ...cue, start: cue.start + mapping.shift, end: cue.end + mapping.shift };
+    }),
+  };
+}

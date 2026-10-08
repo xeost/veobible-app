@@ -143,6 +143,27 @@ for (const [kind, outputEnvironment] of [
   assert.equal(preview.cues.length, kind === "short" ? 1 : 2);
   assert.ok(preview.text.every((row) => row.inPassage || kind === "short"));
   assert.ok(preview.scripts.intro.length > 0);
+  const croppedInput = { ...input, settings: { ...input.settings,
+    passageOffsets: { startSeconds: 0.1, endSeconds: -0.1 },
+  } };
+  const cropped = await inspection(croppedInput);
+  const paddedSettings = { ...croppedInput.settings, readingSectionPadding: cropped.sections.map((_, sectionIndex) => ({
+    sectionIndex, beforeSeconds: 0.05, afterSeconds: 0.05,
+  })) };
+  const padded = await inspection({ ...croppedInput, settings: renderSchema.shape.settings.parse(paddedSettings) });
+  padded.sections.forEach((section, index) => {
+    assert.ok(Math.abs(section.start - Math.max(0, cropped.sections[index].start - 0.05)) < 1e-6);
+    assert.ok(Math.abs(section.end - Math.min(section.sourceDuration, cropped.sections[index].end + 0.05)) < 1e-6);
+  });
+  const { buildVerseReading } = await import("../reading-timeline.js");
+  const originalReading = buildVerseReading(cropped.sections, cropped.cues, cropped.cues.map(() => 2));
+  const expandedReading = buildVerseReading(padded.sections, padded.cues, padded.cues.map(() => 2));
+  expandedReading.sections.forEach((section, index) => {
+    assert.equal(section.file, originalReading.sections[index].file);
+    assert.ok(Math.abs(section.start - originalReading.sections[index].start) < 1e-6);
+    assert.ok(Math.abs(section.end - originalReading.sections[index].end) < 1e-6);
+  });
+
   if (process.env.VIDEO_SMOKE_PREVIEW === "1") {
     const { createPreview } = await import("../preview.js");
     const selected = preview.cues.at(-1)!;

@@ -150,6 +150,7 @@ export async function estimateVerseCues(
 export function applyVerseOffsets(
   estimates: VerseCue[],
   overrides: VerseOffset[] = [],
+  sourceDuration = estimates.at(-1)?.end ?? 0,
 ): VerseCue[] {
   const file = "request verse offsets";
   const previous = overrides;
@@ -174,7 +175,7 @@ export function applyVerseOffsets(
     throw new Error(
       `Unknown verse references in ${file}: ${unknown.join(", ")}`,
     );
-  const duration = estimates.at(-1)?.end ?? 0;
+  const duration = sourceDuration;
   const cues: VerseCue[] = [];
   estimates.forEach((estimate) => {
     const offset = offsets.get(estimate.reference);

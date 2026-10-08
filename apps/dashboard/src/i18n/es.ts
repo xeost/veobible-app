@@ -1,4 +1,6 @@
 export const spanish: Record<string, string> = {
+  "Add up to 10 seconds of audio on the left": "Añadir hasta 10 segundos de audio a la izquierda",
+  "Add up to 10 seconds of audio on the right": "Añadir hasta 10 segundos de audio a la derecha",
   "Use a custom reading volume for this project":
     "Usar un volumen de lectura propio para este proyecto",
   "Unchecked: uses the default reading volume for this Bible version.":

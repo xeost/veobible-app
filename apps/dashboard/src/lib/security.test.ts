@@ -34,6 +34,7 @@ test("project settings discard obsolete narration controls while preserving all 
   const input = {
     volumeMultiplier: 1.5,
     overrideReadingVolume: false,
+    readingSectionPadding: [],
     passageOffsets: { startSeconds: -0.25, endSeconds: 0.5 },
     verseOffsets: [
       {
@@ -55,6 +56,7 @@ test("project settings discard obsolete narration controls while preserving all 
   assert.deepEqual(Object.keys(settingsSchema.parse({})).sort(), [
     "overrideReadingVolume",
     "passageOffsets",
+    "readingSectionPadding",
     "verseOffsets",
     "volumeMultiplier",
   ]);
