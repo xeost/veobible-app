@@ -21,6 +21,7 @@ const DEFAULT_PROPS: EpisodeCompositionProps = {
   outroLength: 10,
   transitionDuration: 0.5,
   readingSilence: 1,
+  readingEndSilence: 1.5,
   introVideoPath: "",
   boomerangVideoPath: "",
   outroVideoPath: "",

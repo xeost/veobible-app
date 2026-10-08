@@ -1,3 +1,4 @@
+import { readingPadding } from "../../../composition-timing";
 /**
  * VeoBibleEpisode – root Remotion composition.
  *
@@ -136,7 +137,7 @@ export const VeoBibleEpisode: React.FC<EpisodeCompositionProps> = (props) => {
   const outroStart = readingStart + readingFrames - transFrames;
 
   // Include the silent text transitions in the reading timeline.
-  const readingDuration = readingLength - readingSilence * 2;
+  const readingDuration = readingLength - readingPadding(props);
 
   return (
     <AbsoluteFill style={{ background: "#000" }}>

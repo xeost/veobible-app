@@ -26,6 +26,7 @@ import type { RenderRequest } from "../lib/video-schema";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import { waveformReadingSources, type ReadingSection, type VerseCue } from "../lib/video-timing";
+import { readingPadding } from "../../../../tools/video-project-api/src/composition-timing";
 import { buildVerseReading } from "../../../../tools/video-project-api/src/reading-timeline";
 import { layoutVerse as shortVerseLayout } from "../../../../tools/video-project-api/src/engines/short/remotion/animation";
 import { layoutVerse as longVerseLayout } from "../../../../tools/video-project-api/src/engines/long/remotion/animation";
@@ -47,7 +48,7 @@ function SectionPreview(props: ShortCompositionProps & { previewKind?: "short" |
     return <Outro outroVideoPath={props.outroVideoPath} outroDuration={props.outroVideoDuration} outroLength={props.outroLength} outro={props.outroTitle} voices={props.voices} />;
   }
   const Reading = props.previewKind === "long" ? LongReading : ShortReading;
-  return <Reading {...props} voices={undefined} readingDuration={props.readingLength - props.readingSilence * 2} />;
+  return <Reading {...props} voices={undefined} readingDuration={props.readingLength - readingPadding(props)} />;
 }
 
 type Preview = {
@@ -169,7 +170,7 @@ export function VideoProjectPreview({
             // Use the same source audio and current cuts as the waveform, not a prepared snapshot.
             ...(reading ? {
               verseCues: reading.cues,
-              readingLength: reading.duration + preview.props.readingSilence * 2,
+              readingLength: reading.duration + readingPadding(preview.props),
             } : {}),
             sections: (reading?.sections ?? preview.props.sections).map((section) => ({
               ...section,

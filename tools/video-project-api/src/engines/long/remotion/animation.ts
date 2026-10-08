@@ -71,6 +71,11 @@ export function stagePhase(
   };
 }
 
+/** Keep long-form end-screen content visible through the final frame. */
+export function outroAnimationPhase(length: number, delay: number): Phase {
+  return { ...stagePhase(length, delay), exit: length };
+}
+
 export const introVersionDelay = 0.88;
 
 export function introAnimationEnd(length: number): number {

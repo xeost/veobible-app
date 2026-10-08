@@ -59,6 +59,7 @@ export interface ShortCompositionProps {
   transitionDuration: number;
   /** Silence padding added before/after the Bible reading (in seconds). */
   readingSilence: number;
+  readingEndSilence?: number;
 
   // Asset names relative to the bundle's public directory, resolved with staticFile().
   introVideoPath: string;

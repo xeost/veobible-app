@@ -1,3 +1,4 @@
+import { OUTRO_NARRATION_DELAY } from "../../../composition-timing";
 /**
  * OutroScene – React component for the outro segment of a VeoBible Short.
  *
@@ -15,7 +16,7 @@
 
 import React from "react";
 import { BackgroundVideo } from "./BackgroundVideo";
-import { useCurrentFrame, useVideoConfig, Audio } from "remotion";
+import { useCurrentFrame, useVideoConfig, Audio, Sequence } from "remotion";
 import { stagePhase, phaseAlpha, phaseY, positionY } from "./animation";
 import type { OutroTitle, VoiceTracks } from "./types";
 import { ScrimOverlay } from "./ScrimOverlay";
@@ -128,17 +129,19 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
         muted={voices ? voices.mode !== "mix" : true}
       />
 
-      {/* Voice-over for outro (with 1-second lead silence baked into Sequence offset) */}
+      {/* Let the stage dissolve finish before narration begins. */}
       {voices && (
-        <Audio
-          src={voices.outro}
-          // Shared audio elements must keep the same output route after passage reading.
-          useWebAudioApi
-          crossOrigin="anonymous"
-          volume={1}
-          startFrom={0}
-          endAt={outroLength * fps}
-        />
+        <Sequence from={Math.round(OUTRO_NARRATION_DELAY * fps)} layout="none">
+          <Audio
+            src={voices.outro}
+            // Shared audio elements must keep the same output route after passage reading.
+            useWebAudioApi
+            crossOrigin="anonymous"
+            volume={1}
+            startFrom={0}
+            endAt={(outroLength - OUTRO_NARRATION_DELAY) * fps}
+          />
+        </Sequence>
       )}
 
       {/* Scrim overlay */}

@@ -1,8 +1,9 @@
+import { OUTRO_NARRATION_DELAY } from "../../../composition-timing";
 /**
- * OutroScene – React component for the outro segment of a VeoBible Short.
+ * OutroScene – React component for the outro segment of a VeoBible long-form video.
  *
  * Mirrors the `outroGraph` FFmpeg filter chain from motion-design.ts:
- * - Outro video clip (padded if shorter than outroLength)
+ * - Looping boomerang background
  * - Dark scrim overlay
  * - VEOBIBLE wordmark
  * - Title (large italic, Georgia Italic)
@@ -15,8 +16,8 @@
 
 import React from "react";
 import { BackgroundVideo } from "./BackgroundVideo";
-import { useCurrentFrame, useVideoConfig, Audio } from "remotion";
-import { stagePhase, phaseAlpha, phaseY, positionY } from "./animation";
+import { useCurrentFrame, useVideoConfig, Audio, Sequence } from "remotion";
+import { outroAnimationPhase, phaseAlpha, phaseY, positionY } from "./animation";
 import type { OutroTitle, VoiceTracks } from "./types";
 import { ScrimOverlay } from "./ScrimOverlay";
 import { AnimatedText } from "./AnimatedText";
@@ -51,15 +52,14 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
   const sx = (v: number) => Math.round((v * width) / 1920);
   const sy = (v: number) => Math.round((v * height) / 1080);
 
-  const outroPhase = (delay: number, exitOrder = 0) =>
-    stagePhase(outroLength, delay, exitOrder);
+  const outroPhase = (delay: number) =>
+    outroAnimationPhase(outroLength, delay);
 
   // Build text elements
   const fixedElements = [
     {
       text: "V E O B I B L E",
       delay: 0.02,
-      exitOrder: 0,
       font: "Avenir",
       size: 25,
       x: 160,
@@ -70,33 +70,30 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
     {
       text: outro.title,
       delay: 0.16,
-      exitOrder: 0,
       font: "Georgia Italic",
       size: 128,
       x: 152,
-      y: 205,
+      y: 165,
       color: palette.gold,
       travel: 72,
     },
     {
       text: outro.highlight,
       delay: 0.35,
-      exitOrder: 0,
       font: "Georgia",
       size: 58,
       x: 160,
-      y: 365,
+      y: 325,
       color: palette.paper,
       travel: 42,
     },
     {
       text: outro.channel,
       delay: 0.55,
-      exitOrder: 0.06,
       font: "Avenir",
       size: 37,
       x: 160,
-      y: 470,
+      y: 430,
       color: palette.paper,
       travel: 42,
     },
@@ -128,17 +125,19 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
         muted={voices ? voices.mode !== "mix" : true}
       />
 
-      {/* Voice-over for outro (with 1-second lead silence baked into Sequence offset) */}
+      {/* Let the stage dissolve finish before narration begins. */}
       {voices && (
-        <Audio
-          src={voices.outro}
-          // Shared audio elements must keep the same output route after passage reading.
-          useWebAudioApi
-          crossOrigin="anonymous"
-          volume={1}
-          startFrom={0}
-          endAt={outroLength * fps}
-        />
+        <Sequence from={Math.round(OUTRO_NARRATION_DELAY * fps)} layout="none">
+          <Audio
+            src={voices.outro}
+            // Shared audio elements must keep the same output route after passage reading.
+            useWebAudioApi
+            crossOrigin="anonymous"
+            volume={1}
+            startFrom={0}
+            endAt={(outroLength - OUTRO_NARRATION_DELAY) * fps}
+          />
+        </Sequence>
       )}
 
       {/* Scrim overlay */}
@@ -150,10 +149,10 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
         maxOpacity={0.5}
       />
 
-      {/* Gold rule at y=730 */}
+      {/* Gold rule below the highlight */}
       <GoldRule
         x={sx(160)}
-        y={sy(positionY(440))}
+        y={sy(positionY(400))}
         width={sx(108)}
         height={Math.max(2, sy(3))}
         color={palette.gold}
@@ -163,7 +162,7 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
 
       {/* Fixed text elements */}
       {fixedElements.map((opt, i) => {
-        const phase = outroPhase(opt.delay, opt.exitOrder);
+        const phase = outroPhase(opt.delay);
         const alpha = phaseAlpha(t, phase);
         const y = phaseY(t, phase, sy(positionY(opt.y)), sy(opt.travel));
         if (alpha <= 0) return null;
@@ -187,12 +186,9 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
       {outro.social.map((row, index) => {
         const rows = Math.ceil(outro.social.length / 2);
         const rowStep = Math.min(135, 220 / Math.max(1, rows - 1));
-        const y = 595 + Math.floor(index / 2) * rowStep;
-        const x = 160 + (index % 2) * 820;
-        const platformPhase = outroPhase(
-          0.7 + index * 0.13,
-          (outro.social.length - index) * 0.025,
-        );
+        const y = 555 + Math.floor(index / 2) * rowStep;
+        const x = 160 + (index % 2) * 460;
+        const platformPhase = outroPhase(0.7 + index * 0.13);
         const handlePhase = {
           ...platformPhase,
           start: platformPhase.start + 0.05 * Math.min(1, outroLength / 4),
@@ -213,7 +209,7 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
                 color={palette.gold}
                 alpha={pAlpha}
                 shadow={0.28}
-                width={sx(710)}
+                width={sx(400)}
               />
             )}
             {hAlpha > 0 && (
@@ -226,7 +222,7 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
                 color={palette.paper}
                 alpha={hAlpha}
                 shadow={0.28}
-                width={sx(710)}
+                width={sx(400)}
               />
             )}
           </React.Fragment>
@@ -235,9 +231,9 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
 
       {/* Website */}
       {(() => {
-        const wPhase = outroPhase(1.2, 0.18);
+        const wPhase = outroPhase(1.2);
         const wAlpha = phaseAlpha(t, wPhase);
-        const wY = phaseY(t, wPhase, sy(positionY(930)), sy(26));
+        const wY = phaseY(t, wPhase, sy(positionY(890)), sy(26));
         if (wAlpha <= 0) return null;
         return (
           <AnimatedText

@@ -286,6 +286,10 @@ for (const [kind, outputEnvironment] of [
     const { createPreview, previewAsset } = await import("../preview.js");
     const prepared = await createPreview(input);
     assert.equal(prepared.props.voices?.mode, "voice");
+    const preparedScope = { projectId: input.projectId, kind, outputEnvironment, version: input.version.id, passage: input.passage.id };
+    assert.equal(path.basename(previewAsset(prepared.props.introVideoPath, preparedScope)!), "intro-boomerang.mp4");
+    assert.equal(path.basename(previewAsset(prepared.props.outroVideoPath, preparedScope)!), "outro-boomerang.mp4");
+
     assert.equal(prepared.background, "bg-1.mp4");
     const scope = {
       projectId: input.projectId,

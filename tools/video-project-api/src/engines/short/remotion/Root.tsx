@@ -21,6 +21,7 @@ const DEFAULT_PROPS: ShortCompositionProps = {
   outroLength: 10,
   transitionDuration: 0.5,
   readingSilence: 1,
+  readingEndSilence: 1.5,
   introVideoPath: "",
   boomerangVideoPath: "",
   outroVideoPath: "",

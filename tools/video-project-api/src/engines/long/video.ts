@@ -1,3 +1,5 @@
+import { createBoomerang } from "../../boomerang.js";
+import { READING_END_SILENCE, OUTRO_NARRATION_DELAY, LONG_OUTRO_END_SILENCE } from "../../composition-timing.js";
 /**
  * video.ts – Remotion-based replacement for the previous FFmpeg-only renderer.
  *
@@ -151,15 +153,6 @@ export async function backgroundVideos(videosDir: string): Promise<string[]> {
   return files;
 }
 
-function pictureFilter(
-  input: number,
-  width: number,
-  height: number,
-  frameRate: string,
-): string {
-  return `[${input}:v:0]fps=${frameRate},scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},format=yuv420p`;
-}
-
 export function introThumbnailTime(length: number, frameRate: string): number {
   const [numerator, denominator] = frameRate.split("/").map(Number);
   const rate = numerator / denominator;
@@ -291,6 +284,8 @@ export async function prepareVideoComposition(
 
   const introDuration = mediaDuration(introInfo, intro);
   const outroDuration = mediaDuration(outroInfo, outro);
+  // The long outro asset has a baked-in closing fade; keep it out of the boomerang.
+  const outroLoopDuration = Math.max(outroDuration / 2, outroDuration - 1.5);
   const voiceDurations = voices
     ? await Promise.all(
         [voices.intro, voices.outro].map(async (file, index) => {
@@ -306,7 +301,7 @@ export async function prepareVideoComposition(
   const introLength =
     (voiceDurations?.[0] ?? (renderOptions.readingOnly ? introDuration : audioStreamDuration(introInfo, intro))) + 1;
   const outroLength =
-    (voiceDurations?.[1] ?? (renderOptions.readingOnly ? outroDuration : audioStreamDuration(outroInfo, outro))) + 2;
+    (voiceDurations?.[1] ?? (renderOptions.readingOnly ? outroDuration : audioStreamDuration(outroInfo, outro))) + OUTRO_NARRATION_DELAY + LONG_OUTRO_END_SILENCE;
   const sourceReadingDuration = sections.reduce(
     (sum, s) => sum + s.end - s.start,
     0,
@@ -344,7 +339,7 @@ export async function prepareVideoComposition(
     throw new Error(`Invalid video format: ${intro}`);
 
   const fps = sourceFrameRate(frameRate);
-  const readingLength = readingDuration + readingSilenceConst * 2;
+  const readingLength = readingDuration + readingSilenceConst + READING_END_SILENCE;
   const totalFrames =
     Math.round(introLength * fps) +
     Math.round(readingLength * fps) +
@@ -355,40 +350,35 @@ export async function prepareVideoComposition(
 
   const staging = await fs.mkdtemp(path.join(workDir, ".video-"));
   try {
-    // Build boomerang (still uses FFmpeg — only the composition/render moves to Remotion)
     const boomerang = path.join(staging, "boomerang.mp4");
-    console.log(`Creating boomerang from ${path.basename(background)}...`);
-    await ffmpeg([
-      "-i",
-      background,
-      "-filter_complex",
-      `${pictureFilter(0, width, height, frameRate)},split[forward][backward];[forward]setpts=PTS-STARTPTS[f];[backward]reverse,setpts=PTS-STARTPTS[r];[f][r]concat=n=2:v=1:a=0[v]`,
-      "-map",
-      "[v]",
-      "-an",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "20",
-      "-pix_fmt",
-      "yuv420p",
-      boomerang,
-    ]);
+    const introBoomerang = path.join(staging, "intro-boomerang.mp4");
+    const outroBoomerang = path.join(staging, "outro-boomerang.mp4");
+    // Prepare sequentially so reversing three clips does not multiply peak memory usage.
+    for (const [source, output, preserveAudio] of [
+      [background, boomerang, false],
+      [intro, introBoomerang, true],
+      [outro, outroBoomerang, true],
+    ] as const) {
+      console.log(`Creating boomerang from ${path.basename(source)}...`);
+      await createBoomerang(source, output, {
+        width, height, frameRate, preserveAudio,
+        videoEndSeconds: source === outro ? outroLoopDuration : undefined,
+      }, ffmpeg);
+    }
 
     // Build Remotion props
     const compositionProps: EpisodeCompositionProps = {
       introLength,
-      introVideoDuration: introDuration,
-      outroVideoDuration: outroDuration,
+      introVideoDuration: introDuration * 2,
+      outroVideoDuration: outroLoopDuration * 2,
       readingLength,
       outroLength,
       transitionDuration,
       readingSilence: readingSilenceConst,
-      introVideoPath: intro,
+      readingEndSilence: READING_END_SILENCE,
+      introVideoPath: introBoomerang,
       boomerangVideoPath: boomerang,
-      outroVideoPath: outro,
+      outroVideoPath: outroBoomerang,
       sections: reading.sections,
       voices: voices
         ? { intro: voices.intro, outro: voices.outro, mode: voices.mode }
