@@ -7,6 +7,9 @@ import { type BibleVersion } from "./bible-versions";
 import { z } from "zod";
 import { settingsSchema, renderSchema } from "./video-schema";
 import { videoFetch } from "./video-client";
+import { bindings } from "./env";
+import { loadQueueProjects } from "./queue-projects";
+import { signMediaAccess } from "../../../../tools/api-proxy/src/media-access.mjs";
 import {
   loadProjectSettings,
   effectiveReadingVolume,
@@ -23,8 +26,14 @@ import { requestLanguage, translateServer } from "./i18n-server";
 
 const outputEnvironment =
   process.env.NODE_ENV === "production" ? "production" : "development";
+const projectJoin =
+  " FROM video_projects p JOIN bible_versions v ON v.id=p.bible_version_id";
 const select =
-  "SELECT p.*,p.id project_id,v.id version_id,v.code version_code,v.locale,v.label FROM video_projects p JOIN bible_versions v ON v.id=p.bible_version_id";
+  "SELECT p.*,p.id project_id,v.id version_id,v.code version_code,v.locale,v.label" +
+  projectJoin;
+const listingSelect =
+  "SELECT p.id,p.id project_id,p.kind,p.title,p.published,p.updated_at,v.id version_id,v.code version_code,v.locale,v.label" +
+  projectJoin;
 type Project = {
   id: number;
   project_id: number;
@@ -81,7 +90,7 @@ export async function videoApi(
         .first(),
       recent: (
         await database
-          .prepare(`${select} ORDER BY p.updated_at DESC LIMIT 8`)
+          .prepare(`${listingSelect} ORDER BY p.updated_at DESC LIMIT 8`)
           .all()
       ).results,
     });
@@ -93,27 +102,29 @@ export async function videoApi(
         items: { projectId: number; kind: string; status: string }[];
         summary: { progress: number; completed: number; total: number };
       };
-      const projects = (await database.prepare(select).all<Project>()).results;
+      const activeItems = data.items.filter((item) =>
+        ["queued", "running"].includes(item.status),
+      );
+      const byId = await loadQueueProjects(
+        database,
+        activeItems.map((item) => item.projectId),
+      );
       return json({
         connected: true,
         summary: data.summary,
-        items: data.items
-          .filter((item) => ["queued", "running"].includes(item.status))
-          .flatMap((item) => {
-            const project = projects.find(
-              (row) => row.id === item.projectId && row.kind === item.kind,
-            );
-            return project
-              ? [
-                  {
-                    ...item,
-                    title: project.title,
-                    version: project.version_code,
-                    href: `/${item.kind === "short" ? "short-videos" : "long-videos"}/${project.id}`,
-                  },
-                ]
-              : [];
-          }),
+        items: activeItems.flatMap((item) => {
+          const project = byId.get(item.projectId);
+          return project?.kind === item.kind
+            ? [
+                {
+                  ...item,
+                  title: project.title,
+                  version: project.version_code,
+                  href: `/${item.kind === "short" ? "short-videos" : "long-videos"}/${project.id}`,
+                },
+              ]
+            : [];
+        }),
       });
     } catch {
       return json({
@@ -131,7 +142,7 @@ export async function videoApi(
       videos: (
         await database
           .prepare(
-            `${select} WHERE p.kind=?${version && version !== "all" ? " AND v.id=?" : ""} ORDER BY p.id ASC`,
+            `${listingSelect} WHERE p.kind=?${version && version !== "all" ? " AND v.id=?" : ""} ORDER BY p.id ASC`,
           )
           .bind(
             ...(version && version !== "all"
@@ -295,6 +306,19 @@ export async function videoApi(
     passage: project.slug,
     outputEnvironment,
   });
+  const mediaAccess = async () => {
+    const expiresAt = Date.now() + 60 * 60 * 1000;
+    const path = `/v1/projects/${id}/media/`;
+    const token = await signMediaAccess(
+      { path, query: query.toString(), origin: url.origin, expiresAt },
+      bindings().PROXY_API_TOKEN,
+    );
+    return {
+      base: `${bindings().VIDEO_API_URL.replace(/\/$/, "")}${path}`,
+      query: `${query}&mediaToken=${encodeURIComponent(token)}`,
+      expiresAt,
+    };
+  };
   const state = async () => {
     try {
       const response = await videoFetch(`/v1/projects/${id}/state?${query}`);
@@ -317,6 +341,7 @@ export async function videoApi(
         progress: current.progress,
         result: current.result ? JSON.stringify(current.result) : null,
       },
+      mediaAccess: await mediaAccess(),
       defaults: settingsSchema.parse(
         versionProjectSettings(
           await loadProjectSettings(database, project.kind),
@@ -355,22 +380,21 @@ export async function videoApi(
         z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
       ])
       .parse(url.searchParams.get("asset"));
-    const response = await videoFetch(
-      `/v1/projects/${id}/media/${asset}?${query}`,
-      {
-        headers: req.headers.has("range")
-          ? { Range: req.headers.get("range")! }
-          : {},
+    const access = await mediaAccess();
+    const target = new URL(`${access.base}${asset}?${access.query}`);
+    for (const key of ["download", "revision"]) {
+      if (url.searchParams.has(key))
+        target.searchParams.set(key, url.searchParams.get(key)!);
+    }
+    // Compatibility links redirect; bytes never pass through the Worker.
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: target.href,
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
       },
-    );
-    const headers = new Headers(response.headers);
-    headers.set("Cache-Control", "no-store");
-    if (url.searchParams.has("download"))
-      headers.set(
-        "Content-Disposition",
-        `attachment; filename="${project.slug}.${asset === "thumbnail" ? "jpg" : "mp4"}"`,
-      );
-    return new Response(response.body, { status: response.status, headers });
+    });
   }
   if (parts[2] === "voices" && method === "GET") {
     const response = await videoFetch(`/v1/projects/${id}/voices?${query}`);

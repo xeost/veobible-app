@@ -26,6 +26,7 @@ import type { VerseCue } from "./verse-timing.js";
 import { introAnimationEnd } from "./remotion/animation.js";
 import { extractBackgroundPalette } from "./background-palette.js";
 import { validateReadingVolume } from "./reading-audio.js";
+import { trimReadingTail } from "../../reading-timeline.js";
 import type { EpisodeCompositionProps } from "./remotion/types.js";
 import { prepareRemotionMedia } from "./remotion-media.js";
 import { renderAudioPreview } from "./audio-preview.js";
@@ -306,7 +307,10 @@ export async function prepareVideoComposition(
     (voiceDurations?.[0] ?? audioStreamDuration(introInfo, intro)) + 1;
   const outroLength =
     (voiceDurations?.[1] ?? audioStreamDuration(outroInfo, outro)) + 2;
-  const readingDuration = sections.reduce((sum, s) => sum + s.end - s.start, 0);
+  const sourceReadingDuration = sections.reduce(
+    (sum, s) => sum + s.end - s.start,
+    0,
+  );
   if (
     !verseCues.length ||
     verseCues.some(
@@ -315,12 +319,16 @@ export async function prepareVideoComposition(
         !Number.isFinite(cue.start) ||
         !Number.isFinite(cue.end) ||
         cue.start < 0 ||
-        cue.end > readingDuration + 1e-6 ||
+        cue.end > sourceReadingDuration + 1e-6 ||
         cue.end <= cue.start,
     )
   ) {
     throw new Error("The reading needs valid verse timings");
   }
+
+  const reading = trimReadingTail(sections, verseCues);
+  sections = reading.sections;
+  const readingDuration = reading.duration;
 
   const introVideo = introInfo.streams.find((s) => s.codec_type === "video")!;
   // Final format is fixed even when an input clip has another aspect ratio.

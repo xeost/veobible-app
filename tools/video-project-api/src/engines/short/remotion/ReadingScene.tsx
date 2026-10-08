@@ -139,6 +139,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
             key={i}
             src={section.file}
             useWebAudioApi
+            crossOrigin="anonymous"
             startFrom={Math.round(section.start * fps)}
             endAt={Math.round(section.end * fps)}
             // Delay into this segment: scheduleStart frames from the start of the reading scene

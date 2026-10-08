@@ -7,12 +7,14 @@ on:
     paths:
       - "apps/dashboard/**"
       - "tools/video-project-api/**"
+      - "tools/api-proxy/**"
       - ".github/workflows/deploy-dashboard.yml"
   pull_request:
     branches: [main]
     paths:
       - "apps/dashboard/**"
       - "tools/video-project-api/**"
+      - "tools/api-proxy/**"
       - ".github/workflows/deploy-dashboard.yml"
 
 permissions:
@@ -46,6 +48,7 @@ jobs:
         run: |
           pnpm --dir apps/dashboard typecheck
           pnpm --dir apps/dashboard test
+          node --test tools/api-proxy/src/*.test.mjs
       - name: Build Worker and browser assets
         run: pnpm --dir apps/dashboard build
 

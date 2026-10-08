@@ -61,13 +61,18 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
     let refreshAgain = false;
     const refresh = async () => {
       if (!live) return;
+      if (document.hidden) {
+        clearTimeout(timer);
+        timer = setTimeout(refresh, 60000);
+        return;
+      }
       if (fetching) {
         refreshAgain = true;
         return;
       }
       fetching = true;
       clearTimeout(timer);
-      let delay = 30000;
+      let delay = 60000;
       try {
         const data = await api<GenerationQueueState>("generation-queue");
         if (live)
@@ -77,8 +82,10 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
         if (
           data.items.some((item) => ["queued", "running"].includes(item.status))
         )
-          delay = 3000;
+          delay = 10000;
+        if (!data.connected) delay = 120000;
       } catch {
+        delay = 120000;
         if (live) setQueue((current) => ({ ...current, connected: false }));
       } finally {
         fetching = false;
@@ -89,7 +96,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
         }
         if (live)
           timer = setTimeout(() => {
-            if (document.hidden) timer = setTimeout(refresh, 30000);
+            if (document.hidden) timer = setTimeout(refresh, 60000);
             else void refresh();
           }, delay);
       }

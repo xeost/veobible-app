@@ -39,6 +39,7 @@ type Preview = {
 export function VideoProjectPreview({
   kind,
   endpoint,
+  media,
   settings,
   cues,
   ready,
@@ -49,6 +50,7 @@ export function VideoProjectPreview({
 }: {
   kind: "short" | "long";
   endpoint: (action?: string) => string;
+  media: (asset: string) => string;
   settings: RenderRequest["settings"];
   cues: VerseCue[];
   ready: boolean;
@@ -111,8 +113,6 @@ export function VideoProjectPreview({
       setBusy(false);
     }
   }, [ready]);
-  const media = (asset: string) =>
-    `/api/${endpoint("media")}&asset=${encodeURIComponent(asset)}`;
   const props = useMemo(
     () =>
       preview
@@ -136,7 +136,7 @@ export function VideoProjectPreview({
               : undefined,
           }
         : null,
-    [preview, cues, settings.volumeMultiplier, endpoint],
+    [preview, cues, settings.volumeMultiplier, media],
   );
   const load = async () => {
     request.current?.abort();

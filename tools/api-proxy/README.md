@@ -1,8 +1,8 @@
 # VeoBible API Proxy
 
-Local HTTP proxy based on the example configuration. Starts only `video-project-api`, forwards its environment, and listens on `127.0.0.1:8420`; the child API uses `127.0.0.1:8422`. All routes, including `/health`, require the `PROXY_API_TOKEN` shared with the dashboard.
+Local HTTP proxy based on the example configuration. Starts only `video-project-api`, forwards its environment, and listens on `127.0.0.1:8420`; the child API uses `127.0.0.1:8422`. Control routes, including `/health`, require the private `PROXY_API_TOKEN` shared with the dashboard. Browser media GET/HEAD requests instead accept short-lived HMAC-signed grants, scoped to one project, version, passage, format, environment, and dashboard origin. The dashboard issues and refreshes these grants without exposing the API token; media streams directly through the tunnel, bypassing its Worker.
 
-Copy `.env.example` to `.env`, set a random 32+ character token and `DASHBOARD_ORIGINS`; run `pnpm start:api-proxy` from the repository root. A crash in the child process stops the proxy. Streaming, Range headers, and query strings are preserved. Termination signals stop both processes.
+Copy `.env.example` to `.env`, set a random 32+ character token and `DASHBOARD_ORIGINS`; run `pnpm start:api-proxy` from the repository root. A crash in the child process stops the proxy. Streaming and Range headers are preserved. Media grants support CORS and downloads, expire after one hour, and cannot authorize generation or queue requests. Grants are stripped from forwarded query strings and proxy logs. Restart the proxy before deploying dashboard changes that use direct media links. Termination signals stop both processes.
 
 In production, install `cloudflared`, configure a named tunnel pointing to `http://127.0.0.1:8420`, set `CLOUDFLARE_TUNNEL_TOKEN`, and run `pnpm tunnel:api-proxy`. No tunnels are created or published automatically.
 

@@ -1,4 +1,5 @@
 "use client";
+import { pollWhileVisible } from "../lib/visible-polling";
 import Link from "next/link";
 import {
   useCallback,
@@ -120,8 +121,22 @@ export function VideoProjectEditor({
     `${backHref}/${encodeURIComponent(projectId)}`,
     String(project?.project_id) === projectId ? project?.title : undefined,
   );
-  const media = (asset: string) => `/api/${endpoint("media")}&asset=${asset}`;
+  const [mediaAccess, setMediaAccess] = useState<{
+    base: string;
+    query: string;
+    expiresAt: number;
+  } | null>(null);
+  const mediaAccessRef = useRef(mediaAccess);
+  mediaAccessRef.current = mediaAccess;
+  const media = useCallback(
+    (asset: string) =>
+      mediaAccess
+        ? `${mediaAccess.base}${encodeURIComponent(asset)}?${mediaAccess.query}`
+        : `/api/${endpoint("media")}&asset=${encodeURIComponent(asset)}`,
+    [mediaAccess, endpoint],
+  );
   useEffect(() => {
+    setMediaAccess(null);
     setExpanded(new Set());
     setPreviewOpen(false);
     setPreviewView("composition");
@@ -152,8 +167,17 @@ export function VideoProjectEditor({
     let initialized = false;
     const refresh = async () => {
       try {
-        const data = await api<{ video: VideoRow; defaults: Settings }>(base);
+        const data = await api<{
+          video: VideoRow;
+          defaults: Settings;
+          mediaAccess: NonNullable<typeof mediaAccess>;
+        }>(base);
         if (!live) return;
+        setMediaAccess((current) =>
+          current && current.expiresAt > Date.now() + 15 * 60 * 1000
+            ? current
+            : data.mediaAccess,
+        );
         setVersionVolume(data.defaults.volumeMultiplier);
         if (!initialized) {
           const values = settingsSchema.parse(
@@ -168,19 +192,20 @@ export function VideoProjectEditor({
         setProject(data.video);
       } catch (cause) {
         if (live) setError(userMessage(cause));
+        throw cause;
       }
     };
-    void refresh();
-    const timer = setInterval(() => {
-      if (
-        !document.hidden &&
-        ["queued", "running"].includes(projectState.current?.status ?? "")
-      )
-        void refresh();
-    }, 5000);
+    const stopPolling = pollWhileVisible(
+      refresh,
+      () =>
+        ["queued", "running"].includes(projectState.current?.status ?? "") ||
+        !mediaAccessRef.current ||
+        mediaAccessRef.current.expiresAt <= Date.now() + 15 * 60 * 1000,
+      15000,
+    );
     return () => {
       live = false;
-      clearInterval(timer);
+      stopPolling();
     };
   }, [base, inspect]);
   useEffect(() => {
@@ -195,21 +220,20 @@ export function VideoProjectEditor({
         }
       } catch (cause) {
         if (live) setVoiceError(userMessage(cause));
+        throw cause;
       }
     };
-    void refresh();
-    const timer = setInterval(() => {
-      if (
-        !document.hidden &&
+    const stopPolling = pollWhileVisible(
+      refresh,
+      () =>
         Object.values(voiceState.current).some((voice) =>
           ["queued", "running"].includes(voice.status),
-        )
-      )
-        void refresh();
-    }, 4000);
+        ),
+      10000,
+    );
     return () => {
       live = false;
-      clearInterval(timer);
+      stopPolling();
     };
   }, [project?.project_id, endpoint]);
   const active = Boolean(
@@ -899,6 +923,7 @@ export function VideoProjectEditor({
             key={projectId + ":" + voiceRevision}
             kind={kind}
             endpoint={endpoint}
+            media={media}
             settings={{ ...settings, volumeMultiplier: readingVolumeValue }}
             cues={cues}
             ready={Boolean(analysis && !analyzing && voicesReady)}

@@ -1,4 +1,9 @@
 import http from "node:http";
+import {
+  verifyMediaAccess,
+  matchesMediaScope,
+  mediaAsset,
+} from "./media-access.mjs";
 
 export function routeFor(pathname) {
   if (
@@ -39,16 +44,39 @@ export function createProxy({
   };
 
   return http.createServer(async (req, res) => {
-    if (!token || req.headers.authorization !== `Bearer ${token}`) {
+    const url = new URL(req.url || "/", "http://localhost");
+    const asset = mediaAsset(url.pathname);
+    // Media uses scoped browser grants; control routes still require the private API token.
+    if (asset && req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": req.headers.origin || "null",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "Range",
+        "Access-Control-Max-Age": "600",
+        Vary: "Origin",
+      });
+      res.end();
+      return;
+    }
+    let scope = null;
+    if (asset && ["GET", "HEAD"].includes(req.method)) {
+      scope = await verifyMediaAccess(
+        url.searchParams.get("mediaToken"),
+        token,
+      );
+      if (
+        scope &&
+        (!matchesMediaScope(url, scope) ||
+          (req.headers.origin && req.headers.origin !== scope.origin))
+      )
+        scope = null;
+    }
+    if (!token || (req.headers.authorization !== `Bearer ${token}` && !scope)) {
       res.writeHead(401, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Unauthorized" }));
       return;
     }
-    const pathname =
-      new URL(req.url || "/", "http://localhost").pathname.replace(
-        /\/+$/,
-        "",
-      ) || "/";
+    const pathname = url.pathname.replace(/\/+$/, "") || "/";
     if (pathname === "/health") {
       const video = await check("video");
       const ok = video.ok;
@@ -64,7 +92,7 @@ export function createProxy({
           videoProjectProtocolVersion: video.videoProjectProtocolVersion,
         }),
       );
-      log(`[proxy] ${req.method} ${req.url} ${res.statusCode}`);
+      log(`[proxy] ${req.method} ${url.pathname} ${res.statusCode}`);
       return;
     }
 
@@ -72,40 +100,66 @@ export function createProxy({
     if (!service) {
       res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ error: "Route not found" }));
-      log(`[proxy] ${req.method} ${req.url} 404`);
+      log(`[proxy] ${req.method} ${url.pathname} 404`);
       return;
     }
     if (!isRunning(service)) {
       res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ error: `${service} API is unavailable` }));
-      log(`[${service}] ${req.method} ${req.url} 503`);
+      log(`[${service}] ${req.method} ${url.pathname} 503`);
       return;
     }
 
+    url.searchParams.delete("mediaToken");
+    const forwardedPath = url.pathname + url.search;
     const started = performance.now();
     let logged = false;
     const finish = (status) => {
       if (logged) return;
       logged = true;
       log(
-        `[${service}] ${req.method} ${req.url} ${status} ${Math.round(performance.now() - started)}ms`,
+        `[${service}] ${req.method} ${forwardedPath} ${status} ${Math.round(performance.now() - started)}ms`,
       );
     };
     res.once("finish", () => finish(res.statusCode));
     res.once("close", () => finish("ABORTED"));
 
-    const headers = { ...req.headers, host: `127.0.0.1:${ports[service]}` };
+    const headers = {
+      ...req.headers,
+      host: `127.0.0.1:${ports[service]}`,
+      authorization: `Bearer ${token}`,
+    };
     const upstream = http.request(
       {
         hostname: "127.0.0.1",
         port: ports[service],
-        path: req.url,
-        method: req.method,
+        path: forwardedPath,
+        method: scope && req.method === "HEAD" ? "GET" : req.method,
         headers,
       },
       (upstreamRes) => {
-        res.writeHead(upstreamRes.statusCode || 502, upstreamRes.headers);
-        upstreamRes.pipe(res);
+        const responseHeaders = { ...upstreamRes.headers };
+        if (scope) {
+          responseHeaders["access-control-allow-origin"] = scope.origin;
+          responseHeaders["access-control-expose-headers"] =
+            "Content-Length, Content-Range, Accept-Ranges, Content-Disposition";
+          responseHeaders["vary"] = "Origin";
+          responseHeaders["cache-control"] = "private, no-store";
+          responseHeaders["referrer-policy"] = "no-referrer";
+          if (url.searchParams.has("download")) {
+            const passage = url.searchParams.get("passage");
+            const filename = /^[a-z0-9-]+$/i.test(passage || "")
+              ? passage
+              : "video";
+            responseHeaders["content-disposition"] =
+              `attachment; filename="${filename}.${asset === "thumbnail" ? "jpg" : asset === "intro" || asset === "outro" ? "wav" : "mp4"}"`;
+          }
+        }
+        res.writeHead(upstreamRes.statusCode || 502, responseHeaders);
+        if (scope && req.method === "HEAD") {
+          res.end();
+          upstreamRes.destroy();
+        } else upstreamRes.pipe(res);
       },
     );
     upstream.on("error", (error) => {
