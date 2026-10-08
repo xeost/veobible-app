@@ -61,10 +61,6 @@ jobs:
       run:
         working-directory: apps/dashboard
     env:
-      DASHBOARD_D1_DATABASE_ID: ${{ vars.DASHBOARD_D1_DATABASE_ID }}
-      DASHBOARD_D1_DATABASE_NAME: ${{ vars.DASHBOARD_D1_DATABASE_NAME }}
-      DASHBOARD_VIDEO_API_URL: ${{ vars.DASHBOARD_VIDEO_API_URL }}
-      DASHBOARD_DOMAIN: ${{ vars.DASHBOARD_DOMAIN }}
       DASHBOARD_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.DASHBOARD_CLOUDFLARE_ACCOUNT_ID }}
       DASHBOARD_CLOUDFLARE_API_TOKEN: ${{ secrets.DASHBOARD_CLOUDFLARE_API_TOKEN }}
     steps:
@@ -93,7 +89,6 @@ jobs:
           DASHBOARD_JWT_SECRET: ${{ secrets.DASHBOARD_JWT_SECRET }}
           DASHBOARD_PROXY_API_TOKEN: ${{ secrets.DASHBOARD_PROXY_API_TOKEN }}
           DASHBOARD_PUBLISH_API_TOKEN: ${{ secrets.DASHBOARD_PUBLISH_API_TOKEN }}
-          DASHBOARD_PUBLISH_ACCOUNT_ID: ${{ vars.DASHBOARD_PUBLISH_ACCOUNT_ID }}
       - name: Apply production database migrations
         run: pnpm db:migrate:remote
       - name: Deploy Worker and runtime secrets
@@ -102,4 +97,3 @@ jobs:
           DASHBOARD_JWT_SECRET: ${{ secrets.DASHBOARD_JWT_SECRET }}
           DASHBOARD_PROXY_API_TOKEN: ${{ secrets.DASHBOARD_PROXY_API_TOKEN }}
           DASHBOARD_PUBLISH_API_TOKEN: ${{ secrets.DASHBOARD_PUBLISH_API_TOKEN }}
-          DASHBOARD_PUBLISH_ACCOUNT_ID: ${{ vars.DASHBOARD_PUBLISH_ACCOUNT_ID }}

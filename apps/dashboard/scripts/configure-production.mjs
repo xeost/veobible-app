@@ -19,30 +19,22 @@ export function readSourceConfig() {
   return config;
 }
 
-export function productionConfig(source, environment = process.env) {
+export function productionConfig(source) {
   const config = structuredClone(source);
   const production = config.env.production;
   const database = production.d1_databases.find(
     (binding) => binding.binding === "DB",
   );
-  database.database_id =
-    environment.DASHBOARD_D1_DATABASE_ID || database.database_id;
-  database.database_name =
-    environment.DASHBOARD_D1_DATABASE_NAME || database.database_name;
   if (
     !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(
       database.database_id,
     ) ||
     /^0+-0+-0+-0+-0+$/.test(database.database_id)
   ) {
-    throw new Error(
-      "Set DASHBOARD_D1_DATABASE_ID to the UUID of the dashboard's dedicated production D1 database.",
-    );
+    throw new Error("Set the production D1 database_id in wrangler.jsonc.");
   }
   if (!/^[a-zA-Z0-9_-]+$/.test(database.database_name))
     throw new Error("Invalid production database name.");
-  production.vars.VIDEO_API_URL =
-    environment.DASHBOARD_VIDEO_API_URL || production.vars.VIDEO_API_URL;
   const url = new URL(production.vars.VIDEO_API_URL);
   if (
     url.protocol !== "https:" ||
@@ -55,16 +47,18 @@ export function productionConfig(source, environment = process.env) {
     )
   ) {
     throw new Error(
-      "Set DASHBOARD_VIDEO_API_URL to the HTTPS URL of the video proxy tunnel.",
+      "Set the production VIDEO_API_URL in wrangler.jsonc to the HTTPS URL of the proxy tunnel.",
     );
   }
   production.vars.VIDEO_API_URL = url.href.replace(/\/$/, "");
-  const domain = environment.DASHBOARD_DOMAIN || production.routes[0].pattern;
+  const domain = production.routes[0].pattern;
   if (
     domain.length > 253 ||
     !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(domain)
   )
-    throw new Error("DASHBOARD_DOMAIN must be a bare hostname.");
+    throw new Error(
+      "The production route in wrangler.jsonc must be a bare hostname.",
+    );
   production.routes = [{ pattern: domain, custom_domain: true }];
   production.workers_dev = false;
   production.preview_urls = false;

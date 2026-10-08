@@ -8,53 +8,43 @@ import {
   wranglerEnvironment,
 } from "./configure-production.mjs";
 const source = readSourceConfig();
+source.vars.VIDEO_API_URL = "http://127.0.0.1:8430";
+source.d1_databases[0].database_id = "00000000-0000-0000-0000-000000000000";
 source.env.production.d1_databases[0].database_id =
-  "00000000-0000-0000-0000-000000000000";
-source.env.production.vars.VIDEO_API_URL = "https://video-api.example.com";
-const environment = {
-  DASHBOARD_D1_DATABASE_ID: "11111111-2222-3333-4444-555555555555",
-  DASHBOARD_VIDEO_API_URL: "https://video.example.test/",
-};
+  "11111111-2222-3333-4444-555555555555";
+source.env.production.vars.VIDEO_API_URL = "https://video.example.test/";
 
-test("production configuration retains local bindings and targets the dashboard domain and dedicated database", () => {
-  const config = productionConfig(source, environment);
+test("production uses wrangler configuration without GitHub variables and retains development bindings", () => {
+  const config = productionConfig(source);
   assert.deepEqual(config.d1_databases, source.d1_databases);
-  assert.equal(
-    productionConfig(readSourceConfig(), {
-      DASHBOARD_D1_DATABASE_ID: environment.DASHBOARD_D1_DATABASE_ID,
-    }).env.production.vars.VIDEO_API_URL,
-    "https://api-proxy-tool.veobible.com",
-  );
-  assert.equal(config.vars.VIDEO_API_URL, "http://127.0.0.1:8430");
+  assert.equal(config.vars.VIDEO_API_URL, source.vars.VIDEO_API_URL);
   assert.equal(
     config.env.production.d1_databases[0].database_id,
-    environment.DASHBOARD_D1_DATABASE_ID,
+    source.env.production.d1_databases[0].database_id,
   );
   assert.equal(
     config.env.production.vars.VIDEO_API_URL,
     "https://video.example.test",
   );
-  assert.deepEqual(config.env.production.routes, [
-    { pattern: "dash.veobible.com", custom_domain: true },
-  ]);
+  assert.deepEqual(config.env.production.routes, source.env.production.routes);
   assert.equal(config.env.production.workers_dev, false);
   assert.equal(config.env.production.preview_urls, false);
   assert.equal(
-    source.env.production.d1_databases[0].database_id,
-    "00000000-0000-0000-0000-000000000000",
+    source.env.production.vars.VIDEO_API_URL,
+    "https://video.example.test/",
+  );
+  assert.equal(
+    productionConfig(readSourceConfig()).env.production.vars.VIDEO_API_URL,
+    "https://api-proxy-tool.veobible.com",
   );
 });
 
-test("missing production values, local URLs and credential-bearing URLs cannot be deployed", () => {
-  assert.throws(() => productionConfig(source, {}), /DASHBOARD_D1_DATABASE_ID/);
-  assert.throws(
-    () =>
-      productionConfig(source, {
-        ...environment,
-        DASHBOARD_D1_DATABASE_ID: "invalid",
-      }),
-    /DASHBOARD_D1_DATABASE_ID/,
-  );
+test("placeholder database IDs, local URLs and credential-bearing URLs cannot be deployed", () => {
+  for (const id of ["00000000-0000-0000-0000-000000000000", "invalid"]) {
+    const invalid = structuredClone(source);
+    invalid.env.production.d1_databases[0].database_id = id;
+    assert.throws(() => productionConfig(invalid), /database_id/);
+  }
   for (const url of [
     "http://video.example.test",
     "https://localhost",
@@ -63,27 +53,17 @@ test("missing production values, local URLs and credential-bearing URLs cannot b
     "https://user:pass@video.example.test",
     "https://video.example.test?token=secret",
   ]) {
-    assert.throws(
-      () =>
-        productionConfig(source, {
-          ...environment,
-          DASHBOARD_VIDEO_API_URL: url,
-        }),
-      /DASHBOARD_VIDEO_API_URL/,
-    );
+    const invalid = structuredClone(source);
+    invalid.env.production.vars.VIDEO_API_URL = url;
+    assert.throws(() => productionConfig(invalid), /VIDEO_API_URL/);
   }
-  assert.throws(
-    () =>
-      productionConfig(source, {
-        ...environment,
-        DASHBOARD_DOMAIN: "https://dash.veobible.com",
-      }),
-    /bare hostname/,
-  );
+  const invalid = structuredClone(source);
+  invalid.env.production.routes[0].pattern = "https://dash.veobible.com";
+  assert.throws(() => productionConfig(invalid), /bare hostname/);
 });
 
 test("deploying a development or stale generated configuration is rejected", () => {
-  const config = productionConfig(source, environment);
+  const config = productionConfig(source);
   assertProductionBuild(config.env.production, config);
   for (const override of [
     { name: "veobible-dashboard-dev" },

@@ -84,14 +84,7 @@ The production Worker is `veobible-dashboard`, served at <https://dash.veobible.
 
 The GitHub Action in `.github/workflows/deploy-dashboard.yml` validates pull requests, then deploys pushes to `main` and manual runs through the GitHub `production` environment. It installs both the dashboard and video project packages because the editor shares video compositions with the generator. Deployments are serialized to avoid overlapping migrations.
 
-Create a dedicated dashboard D1 database and configure these GitHub variables:
-
-| Variable                     | Value                                                                                                                  |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `DASHBOARD_D1_DATABASE_ID`   | Required: UUID of the dashboard database.                                                                              |
-| `DASHBOARD_VIDEO_API_URL`    | Optional; defaults to `https://api-proxy-tool.veobible.com`, the proxy tunnel URL. |
-| `DASHBOARD_D1_DATABASE_NAME` | Optional; defaults to `veobible-dashboard-production`.                                                                 |
-| `DASHBOARD_DOMAIN`           | Optional; defaults to `dash.veobible.com`.                                                                             |
+Database bindings, the proxy URL, and the dashboard domain are configured directly in `wrangler.jsonc` under `env.production`. No GitHub Actions variables are required.
 
 Configure these GitHub secrets in the repository or its `production` environment:
 
@@ -103,9 +96,9 @@ Configure these GitHub secrets in the repository or its `production` environment
 | `DASHBOARD_PROXY_API_TOKEN`             | Random secret of at least 32 bytes, matching the proxy configuration.                                                              |
 | `DASHBOARD_PUBLISH_API_TOKEN` | Optional separate token for reading the public site's Workers Builds, with Workers Builds Read permission.                         |
 
-`DASHBOARD_PUBLISH_ACCOUNT_ID` is an optional GitHub variable for the public site's account; it defaults to `DASHBOARD_CLOUDFLARE_ACCOUNT_ID` when the publication token is provided. The deployment token is never automatically stored inside the Worker. GitHub configuration uses only `DASHBOARD_` names. Deployment scripts map these to Wrangler credentials and Worker bindings (`JWT_SECRET` and `PROXY_API_TOKEN`) internally.
+The publication token uses the account specified by `DASHBOARD_CLOUDFLARE_ACCOUNT_ID`. For manual deployments to a separate publication account, `.env.production` can optionally set `DASHBOARD_PUBLISH_ACCOUNT_ID`. The deployment token is never automatically stored inside the Worker. GitHub secrets use only `DASHBOARD_` names. Deployment scripts map these to Wrangler credentials and Worker bindings (`JWT_SECRET` and `PROXY_API_TOKEN`) internally.
 
-The production build resolves configuration from these variables and rejects placeholder database IDs, example proxy URLs, or invalid domains. Before migrating, the Action checks required credentials and performs a deployment dry run. The deployment uploads runtime secrets together with the Worker using a temporary file with restricted permissions. Optional secrets omitted from later runs retain their existing values; delete them explicitly with Wrangler when no longer needed.
+The production build validates `wrangler.jsonc` and rejects placeholder database IDs, example proxy URLs, or invalid domains. Before migrating, the Action checks required credentials and performs a deployment dry run. The deployment uploads runtime secrets together with the Worker using a temporary file with restricted permissions. Optional secrets omitted from later runs retain their existing values; delete them explicitly with Wrangler when no longer needed.
 
 The initial migration creates only `admin` with password `admin123`. Change this password from the profile after the first deployment. Settings, versions, and projects are configured manually through the interface.
 
