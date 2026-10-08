@@ -43,6 +43,7 @@ export function generationStage(
 }
 
 const messages = new Set([
+  "Generate every chapter introduction before generating the video.",
   "Generate the introduction and closing voices before generating the video.",
   "Could not sync existing projects. Check that generation is available and try again.",
   "Books could not be loaded. Check that this version is available and try again.",
@@ -179,11 +180,14 @@ export function voiceFailureMessage(reason?: string, lang?: Language): string {
     text =
       "The computer interrupted narration generation. Check disk space and close applications before trying again.";
   else if (reason === "resource_limit")
-    text = "Narration generation stopped to keep the computer responsive. Close unused applications and try again.";
+    text =
+      "Narration generation stopped to keep the computer responsive. Close unused applications and try again.";
   else if (reason === "timeout")
-    text = "Narration generation exceeded its time limit. Try again; if the problem persists, contact the administrator.";
+    text =
+      "Narration generation exceeded its time limit. Try again; if the problem persists, contact the administrator.";
   else if (reason === "voice_busy")
-    text = "Another narration is still being generated. Wait for it to finish and try again.";
+    text =
+      "Another narration is still being generated. Wait for it to finish and try again.";
 
   return lang ? translateServer(text, lang) : text;
 }

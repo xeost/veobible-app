@@ -1,5 +1,9 @@
 "use client";
 import {
+  insertChapterIntroductions,
+  type VoicePart,
+} from "../../../../tools/video-project-api/src/chapter-introductions";
+import {
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -11,7 +15,11 @@ import {
   type Ref,
 } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
-import { previewDurationInFrames, stopPreviewMedia, stopPreviewPlayback } from "../lib/preview-playback";
+import {
+  previewDurationInFrames,
+  stopPreviewMedia,
+  stopPreviewPlayback,
+} from "../lib/preview-playback";
 import { Clapperboard, Film } from "lucide-react";
 import { VeoBibleShort } from "../../../../tools/video-project-api/src/engines/short/remotion/VeoBibleShort";
 import { VeoBibleEpisode } from "../../../../tools/video-project-api/src/engines/long/remotion/VeoBibleEpisode";
@@ -25,7 +33,11 @@ import type { ShortCompositionProps } from "../../../../tools/video-project-api/
 import type { RenderRequest } from "../lib/video-schema";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
-import { waveformReadingSources, type ReadingSection, type VerseCue } from "../lib/video-timing";
+import {
+  waveformReadingSources,
+  type ReadingSection,
+  type VerseCue,
+} from "../lib/video-timing";
 import { readingPadding } from "../../../../tools/video-project-api/src/composition-timing";
 import { buildVerseReading } from "../../../../tools/video-project-api/src/reading-timeline";
 import { layoutVerse as shortVerseLayout } from "../../../../tools/video-project-api/src/engines/short/remotion/animation";
@@ -38,17 +50,44 @@ export type PreviewPlaybackHandle = {
 
 export type VideoPreviewView = "composition" | "rendered";
 
-function SectionPreview(props: ShortCompositionProps & { previewKind?: "short" | "long"; previewVoicePart?: "intro" | "outro" }) {
+function SectionPreview(
+  props: ShortCompositionProps & {
+    previewKind?: "short" | "long";
+    previewVoicePart?: VoicePart;
+  },
+) {
   if (props.previewVoicePart === "intro") {
     const Intro = props.previewKind === "long" ? LongIntro : ShortIntro;
-    return <Intro introVideoPath={props.introVideoPath} introDuration={props.introVideoDuration} introLength={props.introLength} title={props.introTitle} voices={props.voices} />;
+    return (
+      <Intro
+        introVideoPath={props.introVideoPath}
+        introDuration={props.introVideoDuration}
+        introLength={props.introLength}
+        title={props.introTitle}
+        voices={props.voices}
+      />
+    );
   }
   if (props.previewVoicePart === "outro") {
     const Outro = props.previewKind === "long" ? LongOutro : ShortOutro;
-    return <Outro outroVideoPath={props.outroVideoPath} outroDuration={props.outroVideoDuration} outroLength={props.outroLength} outro={props.outroTitle} voices={props.voices} />;
+    return (
+      <Outro
+        outroVideoPath={props.outroVideoPath}
+        outroDuration={props.outroVideoDuration}
+        outroLength={props.outroLength}
+        outro={props.outroTitle}
+        voices={props.voices}
+      />
+    );
   }
   const Reading = props.previewKind === "long" ? LongReading : ShortReading;
-  return <Reading {...props} voices={undefined} readingDuration={props.readingLength - readingPadding(props)} />;
+  return (
+    <Reading
+      {...props}
+      voices={undefined}
+      readingDuration={props.readingLength - readingPadding(props)}
+    />
+  );
 }
 
 type Preview = {
@@ -83,7 +122,7 @@ export function VideoProjectPreview({
   readingReferences?: string[];
   readingCues?: VerseCue[];
   readingSources?: ReadingSection[];
-  voicePart?: "intro" | "outro";
+  voicePart?: VoicePart;
   ready: boolean;
   rendered: boolean;
   view: VideoPreviewView;
@@ -150,12 +189,25 @@ export function VideoProjectPreview({
       ? readingCues.filter((cue) => readingReferences.includes(cue.reference))
       : readingCues;
     const layout = kind === "short" ? shortVerseLayout : longVerseLayout;
-    return buildVerseReading(
+    const lineCounts = selectedCues.map((cue) => layout(cue.text).lines.length);
+    const base = buildVerseReading(
       waveformReadingSources(readingSources),
       selectedCues,
-      selectedCues.map((cue) => layout(cue.text).lines.length),
+      lineCounts,
     );
-  }, [readingReferences, readingCues, readingSources, kind, voicePart]);
+    return insertChapterIntroductions(
+      base,
+      readingReferences ? [] : (preview?.props.chapterIntroductions ?? []),
+      lineCounts,
+    );
+  }, [
+    readingReferences,
+    readingCues,
+    readingSources,
+    kind,
+    voicePart,
+    preview,
+  ]);
   const props = useMemo(
     () =>
       preview
@@ -168,14 +220,22 @@ export function VideoProjectPreview({
             boomerangVideoPath: media(preview.props.boomerangVideoPath),
             outroVideoPath: media(preview.props.outroVideoPath),
             // Use the same source audio and current cuts as the waveform, not a prepared snapshot.
-            ...(reading ? {
-              verseCues: reading.cues,
-              readingLength: reading.duration + readingPadding(preview.props),
-            } : {}),
-            sections: (reading?.sections ?? preview.props.sections).map((section) => ({
-              ...section,
-              file: media(section.file),
-            })),
+            ...(reading
+              ? {
+                  verseCues: reading.cues,
+                  readingLength:
+                    reading.duration + readingPadding(preview.props),
+                }
+              : {}),
+            chapterIntroductions: (
+              reading?.chapters ?? preview.props.chapterIntroductions
+            )?.map((chapter) => ({ ...chapter, file: media(chapter.file) })),
+            sections: (reading?.sections ?? preview.props.sections).map(
+              (section) => ({
+                ...section,
+                file: media(section.file),
+              }),
+            ),
             voices: preview.props.voices
               ? {
                   ...preview.props.voices,
@@ -197,8 +257,14 @@ export function VideoProjectPreview({
       const data = await api<Preview>(endpoint("preview"), {
         method: "POST",
         body: JSON.stringify({
-          ...settings, readingReferences, voicePart,
-          readingCuts: readingCues?.map(({ reference, start, end }) => ({ reference, start, end })),
+          ...settings,
+          readingReferences,
+          voicePart,
+          readingCuts: readingCues?.map(({ reference, start, end }) => ({
+            reference,
+            start,
+            end,
+          })),
         }),
         signal: controller.signal,
       });
@@ -236,9 +302,22 @@ export function VideoProjectPreview({
         {view === "composition" && preview && props && !stale ? (
           <Player
             ref={attachPlayer}
-            component={readingReferences || voicePart ? SectionPreview : kind === "short" ? VeoBibleShort : VeoBibleEpisode}
-            inputProps={{ ...props, previewKind: kind, previewVoicePart: voicePart }}
-            durationInFrames={previewDurationInFrames({ ...preview, props }, voicePart ?? (readingReferences ? "reading" : undefined))}
+            component={
+              readingReferences || voicePart
+                ? SectionPreview
+                : kind === "short"
+                  ? VeoBibleShort
+                  : VeoBibleEpisode
+            }
+            inputProps={{
+              ...props,
+              previewKind: kind,
+              previewVoicePart: voicePart,
+            }}
+            durationInFrames={previewDurationInFrames(
+              { ...preview, props },
+              voicePart ?? (readingReferences ? "reading" : undefined),
+            )}
             compositionWidth={preview.width}
             compositionHeight={preview.height}
             fps={preview.fps}
@@ -297,7 +376,9 @@ export function VideoProjectPreview({
               {t(
                 ready
                   ? "Preparing preview…"
-                  : "Generate the introduction and closing voices to preview the video.",
+                  : kind === "long"
+                    ? "Generate all section narrations to preview the video."
+                    : "Generate the introduction and closing voices to preview the video.",
               )}
             </span>
           </div>

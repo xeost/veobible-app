@@ -1,3 +1,4 @@
+import type { ChapterIntroduction } from "../../../../tools/video-project-api/src/chapter-introductions";
 export interface VerseCue {
   reference: string;
   text: string;
@@ -17,12 +18,16 @@ export interface ReadingSection {
 
 /** Preserve the source-file coordinates used by waveform playback. */
 export function waveformReadingSources(sections: ReadingSection[]) {
-  return sections.map((section, index) => ({ ...section, file: `reading-${index}` }));
+  return sections.map((section, index) => ({
+    ...section,
+    file: `reading-${index}`,
+  }));
 }
 export interface Inspection {
   label: string;
   sections: ReadingSection[];
   cues: VerseCue[];
+  chapterIntroductions?: ChapterIntroduction[];
   scripts: { intro: string; outro: string };
 }
 export function adjustedCues(
@@ -121,7 +126,11 @@ export function waveformSeekRange(
 }
 
 /** Align only the selected verse, preserving its length and respecting the original audio end. */
-export function alignSelectedVerse(cues: VerseCue[], index: number, sourceEnd: number) {
+export function alignSelectedVerse(
+  cues: VerseCue[],
+  index: number,
+  sourceEnd: number,
+) {
   const cue = cues[index];
   if (!cue) throw new Error("Missing selected verse");
   if (index === 0 || cue.start >= cues[index - 1].end)
@@ -129,7 +138,6 @@ export function alignSelectedVerse(cues: VerseCue[], index: number, sourceEnd: n
   const start = cues[index - 1].end;
   const duration = cue.end - cue.start;
   const end = start + duration;
-  if (end > sourceEnd + 1e-6)
-    return { cue, moved: false, blocked: true };
+  if (end > sourceEnd + 1e-6) return { cue, moved: false, blocked: true };
   return { cue: { ...cue, start, end }, moved: true, blocked: false };
 }

@@ -362,6 +362,7 @@ export async function videoApi(
     const asset = z
       .union([
         z.enum(["video", "thumbnail", "intro", "outro"]),
+        z.string().regex(/^chapter-\d+$/),
         z.string().regex(/^reading-\d+$/),
         z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
       ])
@@ -425,8 +426,10 @@ export async function videoApi(
       voiceTemplates,
     };
     if (parts[2] === "voices") {
-      const part = z.enum(["intro", "outro"]).parse(values.part);
-      if (!voiceTemplates[part])
+      const part = z
+        .union([z.enum(["intro", "outro"]), z.string().regex(/^chapter-\d+$/)])
+        .parse(values.part);
+      if ((part === "intro" || part === "outro") && !voiceTemplates[part])
         return json(
           {
             error: "Configure narration scripts in Settings before generating.",
@@ -470,10 +473,23 @@ export async function videoApi(
             ? { readingCuts: readingCutsSchema.parse(values.readingCuts) }
             : {}),
           ...(parts[2] === "preview" && values.readingReferences !== undefined
-            ? { readingReferences: z.array(z.string().min(1)).min(1).max(1000).parse(values.readingReferences) }
+            ? {
+                readingReferences: z
+                  .array(z.string().min(1))
+                  .min(1)
+                  .max(1000)
+                  .parse(values.readingReferences),
+              }
             : {}),
           ...(parts[2] === "preview" && values.voicePart !== undefined
-            ? { voicePart: z.enum(["intro", "outro"]).parse(values.voicePart) }
+            ? {
+                voicePart: z
+                  .union([
+                    z.enum(["intro", "outro"]),
+                    z.string().regex(/^chapter-\d+$/),
+                  ])
+                  .parse(values.voicePart),
+              }
             : {}),
         }),
         ...(parts[2] === "preview"

@@ -1,4 +1,5 @@
 "use client";
+import type { VoicePart } from "../../../../tools/video-project-api/src/chapter-introductions";
 import { pollWhileVisible } from "../lib/visible-polling";
 import Link from "next/link";
 import {
@@ -60,7 +61,7 @@ type VoiceState = {
   failureReason?: string;
   progress?: number;
 };
-type Voices = Record<"intro" | "outro", VoiceState>;
+type Voices = Record<VoicePart, VoiceState>;
 const emptyVoices: Voices = {
   intro: { available: false, status: "idle" },
   outro: { available: false, status: "idle" },
@@ -88,8 +89,11 @@ export function VideoProjectEditor({
   const [notice, setNotice] = useState("");
   const [saved, setSaved] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewVoice, setPreviewVoice] = useState<"intro" | "outro" | null>(null);
-  const [previewReading, setPreviewReading] = useState<{ references: string[]; title: string } | null>(null);
+  const [previewVoice, setPreviewVoice] = useState<VoicePart | null>(null);
+  const [previewReading, setPreviewReading] = useState<{
+    references: string[];
+    title: string;
+  } | null>(null);
   const previewPlayback = useRef<PreviewPlaybackHandle | null>(null);
   const [previewView, setPreviewView] =
     useState<VideoPreviewView>("composition");
@@ -104,12 +108,8 @@ export function VideoProjectEditor({
   const [voices, setVoices] = useState<Voices>(emptyVoices);
   const [voiceRevision, setVoiceRevision] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [playingVoice, setPlayingVoice] = useState<"intro" | "outro" | null>(
-    null,
-  );
-  const voicePlayers = useRef<
-    Partial<Record<"intro" | "outro", HTMLAudioElement>>
-  >({});
+  const [playingVoice, setPlayingVoice] = useState<VoicePart | null>(null);
+  const voicePlayers = useRef<Partial<Record<VoicePart, HTMLAudioElement>>>({});
   const projectState = useRef(project);
   projectState.current = project;
   const voiceState = useRef(voices);
@@ -147,7 +147,7 @@ export function VideoProjectEditor({
     setPreviewVoice(null);
     setPreviewView("composition");
     setPlayingVoice(null);
-    for (const player of Object.values(voicePlayers.current)) player.pause();
+    for (const player of Object.values(voicePlayers.current)) player?.pause();
   }, [base]);
   const inspect = useCallback(
     async (values: Settings) => {
@@ -248,9 +248,16 @@ export function VideoProjectEditor({
   const voicesReady =
     voices.intro.available &&
     voices.outro.available &&
+    (analysis?.chapterIntroductions ?? []).every(
+      (chapter) => voices[chapter.part]?.available,
+    ) &&
     !Object.values(voices).some((voice) =>
       ["queued", "running"].includes(voice.status),
     );
+  const narrationRequirement =
+    kind === "long"
+      ? "Generate all section narrations before generating the video."
+      : "Generate the introduction and closing voices before generating the video.";
   const editingLocked = busy || active;
   const locked = editingLocked;
   const timeline = readingTimeline(analysis?.sections ?? []);
@@ -275,7 +282,10 @@ export function VideoProjectEditor({
       analysis &&
       !validVerseTimings(
         adjustedCues(analysis.cues, settingsRef.current.verseOffsets),
-        analysis.sections.reduce((total, section) => total + section.end - section.start, 0),
+        analysis.sections.reduce(
+          (total, section) => total + section.end - section.start,
+          0,
+        ),
       )
     ) {
       throw new Error(
@@ -317,28 +327,59 @@ export function VideoProjectEditor({
     });
     setNotice("");
   };
-  const expandSection = (sectionIndex: number, edge: "start" | "end", seconds = 10) => {
+  const expandSection = (
+    sectionIndex: number,
+    edge: "start" | "end",
+    seconds = 10,
+  ) => {
     if (!analysis) return;
     const section = analysis.sections[sectionIndex];
-    const amount = Math.min(seconds, edge === "start" ? section.start : (section.sourceDuration ?? section.end) - section.end);
+    const amount = Math.min(
+      seconds,
+      edge === "start"
+        ? section.start
+        : (section.sourceDuration ?? section.end) - section.end,
+    );
     if (amount <= 0) return;
-    const change = { sectionIndex, beforeSeconds: edge === "start" ? amount : 0, afterSeconds: edge === "end" ? amount : 0 };
-    const expanded = expandReadingContext(analysis.sections, analysis.cues,
-      analysis.sections.map((entry) => entry.sourceDuration ?? entry.end), [change]);
+    const change = {
+      sectionIndex,
+      beforeSeconds: edge === "start" ? amount : 0,
+      afterSeconds: edge === "end" ? amount : 0,
+    };
+    const expanded = expandReadingContext(
+      analysis.sections,
+      analysis.cues,
+      analysis.sections.map((entry) => entry.sourceDuration ?? entry.end),
+      [change],
+    );
     setAnalysis({ ...analysis, ...expanded });
     setSettings((current) => {
-      const previous = current.readingSectionPadding.find((entry) => entry.sectionIndex === sectionIndex);
-      return { ...current, readingSectionPadding: [
-        ...current.readingSectionPadding.filter((entry) => entry.sectionIndex !== sectionIndex),
-        { sectionIndex, beforeSeconds: (previous?.beforeSeconds ?? 0) + change.beforeSeconds,
-          afterSeconds: (previous?.afterSeconds ?? 0) + change.afterSeconds },
-      ] };
+      const previous = current.readingSectionPadding.find(
+        (entry) => entry.sectionIndex === sectionIndex,
+      );
+      return {
+        ...current,
+        readingSectionPadding: [
+          ...current.readingSectionPadding.filter(
+            (entry) => entry.sectionIndex !== sectionIndex,
+          ),
+          {
+            sectionIndex,
+            beforeSeconds:
+              (previous?.beforeSeconds ?? 0) + change.beforeSeconds,
+            afterSeconds: (previous?.afterSeconds ?? 0) + change.afterSeconds,
+          },
+        ],
+      };
     });
   };
   const shiftVerse = (sectionIndex: number, cue: VerseCue) => {
     if (!analysis || editingLocked || analyzing) return false;
     const section = timeline[sectionIndex];
-    const availableEnd = section.timelineStart + (section.sourceDuration ?? section.end) - section.start;
+    const availableEnd =
+      section.timelineStart +
+      (section.sourceDuration ?? section.end) -
+      section.start;
     if (cue.end > availableEnd + 1e-6) return false;
     // Expose enough original audio without moving this chapter's existing source cuts.
     if (cue.end > section.timelineEnd)
@@ -347,9 +388,9 @@ export function VideoProjectEditor({
     trim(cue.reference, "end", cue.end);
     return true;
   };
-  const generateVoice = (part: "intro" | "outro") =>
+  const generateVoice = (part: VoicePart) =>
     perform(async () => {
-      for (const player of Object.values(voicePlayers.current)) player.pause();
+      for (const player of Object.values(voicePlayers.current)) player?.pause();
       setPlayingVoice(null);
       await api(endpoint("voices"), {
         method: "POST",
@@ -362,11 +403,11 @@ export function VideoProjectEditor({
       setVoiceRevision((value) => value + 1);
       window.dispatchEvent(new Event(queueChangedEvent));
     });
-  const toggleVoicePlayback = async (part: "intro" | "outro") => {
+  const toggleVoicePlayback = async (part: VoicePart) => {
     const player = voicePlayers.current[part];
     if (!player) return;
     if (!player.paused) {
-      player.pause();
+      player?.pause();
       return;
     }
     setVoiceError("");
@@ -390,7 +431,11 @@ export function VideoProjectEditor({
   const sectionIds = [
     "intro",
     ...(timeline.length
-      ? timeline.map((section) => `reading-${section.index}`)
+      ? timeline.flatMap((section) =>
+          kind === "long"
+            ? [`chapter-${section.index}`, `reading-${section.index}`]
+            : [`reading-${section.index}`],
+        )
       : ["reading-0"]),
     "outro",
   ];
@@ -480,7 +525,9 @@ export function VideoProjectEditor({
           disabled={analyzing || !readingReferences.length}
           onClick={() => {
             setPreviewReading({ references: readingReferences, title });
-            Object.values(voicePlayers.current).forEach((player) => player?.pause());
+            Object.values(voicePlayers.current).forEach((player) =>
+              player?.pause(),
+            );
             setPreviewVoice(null);
             setPreviewView("composition");
             setPreviewOpen(true);
@@ -501,10 +548,17 @@ export function VideoProjectEditor({
       </div>
     );
   };
-  const voiceSection = (part: "intro" | "outro", number: number) => {
-    const voice = voices[part];
+  const voiceSection = (part: VoicePart, number: number) => {
+    const voice = voices[part] ?? { available: false, status: "idle" };
     const pending = ["queued", "running"].includes(voice.status);
-    const title = part === "intro" ? t("Introduction") : t("Closing");
+    const chapter = analysis?.chapterIntroductions?.find(
+      (item) => item.part === part,
+    );
+    const title = chapter
+      ? `${t("Chapter introduction")} · ${chapter.title}`
+      : part === "intro"
+        ? t("Introduction")
+        : t("Closing");
     const generateLabel = pending
       ? t("Preparing narration…")
       : voice.available
@@ -557,11 +611,17 @@ export function VideoProjectEditor({
               type="button"
               className="icon-button section-preview-button"
               aria-label={`${t("Preview")} · ${title}`}
-              data-tooltip={voice.available ? t("Preview") : t("Generate narration for this section")}
+              data-tooltip={
+                voice.available
+                  ? t("Preview")
+                  : t("Generate narration for this section")
+              }
               aria-haspopup="dialog"
               disabled={!voice.available || pending || !analysis || analyzing}
               onClick={() => {
-                Object.values(voicePlayers.current).forEach((player) => player?.pause());
+                Object.values(voicePlayers.current).forEach((player) =>
+                  player?.pause(),
+                );
                 setPreviewReading(null);
                 setPreviewVoice(part);
                 setPreviewView("composition");
@@ -599,7 +659,10 @@ export function VideoProjectEditor({
           <div className="narration-script">
             <p className="eyebrow">{t("Narration script")}</p>
             <p>
-              {analysis?.scripts[part] ||
+              {(chapter?.script ??
+                (part === "intro" || part === "outro"
+                  ? analysis?.scripts[part]
+                  : undefined)) ||
                 t("The script will appear once the passage loads.")}
             </p>
             <span className="muted">
@@ -624,9 +687,11 @@ export function VideoProjectEditor({
                 preload="metadata"
                 src={`${media(part)}&revision=${voiceRevision}`}
                 onPlay={() => {
-                  voicePlayers.current[
-                    part === "intro" ? "outro" : "intro"
-                  ]?.pause();
+                  Object.entries(voicePlayers.current).forEach(
+                    ([key, player]) => {
+                      if (key !== part) player?.pause();
+                    },
+                  );
                   setPlayingVoice(part);
                 }}
                 onPause={() =>
@@ -780,7 +845,9 @@ export function VideoProjectEditor({
               setPreviewView("composition");
               setPreviewReading(null);
               setPreviewVoice(null);
-              Object.values(voicePlayers.current).forEach((player) => player?.pause());
+              Object.values(voicePlayers.current).forEach((player) =>
+                player?.pause(),
+              );
               setPreviewOpen(true);
             }}
             aria-haspopup="dialog"
@@ -791,22 +858,21 @@ export function VideoProjectEditor({
           <button
             className="primary"
             disabled={locked || !analysis || analyzing || !voicesReady}
-            data-tooltip={
-              !voicesReady
-                ? t(
-                    "Generate the introduction and closing voices before generating the video.",
-                  )
-                : undefined
-            }
+            data-tooltip={!voicesReady ? t(narrationRequirement) : undefined}
             onClick={() =>
               void perform(async () => {
                 await api(endpoint("render"), {
                   method: "POST",
                   body: JSON.stringify({
                     ...checkedSettings(),
-                    readingCuts: adjustedCues(analysis!.cues, settingsRef.current.verseOffsets).map(
-                      ({ reference, start, end }) => ({ reference, start, end }),
-                    ),
+                    readingCuts: adjustedCues(
+                      analysis!.cues,
+                      settingsRef.current.verseOffsets,
+                    ).map(({ reference, start, end }) => ({
+                      reference,
+                      start,
+                      end,
+                    })),
                   }),
                 });
                 window.dispatchEvent(new Event(queueChangedEvent));
@@ -832,13 +898,7 @@ export function VideoProjectEditor({
           {t(voiceError)}
         </p>
       )}
-      {!voicesReady && (
-        <p className="muted">
-          {t(
-            "Generate the introduction and closing voices before generating the video.",
-          )}
-        </p>
-      )}
+      {!voicesReady && <p className="muted">{t(narrationRequirement)}</p>}
       {notice && (
         <p className="success" role="status">
           {t(notice)}
@@ -891,38 +951,50 @@ export function VideoProjectEditor({
                 );
               });
               return (
-                <section className="section-card" key={id}>
-                  {sectionHeading(
-                    id,
-                    section.index + 2,
-                    `${t("Passage reading")} ${timeline.length > 1 ? section.index + 1 : ""}`,
-                    `${verses.length} ${t("verses")} · ${(section.end - section.start).toFixed(1)} s`,
-                    false,
-                    verses.map((cue) => cue.reference),
-                  )}
-                  <div
-                    id={`section-${id}`}
-                    hidden={!expanded.has(id)}
-                    className="section-body"
-                  >
-                    {expanded.has(id) && (
-                      <VerseWaveform
-                        src={media(id)}
-                        sourceStart={section.start}
-                        sourceEnd={section.end}
-                        sourceDuration={section.sourceDuration ?? section.end}
-                        onExpand={(edge) => expandSection(section.index, edge)}
-                        timelineStart={section.timelineStart}
-                        volumeMultiplier={readingVolumeValue}
-                        cues={verses}
-                        disabled={editingLocked || analyzing}
-                        onTrim={trim}
-                        onShift={(cue) => shiftVerse(section.index, cue)}
-                      />
+                <div key={id} style={{ display: "contents" }}>
+                  {kind === "long" &&
+                    analysis?.chapterIntroductions?.[section.index] &&
+                    voiceSection(
+                      analysis.chapterIntroductions[section.index].part,
+                      section.index * 2 + 2,
                     )}
-                    {readingVolume}
-                  </div>
-                </section>
+                  <section className="section-card">
+                    {sectionHeading(
+                      id,
+                      kind === "long"
+                        ? section.index * 2 + 3
+                        : section.index + 2,
+                      `${t("Passage reading")} ${timeline.length > 1 ? section.index + 1 : ""}`,
+                      `${verses.length} ${t("verses")} · ${(section.end - section.start).toFixed(1)} s`,
+                      false,
+                      verses.map((cue) => cue.reference),
+                    )}
+                    <div
+                      id={`section-${id}`}
+                      hidden={!expanded.has(id)}
+                      className="section-body"
+                    >
+                      {expanded.has(id) && (
+                        <VerseWaveform
+                          src={media(id)}
+                          sourceStart={section.start}
+                          sourceEnd={section.end}
+                          sourceDuration={section.sourceDuration ?? section.end}
+                          onExpand={(edge) =>
+                            expandSection(section.index, edge)
+                          }
+                          timelineStart={section.timelineStart}
+                          volumeMultiplier={readingVolumeValue}
+                          cues={verses}
+                          disabled={editingLocked || analyzing}
+                          onTrim={trim}
+                          onShift={(cue) => shiftVerse(section.index, cue)}
+                        />
+                      )}
+                      {readingVolume}
+                    </div>
+                  </section>
+                </div>
               );
             })
           ) : (
@@ -989,7 +1061,16 @@ export function VideoProjectEditor({
       {previewOpen && (
         <VideoProjectPreviewModal
           kind={kind}
-          readingTitle={previewReading?.title ?? (previewVoice ? t(previewVoice === "intro" ? "Introduction" : "Closing") : undefined)}
+          readingTitle={
+            previewReading?.title ??
+            (previewVoice
+              ? previewVoice.startsWith("chapter-")
+                ? analysis?.chapterIntroductions?.find(
+                    (chapter) => chapter.part === previewVoice,
+                  )?.title
+                : t(previewVoice === "intro" ? "Introduction" : "Closing")
+              : undefined)
+          }
           view={previewView}
           onViewChange={(view) => {
             if (view === previewView) return;
@@ -1012,7 +1093,12 @@ export function VideoProjectEditor({
             readingCues={cues}
             voicePart={previewVoice ?? undefined}
             readingVolume={readingVolumeValue}
-            ready={Boolean(analysis && !analyzing && (previewReading || (previewVoice ? voices[previewVoice].available : voicesReady)))}
+            ready={Boolean(
+              analysis &&
+              !analyzing &&
+              (previewReading ||
+                (previewVoice ? voices[previewVoice]?.available : voicesReady)),
+            )}
             playbackRef={previewPlayback}
             view={previewView}
             rendered={Boolean(result)}

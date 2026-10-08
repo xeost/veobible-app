@@ -180,7 +180,9 @@ export function GenerationQueueModal({
                       ? "Final video"
                       : item.type === "intro"
                         ? "Introduction narration"
-                        : "Closing narration",
+                        : item.type === "outro"
+                          ? "Closing narration"
+                          : "Chapter introduction",
                   )}{" "}
                   · {item.version.toUpperCase()}
                 </small>

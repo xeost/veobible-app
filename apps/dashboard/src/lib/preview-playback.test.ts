@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { previewDurationInFrames, stopPreviewPlayback } from "./preview-playback";
+import {
+  previewDurationInFrames,
+  stopPreviewPlayback,
+} from "./preview-playback";
 
 test("section players ignore a full-video duration returned by the service", () => {
   const preview = {
@@ -54,9 +57,29 @@ test("closing during preparation or after an earlier shutdown remains safe", () 
 
 test("full preview duration follows the edited reading timeline and both transitions", () => {
   const preview = {
-    fps: 30, durationInFrames: 3000,
-    props: { introLength: 6.5, outroLength: 8.2, readingLength: 12.125, transitionDuration: 0.5 },
+    fps: 30,
+    durationInFrames: 3000,
+    props: {
+      introLength: 6.5,
+      outroLength: 8.2,
+      readingLength: 12.125,
+      transitionDuration: 0.5,
+    },
   };
   assert.equal(previewDurationInFrames(preview), 195 + 246 + 364 - 30);
   assert.equal(previewDurationInFrames(preview, "reading"), 364);
+});
+
+test("chapter narration previews use only the chapter card duration", () => {
+  assert.equal(
+    previewDurationInFrames(
+      {
+        fps: 30,
+        durationInFrames: 3000,
+        props: { introLength: 10, outroLength: 12, readingLength: 4.25 },
+      },
+      "chapter-0",
+    ),
+    128,
+  );
 });

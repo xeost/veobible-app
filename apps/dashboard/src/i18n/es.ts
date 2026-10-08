@@ -1,7 +1,16 @@
 export const spanish: Record<string, string> = {
+  "Generate all section narrations to preview the video.":
+    "Genera las voces de todas las secciones para previsualizar el video.",
+  "Generate all section narrations before generating the video.":
+    "Genera las voces de todas las secciones antes de generar el video.",
+  "Chapter introduction": "Introducción al capítulo",
+  "Generate every chapter introduction before generating the video.":
+    "Genera todas las introducciones a los capítulos antes de generar el video.",
   "Next verse": "Siguiente versículo",
-  "Add up to 10 seconds of audio on the left": "Añadir hasta 10 segundos de audio a la izquierda",
-  "Add up to 10 seconds of audio on the right": "Añadir hasta 10 segundos de audio a la derecha",
+  "Add up to 10 seconds of audio on the left":
+    "Añadir hasta 10 segundos de audio a la izquierda",
+  "Add up to 10 seconds of audio on the right":
+    "Añadir hasta 10 segundos de audio a la derecha",
   "Use a custom reading volume for this project":
     "Usar un volumen de lectura propio para este proyecto",
   "Unchecked: uses the default reading volume for this Bible version.":
@@ -1171,8 +1180,11 @@ export const spanish: Record<string, string> = {
   "Error interno": "Error interno",
   "Administrator required": "Se requiere administrador",
   "Se requiere administrador": "Se requiere administrador",
-  "Narration generation stopped to keep the computer responsive. Close unused applications and try again.": "La generación de voz se detuvo para mantener el equipo funcionando con fluidez. Cierra las aplicaciones que no uses y vuelve a intentarlo.",
-  "Narration generation exceeded its time limit. Try again; if the problem persists, contact the administrator.": "La generación de voz superó el tiempo permitido. Vuelve a intentarlo; si el problema persiste, contacta al administrador.",
-  "Another narration is still being generated. Wait for it to finish and try again.": "Se está generando otra voz. Espera a que termine y vuelve a intentarlo.",
+  "Narration generation stopped to keep the computer responsive. Close unused applications and try again.":
+    "La generación de voz se detuvo para mantener el equipo funcionando con fluidez. Cierra las aplicaciones que no uses y vuelve a intentarlo.",
+  "Narration generation exceeded its time limit. Try again; if the problem persists, contact the administrator.":
+    "La generación de voz superó el tiempo permitido. Vuelve a intentarlo; si el problema persiste, contacta al administrador.",
+  "Another narration is still being generated. Wait for it to finish and try again.":
+    "Se está generando otra voz. Espera a que termine y vuelve a intentarlo.",
   "Preview this passage": "Previsualizar este pasaje",
 };
