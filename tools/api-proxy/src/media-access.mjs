@@ -62,7 +62,7 @@ export async function verifyMediaAccess(token, secret, now = Date.now()) {
 
 export function mediaAsset(pathname) {
   return (
-    /^\/v1\/projects\/[1-9]\d*\/media\/(video|thumbnail|intro|outro|reading-\d+|preview-[0-9a-f-]{36}-\d+)$/.exec(
+    /^\/v1\/projects\/[1-9]\d*\/media\/(video|thumbnail|intro|outro|chapter-\d+|reading-\d+|preview-[0-9a-f-]{36}-\d+)$/.exec(
       pathname,
     )?.[1] ?? null
   );

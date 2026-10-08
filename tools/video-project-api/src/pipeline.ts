@@ -1,3 +1,8 @@
+import {
+  chapterIntroductionText,
+  type VoicePart,
+  type ChapterIntroduction,
+} from "./chapter-introductions.js";
 import { applyReadingCuts, expandReadingContext } from "./reading-timeline.js";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -34,8 +39,10 @@ export const sourceDir = (
   passage: string,
   environment: OutputEnvironment = "production",
 ) => path.join(projectDir(kind, version, passage, environment), "_internal");
-export const voiceFilename = (part: "intro" | "outro", extension = "wav") =>
-  `${part === "intro" ? "1" : "3"}-${part}.${extension}`;
+export const voiceFilename = (part: VoicePart, extension = "wav") =>
+  part.startsWith("chapter-")
+    ? `2-${part}.${extension}`
+    : `${part === "intro" ? "1" : "3"}-${part}.${extension}`;
 export const videoFilename = (kind: string) =>
   kind === "short" ? "short.mp4" : "episode.mp4";
 async function prepareProjectDirectories(
@@ -121,7 +128,12 @@ function modules(kind: "short" | "long") {
 export async function analyze(
   input: Pick<
     RenderRequest,
-    "kind" | "passage" | "version" | "settings" | "voiceTemplates" | "readingCuts"
+    | "kind"
+    | "passage"
+    | "version"
+    | "settings"
+    | "voiceTemplates"
+    | "readingCuts"
   >,
 ) {
   const m = modules(input.kind);
@@ -137,11 +149,25 @@ export async function analyze(
   const estimates = await m.timing.estimateVerseCues(
     data.timingInputs.map((v, i) => ({ ...v, section: originalSections[i] })),
   );
-  const expanded = expandReadingContext(originalSections, estimates, data.sourceDurations, input.settings.readingSectionPadding);
+  const expanded = expandReadingContext(
+    originalSections,
+    estimates,
+    data.sourceDurations,
+    input.settings.readingSectionPadding,
+  );
   const sections = expanded.sections;
-  const sourceDuration = sections.reduce((total, section) => total + section.end - section.start, 0);
+  const sourceDuration = sections.reduce(
+    (total, section) => total + section.end - section.start,
+    0,
+  );
   const cues = applyReadingCuts(
-    input.readingCuts ? expanded.cues : m.timing.applyVerseOffsets(expanded.cues, input.settings.verseOffsets, sourceDuration),
+    input.readingCuts
+      ? expanded.cues
+      : m.timing.applyVerseOffsets(
+          expanded.cues,
+          input.settings.verseOffsets,
+          sourceDuration,
+        ),
     input.readingCuts,
     sourceDuration,
   );
@@ -152,7 +178,26 @@ export async function analyze(
     data.index.metadata.name,
     input.voiceTemplates,
   );
-  return { data, sections, cues, context, version, m };
+  const chapterIntroductions: ChapterIntroduction[] =
+    input.kind === "long"
+      ? long.passageChapters(data.index, input.passage).map((range, index) => {
+          const { title, script } = chapterIntroductionText(
+            version.locale,
+            { ...range, total: range.book.versesPerChapter[range.chapter - 1] },
+            (n) => longVoice.numberToWords(version.locale, n),
+          );
+          return {
+            part: `chapter-${index}` as const,
+            bookName: range.book.name,
+            title,
+            script,
+            references: data.timingInputs[index].verses.map(
+              (v) => `${range.book.name} ${range.chapter}:${v.verse}`,
+            ),
+          };
+        })
+      : [];
+  return { data, sections, cues, context, version, m, chapterIntroductions };
 }
 export async function inspection(
   input: Pick<
@@ -160,12 +205,17 @@ export async function inspection(
     "kind" | "passage" | "version" | "settings" | "voiceTemplates"
   >,
 ) {
-  const { data, sections, cues, context, version, m } = await analyze(input);
+  const { data, sections, cues, context, version, m, chapterIntroductions } =
+    await analyze(input);
   return {
     label: data.label,
     lines: data.lines,
-    sections: sections.map((section, index) => ({ ...section, sourceDuration: data.sourceDurations[index] })),
+    sections: sections.map((section, index) => ({
+      ...section,
+      sourceDuration: data.sourceDurations[index],
+    })),
     cues,
+    chapterIntroductions,
     scripts: await m.voice.renderVoiceScripts(context),
     text: await m.passages.readPassageTextContext(
       version,
@@ -189,21 +239,81 @@ export async function generateProjectVoice(
     | "projectId"
     | "outputEnvironment"
   >,
-  part: "intro" | "outro",
+  part: VoicePart,
   update: (progress: number) => void = () => {},
 ) {
   update(5);
   const { sources } = await prepareProjectDirectories(input);
-  const { context, m, data } = await analyze({
+  const { context, m, data, chapterIntroductions } = await analyze({
     ...input,
     settings: { ...input.settings, verseOffsets: [] },
   });
   await writePassageFiles(sources, data);
   update(10);
-  await generateNamedVoice(sources, m.voice, context, part, (progress) =>
-    update(10 + progress * 0.85),
-  );
+  if (part.startsWith("chapter-")) {
+    const chapter = chapterIntroductions.find((item) => item.part === part);
+    if (!chapter) throw new Error("Invalid chapter introduction");
+    const staging = await fs.mkdtemp(path.join(sources, ".chapter-voice-"));
+    try {
+      await longVoice.generateVoice(
+        staging,
+        {
+          ...context,
+          templates: { ...context.templates, intro: chapter.script },
+        },
+        true,
+        "intro",
+        (progress) => update(10 + progress * 0.85),
+      );
+      for (const extension of ["wav", "txt"])
+        await fs.rename(
+          path.join(staging, `intro.${extension}`),
+          path.join(sources, voiceFilename(part, extension)),
+        );
+    } finally {
+      await fs.rm(staging, { recursive: true, force: true });
+    }
+  } else {
+    await generateNamedVoice(
+      sources,
+      m.voice,
+      context,
+      part as "intro" | "outro",
+      (progress) => update(10 + progress * 0.85),
+    );
+  }
   update(99);
+}
+
+/** Validate chapter tracks without reanalyzing any reading audio. */
+export async function chapterVoicesAvailable(
+  input: Pick<
+    RenderRequest,
+    "kind" | "version" | "passage" | "outputEnvironment"
+  >,
+) {
+  if (input.kind !== "long") return true;
+  const version = longConfig.versions.find(
+    (item) =>
+      item.id === input.version.id && item.locale === input.version.locale,
+  );
+  if (!version) throw new Error("Invalid Bible version");
+  const index = await long.readIndex(version);
+  const directory = sourceDir(
+    input.kind,
+    version.id,
+    input.passage.id,
+    input.outputEnvironment,
+  );
+  const present = await Promise.all(
+    long.passageChapters(index, input.passage).map((_, chapter) =>
+      fs.stat(path.join(directory, voiceFilename(`chapter-${chapter}`))).then(
+        (stat) => stat.isFile() && stat.size > 0,
+        () => false,
+      ),
+    ),
+  );
+  return present.every(Boolean);
 }
 
 /** Final renders only consume narration explicitly generated beforehand. */
@@ -244,8 +354,21 @@ export async function render(
       "Generate the introduction and closing voices before generating the video.",
     );
   update("Analizando pasaje y tiempos", 2);
-  const { data, sections, cues, context, version, m } = await analyze(input);
+  const { data, sections, cues, context, version, m, chapterIntroductions } =
+    await analyze(input);
   const { output, sources } = await prepareProjectDirectories(input);
+  for (const chapter of chapterIntroductions) {
+    if (
+      !(
+        await fs
+          .stat(path.join(sources, voiceFilename(chapter.part)))
+          .catch(() => null)
+      )?.size
+    )
+      throw new Error(
+        "Generate every chapter introduction before generating the video.",
+      );
+  }
   await writePassageFiles(sources, data);
   const scripts = await m.voice.renderVoiceScripts(context);
   update("Preparando narraciones", 20);
@@ -281,7 +404,12 @@ export async function render(
       work,
       input.settings.volumeMultiplier,
       {
+        bibleVersionTitle: input.version.label,
         background: input.settings.background,
+        chapterIntroductions: chapterIntroductions.map((chapter) => ({
+          ...chapter,
+          file: path.join(sources, voiceFilename(chapter.part)),
+        })),
         onProgress: (progress) =>
           update("Renderizando con Remotion", 45 + progress * 50),
       },
@@ -338,6 +466,9 @@ export async function render(
         path.join(m.config.videosDir, "0-intro.mp4"),
         path.join(m.config.videosDir, result.background),
         path.join(m.config.videosDir, "0-outro.mp4"),
+        ...chapterIntroductions.map((chapter) =>
+          path.join(sources, voiceFilename(chapter.part)),
+        ),
         ...(voices ? [voices.intro, voices.outro] : []),
       ],
       verseCues: cues,

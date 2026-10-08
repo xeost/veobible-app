@@ -1,3 +1,4 @@
+import type { ChapterTrack } from "../../../chapter-introductions";
 /** Editorial reading card shared by episode previews and final rendering. */
 import React, { useMemo } from "react";
 import { Video } from "@remotion/media";
@@ -16,6 +17,8 @@ const paper = {
 };
 
 interface ReadingSceneProps {
+  chapterIntroductions?: ChapterTrack[];
+  bibleVersionTitle?: string;
   boomerangVideoPath: string;
   sections: AudioSection[];
   voices?: VoiceTracks;
@@ -30,6 +33,8 @@ interface ReadingSceneProps {
 
 export const ReadingScene: React.FC<ReadingSceneProps> = ({
   boomerangVideoPath,
+  chapterIntroductions = [],
+  bibleVersionTitle = "",
   sections,
   volumeMultiplier,
   verseCues,
@@ -85,6 +90,21 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
         loop
         muted
       />
+      {chapterIntroductions.map((chapter) => (
+        <Sequence
+          key={chapter.part}
+          from={Math.round((readingSilence + chapter.start + 0.35) * fps)}
+          durationInFrames={Math.max(1, Math.ceil(chapter.duration * fps))}
+          layout="none"
+        >
+          <Audio
+            src={chapter.file}
+            useWebAudioApi
+            crossOrigin="anonymous"
+            volume={1}
+          />
+        </Sequence>
+      ))}
       {sectionSchedule.map((section, index) => (
         <Sequence
           key={index}
@@ -123,6 +143,62 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
           overflow: "hidden",
         }}
       >
+        {chapterIntroductions.map((chapter) => {
+          const local = t - readingSilence - chapter.start;
+          const length = chapter.duration + 1;
+          if (local < 0 || local >= length) return null;
+          const alpha = Math.max(
+            0,
+            Math.min(1, local / 0.3, (length - local) / 0.3),
+          );
+          return (
+            <div
+              key={chapter.part}
+              style={{
+                position: "absolute",
+                inset: `${sy(54)}px ${sx(paper.padding)}px ${sy(126)}px`,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                opacity: alpha,
+              }}
+            >
+              <div
+                style={{
+                  color: paper.accent,
+                  fontFamily: "Avenir, sans-serif",
+                  fontSize: sx(28),
+                  letterSpacing: sx(3),
+                  marginBottom: sy(28),
+                }}
+              >
+                {chapter.bookName}
+              </div>
+              <div
+                style={{
+                  color: paper.body,
+                  fontFamily: "Georgia, serif",
+                  fontSize: sx(100),
+                  lineHeight: 1.25,
+                }}
+              >
+                {chapter.title.split(" · ")[0]}
+              </div>
+              {chapter.title.includes(" · ") && (
+                <div
+                  style={{
+                    color: paper.accent,
+                    fontFamily: "Georgia, serif",
+                    fontSize: sx(44),
+                    marginTop: sy(24),
+                  }}
+                >
+                  {chapter.title.split(" · ")[1]}
+                </div>
+              )}
+            </div>
+          );
+        })}
         {verseCues.map((cue, cueIndex) => {
           if (
             t < cue.start + readingSilence - 2 ||
@@ -225,15 +301,38 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
           style={{
             position: "absolute",
             left: sx(paper.padding),
+            right: sx(paper.padding),
             bottom: sy(45),
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: sx(40),
             fontFamily: "Avenir, sans-serif",
             fontSize: sx(20),
             fontWeight: 500,
-            letterSpacing: sx(4.5),
             color: "rgba(36, 58, 50, 0.58)",
           }}
         >
-          VEOBIBLE.COM
+          <span
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              letterSpacing: sx(1.2),
+            }}
+          >
+            {bibleVersionTitle}
+          </span>
+          <span
+            style={{
+              flexShrink: 0,
+              letterSpacing: sx(4.5),
+              textAlign: "right",
+            }}
+          >
+            VEOBIBLE.COM
+          </span>
         </div>
         <div
           style={{

@@ -1,3 +1,4 @@
+import type { VoicePart } from "./chapter-introductions.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -29,11 +30,33 @@ async function remove(id: string) {
 }
 
 /** Prepare composition assets without generating voices or rendering final video frames. */
-export async function createPreview(input: RenderRequest & { readingReferences?: string[]; voicePart?: "intro" | "outro" }) {
-  const { data, sections, cues: allCues, version, m } = await analyze(input);
-  const readingOnly = Boolean(input.readingReferences);
-  const references = new Set(input.readingReferences);
-  const cues = readingOnly ? allCues.filter((cue) => references.has(cue.reference)) : allCues;
+export async function createPreview(
+  input: RenderRequest & {
+    readingReferences?: string[];
+    voicePart?: VoicePart;
+  },
+) {
+  const {
+    data,
+    sections,
+    cues: allCues,
+    version,
+    m,
+    chapterIntroductions,
+  } = await analyze(input);
+  const chapterOnly = input.voicePart?.startsWith("chapter-");
+  const readingOnly = Boolean(input.readingReferences) || Boolean(chapterOnly);
+  const selectedChapter = chapterIntroductions.find(
+    (chapter) => chapter.part === input.voicePart,
+  );
+  if (chapterOnly && !selectedChapter)
+    throw new Error("Invalid chapter introduction");
+  const references = new Set(
+    selectedChapter?.references ?? input.readingReferences,
+  );
+  const cues = readingOnly
+    ? allCues.filter((cue) => references.has(cue.reference))
+    : allCues;
   if (readingOnly && (!cues.length || cues.length !== references.size))
     throw new Error("The selected passage is unavailable");
   const directory = await fs.mkdtemp(
@@ -63,15 +86,44 @@ export async function createPreview(input: RenderRequest & { readingReferences?:
       title,
       await m.outro(version.locale, input.socialAccounts),
       cues,
-      readingOnly ? undefined : {
-        intro: path.join(voices, voiceFilename("intro")),
-        outro: path.join(voices, voiceFilename("outro")),
-        mode: "voice",
-      },
+      readingOnly
+        ? undefined
+        : {
+            intro: path.join(voices, voiceFilename("intro")),
+            outro: path.join(voices, voiceFilename("outro")),
+            mode: "voice",
+          },
       directory,
       1,
-      { background: input.settings.background, readingOnly, previewVoicePart: input.voicePart },
+      {
+        bibleVersionTitle: input.version.label,
+        background: input.settings.background,
+        readingOnly,
+        previewVoicePart:
+          input.voicePart === "intro" || input.voicePart === "outro"
+            ? input.voicePart
+            : undefined,
+        chapterIntroductions:
+          input.kind === "long" &&
+          !input.readingReferences &&
+          !(input.voicePart === "intro" || input.voicePart === "outro")
+            ? (selectedChapter ? [selectedChapter] : chapterIntroductions).map(
+                (chapter) => ({
+                  ...chapter,
+                  file: path.join(voices, voiceFilename(chapter.part)),
+                }),
+              )
+            : [],
+      },
     );
+    if (chapterOnly && composition.props.chapterIntroductions?.length) {
+      const chapter = composition.props.chapterIntroductions[0];
+      composition.props.chapterIntroductions = [{ ...chapter, start: 0 }];
+      composition.props.sections = [];
+      composition.props.verseCues = [];
+      composition.props.readingLength =
+        chapter.duration + 1 + composition.props.readingSilence;
+    }
     const id = randomUUID();
     const files: string[] = [];
     const asset = (file: string) => {
@@ -85,15 +137,20 @@ export async function createPreview(input: RenderRequest & { readingReferences?:
       introVideoPath: asset(composition.props.introVideoPath),
       boomerangVideoPath: asset(composition.props.boomerangVideoPath),
       outroVideoPath: asset(composition.props.outroVideoPath),
+      chapterIntroductions: composition.props.chapterIntroductions?.map(
+        (chapter) => ({ ...chapter, file: asset(chapter.file) }),
+      ),
       sections: composition.props.sections.map((section) => ({
         ...section,
         file: asset(section.file),
       })),
-      voices: composition.props.voices ? {
-        ...composition.props.voices!,
-        intro: asset(composition.props.voices!.intro),
-        outro: asset(composition.props.voices!.outro),
-      } : undefined,
+      voices: composition.props.voices
+        ? {
+            ...composition.props.voices!,
+            intro: asset(composition.props.voices!.intro),
+            outro: asset(composition.props.voices!.outro),
+          }
+        : undefined,
     };
     const timer = setTimeout(
       () => {
@@ -121,11 +178,17 @@ export async function createPreview(input: RenderRequest & { readingReferences?:
       fps: composition.fps,
       width: composition.width,
       height: composition.height,
-      durationInFrames: input.voicePart
-        ? Math.round((input.voicePart === "intro" ? composition.props.introLength : composition.props.outroLength) * composition.fps)
-        : readingOnly
+      durationInFrames: chapterOnly
         ? Math.round(composition.props.readingLength * composition.fps)
-        : composition.totalFrames,
+        : input.voicePart
+          ? Math.round(
+              (input.voicePart === "intro"
+                ? composition.props.introLength
+                : composition.props.outroLength) * composition.fps,
+            )
+          : readingOnly
+            ? Math.round(composition.props.readingLength * composition.fps)
+            : composition.totalFrames,
     };
   } catch (error) {
     await fs.rm(directory, { recursive: true, force: true });

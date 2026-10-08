@@ -143,39 +143,93 @@ for (const [kind, outputEnvironment] of [
   assert.equal(preview.cues.length, kind === "short" ? 1 : 2);
   assert.ok(preview.text.every((row) => row.inPassage || kind === "short"));
   assert.ok(preview.scripts.intro.length > 0);
-  const croppedInput = { ...input, settings: { ...input.settings,
-    passageOffsets: { startSeconds: 0.1, endSeconds: -0.1 },
-  } };
+  const croppedInput = {
+    ...input,
+    settings: {
+      ...input.settings,
+      passageOffsets: { startSeconds: 0.1, endSeconds: -0.1 },
+    },
+  };
   const cropped = await inspection(croppedInput);
-  const paddedSettings = { ...croppedInput.settings, readingSectionPadding: cropped.sections.map((_, sectionIndex) => ({
-    sectionIndex, beforeSeconds: 0.05, afterSeconds: 0.05,
-  })) };
-  const padded = await inspection({ ...croppedInput, settings: renderSchema.shape.settings.parse(paddedSettings) });
+  const paddedSettings = {
+    ...croppedInput.settings,
+    readingSectionPadding: cropped.sections.map((_, sectionIndex) => ({
+      sectionIndex,
+      beforeSeconds: 0.05,
+      afterSeconds: 0.05,
+    })),
+  };
+  const padded = await inspection({
+    ...croppedInput,
+    settings: renderSchema.shape.settings.parse(paddedSettings),
+  });
   padded.sections.forEach((section, index) => {
-    assert.ok(Math.abs(section.start - Math.max(0, cropped.sections[index].start - 0.05)) < 1e-6);
-    assert.ok(Math.abs(section.end - Math.min(section.sourceDuration, cropped.sections[index].end + 0.05)) < 1e-6);
+    assert.ok(
+      Math.abs(
+        section.start - Math.max(0, cropped.sections[index].start - 0.05),
+      ) < 1e-6,
+    );
+    assert.ok(
+      Math.abs(
+        section.end -
+          Math.min(section.sourceDuration, cropped.sections[index].end + 0.05),
+      ) < 1e-6,
+    );
   });
   const { buildVerseReading } = await import("../reading-timeline.js");
-  const originalReading = buildVerseReading(cropped.sections, cropped.cues, cropped.cues.map(() => 2));
-  const expandedReading = buildVerseReading(padded.sections, padded.cues, padded.cues.map(() => 2));
+  const originalReading = buildVerseReading(
+    cropped.sections,
+    cropped.cues,
+    cropped.cues.map(() => 2),
+  );
+  const expandedReading = buildVerseReading(
+    padded.sections,
+    padded.cues,
+    padded.cues.map(() => 2),
+  );
   expandedReading.sections.forEach((section, index) => {
     assert.equal(section.file, originalReading.sections[index].file);
-    assert.ok(Math.abs(section.start - originalReading.sections[index].start) < 1e-6);
-    assert.ok(Math.abs(section.end - originalReading.sections[index].end) < 1e-6);
+    assert.ok(
+      Math.abs(section.start - originalReading.sections[index].start) < 1e-6,
+    );
+    assert.ok(
+      Math.abs(section.end - originalReading.sections[index].end) < 1e-6,
+    );
   });
 
   if (process.env.VIDEO_SMOKE_PREVIEW === "1") {
     const { createPreview } = await import("../preview.js");
     const selected = preview.cues.at(-1)!;
     // A reading preview needs neither narration nor an existing project directory.
-    await assert.rejects(fs.stat(sourceDir(kind, input.version.id, input.passage.id, outputEnvironment)), { code: "ENOENT" });
-    const reading = await createPreview({ ...input, readingReferences: [selected.reference] });
+    await assert.rejects(
+      fs.stat(
+        sourceDir(kind, input.version.id, input.passage.id, outputEnvironment),
+      ),
+      { code: "ENOENT" },
+    );
+    const reading = await createPreview({
+      ...input,
+      readingReferences: [selected.reference],
+    });
     assert.equal(reading.props.voices, undefined);
-    assert.deepEqual(reading.props.verseCues.map((cue) => cue.reference), [selected.reference]);
+    assert.deepEqual(
+      reading.props.verseCues.map((cue) => cue.reference),
+      [selected.reference],
+    );
     assert.equal(reading.props.verseCues[0].start, 0);
-    assert.equal(reading.durationInFrames, Math.round(reading.props.readingLength * reading.fps));
-    assert.ok(reading.props.sections.every((section) => section.timelineStart !== undefined));
-    await assert.rejects(createPreview({ ...input, readingReferences: ["unknown verse"] }), /selected passage is unavailable/);
+    assert.equal(
+      reading.durationInFrames,
+      Math.round(reading.props.readingLength * reading.fps),
+    );
+    assert.ok(
+      reading.props.sections.every(
+        (section) => section.timelineStart !== undefined,
+      ),
+    );
+    await assert.rejects(
+      createPreview({ ...input, readingReferences: ["unknown verse"] }),
+      /selected passage is unavailable/,
+    );
   }
   // Either narration must be able to create a completely new project on its own.
   for (const part of ["intro", "outro"] as const) {
@@ -211,9 +265,25 @@ for (const [kind, outputEnvironment] of [
       const { createPreview, previewAsset } = await import("../preview.js");
       // Preview each narration scene while the other voice is still absent.
       const scene = await createPreview({ ...fresh, voicePart: part });
-      const scope = { projectId: fresh.projectId, kind, outputEnvironment, version: fresh.version.id, passage: fresh.passage.id };
-      assert.equal(previewAsset(scene.props.voices![part], scope), path.join(sources, voiceFilename(part)));
-      assert.equal(scene.durationInFrames, Math.round((part === "intro" ? scene.props.introLength : scene.props.outroLength) * scene.fps));
+      const scope = {
+        projectId: fresh.projectId,
+        kind,
+        outputEnvironment,
+        version: fresh.version.id,
+        passage: fresh.passage.id,
+      };
+      assert.equal(
+        previewAsset(scene.props.voices![part], scope),
+        path.join(sources, voiceFilename(part)),
+      );
+      assert.equal(
+        scene.durationInFrames,
+        Math.round(
+          (part === "intro"
+            ? scene.props.introLength
+            : scene.props.outroLength) * scene.fps,
+        ),
+      );
     }
     await assert.rejects(
       render(fresh, () =>
@@ -257,6 +327,16 @@ for (const [kind, outputEnvironment] of [
   );
   await generateProjectVoice(input, "intro");
   await generateProjectVoice(input, "outro");
+  for (const chapter of preview.chapterIntroductions) {
+    await generateProjectVoice(input, chapter.part);
+    assert.equal(
+      await fs.readFile(
+        path.join(voices, voiceFilename(chapter.part, "txt")),
+        "utf8",
+      ),
+      chapter.script,
+    );
+  }
   const otherVoice = await fs.readFile(
     path.join(voices, voiceFilename("outro")),
   );
@@ -284,11 +364,41 @@ for (const [kind, outputEnvironment] of [
   assert.deepEqual(renderSchema.parse(input).readingCuts, input.readingCuts);
   if (process.env.VIDEO_SMOKE_PREVIEW === "1") {
     const { createPreview, previewAsset } = await import("../preview.js");
+    if (kind === "long") {
+      const chapter = await createPreview({ ...input, voicePart: "chapter-0" });
+      assert.equal(chapter.props.chapterIntroductions?.length, 1);
+      assert.equal(chapter.props.verseCues.length, 0);
+      assert.equal(chapter.props.sections.length, 0);
+      assert.equal(
+        chapter.durationInFrames,
+        Math.round(chapter.props.readingLength * chapter.fps),
+      );
+    }
     const prepared = await createPreview(input);
+    assert.equal(
+      prepared.props.chapterIntroductions?.length ?? 0,
+      kind === "long" ? 2 : 0,
+    );
     assert.equal(prepared.props.voices?.mode, "voice");
-    const preparedScope = { projectId: input.projectId, kind, outputEnvironment, version: input.version.id, passage: input.passage.id };
-    assert.equal(path.basename(previewAsset(prepared.props.introVideoPath, preparedScope)!), "intro-boomerang.mp4");
-    assert.equal(path.basename(previewAsset(prepared.props.outroVideoPath, preparedScope)!), "outro-boomerang.mp4");
+    const preparedScope = {
+      projectId: input.projectId,
+      kind,
+      outputEnvironment,
+      version: input.version.id,
+      passage: input.passage.id,
+    };
+    assert.equal(
+      path.basename(
+        previewAsset(prepared.props.introVideoPath, preparedScope)!,
+      ),
+      "intro-boomerang.mp4",
+    );
+    assert.equal(
+      path.basename(
+        previewAsset(prepared.props.outroVideoPath, preparedScope)!,
+      ),
+      "outro-boomerang.mp4",
+    );
 
     assert.equal(prepared.background, "bg-1.mp4");
     const scope = {
@@ -330,20 +440,53 @@ for (const [kind, outputEnvironment] of [
         2 * Math.round(prepared.props.transitionDuration * prepared.fps),
     );
     const sourceCues = (await analyze(input)).cues;
-    assert.deepEqual(prepared.props.verseCues.map((cue) => [cue.reference, cue.text]), sourceCues.map((cue) => [cue.reference, cue.text]));
+    assert.deepEqual(
+      prepared.props.verseCues.map((cue) => [cue.reference, cue.text]),
+      sourceCues.map((cue) => [cue.reference, cue.text]),
+    );
     prepared.props.verseCues.forEach((cue, index) => {
-      assert.ok(Math.abs((cue.end - cue.start) - (sourceCues[index].end - sourceCues[index].start)) < 1e-6);
-      if (index > 0) assert.ok(cue.start > prepared.props.verseCues[index - 1].end);
+      assert.ok(
+        Math.abs(
+          cue.end -
+            cue.start -
+            (sourceCues[index].end - sourceCues[index].start),
+        ) < 1e-6,
+      );
+      if (index > 0)
+        assert.ok(cue.start > prepared.props.verseCues[index - 1].end);
     });
-    assert.ok(prepared.props.sections.every((section) => section.timelineStart !== undefined));
-    assert.deepEqual(sourceCues.map(({ reference, start, end }) => ({ reference, start, end })), input.readingCuts);
+    assert.ok(
+      prepared.props.sections.every(
+        (section) => section.timelineStart !== undefined,
+      ),
+    );
+    assert.deepEqual(
+      sourceCues.map(({ reference, start, end }) => ({
+        reference,
+        start,
+        end,
+      })),
+      input.readingCuts,
+    );
     // Full previews and rendering read directly from the waveform's original sources.
     prepared.props.sections.forEach((section, index) => {
       const original = preview.sections[index];
-      const offset = preview.sections.slice(0, index).reduce((sum, value) => sum + value.end - value.start, 0);
+      const offset = preview.sections
+        .slice(0, index)
+        .reduce((sum, value) => sum + value.end - value.start, 0);
       assert.equal(previewAsset(section.file, scope), original.file);
-      assert.ok(Math.abs(section.start - (original.start + input.readingCuts![index].start - offset)) < 1e-6);
-      assert.ok(Math.abs(section.end - (original.start + input.readingCuts![index].end - offset)) < 1e-6);
+      assert.ok(
+        Math.abs(
+          section.start -
+            (original.start + input.readingCuts![index].start - offset),
+        ) < 1e-6,
+      );
+      assert.ok(
+        Math.abs(
+          section.end -
+            (original.start + input.readingCuts![index].end - offset),
+        ) < 1e-6,
+      );
     });
     if (process.env.VIDEO_SMOKE_RENDER !== "1")
       await assert.rejects(
@@ -381,7 +524,14 @@ for (const [kind, outputEnvironment] of [
     assert.ok((await fs.stat(result.video)).size > 100);
     assert.ok((await fs.stat(result.thumbnail)).size > 100);
     assert.equal(result.verseCues.length, kind === "short" ? 1 : 2);
-    assert.deepEqual(result.verseCues.map(({ reference, start, end }) => ({ reference, start, end })), input.readingCuts);
+    assert.deepEqual(
+      result.verseCues.map(({ reference, start, end }) => ({
+        reference,
+        start,
+        end,
+      })),
+      input.readingCuts,
+    );
     assert.ok(result.sources.every((file) => file.startsWith(working)));
     assert.deepEqual(
       (await fs.readdir(path.dirname(result.video))).sort(),
@@ -399,6 +549,10 @@ for (const [kind, outputEnvironment] of [
       "0-metadata.txt",
       "1-intro.txt",
       "1-intro.wav",
+      ...preview.chapterIntroductions.flatMap((chapter) => [
+        voiceFilename(chapter.part, "txt"),
+        voiceFilename(chapter.part),
+      ]),
       "2-passage-audio-offsets.json",
       "2-versiculos.txt",
       "3-outro.txt",

@@ -1,3 +1,4 @@
+import type { VoicePart } from "./chapter-introductions.js";
 import { z } from "zod";
 const point = z.object({
   chapter: z.number().int().positive(),
@@ -11,11 +12,16 @@ export const settingsSchema = z.object({
       endSeconds: z.number().finite(),
     })
     .default({ startSeconds: 0, endSeconds: 0 }),
-  readingSectionPadding: z.array(z.object({
-    sectionIndex: z.number().int().nonnegative(),
-    beforeSeconds: z.number().finite().nonnegative(),
-    afterSeconds: z.number().finite().nonnegative(),
-  })).max(1000).default([]),
+  readingSectionPadding: z
+    .array(
+      z.object({
+        sectionIndex: z.number().int().nonnegative(),
+        beforeSeconds: z.number().finite().nonnegative(),
+        afterSeconds: z.number().finite().nonnegative(),
+      }),
+    )
+    .max(1000)
+    .default([]),
   verseOffsets: z
     .array(
       z.object({
@@ -30,11 +36,16 @@ export const settingsSchema = z.object({
     .regex(/^[a-zA-Z0-9_.-]+\.mp4$/)
     .optional(),
 });
-export const readingCutsSchema = z.array(z.object({
-  reference: z.string().min(1),
-  start: z.number().finite().nonnegative(),
-  end: z.number().finite().positive(),
-})).min(1).max(1000);
+export const readingCutsSchema = z
+  .array(
+    z.object({
+      reference: z.string().min(1),
+      start: z.number().finite().nonnegative(),
+      end: z.number().finite().positive(),
+    }),
+  )
+  .min(1)
+  .max(1000);
 export const renderSchema = z.object({
   readingCuts: readingCutsSchema.optional(),
   id: z.string().uuid(),
@@ -115,7 +126,20 @@ export const updateSchema = z
       c.addIssue({ code: "custom", message: "Missing result" });
   });
 export type RenderRequest = z.infer<typeof renderSchema>;
-export const previewSchema = renderSchema.extend({
-  readingReferences: z.array(z.string().min(1)).min(1).max(1000).optional(),
-  voicePart: z.enum(["intro", "outro"]).optional(),
-}).refine((input) => !(input.readingReferences && input.voicePart), "Select only one preview section");
+export const previewSchema = renderSchema
+  .extend({
+    readingReferences: z.array(z.string().min(1)).min(1).max(1000).optional(),
+    voicePart: z
+      .union([
+        z.enum(["intro", "outro"]),
+        z
+          .string()
+          .regex(/^chapter-\d+$/)
+          .transform((value) => value as VoicePart),
+      ])
+      .optional(),
+  })
+  .refine(
+    (input) => !(input.readingReferences && input.voicePart),
+    "Select only one preview section",
+  );

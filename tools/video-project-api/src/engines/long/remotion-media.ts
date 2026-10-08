@@ -19,6 +19,7 @@ export async function prepareRemotionMedia(
           props.introVideoPath,
           props.boomerangVideoPath,
           props.outroVideoPath,
+          ...(props.chapterIntroductions ?? []).map((chapter) => chapter.file),
           ...props.sections.map((section) => section.file),
           ...(props.voices ? [props.voices.intro, props.voices.outro] : []),
         ].map((source) => path.resolve(source)),
@@ -47,6 +48,10 @@ export async function prepareRemotionMedia(
         introVideoPath: asset(props.introVideoPath),
         boomerangVideoPath: asset(props.boomerangVideoPath),
         outroVideoPath: asset(props.outroVideoPath),
+        chapterIntroductions: props.chapterIntroductions?.map((chapter) => ({
+          ...chapter,
+          file: asset(chapter.file),
+        })),
         sections: props.sections.map((section) => ({
           ...section,
           file: asset(section.file),

@@ -1,5 +1,5 @@
 import { clampProgress } from "./generation-progress.js";
-export type GenerationType = "intro" | "outro" | "video";
+export type GenerationType = "intro" | "outro" | `chapter-${number}` | "video";
 export type QueueJob = {
   id: string;
   status: "queued" | "running" | "done" | "failed";

@@ -152,7 +152,7 @@ export function createProxy({
               ? passage
               : "video";
             responseHeaders["content-disposition"] =
-              `attachment; filename="${filename}.${asset === "thumbnail" ? "jpg" : asset === "intro" || asset === "outro" ? "wav" : "mp4"}"`;
+              `attachment; filename="${filename}.${asset === "thumbnail" ? "jpg" : asset === "intro" || asset === "outro" || asset.startsWith("chapter-") ? "wav" : "mp4"}"`;
           }
         }
         res.writeHead(upstreamRes.statusCode || 502, responseHeaders);

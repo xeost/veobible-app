@@ -1,3 +1,4 @@
+import type { VoicePart } from "./chapter-introductions.js";
 import { loadProjectProposals } from "./project-proposals.js";
 import {
   discoverExistingProjects,
@@ -33,6 +34,7 @@ const {
   videoFilename,
   generateProjectVoice,
   existingProjectVoices,
+  chapterVoicesAvailable,
 } = await import("./pipeline.js");
 const { createPreview, previewAsset } = await import("./preview.js");
 const token = process.env.PROXY_API_TOKEN;
@@ -62,7 +64,7 @@ const readingSources = new Map<
   { kind: string; sections: { file: string }[] }
 >();
 const jobs = new Map<string, Job>();
-const voiceJobs = new Map<string, Partial<Record<"intro" | "outro", Job>>>();
+const voiceJobs = new Map<string, Partial<Record<VoicePart, Job>>>();
 const generationQueue = new GenerationQueue();
 const json = (res: http.ServerResponse, status: number, value: unknown) => {
   res.writeHead(status, {
@@ -252,7 +254,22 @@ const server = http.createServer(async (req, res) => {
         );
         const state = voiceJobs.get(`${environment}:${projectId}`) ?? {};
         const voices = await Promise.all(
-          (["intro", "outro"] as const).map(async (part) => {
+          [
+            ...new Set<VoicePart>([
+              "intro",
+              "outro",
+              ...(Object.keys(state) as VoicePart[]),
+              ...(await fsp
+                .readdir(sourceDir(kind, version, passage, environment))
+                .catch(() => [])
+                .then((files) =>
+                  files.flatMap((file) => {
+                    const match = /^2-(chapter-\d+)\.wav$/.exec(file);
+                    return match ? [match[1] as VoicePart] : [];
+                  }),
+                )),
+            ]),
+          ].map(async (part) => {
             const available = await fsp
               .stat(
                 path.join(
@@ -283,7 +300,15 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === "POST") {
         const input = analysisSchema
-          .extend({ part: z.enum(["intro", "outro"]) })
+          .extend({
+            part: z.union([
+              z.enum(["intro", "outro"]),
+              z
+                .string()
+                .regex(/^chapter-\d+$/)
+                .transform((value) => value as VoicePart),
+            ]),
+          })
           .parse(await body(req));
         if (input.projectId !== projectId)
           return json(res, 400, { error: "Project mismatch" });
@@ -353,7 +378,16 @@ const server = http.createServer(async (req, res) => {
       )
         return json(res, 409, { error: "Project already active" });
       if (
-        (["intro", "outro"] as const).some((part) =>
+        [
+          ...new Set<VoicePart>([
+            "intro",
+            "outro",
+            ...(Object.keys(
+              voiceJobs.get(`${input.outputEnvironment}:${input.projectId}`) ??
+                {},
+            ) as VoicePart[]),
+          ]),
+        ].some((part) =>
           generationQueue.hasPending(
             input.projectId,
             part,
@@ -362,6 +396,11 @@ const server = http.createServer(async (req, res) => {
         )
       )
         return json(res, 409, { error: "Wait for generation to finish" });
+      if (!(await chapterVoicesAvailable(input)))
+        return json(res, 400, {
+          error:
+            "Generate every chapter introduction before generating the video.",
+        });
       if (!(await existingProjectVoices(input)))
         return json(res, 400, {
           error:
@@ -471,6 +510,7 @@ const server = http.createServer(async (req, res) => {
       const asset = z
         .union([
           z.enum(["video", "thumbnail", "intro", "outro"]),
+          z.string().regex(/^chapter-\d+$/),
           z.string().regex(/^reading-\d+$/),
           z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
         ])
@@ -488,10 +528,12 @@ const server = http.createServer(async (req, res) => {
           })
         : asset.startsWith("reading-")
           ? reading?.sections[Number(asset.slice(8))]?.file
-          : asset === "intro" || asset === "outro"
+          : asset === "intro" ||
+              asset === "outro" ||
+              asset.startsWith("chapter-")
             ? path.join(
                 sourceDir(kind, version, passage, environment),
-                voiceFilename(asset),
+                voiceFilename(asset as VoicePart),
               )
             : path.join(
                 projectDir(kind, version, passage, environment),

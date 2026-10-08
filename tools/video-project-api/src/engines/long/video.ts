@@ -1,5 +1,13 @@
+import {
+  insertChapterIntroductions,
+  type ChapterIntroduction,
+} from "../../chapter-introductions.js";
 import { createBoomerang } from "../../boomerang.js";
-import { READING_END_SILENCE, OUTRO_NARRATION_DELAY, LONG_OUTRO_END_SILENCE } from "../../composition-timing.js";
+import {
+  READING_END_SILENCE,
+  OUTRO_NARRATION_DELAY,
+  LONG_OUTRO_END_SILENCE,
+} from "../../composition-timing.js";
 /**
  * video.ts – Remotion-based replacement for the previous FFmpeg-only renderer.
  *
@@ -241,6 +249,8 @@ export async function prepareVideoComposition(
   workDir = videosDir,
   volumeMultiplier = 1,
   renderOptions: {
+    bibleVersionTitle?: string;
+    chapterIntroductions?: Array<ChapterIntroduction & { file: string }>;
     concurrency?: number;
     background?: string;
     readingOnly?: boolean;
@@ -277,8 +287,16 @@ export async function prepareVideoComposition(
     mediaInfo(outro),
     mediaInfo(background),
   ]);
-  requireClipStreams(introInfo, intro, !renderOptions.readingOnly && (!voices || voices.mode === "mix"));
-  requireClipStreams(outroInfo, outro, !renderOptions.readingOnly && (!voices || voices.mode === "mix"));
+  requireClipStreams(
+    introInfo,
+    intro,
+    !renderOptions.readingOnly && (!voices || voices.mode === "mix"),
+  );
+  requireClipStreams(
+    outroInfo,
+    outro,
+    !renderOptions.readingOnly && (!voices || voices.mode === "mix"),
+  );
   if (!backgroundInfo.streams.some((s) => s.codec_type === "video"))
     throw new Error(`Missing video stream: ${background}`);
 
@@ -289,7 +307,11 @@ export async function prepareVideoComposition(
   const voiceDurations = voices
     ? await Promise.all(
         [voices.intro, voices.outro].map(async (file, index) => {
-          if (renderOptions.previewVoicePart && index !== (renderOptions.previewVoicePart === "intro" ? 0 : 1)) return 0;
+          if (
+            renderOptions.previewVoicePart &&
+            index !== (renderOptions.previewVoicePart === "intro" ? 0 : 1)
+          )
+            return 0;
           const info = await mediaInfo(file);
           if (!info.streams.some((s) => s.codec_type === "audio"))
             throw new Error(`Missing voice audio stream: ${file}`);
@@ -299,9 +321,17 @@ export async function prepareVideoComposition(
     : undefined;
 
   const introLength =
-    (voiceDurations?.[0] ?? (renderOptions.readingOnly ? introDuration : audioStreamDuration(introInfo, intro))) + 1;
+    (voiceDurations?.[0] ??
+      (renderOptions.readingOnly
+        ? introDuration
+        : audioStreamDuration(introInfo, intro))) + 1;
   const outroLength =
-    (voiceDurations?.[1] ?? (renderOptions.readingOnly ? outroDuration : audioStreamDuration(outroInfo, outro))) + OUTRO_NARRATION_DELAY + LONG_OUTRO_END_SILENCE;
+    (voiceDurations?.[1] ??
+      (renderOptions.readingOnly
+        ? outroDuration
+        : audioStreamDuration(outroInfo, outro))) +
+    OUTRO_NARRATION_DELAY +
+    LONG_OUTRO_END_SILENCE;
   const sourceReadingDuration = sections.reduce(
     (sum, s) => sum + s.end - s.start,
     0,
@@ -321,7 +351,22 @@ export async function prepareVideoComposition(
     throw new Error("The reading needs valid verse timings");
   }
 
-  const reading = buildVerseReading(sections, verseCues, verseCues.map((cue) => layoutVerse(cue.text).lines.length));
+  const lineCounts = verseCues.map((cue) => layoutVerse(cue.text).lines.length);
+  const baseReading = buildVerseReading(sections, verseCues, lineCounts);
+  const chapterTracks = await Promise.all(
+    (renderOptions.chapterIntroductions ?? []).map(async (chapter) => ({
+      ...chapter,
+      duration: audioStreamDuration(
+        await mediaInfo(chapter.file),
+        chapter.file,
+      ),
+    })),
+  );
+  const reading = insertChapterIntroductions(
+    baseReading,
+    chapterTracks,
+    lineCounts,
+  );
   verseCues = reading.cues;
   const readingDuration = reading.duration;
 
@@ -339,14 +384,14 @@ export async function prepareVideoComposition(
     throw new Error(`Invalid video format: ${intro}`);
 
   const fps = sourceFrameRate(frameRate);
-  const readingLength = readingDuration + readingSilenceConst + READING_END_SILENCE;
+  const readingLength =
+    readingDuration + readingSilenceConst + READING_END_SILENCE;
   const totalFrames =
     Math.round(introLength * fps) +
     Math.round(readingLength * fps) +
     Math.round(outroLength * fps) -
     2 * Math.round(transitionDuration * fps);
   const totalDuration = totalFrames / fps;
-
 
   const staging = await fs.mkdtemp(path.join(workDir, ".video-"));
   try {
@@ -360,14 +405,24 @@ export async function prepareVideoComposition(
       [outro, outroBoomerang, true],
     ] as const) {
       console.log(`Creating boomerang from ${path.basename(source)}...`);
-      await createBoomerang(source, output, {
-        width, height, frameRate, preserveAudio,
-        videoEndSeconds: source === outro ? outroLoopDuration : undefined,
-      }, ffmpeg);
+      await createBoomerang(
+        source,
+        output,
+        {
+          width,
+          height,
+          frameRate,
+          preserveAudio,
+          videoEndSeconds: source === outro ? outroLoopDuration : undefined,
+        },
+        ffmpeg,
+      );
     }
 
     // Build Remotion props
     const compositionProps: EpisodeCompositionProps = {
+      bibleVersionTitle: renderOptions.bibleVersionTitle ?? title.version,
+      chapterIntroductions: reading.chapters,
       introLength,
       introVideoDuration: introDuration * 2,
       outroVideoDuration: outroLoopDuration * 2,
@@ -419,6 +474,8 @@ export async function renderEpisodeVideo(
   workDir = path.dirname(output),
   volumeMultiplier = 1,
   renderOptions: {
+    bibleVersionTitle?: string;
+    chapterIntroductions?: Array<ChapterIntroduction & { file: string }>;
     concurrency?: number;
     background?: string;
     readingOnly?: boolean;

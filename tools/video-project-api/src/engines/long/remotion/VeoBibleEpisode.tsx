@@ -174,7 +174,11 @@ export const VeoBibleEpisode: React.FC<EpisodeCompositionProps> = (props) => {
             readingLength={readingLength}
             readingSilence={readingSilence}
             readingPalette={readingPalette}
+            bibleVersionTitle={props.bibleVersionTitle}
             readingDuration={readingDuration}
+            chapterIntroductions={props.chapterIntroductions?.map(
+              (chapter) => ({ ...chapter, file: resolveAsset(chapter.file) }),
+            )}
           />
         </FadeWrapper>
       </Sequence>

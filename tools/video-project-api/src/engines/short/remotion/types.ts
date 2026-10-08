@@ -1,3 +1,4 @@
+import type { ChapterTrack } from "../../../chapter-introductions";
 // Shared prop types for the Remotion VeoBible Short composition.
 // These mirror the interfaces already defined in video.ts and verse-timing.ts
 // so the remotion bundle does not need to import Node-only modules.
@@ -47,6 +48,8 @@ export type RGB = [number, number, number];
 /** Top-level props passed to the VeoBible Short Remotion composition. */
 export interface ShortCompositionProps {
   /** Duration of the intro segment in seconds. */
+  chapterIntroductions?: ChapterTrack[];
+  bibleVersionTitle?: string;
   introLength: number;
   /** Actual source video durations, independent of narration length. */
   introVideoDuration: number;

@@ -82,6 +82,10 @@ test("browser media grants preserve streaming, ranges and downloads without gran
       /attachment; filename="john-3-16.mp4"/,
     );
     await download.text();
+    const chapterDownload = await fetch(url.replace("/media/video?", "/media/chapter-0?") + "&download=1", { headers: { Origin: origin } });
+    assert.equal(chapterDownload.status, 200);
+    assert.match(chapterDownload.headers.get("content-disposition"), /attachment; filename="john-3-16.wav"/);
+    assert.equal(await chapterDownload.text(), "test");
     const head = await fetch(url, { method: "HEAD" });
     assert.equal(head.status, 200);
     assert.equal(await head.text(), "");
