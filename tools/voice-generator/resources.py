@@ -20,9 +20,10 @@ class Limits:
     profile: str = "low"
     threads: int = 2
     max_memory_mb: float = 6144
-    min_free_memory_mb: float = 3072
+    min_free_memory_mb: float = 1024
     timeout_seconds: float = 1800
     lock_timeout_seconds: float = 300
+    memory_grace_seconds: float = 5
 
     def validate(self):
         if self.profile not in ("low", "standard"):
@@ -34,14 +35,35 @@ class Limits:
             raise ValueError("threads cannot exceed the number of available CPU cores")
 
 
-def failure_reason(limits: Limits, elapsed: float, rss: int, available: int) -> str | None:
+def failure_reason(limits: Limits, elapsed: float, rss: int, available: int, low_memory_seconds: float = 0) -> str | None:
     if elapsed >= limits.timeout_seconds:
         return "VOICE_TIMEOUT: generation exceeded its time limit"
     if rss > limits.max_memory_mb * MIB:
-        return "VOICE_RESOURCE_LIMIT: generation exceeded its memory limit"
-    if available < limits.min_free_memory_mb * MIB:
-        return "VOICE_RESOURCE_LIMIT: not enough free system memory to continue safely"
+        return f"VOICE_RESOURCE_LIMIT: worker RSS {rss / MIB:.0f} MiB exceeded {limits.max_memory_mb:g} MiB"
+    reserve = limits.min_free_memory_mb * MIB
+    critical = min(256 * MIB, reserve / 4)
+    if available < critical:
+        return f"VOICE_RESOURCE_LIMIT: critically low available RAM ({available / MIB:.0f} MiB; emergency threshold {critical / MIB:g} MiB)"
+    if available < reserve and low_memory_seconds >= limits.memory_grace_seconds:
+        return f"VOICE_RESOURCE_LIMIT: available RAM {available / MIB:.0f} MiB stayed below {limits.min_free_memory_mb:g} MiB for {low_memory_seconds:.1f}s; worker RSS {rss / MIB:.0f} MiB"
     return None
+
+
+@dataclass
+class ResourceMonitor:
+    limits: Limits
+    started: float
+    low_memory_since: float | None = None
+
+    def check(self, now: float, rss: int, available: int) -> str | None:
+        # Require continuous pressure, allowing macOS time to reclaim memory.
+        if available < self.limits.min_free_memory_mb * MIB:
+            if self.low_memory_since is None:
+                self.low_memory_since = now
+        else:
+            self.low_memory_since = None
+        duration = now - self.low_memory_since if self.low_memory_since is not None else 0
+        return failure_reason(self.limits, now - self.started, rss, available, duration)
 
 
 def process_memory(process: psutil.Process) -> int:
@@ -99,20 +121,24 @@ def stop_process(process: subprocess.Popen):
 
 def supervise(command: list[str], limits: Limits, lock_fd: int) -> int:
     limits.validate()
-    initial_failure = failure_reason(limits, 0, 0, psutil.virtual_memory().available)
+    # Do not start loading a model if the reserve is already unavailable.
+    available = psutil.virtual_memory().available
+    initial_failure = failure_reason(limits, 0, 0, available)
     if initial_failure:
         raise RuntimeError(initial_failure)
+    if available < limits.min_free_memory_mb * MIB:
+        raise RuntimeError(f"VOICE_RESOURCE_LIMIT: available RAM before model loading is {available / MIB:.0f} MiB; at least {limits.min_free_memory_mb:g} MiB is required")
     env = os.environ.copy()
     for name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
         env[name] = str(limits.threads)
     env["TOKENIZERS_PARALLELISM"] = "false"
     env["PYTHONUNBUFFERED"] = "1"
-    started = time.monotonic()
+    monitor = ResourceMonitor(limits, time.monotonic())
     process = subprocess.Popen(command, env=env, start_new_session=True, pass_fds=(lock_fd,))
     try:
         watched = psutil.Process(process.pid)
         while process.poll() is None:
-            reason = failure_reason(limits, time.monotonic() - started, process_memory(watched), psutil.virtual_memory().available)
+            reason = monitor.check(time.monotonic(), process_memory(watched), psutil.virtual_memory().available)
             if reason:
                 raise RuntimeError(reason)
             time.sleep(0.5)

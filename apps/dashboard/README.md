@@ -52,9 +52,9 @@ Under `/short-videos` and `/long-videos`, "New project" prompts for version, tit
 
 The options menu on each listing offers "Sync project presets". Its modal allows selecting a Bible version and adding format proposals retrieved from the generator. Comparison uses format, version, and the proposal `slug`, stored in `video_projects.slug`. Repeating synchronization does not duplicate projects or overwrite existing titles, passages, settings, or publication flags. New projects adopt current volume settings for that format, language, and version. Titles use the book names of that version, and long formats preserve the episode number.
 
-"Sync existing projects" does not open a modal: it inspects `outputs-dev/<version>/<slug>` in development or `outputs/<version>/<slug>` in production, depending on dashboard environment and format. It only updates the state of already registered projects, matched by format, language, version, and slug; directories without a match are ignored, and new projects are never created by this action. It imports the CLI usage flag as published, audio and verse offsets, volume, audio mode, and background. It preserves titles and settings absent from project files. It does not modify source files. It skips projects with invalid files or active tasks, reporting updated and unchanged counts. Repeating the action without changes preserves update timestamps.
+"Sync existing projects" does not open a modal: it inspects `outputs-dev/<version>/<slug>` in development or `outputs/<version>/<slug>` in production, depending on dashboard environment and format. It only updates the state of already registered projects, matched by format, language, version, and slug; directories without a match are ignored, and new projects are never created by this action. It imports legacy usage flags as publication status, audio and verse offsets, volume, audio mode, and background. It preserves titles and settings absent from project files. It does not modify source files. It skips projects with invalid files or active tasks, reporting updated and unchanged counts. Repeating the action without changes preserves update timestamps.
 
-Each project saves `output_environment`: new dashboard projects use their current environment; imported projects use the environment from which they were synced. This allows the editor to query and playback original CLI files even from the development dashboard. The queue includes active tasks from both environments.
+The dashboard derives the output environment from its runtime configuration and passes it to the video API; no environment field is stored on individual projects. Production and development use separate databases and output directories.
 
 The shared editor opens at `/short-videos/<id>` or `/long-videos/<id>` with the numeric project ID. Shorts are vertical 9:16; longs are horizontal 16:9. Intro and outro are fixed sections; each reading segment allows synchronizing verses using waveforms, trimming, and playback. Sections start collapsed, and intro/outro narrations can be generated and played directly from their headers.
 
@@ -69,10 +69,10 @@ Audio, thumbnails, composition assets, and final videos stream directly from the
 `SHORTS_WORKING_DIR` and `LONGS_WORKING_DIR` separate the formats:
 
 - `material/`: video, narration, and Bible audio sources.
-- `outputs/<version>/<passage>/`: production and CLI tools.
+- `outputs/<version>/<passage>/`: production dashboard projects.
 - `outputs-dev/<version>/<passage>/`: dashboard in development.
 
-Both environments use the CLI structure, with video, thumbnail, texts, and `_internal/` for narrations and auxiliary data. CLI settings and usage flags do not automatically synchronize with the dashboard.
+Both environments use the same project structure, with video, thumbnail, texts, and `_internal/` for narrations and auxiliary data. Legacy settings and publication flags can be imported using "Sync existing projects".
 
 ## Settings
 

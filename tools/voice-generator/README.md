@@ -1,6 +1,6 @@
 # VeoBible Voice
 
-Generic Python tool to synthesize voice tracks with Chatterbox. It receives a scripts JSON, a language, and an output directory. For each track, it produces `<name>.txt` and `<name>.wav`. The final audio files are 24-bit 48 kHz PCM WAVs.
+Internal Python worker for dashboard narration synthesis with Chatterbox. Requests follow `dashboard → api-proxy → video-project-api → voice-generator`; the proxy routes requests and the video API manages the generation queue and launches this worker. It receives a scripts JSON, a language, and an output directory. For each track, it produces `<name>.txt` and `<name>.wav`. The final audio files are 24-bit 48 kHz PCM WAVs.
 
 ## Installation
 
@@ -12,11 +12,13 @@ python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-`shorts-daily-dose` uses this interpreter by default to generate local voices.
+`video-project-api` uses this interpreter by default to generate introduction and closing narrations requested from the dashboard. Configure narration templates in the dashboard's Short Videos and Long Videos settings.
 
 The initial model load may download weights from Hugging Face. Multilingual Chatterbox supports Spanish, English, and Portuguese, among other languages. The `latam` model uses the `ResembleAI/Chatterbox-Multilingual-es-mx-latam` checkpoint and only supports Spanish. If you use Hugging Face with authentication, export `HF_TOKEN`.
 
-## Usage
+## Worker interface
+
+The video API supplies these arguments automatically. The commands below are intended for development diagnostics.
 
 Create a JSON mapping track names to texts, for example:
 
@@ -47,11 +49,14 @@ The lightweight parent supervises the model in a separate process, checking comb
 | `--resource-profile` | `VOICE_GENERATOR_PROFILE` | `low` |
 | `--threads` | `VOICE_GENERATOR_THREADS` | `2` |
 | `--max-memory-mb` | `VOICE_GENERATOR_MAX_MEMORY_MB` | `6144` MiB (6 GiB combined RSS) |
-| `--min-free-memory-mb` | `VOICE_GENERATOR_MIN_FREE_MEMORY_MB` | `3072` MiB (3 GiB available RAM) |
+| `--min-free-memory-mb` | `VOICE_GENERATOR_MIN_FREE_MEMORY_MB` | `1024` MiB (1 GiB available RAM) |
+| `--memory-grace-seconds` | `VOICE_GENERATOR_MEMORY_GRACE_SECONDS` | `5` (continuous seconds below the RAM reserve) |
 | `--timeout-seconds` | `VOICE_GENERATOR_TIMEOUT_SECONDS` | `1800` (30 minutes, including model loading) |
 | `--lock-timeout-seconds` | `VOICE_GENERATOR_LOCK_TIMEOUT_SECONDS` | `300` (5 minutes waiting for another invocation) |
 
-CLI options override environment variables. The same defaults apply when called by the dashboard, `shorts-daily-dose`, or `longs-365-days`. Set environment variables in the invoking tool's `.env` or shell to adjust them. In the standard profile, MPS additionally receives a Metal allocator budget of at most 4 GiB (or the RSS limit, if smaller); Metal allocations and RSS are different measures, so the system RAM check remains necessary.
+The available-RAM check tolerates dips below 1 GiB for up to five continuous seconds during generation; recovery resets the timer. Below 256 MiB, it stops immediately (or below one quarter of the configured reserve, when smaller). The RSS and time limits remain immediate. Before loading the model, at least the configured RAM reserve must be available. Failure diagnostics include measured RAM/RSS and the threshold to help tune settings.
+
+Command-line options override environment variables. Dashboard generations inherit these variables from `video-project-api`; configure them in that API's `.env` or its process environment. In the standard profile, MPS additionally receives a Metal allocator budget of at most 4 GiB (or the RSS limit, if smaller); Metal allocations and RSS are different measures, so the system RAM check remains necessary.
 
 Only one invocation per OS user may load Chatterbox at a time, across working directories and formats. A macOS/Linux advisory lock in `/tmp/veobible-voice-<uid>.lock` persists while the worker runs and is released automatically; the lock file itself is intentionally retained. Waiting does not load a model. After five minutes, a waiting invocation fails and can be retried.
 
@@ -63,4 +68,4 @@ Run the lightweight tests without synthesizing audio:
 .venv/bin/python -m unittest discover -s . -v
 ```
 
-Track names support lowercase letters, numbers, hyphens, and underscores, and must start with a letter. A single invocation generates all tracks with the model loaded only once. `shorts-daily-dose` uses this interface for its intros and outros, using its own [templates](../shorts-daily-dose/voice-templates.json).
+Track names support lowercase letters, numbers, hyphens, and underscores, and must start with a letter. A single invocation generates all tracks with the model loaded only once. Narration templates are stored in dashboard settings and passed by `video-project-api`; this worker does not read local template files.

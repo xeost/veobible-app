@@ -178,7 +178,8 @@ def main() -> int:
     parser.add_argument("--resource-profile", choices=("low", "standard"), default=os.getenv("VOICE_GENERATOR_PROFILE", "low"), help="low uses CPU and reduced process priority (default)")
     parser.add_argument("--threads", type=int, default=os.getenv("VOICE_GENERATOR_THREADS", "2"))
     parser.add_argument("--max-memory-mb", type=float, default=os.getenv("VOICE_GENERATOR_MAX_MEMORY_MB", "6144"), help="Maximum combined worker/child RSS in MiB")
-    parser.add_argument("--min-free-memory-mb", type=float, default=os.getenv("VOICE_GENERATOR_MIN_FREE_MEMORY_MB", "3072"), help="Minimum available system RAM in MiB")
+    parser.add_argument("--min-free-memory-mb", type=float, default=os.getenv("VOICE_GENERATOR_MIN_FREE_MEMORY_MB", "1024"), help="Available system RAM reserve in MiB")
+    parser.add_argument("--memory-grace-seconds", type=float, default=os.getenv("VOICE_GENERATOR_MEMORY_GRACE_SECONDS", "5"), help="Allowed continuous time below the RAM reserve")
     parser.add_argument("--timeout-seconds", type=float, default=os.getenv("VOICE_GENERATOR_TIMEOUT_SECONDS", "1800"))
     parser.add_argument("--lock-timeout-seconds", type=float, default=os.getenv("VOICE_GENERATOR_LOCK_TIMEOUT_SECONDS", "300"))
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
@@ -193,7 +194,7 @@ def main() -> int:
             print(json.dumps({"language": args.language, "scripts": scripts, "voice_prompts": {track: str(sample) for track, sample in voice_prompts.items()}}, ensure_ascii=False, indent=2))
         else:
             from resources import Limits, configure_worker, generation_lock, supervise
-            limits = Limits(args.resource_profile, args.threads, args.max_memory_mb, args.min_free_memory_mb, args.timeout_seconds, args.lock_timeout_seconds)
+            limits = Limits(args.resource_profile, args.threads, args.max_memory_mb, args.min_free_memory_mb, args.timeout_seconds, args.lock_timeout_seconds, args.memory_grace_seconds)
             limits.validate()
             if args.resource_profile == "low":
                 if args.device not in ("auto", "cpu"):
@@ -211,7 +212,7 @@ def main() -> int:
                     with generation_lock(limits.lock_timeout_seconds) as lock_fd:
                         args.output_dir.mkdir(parents=True, exist_ok=True)
                         with tempfile.TemporaryDirectory(prefix=".voice-", dir=args.output_dir) as staging:
-                            print(f"Resources: {limits.profile} profile, {args.device}, {limits.threads} threads, {limits.max_memory_mb:g} MiB RSS limit", flush=True)
+                            print(f"Resources: {limits.profile} profile, {args.device}, {limits.threads} threads, {limits.max_memory_mb:g} MiB RSS limit, {limits.min_free_memory_mb:g} MiB RAM reserve ({limits.memory_grace_seconds:g}s grace)", flush=True)
                             return supervise([sys.executable, str(Path(__file__).resolve()), *sys.argv[1:], "--worker", "--staging-dir", str(Path(staging).resolve())], limits, lock_fd)
                 finally:
                     signal.signal(signal.SIGTERM, previous_handler)

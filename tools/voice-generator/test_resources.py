@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import psutil
-from resources import Limits, MIB, configure_worker, failure_reason, generation_lock, supervise
+from resources import Limits, MIB, ResourceMonitor, configure_worker, failure_reason, generation_lock, supervise
 
 
 class SupervisorTests(unittest.TestCase):
@@ -25,14 +25,40 @@ class SupervisorTests(unittest.TestCase):
         self.assertIsNone(failure_reason(limits, 1, 100 * MIB, 4096 * MIB))
         self.assertIn("VOICE_TIMEOUT", failure_reason(limits, 1800, 0, 4096 * MIB))
         self.assertIn("VOICE_RESOURCE_LIMIT", failure_reason(limits, 1, 6145 * MIB, 4096 * MIB))
-        self.assertIn("VOICE_RESOURCE_LIMIT", failure_reason(limits, 1, 0, 3071 * MIB))
+        self.assertIn("VOICE_RESOURCE_LIMIT", failure_reason(limits, 1, 0, 1023 * MIB, 5))
         for value in (0, -1, float("nan"), float("inf")):
             with self.assertRaises(ValueError):
                 Limits(max_memory_mb=value).validate()
 
+    def test_transient_low_memory_recovers_and_resets_the_grace_period(self):
+        monitor = ResourceMonitor(Limits(), 0)
+        self.assertIsNone(monitor.check(1, 2000 * MIB, 900 * MIB))
+        self.assertIsNone(monitor.check(5, 2000 * MIB, 900 * MIB))
+        self.assertIsNone(monitor.check(6, 2000 * MIB, 1100 * MIB))
+        self.assertIsNone(monitor.check(7, 2000 * MIB, 900 * MIB))
+        self.assertIsNone(monitor.check(11, 2000 * MIB, 900 * MIB))
+        self.assertIn("stayed below 1024 MiB for 5.0s", monitor.check(12, 2000 * MIB, 900 * MIB))
+
+    def test_critical_memory_and_rss_limit_do_not_wait_for_grace_period(self):
+        monitor = ResourceMonitor(Limits(), 0)
+        self.assertIn("critically low", monitor.check(1, 2000 * MIB, 255 * MIB))
+        self.assertIn("worker RSS 6145 MiB", monitor.check(2, 6145 * MIB, 900 * MIB))
+
+    def test_custom_grace_period(self):
+        monitor = ResourceMonitor(Limits(memory_grace_seconds=2), 0)
+        self.assertIsNone(monitor.check(1, 1000 * MIB, 900 * MIB))
+        self.assertIsNone(monitor.check(2, 1000 * MIB, 900 * MIB))
+        self.assertIn("VOICE_RESOURCE_LIMIT", monitor.check(3, 1000 * MIB, 900 * MIB))
+
     def test_preflight_does_not_launch_with_insufficient_memory(self):
         with patch("resources.psutil.virtual_memory", return_value=type("Memory", (), {"available": MIB})()), patch("resources.subprocess.Popen") as launch:
             with self.assertRaisesRegex(RuntimeError, "VOICE_RESOURCE_LIMIT"):
+                supervise([sys.executable, "-c", "pass"], Limits(), 0)
+            launch.assert_not_called()
+
+    def test_preflight_requires_reserve_before_starting_even_above_emergency_threshold(self):
+        with patch("resources.psutil.virtual_memory", return_value=types.SimpleNamespace(available=900 * MIB)), patch("resources.subprocess.Popen") as launch:
+            with self.assertRaisesRegex(RuntimeError, "before model loading is 900 MiB"):
                 supervise([sys.executable, "-c", "pass"], Limits(), 0)
             launch.assert_not_called()
 

@@ -3,8 +3,6 @@
   "private": true,
   "scripts": {
     "audiobibles": "cd tools/audiobibles-cli && pnpm start",
-    "shorts": "cd tools/shorts-daily-dose && pnpm start",
-    "longs": "cd tools/longs-365-days && pnpm start",
     "dev:dashboard": "pnpm --dir apps/dashboard dev",
     "build:dashboard": "pnpm --dir apps/dashboard build",
     "start:api-proxy": "node tools/api-proxy/src/index.mjs",

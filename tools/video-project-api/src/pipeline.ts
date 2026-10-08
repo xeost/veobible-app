@@ -89,7 +89,7 @@ async function writePassageFiles(
   try {
     await fs.writeFile(
       path.join(sources, "README.md"),
-      "# Project files\n\n1-intro.wav and 3-outro.wav contain the narrations; their matching text files contain the spoken scripts.\n2-versiculos.txt contains the passage text. 0-metadata.txt describes the rendered video.\n\nDashboard timing and audio settings are stored in the database. CLI timing files, when present, are maintained by the CLI.\n",
+      "# Project files\n\n1-intro.wav and 3-outro.wav contain the narrations; their matching text files contain the spoken scripts.\n2-versiculos.txt contains the passage text. 0-metadata.txt describes the rendered video.\n\nDashboard timing and audio settings are stored in the database. Legacy timing files, when present, are preserved and can be synchronized from the dashboard.\n",
       { flag: "wx" },
     );
   } catch (error) {
