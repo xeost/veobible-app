@@ -40,6 +40,7 @@ import {
   validVerseTimings,
   readingTimeline,
   type Inspection,
+  type VerseCue,
 } from "../lib/video-timing";
 import { useProjectBreadcrumb } from "./ProjectBreadcrumb";
 import { VideoProjectPreviewModal } from "./VideoProjectPreviewModal";
@@ -316,10 +317,10 @@ export function VideoProjectEditor({
     });
     setNotice("");
   };
-  const expandSection = (sectionIndex: number, edge: "start" | "end") => {
+  const expandSection = (sectionIndex: number, edge: "start" | "end", seconds = 10) => {
     if (!analysis) return;
     const section = analysis.sections[sectionIndex];
-    const amount = Math.min(10, edge === "start" ? section.start : (section.sourceDuration ?? section.end) - section.end);
+    const amount = Math.min(seconds, edge === "start" ? section.start : (section.sourceDuration ?? section.end) - section.end);
     if (amount <= 0) return;
     const change = { sectionIndex, beforeSeconds: edge === "start" ? amount : 0, afterSeconds: edge === "end" ? amount : 0 };
     const expanded = expandReadingContext(analysis.sections, analysis.cues,
@@ -333,6 +334,18 @@ export function VideoProjectEditor({
           afterSeconds: (previous?.afterSeconds ?? 0) + change.afterSeconds },
       ] };
     });
+  };
+  const shiftVerse = (sectionIndex: number, cue: VerseCue) => {
+    if (!analysis || editingLocked || analyzing) return false;
+    const section = timeline[sectionIndex];
+    const availableEnd = section.timelineStart + (section.sourceDuration ?? section.end) - section.start;
+    if (cue.end > availableEnd + 1e-6) return false;
+    // Expose enough original audio without moving this chapter's existing source cuts.
+    if (cue.end > section.timelineEnd)
+      expandSection(sectionIndex, "end", cue.end - section.timelineEnd);
+    trim(cue.reference, "start", cue.start);
+    trim(cue.reference, "end", cue.end);
+    return true;
   };
   const generateVoice = (part: "intro" | "outro") =>
     perform(async () => {
@@ -904,6 +917,7 @@ export function VideoProjectEditor({
                         cues={verses}
                         disabled={editingLocked || analyzing}
                         onTrim={trim}
+                        onShift={(cue) => shiftVerse(section.index, cue)}
                       />
                     )}
                     {readingVolume}

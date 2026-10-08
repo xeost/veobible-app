@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   adjustedCues,
+  alignSelectedVerse,
   readingTimeline,
   trimCue,
   trimPreviewRange,
@@ -120,4 +121,49 @@ test("waveform context respects the source section boundaries on a multi-section
     start: 39,
     end: 50,
   });
+});
+
+test("selecting an overlapping verse moves both edges without changing its duration or other verses", () => {
+  const cues = [
+    { reference: "first", text: "First", start: 10, end: 22 },
+    { reference: "second", text: "Second", start: 14, end: 19 },
+    { reference: "third", text: "Third", start: 19, end: 25 },
+  ];
+  const original = structuredClone(cues);
+  const selected = alignSelectedVerse(cues, 1, 60);
+  assert.equal(selected.moved, true);
+  assert.deepEqual(selected.cue, { ...cues[1], start: 22, end: 27 });
+  assert.equal(selected.cue.end - selected.cue.start, cues[1].end - cues[1].start);
+  assert.deepEqual(cues, original);
+  const next = alignSelectedVerse([cues[0], selected.cue, cues[2]], 2, 60);
+  assert.deepEqual(next.cue, { ...cues[2], start: 27, end: 33 });
+});
+
+test("selection leaves the first verse, aligned ranges and later non-overlapping ranges untouched", () => {
+  const cues = [
+    { reference: "first", text: "First", start: 5, end: 10 },
+    { reference: "second", text: "Second", start: 10, end: 15 },
+    { reference: "third", text: "Third", start: 20, end: 25 },
+  ];
+  for (const index of [0, 1, 2]) {
+    assert.deepEqual(alignSelectedVerse(cues, index, 30), { cue: cues[index], moved: false, blocked: false });
+  }
+  assert.equal(alignSelectedVerse([cues[2]], 0, 30).moved, false);
+});
+
+test("selection can use additional source context but never truncates a verse at the actual file end", () => {
+  const cues = [
+    { reference: "first", text: "First", start: 10, end: 25 },
+    { reference: "second", text: "Second", start: 18, end: 23 },
+  ];
+  assert.deepEqual(alignSelectedVerse(cues, 1, 28), { cue: cues[1], moved: false, blocked: true });
+  const selected = alignSelectedVerse(cues, 1, 30);
+  assert.deepEqual(selected.cue, { ...cues[1], start: 25, end: 30 });
+  const offsets = [{ reference: "second", startOffsetSeconds: 7, endOffsetSeconds: 7 }];
+  const adjusted = adjustedCues(cues, offsets);
+  assert.deepEqual(adjusted[1], selected.cue);
+  assert.deepEqual(applyVerseOffsets(cues, offsets, 30), adjusted);
+  const rendered = buildVerseReading([{ file: "chapter.mp3", start: 100, end: 130 }], adjusted, [2, 2]);
+  assert.equal(rendered.sections[1].start, 125);
+  assert.equal(rendered.sections[1].end, 130);
 });

@@ -7,7 +7,6 @@
  * filter graph.  FFmpeg is still used for:
  *   - audio duration measurement (audioDurationSeconds via ffprobe)
  *   - silence detection for verse-timing (detectPauses in verse-timing.ts)
- *   - background palette extraction (extractBackgroundPalette via rawvideo)
  *   - boomerang construction (forward+reverse loop from the background clip)
  *   - thumbnail extraction from the rendered video
  */
@@ -24,7 +23,6 @@ import { renderMedia, selectComposition } from "@remotion/renderer";
 import { config } from "./config.js";
 import type { VerseCue } from "./verse-timing.js";
 import { introAnimationEnd, layoutVerse } from "./remotion/animation.js";
-import { extractBackgroundPalette } from "./background-palette.js";
 import { validateReadingVolume } from "./reading-audio.js";
 import { buildVerseReading } from "../../reading-timeline.js";
 import type { EpisodeCompositionProps } from "./remotion/types.js";
@@ -354,11 +352,6 @@ export async function prepareVideoComposition(
     2 * Math.round(transitionDuration * fps);
   const totalDuration = totalFrames / fps;
 
-  const bgVideoDuration = mediaDuration(backgroundInfo, background);
-  const readingPalette = await extractBackgroundPalette(
-    background,
-    bgVideoDuration,
-  );
 
   const staging = await fs.mkdtemp(path.join(workDir, ".video-"));
   try {
@@ -404,7 +397,7 @@ export async function prepareVideoComposition(
       introTitle: title,
       outroTitle,
       verseCues,
-      readingPalette,
+      readingPalette: [],
     };
 
     return {

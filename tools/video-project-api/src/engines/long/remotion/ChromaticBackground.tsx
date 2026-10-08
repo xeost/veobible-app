@@ -10,7 +10,7 @@
  *                     + (Y/H - cy - 0.09*cos(t/17+offset))^2 / sy^2))
  *   total   = sum of all fields
  *   channel = sum(color[i][ch] * field[i]) / total
- *   alpha   = 255 * 0.60 * (0.20 + 0.80 * smooth(top) * smooth(bottom))
+ *   alpha   = 255 * 0.75 * (0.20 + 0.80 * smooth(top) * smooth(bottom))
  *
  * where top  = clip(Y/H / 0.17, 0, 1)
  *       bottom = clip((1-Y/H) / 0.26, 0, 1)
@@ -51,7 +51,7 @@ function renderChromatic(
     const top = Math.min(1, Math.max(0, YH / 0.17));
     const bottom = Math.min(1, Math.max(0, (1 - YH) / 0.26));
     const a =
-      255 * 0.6 * (0.2 + 0.8 * smooth(top) * smooth(bottom));
+      255 * 0.75 * (0.2 + 0.8 * smooth(top) * smooth(bottom));
     for (let px = 0; px < w; px++) {
       const XW = px / w;
       let fieldSum = 0;

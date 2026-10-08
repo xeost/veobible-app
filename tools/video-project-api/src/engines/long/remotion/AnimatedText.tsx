@@ -22,6 +22,7 @@ interface Props {
   alpha: number;
   shadow?: number;
   width?: number;
+  lineHeight?: number;
 }
 
 export const AnimatedText: React.FC<Props> = ({
@@ -34,6 +35,7 @@ export const AnimatedText: React.FC<Props> = ({
   alpha,
   shadow = 0.28,
   width = 800,
+  lineHeight = 1.28,
 }) => {
   if (!text || alpha <= 0) return null;
 
@@ -62,7 +64,7 @@ export const AnimatedText: React.FC<Props> = ({
         opacity: alpha,
         whiteSpace: "pre-line",
         textShadow: shadow > 0 ? `0px 2px rgba(7,16,13,${shadow})` : undefined,
-        lineHeight: "1.28",
+        lineHeight,
         pointerEvents: "none",
         userSelect: "none",
       }}

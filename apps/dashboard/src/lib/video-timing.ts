@@ -119,3 +119,17 @@ export function waveformSeekRange(
     ? { start: time, end: cue.end }
     : null;
 }
+
+/** Align only the selected verse, preserving its length and respecting the original audio end. */
+export function alignSelectedVerse(cues: VerseCue[], index: number, sourceEnd: number) {
+  const cue = cues[index];
+  if (!cue) throw new Error("Missing selected verse");
+  if (index === 0 || cue.start >= cues[index - 1].end)
+    return { cue, moved: false, blocked: false };
+  const start = cues[index - 1].end;
+  const duration = cue.end - cue.start;
+  const end = start + duration;
+  if (end > sourceEnd + 1e-6)
+    return { cue, moved: false, blocked: true };
+  return { cue: { ...cue, start, end }, moved: true, blocked: false };
+}

@@ -1,4 +1,5 @@
 export const spanish: Record<string, string> = {
+  "There is not enough chapter audio to move this verse after the previous one while keeping its duration. Adjust the previous verse's end or shorten this verse.": "No queda suficiente audio del capítulo para mover este versículo después del anterior conservando su duración. Ajusta el final del versículo anterior o acorta este versículo.",
   "Add up to 10 seconds of audio on the left": "Añadir hasta 10 segundos de audio a la izquierda",
   "Add up to 10 seconds of audio on the right": "Añadir hasta 10 segundos de audio a la derecha",
   "Use a custom reading volume for this project":

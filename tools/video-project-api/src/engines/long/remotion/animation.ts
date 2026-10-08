@@ -133,9 +133,9 @@ export function layoutVerse(text: string): {
   lines: string[];
   fontSize: number;
 } {
-  for (let fontSize = 68; fontSize >= 24; fontSize -= 4) {
-    const lines = balancedLines(text, fontSize, 1600);
-    if (lines.length * fontSize * 1.28 <= 500 || fontSize === 24) {
+  for (let fontSize = 64; fontSize >= 24; fontSize -= 4) {
+    const lines = balancedLines(text, fontSize, 1288);
+    if (lines.length * fontSize * 1.38 <= 400 || fontSize === 24) {
       return { lines, fontSize };
     }
   }

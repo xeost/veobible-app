@@ -4,6 +4,7 @@ import { Play, Pause, AudioLines, ZoomIn, ZoomOut, ArrowLeftToLine, ArrowRightTo
 import { useI18n } from "../i18n/context";
 import {
   type VerseCue,
+  alignSelectedVerse,
   trimBounds,
   trimCue,
   trimPreviewRange,
@@ -21,6 +22,7 @@ export function VerseWaveform({
   cues,
   disabled,
   onTrim,
+  onShift,
 }: {
   src: string;
   sourceStart: number;
@@ -32,6 +34,7 @@ export function VerseWaveform({
   cues: VerseCue[];
   disabled: boolean;
   onTrim: (reference: string, edge: "start" | "end", value: number) => void;
+  onShift: (cue: VerseCue) => boolean;
 }) {
   const { t } = useI18n();
   const [selected, setSelected] = useState(0);
@@ -42,6 +45,7 @@ export function VerseWaveform({
       end: timelineStart + sourceEnd - sourceStart,
     },
   );
+  const [shiftBlocked, setShiftBlocked] = useState(false);
   const [waveError, setWaveError] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
@@ -206,6 +210,7 @@ export function VerseWaveform({
   const move = (edge: "start" | "end", time: number, recenter = false) => {
     audio.current?.pause();
     playbackRequest.current++;
+    setShiftBlocked(false);
     const value = trimCue(
       latest.current,
       index,
@@ -312,7 +317,16 @@ export function VerseWaveform({
             aria-pressed={index === i}
             onClick={() => {
               audio.current?.pause();
+              playbackRequest.current++;
+              const result = alignSelectedVerse(latest.current, i, timelineStart + sourceDuration - sourceStart);
+              const moved = !disabled && result.moved && onShift(result.cue);
+              setShiftBlocked(!disabled && (result.blocked || (result.moved && !moved)));
               setSelected(i);
+              setFocus(moved ? result.cue : latest.current[i]);
+              setExtraContext({ before: 0, after: 0 });
+              setHasPlayhead(false);
+              setZoom(1);
+              if (scroll.current) scroll.current.scrollLeft = 0;
             }}
           >
             <span>{verse.reference}</span>
@@ -368,6 +382,11 @@ export function VerseWaveform({
             "Release an edge to hear 3 seconds from that side. Click inside the fragment to listen from that point to the end. Use the arrow keys for precise adjustments.",
           )}
         </p>
+        {shiftBlocked && (
+          <p className="notice" role="status">
+            {t("There is not enough chapter audio to move this verse after the previous one while keeping its duration. Adjust the previous verse's end or shorten this verse.")}
+          </p>
+        )}
         <div className="waveform-scroll" ref={scroll}>
           <div
             className="waveform-track"

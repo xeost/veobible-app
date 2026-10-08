@@ -1,39 +1,19 @@
-/**
- * ReadingScene – the "reading" segment of the VeoBible Short.
- *
- * Mirrors the `readingGraph` FFmpeg filter chain:
- * - Boomerang (looping) background video
- * - Chromatic color overlay (drifting palette sampled from the background)
- * - Verse reference, open-quote glyph, verse lines (staggered entrance)
- * - Gold rule
- * - Website wordmark at bottom
- * - Bible reading audio (independently trimmed source sections, volume-adjusted)
- * - Optional voice tracks
- */
-
+/** Editorial reading card shared by episode previews and final rendering. */
 import React, { useMemo } from "react";
 import { Video } from "@remotion/media";
 import { useCurrentFrame, useVideoConfig, Audio, Sequence } from "remotion";
-import {
-  stagePhase,
-  layoutVerse,
-  verseTextPhases,
-  phaseAlpha,
-  phaseY,
-  positionY,
-} from "./animation";
+import { layoutVerse, verseTextPhases, phaseAlpha, phaseY } from "./animation";
 import type { VerseCue, AudioSection, VoiceTracks, RGB } from "./types";
-import { ChromaticBackground } from "./ChromaticBackground";
 import { AnimatedText } from "./AnimatedText";
-import { GoldRule } from "./GoldRule";
 
-const readingInk = { body: "#182320", accent: "#493A29" };
-const DEFAULT_PALETTE: RGB[] = [
-  [246, 236, 216],
-  [222, 236, 226],
-  [240, 224, 210],
-  [220, 232, 242],
-];
+const paper = {
+  width: 1488,
+  height: 740,
+  padding: 100,
+  textWidth: 1288,
+  body: "#243A32",
+  accent: "#997B48",
+};
 
 interface ReadingSceneProps {
   boomerangVideoPath: string;
@@ -44,40 +24,22 @@ interface ReadingSceneProps {
   readingLength: number;
   readingSilence: number;
   readingPalette?: RGB[];
-  /** Total reading duration (sum of section cuts, without silence padding). */
+  /** Reading duration includes pauses between the independently trimmed verses. */
   readingDuration: number;
 }
 
 export const ReadingScene: React.FC<ReadingSceneProps> = ({
   boomerangVideoPath,
   sections,
-  voices,
   volumeMultiplier,
   verseCues,
-  readingLength,
   readingSilence,
-  readingPalette,
   readingDuration,
 }) => {
   const { fps, width, height } = useVideoConfig();
-  const frame = useCurrentFrame();
-  const t = frame / fps;
-
-  const sx = (v: number) => Math.round((v * width) / 1920);
-  const sy = (v: number) => Math.round((v * height) / 1080);
-
-  const readingPhase = {
-    start: Math.max(0, readingSilence - 0.3),
-    duration: 0.45,
-    exit: readingLength - readingSilence,
-    exitDuration: 0.4,
-  };
-
-  const colors =
-    readingPalette && readingPalette.length >= 4
-      ? readingPalette
-      : DEFAULT_PALETTE;
-
+  const t = useCurrentFrame() / fps;
+  const sx = (value: number) => (value * width) / 1920;
+  const sy = (value: number) => (value * height) / 1080;
   const layouts = useMemo(
     () => verseCues.map((cue) => layoutVerse(cue.text)),
     [verseCues],
@@ -86,13 +48,18 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
     () => layouts.map((layout) => layout.lines.length),
     [layouts],
   );
+  const progress = Math.max(
+    0,
+    Math.min(1, (t - readingSilence) / Math.max(0.001, readingDuration)),
+  );
 
-  // Schedule independent verse cuts, including silent text transitions.
+  // Schedule independent source cuts without including the surrounding waveform context.
   let sectionOffset = readingSilence;
   const sectionSchedule = sections.map((section) => {
-    const start = readingSilence + (section.timelineStart ?? sectionOffset - readingSilence);
-    const dur = section.end - section.start;
-    sectionOffset = start + dur;
+    const start =
+      readingSilence +
+      (section.timelineStart ?? sectionOffset - readingSilence);
+    sectionOffset = start + section.end - section.start;
     return { ...section, scheduleStart: start };
   });
 
@@ -103,10 +70,9 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
         height,
         position: "relative",
         overflow: "hidden",
-        background: "#F6ECE0",
+        background: "#17251F",
       }}
     >
-      {/* Looping boomerang video (no audio) */}
       <Video
         src={boomerangVideoPath}
         style={{
@@ -119,19 +85,9 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
         loop
         muted
       />
-
-      {/* Chromatic color overlay */}
-      <ChromaticBackground
-        width={width}
-        height={height}
-        t={t}
-        colors={colors}
-      />
-
-      {/* Bible reading audio sections */}
-      {sectionSchedule.map((section, i) => (
+      {sectionSchedule.map((section, index) => (
         <Sequence
-          key={i}
+          key={index}
           from={Math.round(section.scheduleStart * fps)}
           durationInFrames={Math.max(
             1,
@@ -140,143 +96,164 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
           layout="none"
         >
           <Audio
-            key={i}
             src={section.file}
             useWebAudioApi
             crossOrigin="anonymous"
             trimBefore={section.start * fps}
             trimAfter={section.end * fps}
-            // Delay into this segment: scheduleStart frames from the start of the reading scene
-            // Remotion offsets are controlled via Sequence wrapper in the root composition.
-            volume={
-              volumeMultiplier > 1
-                ? Math.min(volumeMultiplier, 4)
-                : volumeMultiplier
-            }
+            volume={Math.min(volumeMultiplier, 4)}
           />
         </Sequence>
       ))}
 
-      {/* Voice-over for reading segment if voices provided */}
+      {/* The paper stays still and visible; only the text changes between verses. */}
+      <div
+        style={{
+          position: "absolute",
+          left: (width - sx(paper.width)) / 2,
+          top: (height - sy(paper.height)) / 2,
+          width: sx(paper.width),
+          height: sy(paper.height),
+          borderRadius: sx(22),
+          background:
+            "linear-gradient(145deg, rgba(255, 253, 247, 0.87), rgba(250, 247, 239, 0.81))",
+          backdropFilter: `blur(${sx(14)}px) saturate(0.8)`,
+          WebkitBackdropFilter: `blur(${sx(14)}px) saturate(0.8)`,
+          boxShadow: `0 ${sy(24)}px ${sx(80)}px rgba(9, 23, 16, 0.23), inset 0 0 0 1px rgba(255, 255, 255, 0.7)`,
+          overflow: "hidden",
+        }}
+      >
+        {verseCues.map((cue, cueIndex) => {
+          if (
+            t < cue.start + readingSilence - 2 ||
+            t > cue.end + readingSilence + 1
+          )
+            return null;
+          const phases = verseTextPhases(
+            verseCues,
+            lineCounts,
+            cueIndex,
+            readingSilence,
+          );
+          const layout = layouts[cueIndex];
+          const lineHeight = layout.fontSize * 1.38;
+          // Keep reference and verse together, optically centered above the quiet footer.
+          const groupHeight = 66 + layout.lines.length * lineHeight;
+          const groupTop = 54 + (560 - groupHeight) / 2;
+          const referencePhase = phases[0];
+          const referenceAlpha = phaseAlpha(t, referencePhase);
+          const referenceY = phaseY(
+            t,
+            referencePhase,
+            sy(groupTop),
+            sy(10),
+            sy(5),
+          );
+          return (
+            <React.Fragment key={cue.reference}>
+              {referenceAlpha > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: sx(paper.padding),
+                    top: referenceY,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: sx(22),
+                    opacity: referenceAlpha,
+                    maxWidth: sx(paper.textWidth),
+                    color: paper.accent,
+                    fontFamily: "Avenir, sans-serif",
+                    fontSize: sx(29),
+                    fontWeight: 500,
+                    letterSpacing: sx(1.4),
+                    lineHeight: 1.3,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: sx(52),
+                      height: sy(2),
+                      background: paper.accent,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span>{cue.reference}</span>
+                </div>
+              )}
+              {layout.lines.map((line, lineIndex) => {
+                const phase = phases[lineIndex + 2];
+                const alpha = phaseAlpha(t, phase);
+                if (alpha <= 0) return null;
+                return (
+                  <AnimatedText
+                    key={lineIndex}
+                    text={line}
+                    x={sx(paper.padding)}
+                    y={phaseY(
+                      t,
+                      phase,
+                      sy(groupTop + 66 + lineIndex * lineHeight),
+                      sy(12),
+                      sy(6),
+                    )}
+                    fontSize={sx(layout.fontSize)}
+                    fontFamily="Georgia"
+                    color={paper.body}
+                    alpha={alpha}
+                    shadow={0}
+                    width={sx(paper.textWidth)}
+                    lineHeight={1.38}
+                  />
+                );
+              })}
+            </React.Fragment>
+          );
+        })}
 
-      {/* Gold rule at y=551 */}
-      <GoldRule
-        x={sx(160)}
-        y={sy(positionY(235))}
-        width={sx(96)}
-        height={Math.max(2, sy(3))}
-        color={readingInk.accent}
-        t={t}
-        phase={readingPhase}
-      />
-
-      {/* Verse text layers */}
-      {verseCues.map((cue, cueIndex) => {
-        if (
-          t < cue.start + readingSilence - 2 ||
-          t > cue.end + readingSilence + 1
-        )
-          return null;
-        const layout = layouts[cueIndex];
-        const lineHeight = layout.fontSize * 1.28;
-        const top = 330 + (500 - layout.lines.length * lineHeight) / 2;
-        const phases = verseTextPhases(
-          verseCues,
-          lineCounts,
-          cueIndex,
-          readingSilence,
-        );
-
-        // Reference text (phases[0])
-        const refPhase = phases[0];
-        const refAlpha = phaseAlpha(t, refPhase);
-        const refY = phaseY(t, refPhase, sy(positionY(160)), sy(24));
-
-        // Open-quote glyph (phases[1])
-        const quotePhase = phases[1];
-        const quoteAlpha = phaseAlpha(t, quotePhase);
-        const quoteY = phaseY(t, quotePhase, sy(positionY(255)), sy(20));
-
-        return (
-          <React.Fragment key={cueIndex}>
-            {refAlpha > 0 && (
-              <AnimatedText
-                text={cue.reference}
-                x={sx(160)}
-                y={refY}
-                fontSize={Math.max(1, Math.round((36 * width) / 1920))}
-                fontFamily="Avenir"
-                color={readingInk.accent}
-                alpha={refAlpha}
-                shadow={0}
-                width={sx(1600)}
-              />
-            )}
-            {quoteAlpha > 0 && (
-              <AnimatedText
-                text={"\u201C"}
-                x={sx(150)}
-                y={quoteY}
-                fontSize={Math.max(1, Math.round((106 * width) / 1920))}
-                fontFamily="Georgia"
-                color={readingInk.accent}
-                alpha={quoteAlpha}
-                shadow={0}
-                width={sx(1600)}
-              />
-            )}
-            {layout.lines.map((line, lineIndex) => {
-              const linePhase = phases[lineIndex + 2];
-              if (!linePhase) return null;
-              const lineAlpha = phaseAlpha(t, linePhase);
-              if (lineAlpha <= 0) return null;
-              const lineY = phaseY(
-                t,
-                linePhase,
-                sy(positionY(top + lineIndex * lineHeight)),
-                sy(34),
-              );
-              return (
-                <AnimatedText
-                  key={lineIndex}
-                  text={line}
-                  x={sx(160)}
-                  y={lineY}
-                  fontSize={Math.max(
-                    1,
-                    Math.round((layout.fontSize * width) / 1920),
-                  )}
-                  fontFamily="Georgia"
-                  color={readingInk.body}
-                  alpha={lineAlpha}
-                  shadow={0}
-                  width={sx(1600)}
-                />
-              );
-            })}
-          </React.Fragment>
-        );
-      })}
-
-      {/* Website wordmark */}
-      {(() => {
-        const wAlpha = phaseAlpha(t, readingPhase);
-        const wY = phaseY(t, readingPhase, sy(positionY(940)), sy(10));
-        if (wAlpha <= 0) return null;
-        return (
-          <AnimatedText
-            text="V E O B I B L E . C O M"
-            x={sx(160)}
-            y={wY}
-            fontSize={Math.max(1, Math.round((24 * width) / 1920))}
-            fontFamily="Avenir Next Demi Bold"
-            color={readingInk.body}
-            alpha={wAlpha}
-            shadow={0}
-            width={sx(1600)}
+        <div
+          style={{
+            position: "absolute",
+            left: sx(paper.padding),
+            right: sx(paper.padding),
+            bottom: sy(98),
+            height: sy(1),
+            background: "rgba(121, 103, 72, 0.14)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: sx(paper.padding),
+            bottom: sy(45),
+            fontFamily: "Avenir, sans-serif",
+            fontSize: sx(20),
+            fontWeight: 500,
+            letterSpacing: sx(4.5),
+            color: "rgba(36, 58, 50, 0.58)",
+          }}
+        >
+          VEOBIBLE.COM
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            inset: "auto 0 0",
+            height: sy(3),
+            background: "rgba(153, 123, 72, 0.1)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              background: "rgba(153, 123, 72, 0.65)",
+              transform: `scaleX(${progress})`,
+              transformOrigin: "left center",
+            }}
           />
-        );
-      })()}
+        </div>
+      </div>
     </div>
   );
 };
