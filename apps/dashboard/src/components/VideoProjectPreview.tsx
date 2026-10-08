@@ -41,6 +41,7 @@ export function VideoProjectPreview({
   endpoint,
   media,
   settings,
+  readingVolume,
   cues,
   ready,
   rendered,
@@ -52,6 +53,7 @@ export function VideoProjectPreview({
   endpoint: (action?: string) => string;
   media: (asset: string) => string;
   settings: RenderRequest["settings"];
+  readingVolume: number;
   cues: VerseCue[];
   ready: boolean;
   rendered: boolean;
@@ -119,7 +121,8 @@ export function VideoProjectPreview({
         ? {
             ...preview.props,
             verseCues: cues,
-            volumeMultiplier: settings.volumeMultiplier,
+            // Only ReadingScene consumes this gain; narration keeps its original volume.
+            volumeMultiplier: readingVolume,
             introVideoPath: media(preview.props.introVideoPath),
             boomerangVideoPath: media(preview.props.boomerangVideoPath),
             outroVideoPath: media(preview.props.outroVideoPath),
@@ -136,7 +139,7 @@ export function VideoProjectPreview({
               : undefined,
           }
         : null,
-    [preview, cues, settings.volumeMultiplier, media],
+    [preview, cues, readingVolume, media],
   );
   const load = async () => {
     request.current?.abort();

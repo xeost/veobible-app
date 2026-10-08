@@ -448,6 +448,22 @@ a:focus-visible {
   color: #cbb6e8;
   font-size: 11px;
 }
+.generation-queue-details time {
+  color: var(--muted);
+  font-size: 11px;
+}
+.generation-queue-item.done .generation-queue-icon {
+  color: #8acdaa;
+}
+.queue-view-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.queue-history-hint {
+  font-size: 12px;
+  margin: 18px 0;
+}
 .dot {
   display: inline-block;
   width: 6px;
@@ -897,6 +913,25 @@ tbody tr:last-child td {
 .project-published-button:hover {
   background: #59be9528;
   border-color: #59be9560;
+}
+.project-publication-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.current-project-marker {
+  border-color: var(--line);
+  flex-shrink: 0;
+}
+.current-project-marker.active {
+  color: #f0ddff;
+  border-color: #b48ae8;
+  background: #8c5ccf66;
+  box-shadow: 0 0 0 3px #a879e21a;
+}
+.current-project-marker.active svg {
+  fill: currentColor;
 }
 .pagination {
   padding: 14px 22px;
@@ -2259,6 +2294,20 @@ audio {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+.video-project-row.current-project {
+  background: #9878bf26;
+}
+.video-project-row.current-project:hover,
+.video-project-row.current-project:focus-visible {
+  background: #9878bf3d;
+}
+.video-project-row.current-project td:first-child {
+  box-shadow: inset 4px 0 #b48ae8;
+  color: #e3c8ff;
+}
+.video-project-row.current-project .project-name {
+  color: #f0ddff;
+}
 .bible-versions-table th:last-child,
 .bible-versions-table td:last-child {
   width: 1%;
@@ -2266,11 +2315,37 @@ audio {
   text-align: right;
 }
 .bible-versions-table th:last-child {
-  text-align: center;
+  text-align: left;
 }
 .bible-versions-table td:last-child .project-top-actions {
   flex-wrap: nowrap;
   justify-content: flex-end;
+}
+.bible-versions-table .version-videos-column {
+  width: 140px;
+  min-width: 140px;
+  padding-right: 32px;
+  white-space: nowrap;
+}
+.bible-versions-table .version-pin-column {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+.version-pin-button.pinned {
+  color: #c8a7f3;
+  border-color: #9878bf55;
+  background: #9878bf18;
+}
+.version-pin-button.pinned svg {
+  fill: currentColor;
+}
+.version-video-links {
+  display: flex;
+  gap: 8px;
+}
+.version-video-links .icon-button {
+  border-color: var(--line);
 }
 
 .manual-passage-points,
@@ -2373,12 +2448,12 @@ audio {
   margin: 0;
   width: max-content;
   padding: 9px 12px;
-  border: 1px solid #b49ade45;
+  border: 1px solid #73668055;
   border-radius: 10px;
-  background: linear-gradient(145deg, #30283f, #211d2c);
+  background: #101016;
   color: #f6f1ff;
   box-shadow:
-    0 8px 28px #0008,
+    0 10px 30px #000b,
     0 1px 0 #ffffff0a inset;
   font-size: 12px;
   line-height: 1.5;
@@ -2386,9 +2461,34 @@ audio {
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
-  overflow: hidden;
+  overflow: visible;
   z-index: 2147483647;
   pointer-events: auto;
+}
+.dashboard-tooltip-label {
+  display: block;
+  max-height: calc(100dvh - 44px);
+  overflow: hidden;
+}
+.dashboard-tooltip::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--tooltip-arrow) - 4px);
+  width: 7px;
+  height: 7px;
+  background: #101016;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.dashboard-tooltip[data-side="top"]::after {
+  bottom: -4px;
+  border-right: 1px solid #73668055;
+  border-bottom: 1px solid #73668055;
+}
+.dashboard-tooltip[data-side="bottom"]::after {
+  top: -4px;
+  border-left: 1px solid #73668055;
+  border-top: 1px solid #73668055;
 }
 .dashboard-tooltip:popover-open {
   animation: tooltip-appear 0.14s ease-out;

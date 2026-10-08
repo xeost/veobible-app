@@ -3,3 +3,4 @@ chatterbox-tts>=0.1.7
 torchaudio
 huggingface-hub
 safetensors
+psutil>=7.0,<8

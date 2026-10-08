@@ -1,5 +1,8 @@
 "use client";
+import { useModalDismiss } from "./useModalDismiss";
+import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Plus,
   Pencil,
@@ -9,6 +12,9 @@ import {
   RefreshCw,
   MoreVertical,
   LoaderCircle,
+  Clapperboard,
+  Film,
+  Pin,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
@@ -19,6 +25,8 @@ const languages = { es: "Spanish", en: "English", pt: "Portuguese" } as const;
 export function BibleVersions() {
   const { t } = useI18n();
   const [versions, setVersions] = useState<BibleVersion[]>([]);
+  const { isPinned, orderVersions, togglePin } = usePinnedBibleVersions();
+  const displayedVersions = orderVersions(versions);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -175,7 +183,15 @@ export function BibleVersions() {
           <table className="bible-versions-table">
             <thead>
               <tr>
+                <th
+                  className="version-pin-column"
+                  aria-label={t("Pinned versions")}
+                  data-tooltip={t("Pinned versions")}
+                >
+                  <Pin size={15} aria-hidden="true" />
+                </th>
                 <th>{t("Name")}</th>
+                <th className="version-videos-column">{t("Videos")}</th>
                 <th>{t("Language")}</th>
                 <th>{t("Version code")}</th>
                 <th>{t("Projects")}</th>
@@ -183,7 +199,7 @@ export function BibleVersions() {
               </tr>
             </thead>
             <tbody>
-              {versions.map((version) => (
+              {displayedVersions.map((version) => (
                 <tr
                   key={version.id}
                   className="bible-version-row"
@@ -202,7 +218,46 @@ export function BibleVersions() {
                     }
                   }}
                 >
+                  <td className="version-pin-column">
+                    <button
+                      type="button"
+                      className={`icon-button version-pin-button${isPinned(version) ? " pinned" : ""}`}
+                      aria-pressed={isPinned(version)}
+                      aria-label={`${t(isPinned(version) ? "Unpin version" : "Pin version")}: ${version.label}`}
+                      data-tooltip={t(
+                        isPinned(version) ? "Unpin version" : "Pin version",
+                      )}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        togglePin(version);
+                      }}
+                    >
+                      <Pin size={16} aria-hidden="true" />
+                    </button>
+                  </td>
                   <td>{version.label}</td>
+                  <td className="version-videos-column">
+                    <div className="version-video-links">
+                      <Link
+                        href={`/short-videos?version=${version.id}`}
+                        className="button icon-button"
+                        aria-label={`${t("View short videos")}: ${version.label}`}
+                        data-tooltip={t("View short videos")}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Clapperboard size={16} aria-hidden="true" />
+                      </Link>
+                      <Link
+                        href={`/long-videos?version=${version.id}`}
+                        className="button icon-button"
+                        aria-label={`${t("View long videos")}: ${version.label}`}
+                        data-tooltip={t("View long videos")}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Film size={16} aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </td>
                   <td>{t(languages[version.locale])}</td>
                   <td>{version.code}</td>
                   <td>{version.project_count}</td>
@@ -294,6 +349,7 @@ function VersionDialog({
   saved: () => void;
 }) {
   const { t } = useI18n();
+  const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
   const [values, setValues] = useState({
     locale: version?.locale ?? "es",
@@ -321,10 +377,7 @@ function VersionDialog({
       ref={dialog}
       className="generation-queue-dialog voice-settings-dialog"
       aria-labelledby="version-dialog-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!busy) close();
-      }}
+      {...dismiss}
     >
       <form
         onSubmit={async (event) => {

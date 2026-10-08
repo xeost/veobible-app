@@ -12,10 +12,14 @@ export function DashboardTooltips() {
     tooltip.setAttribute("role", "tooltip");
     tooltip.setAttribute("popover", "manual");
     tooltip.hidden = true;
+    const label = document.createElement("span");
+    label.className = "dashboard-tooltip-label";
+    tooltip.appendChild(label);
     document.body.appendChild(tooltip);
     let active: HTMLElement | null = null;
     let hovered: HTMLElement | null = null;
     let focused: HTMLElement | null = null;
+    let keyboardFocus = false;
     let openTimer: ReturnType<typeof setTimeout> | undefined;
     let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -35,8 +39,27 @@ export function DashboardTooltips() {
       if (tooltip.matches(":popover-open")) tooltip.hidePopover();
       tooltip.hidden = true;
     };
+    const available = (element: HTMLElement) => {
+      if (!element.isConnected || !element.getClientRects().length)
+        return false;
+      if (
+        element.closest(
+          '[inert], [hidden], [aria-hidden="true"], dialog:not([open])',
+        )
+      )
+        return false;
+      if (getComputedStyle(element).visibility !== "visible") return false;
+      const modal = [
+        ...document.querySelectorAll<HTMLElement>(
+          'dialog[open], [role="dialog"][aria-modal="true"]',
+        ),
+      ]
+        .filter((dialog) => dialog.getClientRects().length)
+        .at(-1);
+      return !modal || modal.contains(element);
+    };
     const position = () => {
-      if (!active?.isConnected) return hide();
+      if (!active || !available(active)) return hide();
       const view = window.visualViewport;
       const viewport = {
         left: view?.offsetLeft ?? 0,
@@ -76,10 +99,10 @@ export function DashboardTooltips() {
       hide();
       active = element;
       openTimer = setTimeout(() => {
-        if (!element.isConnected || active !== element) return hide();
-        const label = text(element).trim();
-        if (!label) return hide();
-        tooltip.textContent = label;
+        if (!available(element) || active !== element) return hide();
+        const content = text(element).trim();
+        if (!content) return hide();
+        label.textContent = content;
         tooltip.hidden = false;
         // The browser's top layer stays above dialogs, stacking contexts and clipped containers.
         tooltip.showPopover();
@@ -96,7 +119,13 @@ export function DashboardTooltips() {
     const scheduleHide = () => {
       clearTimeout(closeTimer);
       closeTimer = setTimeout(() => {
-        if (focused?.isConnected) show(focused);
+        if (
+          keyboardFocus &&
+          focused === document.activeElement &&
+          focused &&
+          available(focused)
+        )
+          show(focused);
         else hide();
       }, 120);
     };
@@ -107,6 +136,7 @@ export function DashboardTooltips() {
       const element = trigger(event.target);
       hovered = element;
       if (element) show(element);
+      else scheduleHide();
     };
     const pointerOut = (event: PointerEvent) => {
       const next =
@@ -116,27 +146,31 @@ export function DashboardTooltips() {
       scheduleHide();
     };
     const focusIn = (event: FocusEvent) => {
-      focused = trigger(event.target);
+      focused = keyboardFocus ? trigger(event.target) : null;
       if (focused) show(focused);
-      else hide();
+      else if (!hovered) hide();
     };
     const focusOut = () => {
       focused = null;
       scheduleHide();
     };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") hide();
-    };
     const dismiss = () => {
       hovered = null;
       focused = null;
+      keyboardFocus = false;
       hide();
     };
+    const keyDown = (event: KeyboardEvent) => {
+      if (event.key === "Tab") keyboardFocus = true;
+      else if (["Escape", "Enter", " "].includes(event.key)) dismiss();
+    };
     const refresh = () => {
-      if (!active || tooltip.hidden) return;
-      const label = text(active).trim();
-      if (!label) return hide();
-      if (tooltip.textContent !== label) tooltip.textContent = label;
+      if (!active) return;
+      if (!available(active)) return dismiss();
+      if (tooltip.hidden) return;
+      const content = text(active).trim();
+      if (!content) return hide();
+      if (label.textContent !== content) label.textContent = content;
       position();
     };
     // Convert native titles supplied by embedded players as well as future controls.
@@ -164,14 +198,23 @@ export function DashboardTooltips() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["title", "data-tooltip", "aria-label"],
+      attributeFilter: [
+        "title",
+        "data-tooltip",
+        "aria-label",
+        "open",
+        "hidden",
+        "inert",
+        "aria-hidden",
+        "aria-modal",
+      ],
     });
     document.addEventListener("pointerover", pointerOver);
     document.addEventListener("pointerout", pointerOut);
     document.addEventListener("focusin", focusIn);
     document.addEventListener("focusout", focusOut);
     document.addEventListener("pointerdown", dismiss, true);
-    document.addEventListener("keydown", escape);
+    document.addEventListener("keydown", keyDown, true);
     document.addEventListener("scroll", dismiss, true);
     window.addEventListener("resize", refresh);
     window.addEventListener("blur", dismiss);
@@ -186,7 +229,7 @@ export function DashboardTooltips() {
       document.removeEventListener("focusin", focusIn);
       document.removeEventListener("focusout", focusOut);
       document.removeEventListener("pointerdown", dismiss, true);
-      document.removeEventListener("keydown", escape);
+      document.removeEventListener("keydown", keyDown, true);
       document.removeEventListener("scroll", dismiss, true);
       window.removeEventListener("resize", refresh);
       window.removeEventListener("blur", dismiss);

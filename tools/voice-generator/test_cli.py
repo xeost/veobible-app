@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from cli import generate, read_voice_prompts, voice_prompt_for_track
+from cli import generate, main, read_voice_prompts, voice_prompt_for_track
 
 
 class VoicePromptTests(unittest.TestCase):
@@ -52,6 +52,38 @@ class VoicePromptTests(unittest.TestCase):
                 generate(args, {"intro": "Hola", "outro": "Adiós"}, {})
             self.assertEqual(convert.call_count, 2)
             self.assertEqual(sorted(file.name for file in root.iterdir()), ["intro.txt", "intro.wav", "outro.txt", "outro.wav"])
+
+    def test_supervisor_failure_cleans_only_owned_staging_and_preserves_existing_audio(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scripts = root / "scripts.json"
+            scripts.write_text(json.dumps({"intro": "Hello"}))
+            output = root / "audio"
+            output.mkdir()
+            (output / "intro.wav").write_bytes(b"existing")
+            unrelated = output / ".voice-other-job"
+            unrelated.mkdir()
+
+            def fail(command, limits, lock_fd):
+                self.assertEqual(limits.profile, "low")
+                staging = Path(command[command.index("--staging-dir") + 1])
+                (staging / "partial.wav").write_bytes(b"partial")
+                raise RuntimeError("VOICE_RESOURCE_LIMIT: memory limit")
+
+            argv = ["cli.py", "--scripts", str(scripts), "--language", "en", "--output-dir", str(output), "--force", "--resource-profile", "low"]
+            with patch.object(sys, "argv", argv), patch("resources.supervise", side_effect=fail):
+                self.assertEqual(main(), 1)
+            self.assertEqual((output / "intro.wav").read_bytes(), b"existing")
+            self.assertEqual(sorted(path.name for path in output.iterdir()), [".voice-other-job", "intro.wav"])
+
+    def test_low_profile_resolves_auto_to_cpu_before_model_loading(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scripts = Path(directory) / "scripts.json"
+            scripts.write_text(json.dumps({"intro": "Hello"}))
+            argv = ["cli.py", "--scripts", str(scripts), "--language", "en", "--output-dir", directory, "--resource-profile", "low", "--worker"]
+            with patch.object(sys, "argv", argv), patch("resources.configure_worker") as configure, patch("cli.generate"):
+                self.assertEqual(main(), 0)
+                self.assertEqual(configure.call_args.args[1], "cpu")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 "use client";
+import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
@@ -18,6 +19,7 @@ export function CreateVideoProjectModal({
   kind: "short" | "long";
   close: () => void;
 }) {
+  const dismiss = useModalDismiss(close);
   const { t } = useI18n(),
     router = useRouter(),
     dialog = useRef<HTMLDialogElement>(null);
@@ -148,10 +150,7 @@ export function CreateVideoProjectModal({
       ref={dialog}
       className="generation-queue-dialog voice-settings-dialog"
       aria-labelledby="create-video-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!busy) close();
-      }}
+      {...dismiss}
     >
       <form
         onSubmit={async (event) => {

@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import signal
+from contextlib import nullcontext
 from pathlib import Path
 
 
@@ -84,6 +86,7 @@ def load_latam_model(device: str):
     if "model" in state:
         state = state["model"][0]
     t3.load_state_dict(state)
+    del state
     t3.to(device).eval()
     s3gen = S3Gen()
     s3gen.load_state_dict(torch.load(base / "s3gen.pt", map_location=location, weights_only=True))
@@ -107,11 +110,11 @@ def load_model(kind: str, device: str):
 def convert_audio(source: Path, target: Path, codec: str) -> None:
     subprocess.run([
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-n", "-i", str(source),
-        "-map", "0:a:0", "-vn", "-c:a", codec, "-ar", "48000", str(target),
+        "-map", "0:a:0", "-vn", "-c:a", codec, "-threads", "1", "-ar", "48000", str(target),
     ], check=True)
 
 
-def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: dict[str, Path]) -> None:
+def validate_generation(args: argparse.Namespace, scripts: dict[str, str]) -> None:
     if shutil.which("ffmpeg") is None:
         raise RuntimeError("ffmpeg must be available on PATH")
     if args.voice_prompt and not args.voice_prompt.is_file():
@@ -122,11 +125,17 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
     if not args.force and any((args.output_dir / name).exists() for name in output_names):
         raise FileExistsError("Audio or text files already exist; use --force to replace them")
 
+
+def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: dict[str, Path]) -> None:
+    validate_generation(args, scripts)
+    output_names = [f"{name}.{extension}" for name in scripts for extension in ("txt", "wav")]
     print("Stage: Loading model", flush=True)
     import torchaudio
     model = load_model(args.model, args.device)
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".voice-", dir=args.output_dir) as staging_name:
+    staging_dir = getattr(args, "staging_dir", None)
+    staging_context = nullcontext(staging_dir) if staging_dir else tempfile.TemporaryDirectory(prefix=".voice-", dir=args.output_dir)
+    with staging_context as staging_name:
         staging = Path(staging_name)
         for track, script in scripts.items():
             print(f"Stage: Generating {track}", flush=True)
@@ -143,6 +152,7 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
             native = staging / f"{track}-native.wav"
             torchaudio.save(str(native), waveform.cpu(), model.sr)
             convert_audio(native, staging / f"{track}.wav", "pcm_s24le")
+            del waveform
             (staging / f"{track}.txt").write_text(script + "\n", encoding="utf-8")
         for name in output_names:
             (staging / name).replace(args.output_dir / name)
@@ -165,6 +175,14 @@ def main() -> int:
     parser.add_argument("--cfg-weight", type=float, default=0.5)
     parser.add_argument("--dry-run", action="store_true", help="Validate and show scripts without loading the model")
     parser.add_argument("--force", action="store_true", help="Replace existing tracks")
+    parser.add_argument("--resource-profile", choices=("low", "standard"), default=os.getenv("VOICE_GENERATOR_PROFILE", "low"), help="low uses CPU and reduced process priority (default)")
+    parser.add_argument("--threads", type=int, default=os.getenv("VOICE_GENERATOR_THREADS", "2"))
+    parser.add_argument("--max-memory-mb", type=float, default=os.getenv("VOICE_GENERATOR_MAX_MEMORY_MB", "6144"), help="Maximum combined worker/child RSS in MiB")
+    parser.add_argument("--min-free-memory-mb", type=float, default=os.getenv("VOICE_GENERATOR_MIN_FREE_MEMORY_MB", "3072"), help="Minimum available system RAM in MiB")
+    parser.add_argument("--timeout-seconds", type=float, default=os.getenv("VOICE_GENERATOR_TIMEOUT_SECONDS", "1800"))
+    parser.add_argument("--lock-timeout-seconds", type=float, default=os.getenv("VOICE_GENERATOR_LOCK_TIMEOUT_SECONDS", "300"))
+    parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--staging-dir", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     try:
         if not 0 <= args.exaggeration <= 1 or not 0 <= args.cfg_weight <= 1:
@@ -174,9 +192,34 @@ def main() -> int:
         if args.dry_run:
             print(json.dumps({"language": args.language, "scripts": scripts, "voice_prompts": {track: str(sample) for track, sample in voice_prompts.items()}}, ensure_ascii=False, indent=2))
         else:
-            generate(args, scripts, voice_prompts)
+            from resources import Limits, configure_worker, generation_lock, supervise
+            limits = Limits(args.resource_profile, args.threads, args.max_memory_mb, args.min_free_memory_mb, args.timeout_seconds, args.lock_timeout_seconds)
+            limits.validate()
+            if args.resource_profile == "low":
+                if args.device not in ("auto", "cpu"):
+                    raise ValueError("The low-consumption profile requires CPU; use --device cpu or --resource-profile standard")
+                args.device = "cpu"
+            if args.worker:
+                configure_worker(limits, args.device)
+                generate(args, scripts, voice_prompts)
+            else:
+                validate_generation(args, scripts)
+                def interrupted(signum, frame):
+                    raise KeyboardInterrupt
+                previous_handler = signal.signal(signal.SIGTERM, interrupted)
+                try:
+                    with generation_lock(limits.lock_timeout_seconds) as lock_fd:
+                        args.output_dir.mkdir(parents=True, exist_ok=True)
+                        with tempfile.TemporaryDirectory(prefix=".voice-", dir=args.output_dir) as staging:
+                            print(f"Resources: {limits.profile} profile, {args.device}, {limits.threads} threads, {limits.max_memory_mb:g} MiB RSS limit", flush=True)
+                            return supervise([sys.executable, str(Path(__file__).resolve()), *sys.argv[1:], "--worker", "--staging-dir", str(Path(staging).resolve())], limits, lock_fd)
+                finally:
+                    signal.signal(signal.SIGTERM, previous_handler)
         return 0
-    except (FileNotFoundError, FileExistsError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
+    except KeyboardInterrupt:
+        print("Error: Voice generation interrupted by SIGTERM or SIGINT", file=sys.stderr)
+        return 130
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 

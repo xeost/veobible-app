@@ -8,7 +8,7 @@ import { z } from "zod";
 import { settingsSchema, renderSchema } from "./video-schema";
 import { videoFetch } from "./video-client";
 import { bindings } from "./env";
-import { loadQueueProjects } from "./queue-projects";
+import { loadQueueView } from "./queue-projects";
 import { signMediaAccess } from "../../../../tools/api-proxy/src/media-access.mjs";
 import {
   loadProjectSettings,
@@ -96,35 +96,20 @@ export async function videoApi(
     });
   if (parts[0] === "generation-queue" && method === "GET") {
     try {
-      const response = await videoFetch("/v1/queue");
+      const response = await videoFetch(
+        `/v1/queue?outputEnvironment=${outputEnvironment}`,
+      );
       if (!response.ok) throw new Error("Queue unavailable");
       const data = (await response.json()) as {
         items: { projectId: number; kind: string; status: string }[];
         summary: { progress: number; completed: number; total: number };
       };
-      const activeItems = data.items.filter((item) =>
-        ["queued", "running"].includes(item.status),
-      );
-      const byId = await loadQueueProjects(
-        database,
-        activeItems.map((item) => item.projectId),
-      );
+      const includeHistory =
+        new URL(req.url).searchParams.get("history") === "1";
       return json({
         connected: true,
         summary: data.summary,
-        items: activeItems.flatMap((item) => {
-          const project = byId.get(item.projectId);
-          return project?.kind === item.kind
-            ? [
-                {
-                  ...item,
-                  title: project.title,
-                  version: project.version_code,
-                  href: `/${item.kind === "short" ? "short-videos" : "long-videos"}/${project.id}`,
-                },
-              ]
-            : [];
-        }),
+        ...(await loadQueueView(database, data.items, includeHistory)),
       });
     } catch {
       return json({

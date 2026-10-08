@@ -178,6 +178,12 @@ export function voiceFailureMessage(reason?: string, lang?: Language): string {
   else if (reason === "interrupted")
     text =
       "The computer interrupted narration generation. Check disk space and close applications before trying again.";
+  else if (reason === "resource_limit")
+    text = "Narration generation stopped to keep the computer responsive. Close unused applications and try again.";
+  else if (reason === "timeout")
+    text = "Narration generation exceeded its time limit. Try again; if the problem persists, contact the administrator.";
+  else if (reason === "voice_busy")
+    text = "Another narration is still being generated. Wait for it to finish and try again.";
 
   return lang ? translateServer(text, lang) : text;
 }

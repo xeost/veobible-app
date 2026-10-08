@@ -15,6 +15,7 @@ export function VerseWaveform({
   sourceStart,
   sourceEnd,
   timelineStart,
+  volumeMultiplier,
   cues,
   disabled,
   onTrim,
@@ -23,6 +24,7 @@ export function VerseWaveform({
   sourceStart: number;
   sourceEnd: number;
   timelineStart: number;
+  volumeMultiplier: number;
   cues: VerseCue[];
   disabled: boolean;
   onTrim: (reference: string, edge: "start" | "end", value: number) => void;
@@ -43,6 +45,30 @@ export function VerseWaveform({
   const [zoom, setZoom] = useState(1);
   const [revision, setRevision] = useState(0);
   const audio = useRef<HTMLAudioElement>(null);
+  const audioGraph = useRef<{
+    context: AudioContext;
+    source: MediaElementAudioSourceNode;
+    gain: GainNode;
+  } | null>(null);
+  const volume = useRef(volumeMultiplier);
+  volume.current = volumeMultiplier;
+  useEffect(() => {
+    if (audioGraph.current)
+      audioGraph.current.gain.gain.setValueAtTime(
+        volumeMultiplier,
+        audioGraph.current.context.currentTime,
+      );
+  }, [volumeMultiplier]);
+  useEffect(
+    () => () => {
+      const graph = audioGraph.current;
+      if (!graph) return;
+      graph.source.disconnect();
+      graph.gain.disconnect();
+      void graph.context.close();
+    },
+    [],
+  );
   const track = useRef<HTMLDivElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const stopAt = useRef(sourceEnd);
@@ -150,7 +176,19 @@ export function VerseWaveform({
     setPlayhead(player.currentTime);
     setHasPlayhead(true);
     try {
-      await player.play();
+      // Native media volume is capped at 1; a gain node also supports amplified reading.
+      if (!audioGraph.current) {
+        const context = new AudioContext();
+        const source = context.createMediaElementSource(player);
+        const gain = context.createGain();
+        source.connect(gain);
+        gain.connect(context.destination);
+        audioGraph.current = { context, source, gain };
+      }
+      const graph = audioGraph.current;
+      graph.gain.gain.setValueAtTime(volume.current, graph.context.currentTime);
+      player.volume = 1;
+      await Promise.all([graph.context.resume(), player.play()]);
     } catch (error) {
       if (
         request === playbackRequest.current &&
@@ -418,6 +456,7 @@ export function VerseWaveform({
         </div>
         <audio
           ref={audio}
+          crossOrigin="anonymous"
           src={src}
           preload="metadata"
           onPlay={() => setPlaying(true)}

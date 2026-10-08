@@ -33,9 +33,9 @@ import {
 } from "../lib/generation-queue";
 const items = [
   ["/", "Dashboard", LayoutDashboard],
+  ["/bible-versions", "Bible versions", BookOpen],
   ["/short-videos", "Short Videos", Clapperboard],
   ["/long-videos", "Long Videos", Film],
-  ["/bible-versions", "Bible versions", BookOpen],
   ["/deployments", "Publications", Rocket],
   ["/settings", "Settings", Settings],
 ] as const;
@@ -47,6 +47,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
   const [open, setOpen] = useState(false),
     [profile, setProfile] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const queueOpenRef = useRef(false);
   const [queue, setQueue] = useState<GenerationQueueState>({
     connected: false,
     items: [],
@@ -74,7 +75,11 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
       clearTimeout(timer);
       let delay = 60000;
       try {
-        const data = await api<GenerationQueueState>("generation-queue");
+        const data = await api<GenerationQueueState>(
+          queueOpenRef.current
+            ? "generation-queue?history=1"
+            : "generation-queue",
+        );
         if (live)
           setQueue((current) =>
             data.connected ? data : { ...current, connected: false },
@@ -166,6 +171,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
               className="local-card generation-queue-card"
               aria-label={t("Open generation queue")}
               onClick={() => {
+                queueOpenRef.current = true;
                 setQueueOpen(true);
                 setOpen(false);
                 refreshQueue.current();
@@ -304,7 +310,10 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
         {queueOpen && (
           <GenerationQueueModal
             state={queue}
-            close={() => setQueueOpen(false)}
+            close={() => {
+              queueOpenRef.current = false;
+              setQueueOpen(false);
+            }}
             refresh={() => refreshQueue.current()}
           />
         )}

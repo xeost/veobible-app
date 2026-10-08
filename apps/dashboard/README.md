@@ -42,7 +42,11 @@ pnpm --dir apps/dashboard db:migrate:remote
 
 Consolidation replaces prior history and requires rebuilding an existing database; it is not an incremental migration of existing data. Wrangler tracks migrations in `d1_migrations`. The local database is stored in `apps/dashboard/.wrangler/state/v3/d1`. There are no automated project or settings insertions.
 
+Keep the root `d1_databases` binding in `wrangler.jsonc` for development; configure the real production database only under `env.production.d1_databases`. The local emulator selects its SQLite database using the binding's database ID, so changing the root ID opens a different local database instead of reusing existing data. The root configuration also uses the local video proxy, while production uses its HTTPS tunnel.
+
 ## Projects and Generation
+
+The generation modal has Queue and History tabs. History lists recent completed or failed intro narration, closing narration, and video renders, newest first, with links to their existing projects. These records come from the generator's in-memory queue and disappear when it restarts. Tasks for deleted projects are omitted. History is requested only while the modal is open; sidebar polling continues to query active tasks only.
 
 Under `/short-videos` and `/long-videos`, "New project" prompts for version, title, short name, and the starting and ending books, chapters, and verses. Long videos require an episode number. Available books and their boundaries are queried from the generator for the selected version; passages are entered manually and can cross book boundaries. The server validates endpoints and rejects duplicate short names within the format and version. There is no static list of passages in the dashboard. Versions are managed under `/bible-versions`. Listings display created projects and distinguish published and unpublished items.
 

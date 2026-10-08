@@ -1,4 +1,5 @@
 "use client";
+import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
 import {
   X,
@@ -37,13 +38,15 @@ export function UserProfileModal({
   const dialog = useRef<HTMLElement>(null);
   const closeRef = useRef(close);
   closeRef.current = close;
-  const busyRef = useRef(busy);
-  busyRef.current = busy;
+  const dismiss = useModalDismiss(close);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     dialog.current?.querySelector<HTMLElement>("button")?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busyRef.current) closeRef.current();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current();
+      }
       if (event.key === "Tab") {
         const controls = [
           ...(dialog.current?.querySelectorAll<HTMLElement>(
@@ -126,9 +129,8 @@ export function UserProfileModal({
   return (
     <div
       className="modal-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !busy) close();
-      }}
+      onPointerDown={dismiss.onPointerDown}
+      onClick={dismiss.onClick}
     >
       <section
         ref={dialog}

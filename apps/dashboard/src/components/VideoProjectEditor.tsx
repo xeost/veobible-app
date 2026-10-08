@@ -727,7 +727,6 @@ export function VideoProjectEditor({
                   body: JSON.stringify(checkedSettings()),
                 });
                 window.dispatchEvent(new Event(queueChangedEvent));
-                setNotice("Video queued for generation.");
               })
             }
           >
@@ -760,13 +759,6 @@ export function VideoProjectEditor({
       {notice && (
         <p className="success" role="status">
           {t(notice)}
-        </p>
-      )}
-      {active && (
-        <p className="notice">
-          {t(
-            "The video is being created. You can leave this page; generation will continue.",
-          )}
         </p>
       )}
       {active && (
@@ -834,6 +826,7 @@ export function VideoProjectEditor({
                         sourceStart={section.start}
                         sourceEnd={section.end}
                         timelineStart={section.timelineStart}
+                        volumeMultiplier={readingVolumeValue}
                         cues={verses}
                         disabled={editingLocked || analyzing}
                         onTrim={trim}
@@ -924,7 +917,8 @@ export function VideoProjectEditor({
             kind={kind}
             endpoint={endpoint}
             media={media}
-            settings={{ ...settings, volumeMultiplier: readingVolumeValue }}
+            settings={settings}
+            readingVolume={readingVolumeValue}
             cues={cues}
             ready={Boolean(analysis && !analyzing && voicesReady)}
             playbackRef={previewPlayback}

@@ -3,6 +3,8 @@ import { SyncVideoProjectsModal } from "./SyncVideoProjectsModal";
 import { VideoProjectMenu } from "./VideoProjectMenu";
 import { CreateVideoProjectModal } from "./CreateVideoProjectModal";
 import { useI18n } from "../i18n/context";
+import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
+import type { BibleVersion } from "../lib/bible-versions";
 import { userMessage } from "../lib/presentation";
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -15,16 +17,84 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Bookmark,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, date } from "./api";
 import { type VideoRow } from "./video-project";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
+
+function versionFilter(value: string | null): string {
+  return value === "all" ||
+    (value !== null &&
+      /^[1-9]\d*$/.test(value) &&
+      Number.isSafeInteger(Number(value)))
+    ? value
+    : "all";
+}
+const projectVersionKey = (row: VideoRow) =>
+  `${row.locale}:${row.version_code}`;
+function parseCurrentProjects(value: string | null): Record<string, number> {
+  try {
+    const parsed: unknown = JSON.parse(value ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        ([, id]) =>
+          typeof id === "number" && Number.isSafeInteger(id) && id > 0,
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
 export function Videos({ kind }: { kind: "short" | "long" }) {
   const { t, language } = useI18n();
+  const { orderVersions } = usePinnedBibleVersions();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const requestedVersion = searchParams.get("version");
+  const versionStorageKey = `veo-video-version-filter:${kind}`;
+  const currentProjectStorageKey = `veo-current-video-projects:${kind}`;
+  const [currentProjects, setCurrentProjects] = useState<
+    Record<string, number>
+  >({});
+  useEffect(() => {
+    const read = () => {
+      try {
+        setCurrentProjects(
+          parseCurrentProjects(localStorage.getItem(currentProjectStorageKey)),
+        );
+      } catch {
+        // The working mark remains usable when browser storage is unavailable.
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === currentProjectStorageKey || event.key === null) read();
+    };
+    read();
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [currentProjectStorageKey]);
+  const isCurrentProject = (row: VideoRow) =>
+    currentProjects[projectVersionKey(row)] === row.id;
+  const saveCurrentProjects = (next: Record<string, number>) => {
+    setCurrentProjects(next);
+    try {
+      localStorage.setItem(currentProjectStorageKey, JSON.stringify(next));
+    } catch {
+      // Keep the mark for this visit if persistence is blocked.
+    }
+  };
+  const toggleCurrentProject = (row: VideoRow) => {
+    const key = projectVersionKey(row);
+    const next = { ...currentProjects };
+    if (isCurrentProject(row)) delete next[key];
+    else next[key] = row.id;
+    saveCurrentProjects(next);
+  };
   const [createOpen, setCreateOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -32,8 +102,8 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
   const [syncNotice, setSyncNotice] = useState("");
   const [canEditSettings, setCanEditSettings] = useState(false);
   const [rows, setRows] = useState<VideoRow[]>([]),
-    [versions, setVersions] = useState<any[]>([]),
-    [version, setVersion] = useState(searchParams.get("version") || "all"),
+    [versions, setVersions] = useState<BibleVersion[]>([]),
+    [version, setVersion] = useState<string | null>(null),
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState("unpublished"),
     [page, setPage] = useState(0),
@@ -41,6 +111,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
   const load = useCallback(async () => {
+    if (version === null) return;
     try {
       setError("");
       const data = await api(`videos?kind=${kind}&version=${version}`);
@@ -51,6 +122,51 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       setLoading(false);
     }
   }, [kind, version]);
+  useEffect(() => {
+    // Preserve the previous format-wide mark once its project appears in the list.
+    const legacyKey = `veo-current-video-project:${kind}`;
+    try {
+      const id = Number(localStorage.getItem(legacyKey));
+      const row = rows.find((item) => item.id === id);
+      if (!row) return;
+      const key = projectVersionKey(row);
+      if (currentProjects[key] === undefined) {
+        const next = { ...currentProjects, [key]: row.id };
+        localStorage.setItem(currentProjectStorageKey, JSON.stringify(next));
+        setCurrentProjects(next);
+      }
+      localStorage.removeItem(legacyKey);
+    } catch {
+      // Migration is optional when local storage is unavailable.
+    }
+  }, [rows, kind, currentProjects, currentProjectStorageKey]);
+  useEffect(() => {
+    let next = versionFilter(requestedVersion);
+    try {
+      if (requestedVersion === null)
+        next = versionFilter(localStorage.getItem(versionStorageKey));
+      localStorage.setItem(versionStorageKey, next);
+    } catch {
+      // Explicit URL filters still work when browser storage is unavailable.
+    }
+    setVersion(next);
+  }, [requestedVersion, versionStorageKey]);
+  const selectVersion = (value: string) => {
+    const next = versionFilter(value);
+    setVersion(next);
+    try {
+      localStorage.setItem(versionStorageKey, next);
+    } catch {
+      // Keep the current selection even if persistence is blocked.
+    }
+    // Keep browser Back navigation aligned with the most recently selected filter.
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("version", next);
+    router.replace(
+      `/${kind === "short" ? "short-videos" : "long-videos"}?${params}`,
+      { scroll: false },
+    );
+  };
   useEffect(() => {
     void api("auth/me")
       .then((data) => setCanEditSettings(data.user.role === "admin"))
@@ -183,11 +299,12 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           </div>
           <select
             aria-label={t("Bible version")}
-            value={version}
-            onChange={(e) => setVersion(e.target.value)}
+            value={version ?? "all"}
+            disabled={version === null}
+            onChange={(e) => selectVersion(e.target.value)}
           >
             <option value="all">{t("All versions")}</option>
-            {versions
+            {orderVersions(versions)
               .filter((v) => v.id !== null)
               .map((v) => (
                 <option key={v.id} value={v.id}>
@@ -226,7 +343,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                 .map((row) => (
                   <tr
                     key={row.id}
-                    className="video-project-row"
+                    className={`video-project-row${isCurrentProject(row) ? " current-project" : ""}`}
                     tabIndex={0}
                     aria-label={`${t("Open project")}: ${row.title}`}
                     onClick={(event) => {
@@ -262,27 +379,48 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                     </td>
                     <td>{row.version_code.toUpperCase()}</td>
                     <td>
-                      <button
-                        type="button"
-                        className={
-                          row.published ? "project-published-button" : undefined
-                        }
-                        onClick={async () => {
-                          try {
-                            await api(`videos/${row.id}`, {
-                              method: "PATCH",
-                              body: JSON.stringify({
-                                published: !row.published,
-                              }),
-                            });
-                            await load();
-                          } catch (cause) {
-                            setError(userMessage(cause));
+                      <div className="project-publication-controls">
+                        <button
+                          type="button"
+                          className={
+                            row.published
+                              ? "project-published-button"
+                              : undefined
                           }
-                        }}
-                      >
-                        {row.published ? t("Published") : t("Unpublished")}
-                      </button>
+                          onClick={async () => {
+                            try {
+                              await api(`videos/${row.id}`, {
+                                method: "PATCH",
+                                body: JSON.stringify({
+                                  published: !row.published,
+                                }),
+                              });
+                              await load();
+                            } catch (cause) {
+                              setError(userMessage(cause));
+                            }
+                          }}
+                        >
+                          {row.published ? t("Published") : t("Unpublished")}
+                        </button>
+                        <button
+                          type="button"
+                          className={`icon-button current-project-marker${isCurrentProject(row) ? " active" : ""}`}
+                          aria-pressed={isCurrentProject(row)}
+                          aria-label={`${t(isCurrentProject(row) ? "Remove current project mark" : "Mark as current project")}: ${row.title}`}
+                          data-tooltip={t(
+                            isCurrentProject(row)
+                              ? "Remove current project mark"
+                              : "Mark as current project",
+                          )}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleCurrentProject(row);
+                          }}
+                        >
+                          <Bookmark size={16} aria-hidden="true" />
+                        </button>
+                      </div>
                     </td>
                     <td className="muted">{date(row.updated_at, language)}</td>
                     <td>
@@ -380,14 +518,14 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       {syncOpen && (
         <SyncVideoProjectsModal
           kind={kind}
-          selectedVersion={version}
+          selectedVersion={version ?? "all"}
           close={() => setSyncOpen(false)}
           onSynced={(id) => {
             setQuery("");
             setFilter("all");
             setPage(0);
             if (version === String(id)) void load();
-            else setVersion(String(id));
+            else selectVersion(String(id));
           }}
         />
       )}

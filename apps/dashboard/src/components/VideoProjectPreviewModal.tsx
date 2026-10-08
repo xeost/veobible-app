@@ -1,4 +1,5 @@
 "use client";
+import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "../i18n/context";
@@ -19,6 +20,7 @@ export function VideoProjectPreviewModal({
   children: ReactNode;
 }) {
   const { t } = useI18n();
+  const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
@@ -33,21 +35,7 @@ export function VideoProjectPreviewModal({
       ref={dialog}
       className={`generation-queue-dialog video-preview-dialog ${kind}`}
       aria-labelledby="video-preview-title"
-      onClick={(event) => {
-        if (event.target !== event.currentTarget) return;
-        const bounds = event.currentTarget.getBoundingClientRect();
-        if (
-          event.clientX < bounds.left ||
-          event.clientX > bounds.right ||
-          event.clientY < bounds.top ||
-          event.clientY > bounds.bottom
-        )
-          close();
-      }}
-      onCancel={(event) => {
-        event.preventDefault();
-        close();
-      }}
+      {...dismiss}
     >
       <div className="generation-queue-heading">
         <h2 id="video-preview-title">{t("Video preview")}</h2>

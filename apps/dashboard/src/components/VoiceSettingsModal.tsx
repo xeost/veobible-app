@@ -1,4 +1,5 @@
 "use client";
+import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
 import { X, Save, Mic } from "lucide-react";
 import { useI18n } from "../i18n/context";
@@ -23,6 +24,7 @@ export function VoiceSettingsModal({
   canEdit: boolean;
 }) {
   const { t } = useI18n();
+  const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
   const [templates, setTemplates] = useState<VoiceSettings>(emptyVoiceSettings);
   const [tab, setTab] = useState<"voice" | "projects">("voice");
@@ -126,10 +128,7 @@ export function VoiceSettingsModal({
       ref={dialog}
       className="generation-queue-dialog voice-settings-dialog"
       aria-labelledby="voice-settings-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!busy) close();
-      }}
+      {...dismiss}
     >
       <form onSubmit={submit}>
         <div className="generation-queue-heading">

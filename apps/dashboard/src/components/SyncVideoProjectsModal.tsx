@@ -1,4 +1,5 @@
 "use client";
+import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, RefreshCw, X } from "lucide-react";
 import { useI18n } from "../i18n/context";
@@ -17,6 +18,7 @@ export function SyncVideoProjectsModal({
   onSynced: (versionId: number) => void;
 }) {
   const { t } = useI18n();
+  const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
   const initialVersion = useRef(selectedVersion);
   const [versions, setVersions] = useState<BibleVersion[]>([]),
@@ -63,10 +65,7 @@ export function SyncVideoProjectsModal({
       ref={dialog}
       className="generation-queue-dialog voice-settings-dialog"
       aria-labelledby="sync-projects-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!busy) close();
-      }}
+      {...dismiss}
     >
       <form
         onSubmit={async (event) => {

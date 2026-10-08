@@ -7,6 +7,7 @@ export type GenerationQueueItem = {
   progress: number;
   position: number | null;
   createdAt: string;
+  finishedAt?: string;
   title: string;
   kind: "short" | "long";
   version: string;
@@ -15,6 +16,7 @@ export type GenerationQueueItem = {
 export type GenerationQueueState = {
   connected: boolean;
   items: GenerationQueueItem[];
+  history?: GenerationQueueItem[];
   summary: { progress: number; completed: number; total: number };
 };
 export const queueChangedEvent = "generation-queue-changed";

@@ -204,6 +204,14 @@ export const spanish: Record<string, string> = {
   "Generation could not be completed": "La generación no pudo completarse",
   "Generation in progress": "Generación en curso",
   "Generation queue": "Cola de generación",
+  Videos: "Videos",
+  "View short videos": "Ver videos cortos",
+  "View long videos": "Ver videos largos",
+  "Pinned versions": "Versiones fijadas",
+  "Pin version": "Fijar versión",
+  "Unpin version": "Desfijar versión",
+  "Mark as current project": "Marcar como proyecto actual",
+  "Remove current project mark": "Quitar marca de proyecto actual",
   "Generation unavailable": "Generación no disponible",
   "Generation was interrupted. You can generate the video again with your saved settings.":
     "La generación se interrumpió. Puedes volver a generar el video con tus ajustes guardados.",
@@ -491,6 +499,10 @@ export const spanish: Record<string, string> = {
   "There are no new projects to add.": "No hay proyectos nuevos para añadir.",
   "There are no new versions to add.": "No hay versiones nuevas para añadir.",
   "There are no pending generations.": "No hay generaciones pendientes.",
+  Queue: "Cola",
+  "There are no recent generations.": "No hay generaciones recientes.",
+  "Recent generations are kept until the generation service restarts.":
+    "Las generaciones recientes se conservan hasta que se reinicia el servicio de generación.",
   "There are no verses to synchronize in this section.":
     "No hay versículos para sincronizar en esta sección.",
   "There are no versions yet. Add one to start creating projects.":
@@ -1156,4 +1168,7 @@ export const spanish: Record<string, string> = {
   "Error interno": "Error interno",
   "Administrator required": "Se requiere administrador",
   "Se requiere administrador": "Se requiere administrador",
+  "Narration generation stopped to keep the computer responsive. Close unused applications and try again.": "La generación de voz se detuvo para mantener el equipo funcionando con fluidez. Cierra las aplicaciones que no uses y vuelve a intentarlo.",
+  "Narration generation exceeded its time limit. Try again; if the problem persists, contact the administrator.": "La generación de voz superó el tiempo permitido. Vuelve a intentarlo; si el problema persiste, contacta al administrador.",
+  "Another narration is still being generated. Wait for it to finish and try again.": "Se está generando otra voz. Espera a que termine y vuelve a intentarlo.",
 };

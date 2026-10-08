@@ -26,3 +26,36 @@ export async function loadQueueProjects(
   }
   return new Map(projects.map((project) => [project.id, project]));
 }
+
+export async function loadQueueView<
+  T extends { projectId: number; kind: string; status: string },
+>(database: D1Database, entries: T[], includeHistory: boolean) {
+  const active = entries.filter((item) =>
+    ["queued", "running"].includes(item.status),
+  );
+  const history = includeHistory
+    ? entries.filter((item) => ["done", "failed"].includes(item.status))
+    : [];
+  const projects = await loadQueueProjects(
+    database,
+    [...active, ...history].map((item) => item.projectId),
+  );
+  const withProjects = (items: T[]) =>
+    items.flatMap((item) => {
+      const project = projects.get(item.projectId);
+      return project?.kind === item.kind
+        ? [
+            {
+              ...item,
+              title: project.title,
+              version: project.version_code,
+              href: `/${item.kind === "short" ? "short-videos" : "long-videos"}/${project.id}`,
+            },
+          ]
+        : [];
+    });
+  return {
+    items: withProjects(active),
+    ...(includeHistory ? { history: withProjects(history) } : {}),
+  };
+}

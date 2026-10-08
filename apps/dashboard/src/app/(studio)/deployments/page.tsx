@@ -1,4 +1,5 @@
 "use client";
+import { useModalDismiss } from "../../../components/useModalDismiss";
 import { useI18n } from "../../../i18n/context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Rocket, RefreshCw, Settings, X } from "lucide-react";
@@ -31,6 +32,7 @@ export default function Deployments() {
   const [hookUrl, setHookUrl] = useState("");
   const [message, setMessage] = useState("");
   const [modalError, setModalError] = useState("");
+  const dismiss = useModalDismiss(() => setModal(null));
   const dialog = useRef<HTMLDialogElement>(null);
   const load = useCallback(async () => {
     setLoading(true);
@@ -234,10 +236,7 @@ export default function Deployments() {
       <dialog
         ref={dialog}
         className="modal small deployment-dialog"
-        onCancel={(e) => {
-          if (busy) e.preventDefault();
-          else setModal(null);
-        }}
+        {...dismiss}
         onClose={() => setModal(null)}
       >
         <form

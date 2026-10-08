@@ -1,5 +1,5 @@
 {
-  "name": "veobible-dashboard",
+  "name": "veobible-dashboard-dev",
   "main": "vinext/server/fetch-handler",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": [
@@ -15,13 +15,13 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "dashboard",
-      "database_id": "801ce9e8-ed31-4c53-9d92-c467b98522c6",
+      "database_name": "veobible-dashboard",
+      "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations",
     },
   ],
   "vars": {
-    "VIDEO_API_URL": "https://api-proxy-tool.veobible.com",
+    "VIDEO_API_URL": "http://127.0.0.1:8430",
   },
   "env": {
     "production": {
