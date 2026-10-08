@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, AudioLines, ZoomIn, ZoomOut, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import { Play, Pause, AudioLines, ZoomIn, ZoomOut, ArrowLeftToLine, ArrowRightToLine, ChevronRight } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import {
   type VerseCue,
@@ -45,7 +45,6 @@ export function VerseWaveform({
       end: timelineStart + sourceEnd - sourceStart,
     },
   );
-  const [shiftBlocked, setShiftBlocked] = useState(false);
   const [waveError, setWaveError] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
@@ -78,6 +77,7 @@ export function VerseWaveform({
     },
     [],
   );
+  const picker = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const stopAt = useRef(sourceEnd);
@@ -88,6 +88,18 @@ export function VerseWaveform({
   const duration = sourceEnd - sourceStart;
   const index = Math.min(selected, Math.max(0, cues.length - 1));
   const cue = cues[index];
+  useEffect(() => {
+    const list = picker.current;
+    const active = list?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!list || !active) return;
+    const viewport = list.getBoundingClientRect();
+    const item = active.getBoundingClientRect();
+    // Scroll only the verse list, including its horizontal layout on narrow screens.
+    if (item.top < viewport.top) list.scrollTop += item.top - viewport.top - 4;
+    else if (item.bottom > viewport.bottom) list.scrollTop += item.bottom - viewport.bottom + 4;
+    if (item.left < viewport.left) list.scrollLeft += item.left - viewport.left - 4;
+    else if (item.right > viewport.right) list.scrollLeft += item.right - viewport.right + 4;
+  }, [index, cue?.reference]);
   useEffect(() => {
     let live = true;
     const controller = new AbortController();
@@ -210,7 +222,6 @@ export function VerseWaveform({
   const move = (edge: "start" | "end", time: number, recenter = false) => {
     audio.current?.pause();
     playbackRequest.current++;
-    setShiftBlocked(false);
     const value = trimCue(
       latest.current,
       index,
@@ -300,6 +311,19 @@ export function VerseWaveform({
       </button>
     );
   };
+  const selectVerse = (nextIndex: number) => {
+    if (!latest.current[nextIndex]) return;
+    audio.current?.pause();
+    playbackRequest.current++;
+    const result = alignSelectedVerse(latest.current, nextIndex, timelineStart + sourceDuration - sourceStart);
+    const moved = !disabled && result.moved && onShift(result.cue);
+    setSelected(nextIndex);
+    setFocus(moved ? result.cue : latest.current[nextIndex]);
+    setExtraContext({ before: 0, after: 0 });
+    setHasPlayhead(false);
+    setZoom(1);
+    if (scroll.current) scroll.current.scrollLeft = 0;
+  };
   if (!cue)
     return (
       <p className="muted">
@@ -308,26 +332,14 @@ export function VerseWaveform({
     );
   return (
     <div className="verse-sync">
-      <div className="verse-picker">
+      <div className="verse-picker" ref={picker}>
         {cues.map((verse, i) => (
           <button
             type="button"
             key={verse.reference}
             className={index === i ? "active" : ""}
             aria-pressed={index === i}
-            onClick={() => {
-              audio.current?.pause();
-              playbackRequest.current++;
-              const result = alignSelectedVerse(latest.current, i, timelineStart + sourceDuration - sourceStart);
-              const moved = !disabled && result.moved && onShift(result.cue);
-              setShiftBlocked(!disabled && (result.blocked || (result.moved && !moved)));
-              setSelected(i);
-              setFocus(moved ? result.cue : latest.current[i]);
-              setExtraContext({ before: 0, after: 0 });
-              setHasPlayhead(false);
-              setZoom(1);
-              if (scroll.current) scroll.current.scrollLeft = 0;
-            }}
+            onClick={() => selectVerse(i)}
           >
             <span>{verse.reference}</span>
             <small>
@@ -382,11 +394,6 @@ export function VerseWaveform({
             "Release an edge to hear 3 seconds from that side. Click inside the fragment to listen from that point to the end. Use the arrow keys for precise adjustments.",
           )}
         </p>
-        {shiftBlocked && (
-          <p className="notice" role="status">
-            {t("There is not enough chapter audio to move this verse after the previous one while keeping its duration. Adjust the previous verse's end or shorten this verse.")}
-          </p>
-        )}
         <div className="waveform-scroll" ref={scroll}>
           <div
             className="waveform-track"
@@ -465,13 +472,23 @@ export function VerseWaveform({
           </span>
           <span>{(window.end - timelineStart).toFixed(2)} s</span>
         </div>
-        <div className="verse-preview">
-          <span className="eyebrow">{cue.reference}</span>
-          <p>{cue.text}</p>
+        <div className="verse-playback">
           <button type="button" onClick={preview}>
             <span>{playing ? <Pause size={16} /> : <Play size={16} />}</span>
             {playing ? t("Pause") : t("Listen to verse")}
           </button>
+          <button
+            type="button"
+            disabled={index >= cues.length - 1}
+            onClick={() => selectVerse(index + 1)}
+          >
+            {t("Next verse")}
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        <div className="verse-preview">
+          <span className="eyebrow">{cue.reference}</span>
+          <p>{cue.text}</p>
         </div>
         <div className="trim-fields">
           {(["start", "end"] as const).map((edge) => (

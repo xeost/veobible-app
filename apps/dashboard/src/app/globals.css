@@ -2191,7 +2191,14 @@ audio {
   line-height: 1.8;
   color: #d2c9dc;
 }
-.verse-preview button {
+.verse-playback {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.verse-playback button {
   font-size: 10px;
   padding: 7px 10px;
 }
