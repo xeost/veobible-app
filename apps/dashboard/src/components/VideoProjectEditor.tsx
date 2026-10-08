@@ -86,6 +86,8 @@ export function VideoProjectEditor({
   const [notice, setNotice] = useState("");
   const [saved, setSaved] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewVoice, setPreviewVoice] = useState<"intro" | "outro" | null>(null);
+  const [previewReading, setPreviewReading] = useState<{ references: string[]; title: string } | null>(null);
   const previewPlayback = useRef<PreviewPlaybackHandle | null>(null);
   const [previewView, setPreviewView] =
     useState<VideoPreviewView>("composition");
@@ -139,6 +141,8 @@ export function VideoProjectEditor({
     setMediaAccess(null);
     setExpanded(new Set());
     setPreviewOpen(false);
+    setPreviewReading(null);
+    setPreviewVoice(null);
     setPreviewView("composition");
     setPlayingVoice(null);
     for (const player of Object.values(voicePlayers.current)) player.pause();
@@ -269,7 +273,7 @@ export function VideoProjectEditor({
       analysis &&
       !validVerseTimings(
         adjustedCues(analysis.cues, settingsRef.current.verseOffsets),
-        analysis.cues.at(-1)?.end ?? 0,
+        analysis.sections.reduce((total, section) => total + section.end - section.start, 0),
       )
     ) {
       throw new Error(
@@ -364,6 +368,7 @@ export function VideoProjectEditor({
     title: string,
     summary: string,
     voice = false,
+    readingReferences: string[] = [],
   ) => {
     const content = (
       <>
@@ -420,7 +425,9 @@ export function VideoProjectEditor({
           data-tooltip={
             analyzing
               ? t("Loading audio and verses…")
-              : t("Analyze the audio again to update verse timings.")
+              : t(
+                  "Reanalyze the entire passage if the source audio or passage boundaries changed, or if analysis failed. Otherwise, results usually stay the same and do not improve manual cuts. Your adjustments are kept, but cuts may move if the estimated timings change. No audio is generated and no changes are saved.",
+                )
           }
           disabled={analyzing || locked}
           onClick={() => void inspect(settings)}
@@ -430,6 +437,24 @@ export function VideoProjectEditor({
           ) : (
             <AudioWaveform size={17} />
           )}
+        </button>
+        <span className="section-action-separator" aria-hidden="true" />
+        <button
+          type="button"
+          className="icon-button section-preview-button"
+          aria-label={t("Preview this passage")}
+          data-tooltip={t("Preview this passage")}
+          aria-haspopup="dialog"
+          disabled={analyzing || !readingReferences.length}
+          onClick={() => {
+            setPreviewReading({ references: readingReferences, title });
+            Object.values(voicePlayers.current).forEach((player) => player?.pause());
+            setPreviewVoice(null);
+            setPreviewView("composition");
+            setPreviewOpen(true);
+          }}
+        >
+          <Clapperboard size={16} />
         </button>
         <button
           type="button"
@@ -486,6 +511,7 @@ export function VideoProjectEditor({
                 <WandSparkles size={17} />
               )}
             </button>
+            <span className="section-action-separator" aria-hidden="true" />
             <button
               type="button"
               aria-label={`${playLabel} · ${title}`}
@@ -494,6 +520,23 @@ export function VideoProjectEditor({
               onClick={() => void toggleVoicePlayback(part)}
             >
               {playingVoice === part ? <Pause size={17} /> : <Play size={17} />}
+            </button>
+            <button
+              type="button"
+              className="icon-button section-preview-button"
+              aria-label={`${t("Preview")} · ${title}`}
+              data-tooltip={voice.available ? t("Preview") : t("Generate narration for this section")}
+              aria-haspopup="dialog"
+              disabled={!voice.available || pending || !analysis || analyzing}
+              onClick={() => {
+                Object.values(voicePlayers.current).forEach((player) => player?.pause());
+                setPreviewReading(null);
+                setPreviewVoice(part);
+                setPreviewView("composition");
+                setPreviewOpen(true);
+              }}
+            >
+              <Clapperboard size={16} />
             </button>
             <button
               type="button"
@@ -703,6 +746,9 @@ export function VideoProjectEditor({
             type="button"
             onClick={() => {
               setPreviewView("composition");
+              setPreviewReading(null);
+              setPreviewVoice(null);
+              Object.values(voicePlayers.current).forEach((player) => player?.pause());
               setPreviewOpen(true);
             }}
             aria-haspopup="dialog"
@@ -724,7 +770,12 @@ export function VideoProjectEditor({
               void perform(async () => {
                 await api(endpoint("render"), {
                   method: "POST",
-                  body: JSON.stringify(checkedSettings()),
+                  body: JSON.stringify({
+                    ...checkedSettings(),
+                    readingCuts: adjustedCues(analysis!.cues, settingsRef.current.verseOffsets).map(
+                      ({ reference, start, end }) => ({ reference, start, end }),
+                    ),
+                  }),
                 });
                 window.dispatchEvent(new Event(queueChangedEvent));
               })
@@ -814,6 +865,8 @@ export function VideoProjectEditor({
                     section.index + 2,
                     `${t("Passage reading")} ${timeline.length > 1 ? section.index + 1 : ""}`,
                     `${verses.length} ${t("verses")} · ${(section.end - section.start).toFixed(1)} s`,
+                    false,
+                    verses.map((cue) => cue.reference),
                   )}
                   <div
                     id={`section-${id}`}
@@ -901,6 +954,7 @@ export function VideoProjectEditor({
       {previewOpen && (
         <VideoProjectPreviewModal
           kind={kind}
+          readingTitle={previewReading?.title ?? (previewVoice ? t(previewVoice === "intro" ? "Introduction" : "Closing") : undefined)}
           view={previewView}
           onViewChange={(view) => {
             if (view === previewView) return;
@@ -918,9 +972,12 @@ export function VideoProjectEditor({
             endpoint={endpoint}
             media={media}
             settings={settings}
+            readingReferences={previewReading?.references}
+            readingSources={analysis?.sections}
+            readingCues={cues}
+            voicePart={previewVoice ?? undefined}
             readingVolume={readingVolumeValue}
-            cues={cues}
-            ready={Boolean(analysis && !analyzing && voicesReady)}
+            ready={Boolean(analysis && !analyzing && (previewReading || (previewVoice ? voices[previewVoice].available : voicesReady)))}
             playbackRef={previewPlayback}
             view={previewView}
             rendered={Boolean(result)}
@@ -932,7 +989,7 @@ export function VideoProjectEditor({
               )
             }
           />
-          {result && (
+          {result && !previewReading && !previewVoice && (
             <div className="preview-actions">
               <a className="button" href={`${media("video")}&download=1`}>
                 <Download size={15} />

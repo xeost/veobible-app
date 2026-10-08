@@ -13,6 +13,11 @@ export interface ReadingSection {
   start: number;
   end: number;
 }
+
+/** Preserve the source-file coordinates used by waveform playback. */
+export function waveformReadingSources(sections: ReadingSection[]) {
+  return sections.map((section, index) => ({ ...section, file: `reading-${index}` }));
+}
 export interface Inspection {
   label: string;
   sections: ReadingSection[];

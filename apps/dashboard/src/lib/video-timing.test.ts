@@ -8,8 +8,34 @@ import {
   waveformSeekRange,
   validVerseTimings,
   waveformWindow,
+  waveformReadingSources,
 } from "./video-timing";
 import { applyVerseOffsets } from "../../../../tools/video-project-api/src/engines/short/verse-timing";
+import { buildVerseReading } from "../../../../tools/video-project-api/src/reading-timeline";
+
+test("reading previews use unsaved waveform cuts against the same original chapter audio", () => {
+  const sections = [{ start: 100, end: 120 }, { start: 40, end: 50 }];
+  const baseline = [
+    { reference: "first", text: "First verse", start: 3, end: 6 },
+    { reference: "second", text: "Second verse", start: 21, end: 25 },
+  ];
+  const adjusted = adjustedCues(baseline, [
+    { reference: "first", startOffsetSeconds: 0.75, endOffsetSeconds: -0.25 },
+    { reference: "second", startOffsetSeconds: 1, endOffsetSeconds: 0.5 },
+  ]);
+  const sources = waveformReadingSources(sections);
+  const preview = buildVerseReading(sources, adjusted, [2, 2]);
+  assert.deepEqual(preview.sections.map(({ file, start, end }) => ({ file, start, end })), [
+    { file: "reading-0", start: 103.75, end: 105.75 },
+    { file: "reading-1", start: 42, end: 45.5 },
+  ]);
+  const selected = buildVerseReading(sources, [adjusted[1]], [2]);
+  const waveform = readingTimeline(sections)[1];
+  assert.equal(selected.sections[0].start, waveform.start + adjusted[1].start - waveform.timelineStart);
+  assert.equal(selected.sections[0].end, waveform.start + adjusted[1].end - waveform.timelineStart);
+  assert.equal(selected.duration, 3.5);
+  assert.equal(selected.cues[0].start, 0);
+});
 const cues = [
   { reference: "Juan 3:14", text: "Primero", start: 0, end: 4.00042 },
   { reference: "Juan 3:15", text: "Segundo", start: 4.00042, end: 9 },

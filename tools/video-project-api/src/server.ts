@@ -13,7 +13,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { timingSafeEqual } from "node:crypto";
-import { renderSchema } from "./protocol.js";
+import { renderSchema, previewSchema } from "./protocol.js";
 import { z } from "zod";
 import { GenerationQueue } from "./generation-queue.js";
 import { clampProgress } from "./generation-progress.js";
@@ -441,7 +441,7 @@ const server = http.createServer(async (req, res) => {
       return json(
         res,
         200,
-        await createPreview(renderSchema.parse(await body(req))),
+        await createPreview(previewSchema.parse(await body(req))),
       );
     }
     if (parts[1] === "jobs" && parts[2] && req.method === "GET") {

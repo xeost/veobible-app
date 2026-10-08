@@ -1979,6 +1979,20 @@ audio {
   flex-shrink: 0;
   margin-right: 14px;
 }
+.section-action-separator {
+  flex: 0 0 1px;
+  height: 24px;
+  margin: 0 2px;
+  background: var(--line);
+  pointer-events: none;
+}
+.section-preview-button {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
 .voice-section-expand svg,
 .reading-section-expand svg {
   transition: transform 0.2s;

@@ -1,3 +1,4 @@
+import { readingCutsSchema } from "../../../../tools/video-project-api/src/protocol";
 import { projectProposalsSchema, syncVideoProjects } from "./project-proposals";
 import {
   existingProjectsSchema,
@@ -463,7 +464,18 @@ export async function videoApi(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
+        body: JSON.stringify({
+          ...request,
+          ...(values.readingCuts !== undefined
+            ? { readingCuts: readingCutsSchema.parse(values.readingCuts) }
+            : {}),
+          ...(parts[2] === "preview" && values.readingReferences !== undefined
+            ? { readingReferences: z.array(z.string().min(1)).min(1).max(1000).parse(values.readingReferences) }
+            : {}),
+          ...(parts[2] === "preview" && values.voicePart !== undefined
+            ? { voicePart: z.enum(["intro", "outro"]).parse(values.voicePart) }
+            : {}),
+        }),
         ...(parts[2] === "preview"
           ? { signal: AbortSignal.timeout(120000) }
           : {}),

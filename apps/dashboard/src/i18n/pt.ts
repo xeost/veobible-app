@@ -3,8 +3,8 @@ export const portuguese: Record<string, string> = {
     "Usar um volume de leitura próprio para este projeto",
   "Unchecked: uses the default reading volume for this Bible version.":
     "Desmarcado: usa o volume de leitura padrão desta versão da Bíblia.",
-  "Analyze the audio again to update verse timings.":
-    "Analisar o áudio novamente para atualizar os tempos dos versículos.",
+  "Reanalyze the entire passage if the source audio or passage boundaries changed, or if analysis failed. Otherwise, results usually stay the same and do not improve manual cuts. Your adjustments are kept, but cuts may move if the estimated timings change. No audio is generated and no changes are saved.":
+    "Analise novamente toda a passagem se o áudio original ou os limites da passagem mudaram, ou se a análise falhou. Caso contrário, o resultado geralmente é o mesmo e não melhora os cortes manuais. Seus ajustes são mantidos, mas os cortes podem mudar de posição se os tempos estimados mudarem. Nenhum áudio é gerado e nenhuma alteração é salva.",
   "Generate the introduction and closing voices before generating the video.":
     "Gere as vozes da introdução e do encerramento antes de gerar o vídeo.",
   Composition: "Composição",
@@ -1167,4 +1167,5 @@ export const portuguese: Record<string, string> = {
   "Narration generation stopped to keep the computer responsive. Close unused applications and try again.": "A geração de voz foi interrompida para manter o computador funcionando com fluidez. Feche os aplicativos que não usa e tente novamente.",
   "Narration generation exceeded its time limit. Try again; if the problem persists, contact the administrator.": "A geração de voz excedeu o tempo permitido. Tente novamente; se o problema persistir, entre em contato com o administrador.",
   "Another narration is still being generated. Wait for it to finish and try again.": "Outra voz ainda está sendo gerada. Aguarde a conclusão e tente novamente.",
+  "Preview this passage": "Pré-visualizar esta passagem",
 };

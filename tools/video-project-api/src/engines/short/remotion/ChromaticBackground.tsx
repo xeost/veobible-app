@@ -17,14 +17,7 @@
  */
 
 import React, { useEffect, useRef } from "react";
-import {
-  useCurrentFrame,
-  useVideoConfig,
-  continueRender,
-  delayRender,
-} from "remotion";
-import { smooth, phaseAlpha } from "./animation";
-import type { Phase } from "./animation";
+import { smooth } from "./animation";
 import type { RGB } from "./types";
 
 // Low-resolution canvas (96×160) that matches the FFmpeg source size.
@@ -44,7 +37,6 @@ function renderChromatic(
   h: number,
   t: number,
   colors: RGB[],
-  phaseAlphaValue: number,
 ): void {
   const fields = FIELDS.map(([cx, cy, sx, sy, offset]) => [
     cx + 0.14 * Math.sin(t / 13 + offset),
@@ -59,7 +51,7 @@ function renderChromatic(
     const top = Math.min(1, Math.max(0, YH / 0.17));
     const bottom = Math.min(1, Math.max(0, (1 - YH) / 0.26));
     const a =
-      255 * 0.6 * (0.2 + 0.8 * smooth(top) * smooth(bottom)) * phaseAlphaValue;
+      255 * 0.6 * (0.2 + 0.8 * smooth(top) * smooth(bottom));
     for (let px = 0; px < w; px++) {
       const XW = px / w;
       let fieldSum = 0;
@@ -89,7 +81,6 @@ interface Props {
   height: number;
   t: number;
   colors: RGB[];
-  phase: Phase;
 }
 
 export const ChromaticBackground: React.FC<Props> = ({
@@ -97,20 +88,16 @@ export const ChromaticBackground: React.FC<Props> = ({
   height,
   t,
   colors,
-  phase,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const alphaValue = phaseAlpha(t, phase);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    renderChromatic(ctx, SRC_W, SRC_H, t, colors, alphaValue);
-  }, [t, colors, alphaValue]);
-
-  if (alphaValue <= 0) return null;
+    renderChromatic(ctx, SRC_W, SRC_H, t, colors);
+  }, [t, colors]);
 
   return (
     <canvas

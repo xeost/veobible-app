@@ -29,8 +29,13 @@ async function remove(id: string) {
 }
 
 /** Prepare composition assets without generating voices or rendering final video frames. */
-export async function createPreview(input: RenderRequest) {
-  const { data, sections, cues, version, m } = await analyze(input);
+export async function createPreview(input: RenderRequest & { readingReferences?: string[]; voicePart?: "intro" | "outro" }) {
+  const { data, sections, cues: allCues, version, m } = await analyze(input);
+  const readingOnly = Boolean(input.readingReferences);
+  const references = new Set(input.readingReferences);
+  const cues = readingOnly ? allCues.filter((cue) => references.has(cue.reference)) : allCues;
+  if (readingOnly && (!cues.length || cues.length !== references.size))
+    throw new Error("The selected passage is unavailable");
   const directory = await fs.mkdtemp(
     path.join(os.tmpdir(), "veobible-preview-"),
   );
@@ -58,14 +63,14 @@ export async function createPreview(input: RenderRequest) {
       title,
       await m.outro(version.locale, input.socialAccounts),
       cues,
-      {
+      readingOnly ? undefined : {
         intro: path.join(voices, voiceFilename("intro")),
         outro: path.join(voices, voiceFilename("outro")),
         mode: "voice",
       },
       directory,
       1,
-      { background: input.settings.background },
+      { background: input.settings.background, readingOnly, previewVoicePart: input.voicePart },
     );
     const id = randomUUID();
     const files: string[] = [];
@@ -84,11 +89,11 @@ export async function createPreview(input: RenderRequest) {
         ...section,
         file: asset(section.file),
       })),
-      voices: {
+      voices: composition.props.voices ? {
         ...composition.props.voices!,
         intro: asset(composition.props.voices!.intro),
         outro: asset(composition.props.voices!.outro),
-      },
+      } : undefined,
     };
     const timer = setTimeout(
       () => {
@@ -116,7 +121,11 @@ export async function createPreview(input: RenderRequest) {
       fps: composition.fps,
       width: composition.width,
       height: composition.height,
-      durationInFrames: composition.totalFrames,
+      durationInFrames: input.voicePart
+        ? Math.round((input.voicePart === "intro" ? composition.props.introLength : composition.props.outroLength) * composition.fps)
+        : readingOnly
+        ? Math.round(composition.props.readingLength * composition.fps)
+        : composition.totalFrames,
     };
   } catch (error) {
     await fs.rm(directory, { recursive: true, force: true });

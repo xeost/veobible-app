@@ -12,12 +12,14 @@ export function VideoProjectPreviewModal({
   onViewChange,
   close,
   children,
+  readingTitle,
 }: {
   kind: VideoKind;
   view: VideoPreviewView;
   onViewChange: (view: VideoPreviewView) => void;
   close: () => void;
   children: ReactNode;
+  readingTitle?: string;
 }) {
   const { t } = useI18n();
   const dismiss = useModalDismiss(close);
@@ -38,44 +40,46 @@ export function VideoProjectPreviewModal({
       {...dismiss}
     >
       <div className="generation-queue-heading">
-        <h2 id="video-preview-title">{t("Video preview")}</h2>
-        <div
-          className="preview-source-tabs"
-          role="tablist"
-          aria-label={t("Preview source")}
-          onKeyDown={(event) => {
-            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
-              return;
-            event.preventDefault();
-            const next =
-              event.key === "Home"
-                ? "composition"
-                : event.key === "End"
-                  ? "rendered"
-                  : view === "composition"
+        <h2 id="video-preview-title">{readingTitle ?? t("Video preview")}</h2>
+        {!readingTitle && (
+          <div
+            className="preview-source-tabs"
+            role="tablist"
+            aria-label={t("Preview source")}
+            onKeyDown={(event) => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+                return;
+              event.preventDefault();
+              const next =
+                event.key === "Home"
+                  ? "composition"
+                  : event.key === "End"
                     ? "rendered"
-                    : "composition";
-            onViewChange(next);
-            event.currentTarget
-              .querySelector<HTMLButtonElement>(`#preview-tab-${next}`)
-              ?.focus();
-          }}
-        >
-          {(["composition", "rendered"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="tab"
-              id={`preview-tab-${option}`}
-              aria-selected={view === option}
-              aria-controls="preview-view-panel"
-              tabIndex={view === option ? 0 : -1}
-              onClick={() => onViewChange(option)}
-            >
-              {t(option === "composition" ? "Composition" : "Final video")}
-            </button>
-          ))}
-        </div>
+                    : view === "composition"
+                      ? "rendered"
+                      : "composition";
+              onViewChange(next);
+              event.currentTarget
+                .querySelector<HTMLButtonElement>(`#preview-tab-${next}`)
+                ?.focus();
+            }}
+          >
+            {(["composition", "rendered"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                id={`preview-tab-${option}`}
+                aria-selected={view === option}
+                aria-controls="preview-view-panel"
+                tabIndex={view === option ? 0 : -1}
+                onClick={() => onViewChange(option)}
+              >
+                {t(option === "composition" ? "Composition" : "Final video")}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           type="button"
           className="icon-button"
@@ -87,9 +91,9 @@ export function VideoProjectPreviewModal({
       </div>
       <div
         className="preview-modal-content"
-        role="tabpanel"
+        role={readingTitle ? "region" : "tabpanel"}
         id="preview-view-panel"
-        aria-labelledby={`preview-tab-${view}`}
+        aria-labelledby={readingTitle ? "video-preview-title" : `preview-tab-${view}`}
       >
         {children}
       </div>

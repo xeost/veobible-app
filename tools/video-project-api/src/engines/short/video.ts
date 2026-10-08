@@ -23,10 +23,10 @@ import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import { config } from "./config.js";
 import type { VerseCue } from "./verse-timing.js";
-import { introAnimationEnd } from "./remotion/animation.js";
+import { introAnimationEnd, layoutVerse } from "./remotion/animation.js";
 import { extractBackgroundPalette } from "./background-palette.js";
 import { validateReadingVolume } from "./reading-audio.js";
-import { trimReadingTail } from "../../reading-timeline.js";
+import { buildVerseReading } from "../../reading-timeline.js";
 import type { ShortCompositionProps } from "./remotion/types.js";
 import { prepareRemotionMedia } from "./remotion-media.js";
 export { layoutVerse } from "./remotion/animation.js";
@@ -252,6 +252,8 @@ export async function prepareVideoComposition(
   renderOptions: {
     concurrency?: number;
     background?: string;
+    readingOnly?: boolean;
+    previewVoicePart?: "intro" | "outro";
     onProgress?: (progress: number) => void;
   } = {},
 ) {
@@ -284,8 +286,8 @@ export async function prepareVideoComposition(
     mediaInfo(outro),
     mediaInfo(background),
   ]);
-  requireClipStreams(introInfo, intro, !voices || voices.mode === "mix");
-  requireClipStreams(outroInfo, outro, !voices || voices.mode === "mix");
+  requireClipStreams(introInfo, intro, !renderOptions.readingOnly && (!voices || voices.mode === "mix"));
+  requireClipStreams(outroInfo, outro, !renderOptions.readingOnly && (!voices || voices.mode === "mix"));
   if (!backgroundInfo.streams.some((s) => s.codec_type === "video"))
     throw new Error(`Missing video stream: ${background}`);
 
@@ -293,7 +295,8 @@ export async function prepareVideoComposition(
   const outroDuration = mediaDuration(outroInfo, outro);
   const voiceDurations = voices
     ? await Promise.all(
-        [voices.intro, voices.outro].map(async (file) => {
+        [voices.intro, voices.outro].map(async (file, index) => {
+          if (renderOptions.previewVoicePart && index !== (renderOptions.previewVoicePart === "intro" ? 0 : 1)) return 0;
           const info = await mediaInfo(file);
           if (!info.streams.some((s) => s.codec_type === "audio"))
             throw new Error(`Missing voice audio stream: ${file}`);
@@ -303,9 +306,9 @@ export async function prepareVideoComposition(
     : undefined;
 
   const introLength =
-    (voiceDurations?.[0] ?? audioStreamDuration(introInfo, intro)) + 1;
+    (voiceDurations?.[0] ?? (renderOptions.readingOnly ? introDuration : audioStreamDuration(introInfo, intro))) + 1;
   const outroLength =
-    (voiceDurations?.[1] ?? audioStreamDuration(outroInfo, outro)) + 2;
+    (voiceDurations?.[1] ?? (renderOptions.readingOnly ? outroDuration : audioStreamDuration(outroInfo, outro))) + 2;
   const sourceReadingDuration = sections.reduce(
     (sum, s) => sum + s.end - s.start,
     0,
@@ -325,8 +328,9 @@ export async function prepareVideoComposition(
     throw new Error("The reading needs valid verse timings");
   }
 
-  const reading = trimReadingTail(sections, verseCues);
+  const reading = buildVerseReading(sections, verseCues, verseCues.map((cue) => layoutVerse(cue.text).lines.length));
   sections = reading.sections;
+  verseCues = reading.cues;
   const readingDuration = reading.duration;
 
   const introVideo = introInfo.streams.find((s) => s.codec_type === "video")!;
@@ -429,6 +433,8 @@ export async function renderShortVideo(
   renderOptions: {
     concurrency?: number;
     background?: string;
+    readingOnly?: boolean;
+    previewVoicePart?: "intro" | "outro";
     onProgress?: (progress: number) => void;
   } = {},
 ): Promise<VideoResult> {

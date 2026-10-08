@@ -143,6 +143,19 @@ for (const [kind, outputEnvironment] of [
   assert.equal(preview.cues.length, kind === "short" ? 1 : 2);
   assert.ok(preview.text.every((row) => row.inPassage || kind === "short"));
   assert.ok(preview.scripts.intro.length > 0);
+  if (process.env.VIDEO_SMOKE_PREVIEW === "1") {
+    const { createPreview } = await import("../preview.js");
+    const selected = preview.cues.at(-1)!;
+    // A reading preview needs neither narration nor an existing project directory.
+    await assert.rejects(fs.stat(sourceDir(kind, input.version.id, input.passage.id, outputEnvironment)), { code: "ENOENT" });
+    const reading = await createPreview({ ...input, readingReferences: [selected.reference] });
+    assert.equal(reading.props.voices, undefined);
+    assert.deepEqual(reading.props.verseCues.map((cue) => cue.reference), [selected.reference]);
+    assert.equal(reading.props.verseCues[0].start, 0);
+    assert.equal(reading.durationInFrames, Math.round(reading.props.readingLength * reading.fps));
+    assert.ok(reading.props.sections.every((section) => section.timelineStart !== undefined));
+    await assert.rejects(createPreview({ ...input, readingReferences: ["unknown verse"] }), /selected passage is unavailable/);
+  }
   // Either narration must be able to create a completely new project on its own.
   for (const part of ["intro", "outro"] as const) {
     const fresh = {
@@ -173,6 +186,14 @@ for (const [kind, outputEnvironment] of [
     await assert.rejects(fs.stat(output), { code: "ENOENT" });
     const progress: number[] = [];
     await generateProjectVoice(fresh, part, (value) => progress.push(value));
+    if (process.env.VIDEO_SMOKE_PREVIEW === "1") {
+      const { createPreview, previewAsset } = await import("../preview.js");
+      // Preview each narration scene while the other voice is still absent.
+      const scene = await createPreview({ ...fresh, voicePart: part });
+      const scope = { projectId: fresh.projectId, kind, outputEnvironment, version: fresh.version.id, passage: fresh.passage.id };
+      assert.equal(previewAsset(scene.props.voices![part], scope), path.join(sources, voiceFilename(part)));
+      assert.equal(scene.durationInFrames, Math.round((part === "intro" ? scene.props.introLength : scene.props.outroLength) * scene.fps));
+    }
     await assert.rejects(
       render(fresh, () =>
         assert.fail("A single voice is insufficient for rendering"),
@@ -233,6 +254,13 @@ for (const [kind, outputEnvironment] of [
     await fs.readFile(path.join(voices, voiceFilename("intro", "txt")), "utf8"),
     /Introducción/,
   );
+  // Current waveform cuts must survive request parsing and replace estimated timings.
+  input.readingCuts = preview.cues.map((cue) => ({
+    reference: cue.reference,
+    start: cue.start + (cue.end - cue.start) * 0.15,
+    end: cue.end - (cue.end - cue.start) * 0.2,
+  }));
+  assert.deepEqual(renderSchema.parse(input).readingCuts, input.readingCuts);
   if (process.env.VIDEO_SMOKE_PREVIEW === "1") {
     const { createPreview, previewAsset } = await import("../preview.js");
     const prepared = await createPreview(input);
@@ -276,7 +304,22 @@ for (const [kind, outputEnvironment] of [
         Math.round(prepared.props.outroLength * prepared.fps) -
         2 * Math.round(prepared.props.transitionDuration * prepared.fps),
     );
-    assert.deepEqual(prepared.props.verseCues, (await analyze(input)).cues);
+    const sourceCues = (await analyze(input)).cues;
+    assert.deepEqual(prepared.props.verseCues.map((cue) => [cue.reference, cue.text]), sourceCues.map((cue) => [cue.reference, cue.text]));
+    prepared.props.verseCues.forEach((cue, index) => {
+      assert.ok(Math.abs((cue.end - cue.start) - (sourceCues[index].end - sourceCues[index].start)) < 1e-6);
+      if (index > 0) assert.ok(cue.start > prepared.props.verseCues[index - 1].end);
+    });
+    assert.ok(prepared.props.sections.every((section) => section.timelineStart !== undefined));
+    assert.deepEqual(sourceCues.map(({ reference, start, end }) => ({ reference, start, end })), input.readingCuts);
+    // Full previews and rendering read directly from the waveform's original sources.
+    prepared.props.sections.forEach((section, index) => {
+      const original = preview.sections[index];
+      const offset = preview.sections.slice(0, index).reduce((sum, value) => sum + value.end - value.start, 0);
+      assert.equal(previewAsset(section.file, scope), original.file);
+      assert.ok(Math.abs(section.start - (original.start + input.readingCuts![index].start - offset)) < 1e-6);
+      assert.ok(Math.abs(section.end - (original.start + input.readingCuts![index].end - offset)) < 1e-6);
+    });
     if (process.env.VIDEO_SMOKE_RENDER !== "1")
       await assert.rejects(
         fs.stat(
@@ -313,6 +356,7 @@ for (const [kind, outputEnvironment] of [
     assert.ok((await fs.stat(result.video)).size > 100);
     assert.ok((await fs.stat(result.thumbnail)).size > 100);
     assert.equal(result.verseCues.length, kind === "short" ? 1 : 2);
+    assert.deepEqual(result.verseCues.map(({ reference, start, end }) => ({ reference, start, end })), input.readingCuts);
     assert.ok(result.sources.every((file) => file.startsWith(working)));
     assert.deepEqual(
       (await fs.readdir(path.dirname(result.video))).sort(),

@@ -25,7 +25,13 @@ export const settingsSchema = z.object({
     .regex(/^[a-zA-Z0-9_.-]+\.mp4$/)
     .optional(),
 });
+export const readingCutsSchema = z.array(z.object({
+  reference: z.string().min(1),
+  start: z.number().finite().nonnegative(),
+  end: z.number().finite().positive(),
+})).min(1).max(1000);
 export const renderSchema = z.object({
+  readingCuts: readingCutsSchema.optional(),
   id: z.string().uuid(),
   projectId: z.number().int().positive(),
   kind: z.enum(["short", "long"]),
@@ -104,3 +110,7 @@ export const updateSchema = z
       c.addIssue({ code: "custom", message: "Missing result" });
   });
 export type RenderRequest = z.infer<typeof renderSchema>;
+export const previewSchema = renderSchema.extend({
+  readingReferences: z.array(z.string().min(1)).min(1).max(1000).optional(),
+  voicePart: z.enum(["intro", "outro"]).optional(),
+}).refine((input) => !(input.readingReferences && input.voicePart), "Select only one preview section");

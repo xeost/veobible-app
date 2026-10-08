@@ -4,6 +4,8 @@
 
 export interface AudioSection {
   file: string;
+  /** Reading timeline start, excluding leading scene silence. */
+  timelineStart?: number;
   start: number;
   end: number;
 }

@@ -191,13 +191,16 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
 
       {/* Optional music from intro clip at 25% when mixing with voice */}
       {voices?.mode === "mix" && introAudioPath && (
-        <Audio src={introAudioPath} volume={0.25} endAt={introLength * fps} />
+        <Audio src={introAudioPath} useWebAudioApi crossOrigin="anonymous" volume={0.25} endAt={introLength * fps} />
       )}
 
       {/* Intro voice-over */}
       {voices && voices.mode !== undefined && (
         <Audio
           src={voices.intro}
+          // Shared audio elements must keep the same output route after passage reading.
+          useWebAudioApi
+          crossOrigin="anonymous"
           volume={1}
           startFrom={0}
           endAt={introLength * fps}

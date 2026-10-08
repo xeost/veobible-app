@@ -23,13 +23,12 @@ import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import { config } from "./config.js";
 import type { VerseCue } from "./verse-timing.js";
-import { introAnimationEnd } from "./remotion/animation.js";
+import { introAnimationEnd, layoutVerse } from "./remotion/animation.js";
 import { extractBackgroundPalette } from "./background-palette.js";
 import { validateReadingVolume } from "./reading-audio.js";
-import { trimReadingTail } from "../../reading-timeline.js";
+import { buildVerseReading } from "../../reading-timeline.js";
 import type { EpisodeCompositionProps } from "./remotion/types.js";
 import { prepareRemotionMedia } from "./remotion-media.js";
-import { renderAudioPreview } from "./audio-preview.js";
 export { layoutVerse } from "./remotion/animation.js";
 import { wrapIntroTitle as wrapIntroTitleArr } from "./remotion/animation.js";
 /** Returns the wrapped intro title as a newline-joined string (same API as the original). */
@@ -253,6 +252,8 @@ export async function prepareVideoComposition(
   renderOptions: {
     concurrency?: number;
     background?: string;
+    readingOnly?: boolean;
+    previewVoicePart?: "intro" | "outro";
     onProgress?: (progress: number) => void;
   } = {},
 ) {
@@ -285,8 +286,8 @@ export async function prepareVideoComposition(
     mediaInfo(outro),
     mediaInfo(background),
   ]);
-  requireClipStreams(introInfo, intro, !voices || voices.mode === "mix");
-  requireClipStreams(outroInfo, outro, !voices || voices.mode === "mix");
+  requireClipStreams(introInfo, intro, !renderOptions.readingOnly && (!voices || voices.mode === "mix"));
+  requireClipStreams(outroInfo, outro, !renderOptions.readingOnly && (!voices || voices.mode === "mix"));
   if (!backgroundInfo.streams.some((s) => s.codec_type === "video"))
     throw new Error(`Missing video stream: ${background}`);
 
@@ -294,7 +295,8 @@ export async function prepareVideoComposition(
   const outroDuration = mediaDuration(outroInfo, outro);
   const voiceDurations = voices
     ? await Promise.all(
-        [voices.intro, voices.outro].map(async (file) => {
+        [voices.intro, voices.outro].map(async (file, index) => {
+          if (renderOptions.previewVoicePart && index !== (renderOptions.previewVoicePart === "intro" ? 0 : 1)) return 0;
           const info = await mediaInfo(file);
           if (!info.streams.some((s) => s.codec_type === "audio"))
             throw new Error(`Missing voice audio stream: ${file}`);
@@ -304,9 +306,9 @@ export async function prepareVideoComposition(
     : undefined;
 
   const introLength =
-    (voiceDurations?.[0] ?? audioStreamDuration(introInfo, intro)) + 1;
+    (voiceDurations?.[0] ?? (renderOptions.readingOnly ? introDuration : audioStreamDuration(introInfo, intro))) + 1;
   const outroLength =
-    (voiceDurations?.[1] ?? audioStreamDuration(outroInfo, outro)) + 2;
+    (voiceDurations?.[1] ?? (renderOptions.readingOnly ? outroDuration : audioStreamDuration(outroInfo, outro))) + 2;
   const sourceReadingDuration = sections.reduce(
     (sum, s) => sum + s.end - s.start,
     0,
@@ -326,8 +328,8 @@ export async function prepareVideoComposition(
     throw new Error("The reading needs valid verse timings");
   }
 
-  const reading = trimReadingTail(sections, verseCues);
-  sections = reading.sections;
+  const reading = buildVerseReading(sections, verseCues, verseCues.map((cue) => layoutVerse(cue.text).lines.length));
+  verseCues = reading.cues;
   const readingDuration = reading.duration;
 
   const introVideo = introInfo.streams.find((s) => s.codec_type === "video")!;
@@ -362,11 +364,6 @@ export async function prepareVideoComposition(
   try {
     // Build boomerang (still uses FFmpeg — only the composition/render moves to Remotion)
     const boomerang = path.join(staging, "boomerang.mp4");
-    const readingAudio = path.join(staging, "reading.wav");
-    console.log("Preparing complete episode audio...");
-    await renderAudioPreview(readingAudio, sections, volumeMultiplier, {
-      padSections: true,
-    });
     console.log(`Creating boomerang from ${path.basename(background)}...`);
     await ffmpeg([
       "-i",
@@ -399,11 +396,11 @@ export async function prepareVideoComposition(
       introVideoPath: intro,
       boomerangVideoPath: boomerang,
       outroVideoPath: outro,
-      sections: [{ file: readingAudio, start: 0, end: readingDuration }],
+      sections: reading.sections,
       voices: voices
         ? { intro: voices.intro, outro: voices.outro, mode: voices.mode }
         : undefined,
-      volumeMultiplier: 1,
+      volumeMultiplier,
       introTitle: title,
       outroTitle,
       verseCues,
@@ -441,6 +438,8 @@ export async function renderEpisodeVideo(
   renderOptions: {
     concurrency?: number;
     background?: string;
+    readingOnly?: boolean;
+    previewVoicePart?: "intro" | "outro";
     onProgress?: (progress: number) => void;
   } = {},
 ): Promise<VideoResult> {

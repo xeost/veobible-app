@@ -1,3 +1,4 @@
+import { applyReadingCuts } from "./reading-timeline.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { outputRoot, type OutputEnvironment } from "./working-directories.js";
@@ -120,7 +121,7 @@ function modules(kind: "short" | "long") {
 export async function analyze(
   input: Pick<
     RenderRequest,
-    "kind" | "passage" | "version" | "settings" | "voiceTemplates"
+    "kind" | "passage" | "version" | "settings" | "voiceTemplates" | "readingCuts"
   >,
 ) {
   const m = modules(input.kind);
@@ -136,9 +137,10 @@ export async function analyze(
   const estimates = await m.timing.estimateVerseCues(
     data.timingInputs.map((v, i) => ({ ...v, section: sections[i] })),
   );
-  const cues = m.timing.applyVerseOffsets(
-    estimates,
-    input.settings.verseOffsets,
+  const cues = applyReadingCuts(
+    input.readingCuts ? estimates : m.timing.applyVerseOffsets(estimates, input.settings.verseOffsets),
+    input.readingCuts,
+    sections.reduce((total, section) => total + section.end - section.start, 0),
   );
   const context = m.voice.voiceContext(
     version,

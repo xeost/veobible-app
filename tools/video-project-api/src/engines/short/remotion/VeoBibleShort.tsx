@@ -135,8 +135,8 @@ export const VeoBibleShort: React.FC<ShortCompositionProps> = (props) => {
   const readingStart = introFrames - transFrames;
   const outroStart = readingStart + readingFrames - transFrames;
 
-  // Reading audio sum
-  const readingDuration = sections.reduce((sum, s) => sum + s.end - s.start, 0);
+  // Include the silent text transitions in the reading timeline.
+  const readingDuration = readingLength - readingSilence * 2;
 
   return (
     <AbsoluteFill style={{ background: "#000" }}>

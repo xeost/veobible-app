@@ -7,7 +7,7 @@
  * - Verse reference, open-quote glyph, verse lines (staggered entrance)
  * - Gold rule
  * - Website wordmark at bottom
- * - Bible reading audio (concatenated sections, volume-adjusted)
+ * - Bible reading audio (independently trimmed source sections, volume-adjusted)
  * - Optional voice tracks
  */
 
@@ -87,13 +87,12 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
     [layouts],
   );
 
-  // Build audio offset list so we can schedule each section's Audio correctly.
-  // Section audio starts at readingSilence seconds into this segment.
+  // Schedule independent verse cuts, including silent text transitions.
   let sectionOffset = readingSilence;
   const sectionSchedule = sections.map((section) => {
-    const start = sectionOffset;
+    const start = readingSilence + (section.timelineStart ?? sectionOffset - readingSilence);
     const dur = section.end - section.start;
-    sectionOffset += dur;
+    sectionOffset = start + dur;
     return { ...section, scheduleStart: start };
   });
 
@@ -127,7 +126,6 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
         height={height}
         t={t}
         colors={colors}
-        phase={readingPhase}
       />
 
       {/* Bible reading audio sections */}
@@ -137,7 +135,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
           from={Math.round(section.scheduleStart * fps)}
           durationInFrames={Math.max(
             1,
-            Math.round((section.end - section.start) * fps),
+            Math.ceil((section.end - section.start) * fps),
           )}
           layout="none"
         >
@@ -146,8 +144,8 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
             src={section.file}
             useWebAudioApi
             crossOrigin="anonymous"
-            startFrom={Math.round(section.start * fps)}
-            endAt={Math.round(section.end * fps)}
+            trimBefore={section.start * fps}
+            trimAfter={section.end * fps}
             // Delay into this segment: scheduleStart frames from the start of the reading scene
             // Remotion offsets are controlled via Sequence wrapper in the root composition.
             volume={

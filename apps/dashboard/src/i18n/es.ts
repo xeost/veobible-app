@@ -3,8 +3,8 @@ export const spanish: Record<string, string> = {
     "Usar un volumen de lectura propio para este proyecto",
   "Unchecked: uses the default reading volume for this Bible version.":
     "Sin marcar: se usa el volumen de lectura predeterminado de esta versión de la Biblia.",
-  "Analyze the audio again to update verse timings.":
-    "Volver a analizar el audio para actualizar los tiempos de los versículos.",
+  "Reanalyze the entire passage if the source audio or passage boundaries changed, or if analysis failed. Otherwise, results usually stay the same and do not improve manual cuts. Your adjustments are kept, but cuts may move if the estimated timings change. No audio is generated and no changes are saved.":
+    "Vuelve a analizar todo el pasaje si cambió el audio original o los límites del pasaje, o si falló el análisis. En caso contrario, el resultado suele ser el mismo y no mejora los cortes manuales. Tus ajustes se conservan, pero los cortes pueden moverse si cambian los tiempos estimados. No se genera audio ni se guardan cambios.",
   "Generate the introduction and closing voices before generating the video.":
     "Genera las voces de la introducción y el cierre antes de generar el video.",
   Composition: "Composición",
@@ -1171,4 +1171,5 @@ export const spanish: Record<string, string> = {
   "Narration generation stopped to keep the computer responsive. Close unused applications and try again.": "La generación de voz se detuvo para mantener el equipo funcionando con fluidez. Cierra las aplicaciones que no uses y vuelve a intentarlo.",
   "Narration generation exceeded its time limit. Try again; if the problem persists, contact the administrator.": "La generación de voz superó el tiempo permitido. Vuelve a intentarlo; si el problema persiste, contacta al administrador.",
   "Another narration is still being generated. Wait for it to finish and try again.": "Se está generando otra voz. Espera a que termine y vuelve a intentarlo.",
+  "Preview this passage": "Previsualizar este pasaje",
 };

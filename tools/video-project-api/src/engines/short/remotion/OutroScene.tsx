@@ -132,6 +132,9 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
       {voices && (
         <Audio
           src={voices.outro}
+          // Shared audio elements must keep the same output route after passage reading.
+          useWebAudioApi
+          crossOrigin="anonymous"
           volume={1}
           startFrom={0}
           endAt={outroLength * fps}
