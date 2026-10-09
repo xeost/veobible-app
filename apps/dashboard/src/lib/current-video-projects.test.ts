@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { listVideoProjects } from "./video-listing";
+import { listVideoProjects, nextVideoProject } from "./video-listing";
 import {
   parseCurrentProjects,
   currentProjectStorageKey,
@@ -61,6 +61,10 @@ test("marked project listings return only requested IDs in the matching format a
       [1, 2],
     );
     await assert.rejects(listVideoProjects(database, "short", null, "1,-2"));
+    assert.equal((await nextVideoProject(database, 1))?.id, 4);
+    assert.equal(await nextVideoProject(database, 4), null);
+    assert.equal(await nextVideoProject(database, 3), null);
+    assert.equal(await nextVideoProject(database, 2), null);
   } finally {
     sqlite.close();
   }

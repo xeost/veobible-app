@@ -1,4 +1,5 @@
 "use client";
+import { UpdatedAt } from "../../components/UpdatedAt";
 import { useI18n } from "../../i18n/context";
 import { CurrentVideoProjects } from "../../components/CurrentVideoProjects";
 import { userMessage, publicationLabel } from "../../lib/presentation";
@@ -12,7 +13,7 @@ import {
   ArrowUpRight,
   BookOpen,
 } from "lucide-react";
-import { api, date } from "../../components/api";
+import { api } from "../../components/api";
 export default function Dashboard() {
   const { t, language } = useI18n();
   const [data, setData] = useState<any>(null),
@@ -128,7 +129,9 @@ export default function Dashboard() {
                       {publicationLabel(p.published, language)}
                     </span>
                   </td>
-                  <td className="muted">{date(p.updated_at, language)}</td>
+                  <td className="muted">
+                    <UpdatedAt value={p.updated_at} />
+                  </td>
                 </tr>
               ))}
             </tbody>

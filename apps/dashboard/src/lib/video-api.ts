@@ -1,4 +1,8 @@
-import { listingSelect, listVideoProjects } from "./video-listing";
+import {
+  listingSelect,
+  listVideoProjects,
+  nextVideoProject,
+} from "./video-listing";
 import { loadPublicationSettings } from "./publication-settings";
 import { readingCutsSchema } from "../../../../tools/video-project-api/src/protocol";
 import { projectProposalsSchema, syncVideoProjects } from "./project-proposals";
@@ -263,6 +267,8 @@ export async function videoApi(
     return json(await syncExistingProjects(database, kind, data));
   }
   const id = z.coerce.number().int().positive().parse(parts[1]);
+  if (parts[2] === "next" && parts.length === 3 && method === "GET")
+    return json({ project: await nextVideoProject(database, id) });
   const project = await database
     .prepare(`${select} WHERE p.id=?`)
     .bind(id)

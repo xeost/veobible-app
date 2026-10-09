@@ -1,9 +1,16 @@
 "use client";
+import { UpdatedAt } from "./UpdatedAt";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, Clapperboard, Film } from "lucide-react";
+import {
+  Bookmark,
+  Clapperboard,
+  Film,
+  ArrowRightToLine,
+  LoaderCircle,
+} from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { userMessage, publicationLabel } from "../lib/presentation";
 import {
@@ -11,7 +18,7 @@ import {
   parseCurrentProjects,
   projectVersionKey,
 } from "../lib/current-video-projects";
-import { api, date } from "./api";
+import { api } from "./api";
 import type { VideoRow } from "./video-project";
 import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
 
@@ -22,6 +29,8 @@ export function CurrentVideoProjects() {
   const [rows, setRows] = useState<VideoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [advancing, setAdvancing] = useState<number | null>(null);
+  const [lastProjects, setLastProjects] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let revision = 0;
@@ -89,6 +98,52 @@ export function CurrentVideoProjects() {
   );
   const href = (row: VideoRow) =>
     `/${row.kind === "short" ? "short-videos" : "long-videos"}/${row.id}`;
+  const removeMark = (row: VideoRow) => {
+    try {
+      const key = currentProjectStorageKey(
+        row.kind === "short" ? "short" : "long",
+      );
+      const marks = parseCurrentProjects(localStorage.getItem(key));
+      const version = projectVersionKey(row);
+      if (marks[version] === row.id) {
+        delete marks[version];
+        localStorage.setItem(key, JSON.stringify(marks));
+      }
+      setRows((current) => current.filter((project) => project.id !== row.id));
+      setError("");
+    } catch (error) {
+      setError(userMessage(error));
+    }
+  };
+  const markNext = async (row: VideoRow) => {
+    setAdvancing(row.id);
+    setError("");
+    try {
+      const { project: next } = await api<{ project: VideoRow | null }>(
+        `videos/${row.id}/next`,
+      );
+      if (!next) {
+        setLastProjects((current) => new Set([...current, row.id]));
+        return;
+      }
+      const key = currentProjectStorageKey(
+        row.kind === "short" ? "short" : "long",
+      );
+      const marks = parseCurrentProjects(localStorage.getItem(key));
+      const version = projectVersionKey(row);
+      // Do not replace a newer mark made in another tab while the request was running.
+      if (marks[version] !== row.id) return;
+      marks[version] = next.id;
+      localStorage.setItem(key, JSON.stringify(marks));
+      setRows((current) =>
+        current.map((project) => (project.id === row.id ? next : project)),
+      );
+    } catch (error) {
+      setError(userMessage(error));
+    } finally {
+      setAdvancing(null);
+    }
+  };
   return (
     <section className="panel">
       <div className="panel-heading">
@@ -115,7 +170,7 @@ export function CurrentVideoProjects() {
                 tabIndex={0}
                 aria-label={`${t("Open project")}: ${row.title}`}
                 onClick={(event) => {
-                  if (!(event.target as Element).closest("a"))
+                  if (!(event.target as Element).closest("a, button"))
                     router.push(href(row));
                 }}
                 onKeyDown={(event) => {
@@ -153,13 +208,59 @@ export function CurrentVideoProjects() {
                   </small>
                 </td>
                 <td>
-                  <span
-                    className={`badge${row.published ? " publication-published" : ""}`}
-                  >
-                    {publicationLabel(row.published, language)}
-                  </span>
+                  <div className="project-publication-controls">
+                    <span
+                      className={`badge${row.published ? " publication-published" : ""}`}
+                    >
+                      {publicationLabel(row.published, language)}
+                    </span>
+                    <button
+                      type="button"
+                      className="icon-button current-project-marker active"
+                      aria-label={`${t("Remove current project mark")}: ${row.title}`}
+                      data-tooltip={t("Remove current project mark")}
+                      disabled={loading || advancing !== null}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeMark(row);
+                      }}
+                    >
+                      <Bookmark size={16} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button current-project-marker"
+                      aria-label={`${t("Mark the next project")}: ${row.title}`}
+                      data-tooltip={t(
+                        lastProjects.has(row.id)
+                          ? "There is no next project for this format and Bible version."
+                          : "Mark the next project in this format and Bible version, ordered by ID.",
+                      )}
+                      disabled={
+                        loading ||
+                        advancing !== null ||
+                        lastProjects.has(row.id)
+                      }
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void markNext(row);
+                      }}
+                    >
+                      {advancing === row.id ? (
+                        <LoaderCircle
+                          size={16}
+                          className="voice-spinner"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <ArrowRightToLine size={16} aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
                 </td>
-                <td className="muted">{date(row.updated_at, language)}</td>
+                <td className="muted">
+                  <UpdatedAt value={row.updated_at} />
+                </td>
               </tr>
             ))}
           </tbody>

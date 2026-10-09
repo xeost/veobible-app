@@ -772,6 +772,16 @@ td small {
   margin-top: 5px;
   font-size: 9px;
 }
+.project-updated-at {
+  display: flex;
+  flex-direction: column;
+}
+.project-updated-at small {
+  color: var(--muted);
+}
+.project-updated-at small::first-letter {
+  text-transform: uppercase;
+}
 tbody tr:last-child td {
   border-bottom: 0;
 }

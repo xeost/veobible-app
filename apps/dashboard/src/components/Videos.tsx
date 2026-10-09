@@ -1,4 +1,5 @@
 "use client";
+import { UpdatedAt } from "./UpdatedAt";
 import { SyncVideoProjectsModal } from "./SyncVideoProjectsModal";
 import { VideoProjectMenu } from "./VideoProjectMenu";
 import { CreateVideoProjectModal } from "./CreateVideoProjectModal";
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api, date } from "./api";
+import { api } from "./api";
 import {
   parseCurrentProjects,
   projectVersionKey,
@@ -410,7 +411,9 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                         </button>
                       </div>
                     </td>
-                    <td className="muted">{date(row.updated_at, language)}</td>
+                    <td className="muted">
+                      <UpdatedAt value={row.updated_at} />
+                    </td>
                     <td>
                       <Link
                         className="button icon-button"

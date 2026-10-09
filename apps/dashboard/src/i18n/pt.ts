@@ -1210,4 +1210,9 @@ export const portuguese: Record<string, string> = {
   "Playback speed for listening in the editor only. Saved for this Bible language; previews and the final video keep their original speed.":
     "Velocidade de escuta apenas no editor. Salva para este idioma da Bíblia; as prévias e o vídeo final mantêm a velocidade original.",
   "Playback speed": "Velocidade de reprodução",
+  "Mark the next project": "Marcar o próximo projeto",
+  "There is no next project for this format and Bible version.":
+    "Não há próximo projeto para este formato e versão da Bíblia.",
+  "Mark the next project in this format and Bible version, ordered by ID.":
+    "Marcar o próximo projeto deste formato e versão da Bíblia, por ordem de ID.",
 };

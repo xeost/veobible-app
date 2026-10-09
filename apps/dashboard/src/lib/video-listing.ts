@@ -37,3 +37,13 @@ export async function listVideoProjects(
       .all()
   ).results as VideoRow[];
 }
+
+export async function nextVideoProject(database: D1Database, id: number) {
+  const rows = await database
+    .prepare(
+      `${listingSelect} JOIN video_projects current ON current.kind=p.kind AND current.bible_version_id=p.bible_version_id WHERE current.id=? AND p.id>current.id ORDER BY p.id ASC LIMIT 1`,
+    )
+    .bind(id)
+    .all<VideoRow>();
+  return rows.results[0] ?? null;
+}
