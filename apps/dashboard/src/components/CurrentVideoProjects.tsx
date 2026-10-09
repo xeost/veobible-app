@@ -30,6 +30,9 @@ export function CurrentVideoProjects() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [advancing, setAdvancing] = useState<number | null>(null);
+  const [updatingPublication, setUpdatingPublication] = useState<number | null>(
+    null,
+  );
   const [lastProjects, setLastProjects] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -113,6 +116,32 @@ export function CurrentVideoProjects() {
       setError("");
     } catch (error) {
       setError(userMessage(error));
+    }
+  };
+  const togglePublication = async (row: VideoRow) => {
+    setUpdatingPublication(row.id);
+    setError("");
+    try {
+      const published = !row.published;
+      await api(`videos/${row.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ published }),
+      });
+      setRows((current) =>
+        current.map((project) =>
+          project.id === row.id
+            ? {
+                ...project,
+                published: Number(published),
+                updated_at: new Date().toISOString(),
+              }
+            : project,
+        ),
+      );
+    } catch (error) {
+      setError(userMessage(error));
+    } finally {
+      setUpdatingPublication(null);
     }
   };
   const markNext = async (row: VideoRow) => {
@@ -209,17 +238,45 @@ export function CurrentVideoProjects() {
                 </td>
                 <td>
                   <div className="project-publication-controls">
-                    <span
+                    <button
+                      type="button"
                       className={`badge${row.published ? " publication-published" : ""}`}
+                      aria-pressed={Boolean(row.published)}
+                      aria-label={`${t(row.published ? "Mark as unpublished" : "Mark as published")}: ${row.title}`}
+                      data-tooltip={t(
+                        row.published
+                          ? "Mark as unpublished"
+                          : "Mark as published",
+                      )}
+                      disabled={
+                        loading ||
+                        advancing !== null ||
+                        updatingPublication !== null
+                      }
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void togglePublication(row);
+                      }}
                     >
+                      {updatingPublication === row.id && (
+                        <LoaderCircle
+                          size={12}
+                          className="voice-spinner"
+                          aria-hidden="true"
+                        />
+                      )}
                       {publicationLabel(row.published, language)}
-                    </span>
+                    </button>
                     <button
                       type="button"
                       className="icon-button current-project-marker active"
                       aria-label={`${t("Remove current project mark")}: ${row.title}`}
                       data-tooltip={t("Remove current project mark")}
-                      disabled={loading || advancing !== null}
+                      disabled={
+                        loading ||
+                        advancing !== null ||
+                        updatingPublication !== null
+                      }
                       onClick={(event) => {
                         event.stopPropagation();
                         removeMark(row);
@@ -239,6 +296,7 @@ export function CurrentVideoProjects() {
                       disabled={
                         loading ||
                         advancing !== null ||
+                        updatingPublication !== null ||
                         lastProjects.has(row.id)
                       }
                       onClick={(event) => {
