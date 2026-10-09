@@ -25,6 +25,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "./api";
 import {
   parseCurrentProjects,
+  type CurrentProjects,
+  toggleCurrentProjectMark,
   projectVersionKey,
   currentProjectStorageKey as storageKey,
 } from "../lib/current-video-projects";
@@ -47,14 +49,15 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
   const requestedVersion = searchParams.get("version");
   const versionStorageKey = `veo-video-version-filter:${kind}`;
   const currentProjectStorageKey = storageKey(kind);
-  const [currentProjects, setCurrentProjects] = useState<
-    Record<string, number>
-  >({});
+  const [currentProjects, setCurrentProjects] = useState<CurrentProjects>({});
   useEffect(() => {
     const read = () => {
       try {
         setCurrentProjects(
-          parseCurrentProjects(localStorage.getItem(currentProjectStorageKey)),
+          parseCurrentProjects(
+            localStorage.getItem(currentProjectStorageKey),
+            kind,
+          ),
         );
       } catch {
         // The working mark remains usable when browser storage is unavailable.
@@ -66,10 +69,10 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     read();
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [currentProjectStorageKey]);
+  }, [currentProjectStorageKey, kind]);
   const isCurrentProject = (row: VideoRow) =>
-    currentProjects[projectVersionKey(row)] === row.id;
-  const saveCurrentProjects = (next: Record<string, number>) => {
+    currentProjects[projectVersionKey(row)]?.includes(row.id) ?? false;
+  const saveCurrentProjects = (next: CurrentProjects) => {
     setCurrentProjects(next);
     try {
       localStorage.setItem(currentProjectStorageKey, JSON.stringify(next));
@@ -78,11 +81,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     }
   };
   const toggleCurrentProject = (row: VideoRow) => {
-    const key = projectVersionKey(row);
-    const next = { ...currentProjects };
-    if (isCurrentProject(row)) delete next[key];
-    else next[key] = row.id;
-    saveCurrentProjects(next);
+    saveCurrentProjects(toggleCurrentProjectMark(currentProjects, row, kind));
   };
   const [createOpen, setCreateOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -120,7 +119,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       if (!row) return;
       const key = projectVersionKey(row);
       if (currentProjects[key] === undefined) {
-        const next = { ...currentProjects, [key]: row.id };
+        const next = { ...currentProjects, [key]: [row.id] };
         localStorage.setItem(currentProjectStorageKey, JSON.stringify(next));
         setCurrentProjects(next);
       }
@@ -397,10 +396,21 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                           className={`icon-button current-project-marker${isCurrentProject(row) ? " active" : ""}`}
                           aria-pressed={isCurrentProject(row)}
                           aria-label={`${t(isCurrentProject(row) ? "Remove current project mark" : "Mark as current project")}: ${row.title}`}
+                          disabled={
+                            kind === "long" &&
+                            !isCurrentProject(row) &&
+                            (currentProjects[projectVersionKey(row)]?.length ??
+                              0) >= 2
+                          }
                           data-tooltip={t(
-                            isCurrentProject(row)
-                              ? "Remove current project mark"
-                              : "Mark as current project",
+                            kind === "long" &&
+                              !isCurrentProject(row) &&
+                              (currentProjects[projectVersionKey(row)]
+                                ?.length ?? 0) >= 2
+                              ? "Two projects are already marked for this Bible version. Remove one mark to choose another."
+                              : isCurrentProject(row)
+                                ? "Remove current project mark"
+                                : "Mark as current project",
                           )}
                           onClick={(event) => {
                             event.stopPropagation();

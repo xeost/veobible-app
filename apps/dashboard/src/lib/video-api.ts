@@ -312,8 +312,18 @@ export async function videoApi(
     return json(await syncExistingProjects(database, kind, data));
   }
   const id = z.coerce.number().int().positive().parse(parts[1]);
-  if (parts[2] === "next" && parts.length === 3 && method === "GET")
-    return json({ project: await nextVideoProject(database, id) });
+  if (parts[2] === "next" && parts.length === 3 && method === "GET") {
+    const rawExclude = url.searchParams.get("exclude");
+    const exclude = rawExclude
+      ? z
+          .array(
+            z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+          )
+          .max(2)
+          .parse(rawExclude.split(","))
+      : [];
+    return json({ project: await nextVideoProject(database, id, exclude) });
+  }
   const project = await database
     .prepare(`${select} WHERE p.id=?`)
     .bind(id)

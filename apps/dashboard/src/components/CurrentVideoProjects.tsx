@@ -17,6 +17,9 @@ import { userMessage, publicationLabel } from "../lib/presentation";
 import {
   currentProjectStorageKey,
   parseCurrentProjects,
+  type CurrentProjects,
+  removeCurrentProject,
+  advanceCurrentProjectMark,
   projectVersionKey,
 } from "../lib/current-video-projects";
 import { api } from "./api";
@@ -49,23 +52,24 @@ export function CurrentVideoProjects() {
       try {
         const groups = await Promise.all(
           (["short", "long"] as const).map(async (kind) => {
-            let marks: Record<string, number> = {};
+            let marks: CurrentProjects = {};
             try {
               marks = parseCurrentProjects(
                 localStorage.getItem(currentProjectStorageKey(kind)),
+                kind,
               );
             } catch {
               // Browser marks are unavailable when local storage is blocked.
             }
-            const ids = [...new Set(Object.values(marks))];
+            const ids = [...new Set(Object.values(marks).flat())];
             const projects: VideoRow[] = [];
             for (let index = 0; index < ids.length; index += 80) {
               const data = await api<{ videos: VideoRow[] }>(
                 `videos?kind=${kind}&ids=${ids.slice(index, index + 80).join(",")}`,
               );
               projects.push(
-                ...data.videos.filter(
-                  (row) => marks[projectVersionKey(row)] === row.id,
+                ...data.videos.filter((row) =>
+                  marks[projectVersionKey(row)]?.includes(row.id),
                 ),
               );
             }
@@ -150,13 +154,16 @@ export function CurrentVideoProjects() {
       const key = currentProjectStorageKey(
         row.kind === "short" ? "short" : "long",
       );
-      const marks = parseCurrentProjects(localStorage.getItem(key));
-      const version = projectVersionKey(row);
-      if (marks[version] === row.id) {
-        delete marks[version];
-        localStorage.setItem(key, JSON.stringify(marks));
-      }
+      const marks = parseCurrentProjects(
+        localStorage.getItem(key),
+        row.kind === "short" ? "short" : "long",
+      );
+      localStorage.setItem(
+        key,
+        JSON.stringify(removeCurrentProject(marks, row)),
+      );
       setRows((current) => current.filter((project) => project.id !== row.id));
+      setLastProjects(new Set());
       setError("");
     } catch (error) {
       setError(userMessage(error));
@@ -192,22 +199,25 @@ export function CurrentVideoProjects() {
     setAdvancing(row.id);
     setError("");
     try {
+      const kind = row.kind === "short" ? "short" : "long";
+      const key = currentProjectStorageKey(kind);
+      const before = parseCurrentProjects(localStorage.getItem(key), kind);
+      const others = (before[projectVersionKey(row)] ?? []).filter(
+        (id) => id !== row.id,
+      );
       const { project: next } = await api<{ project: VideoRow | null }>(
-        `videos/${row.id}/next`,
+        `videos/${row.id}/next${others.length ? `?exclude=${others.join(",")}` : ""}`,
       );
       if (!next) {
         setLastProjects((current) => new Set([...current, row.id]));
         return;
       }
-      const key = currentProjectStorageKey(
-        row.kind === "short" ? "short" : "long",
-      );
-      const marks = parseCurrentProjects(localStorage.getItem(key));
-      const version = projectVersionKey(row);
-      // Do not replace a newer mark made in another tab while the request was running.
-      if (marks[version] !== row.id) return;
-      marks[version] = next.id;
-      localStorage.setItem(key, JSON.stringify(marks));
+      const marks = parseCurrentProjects(localStorage.getItem(key), kind);
+      // Replace only this row's marker, preserving the independent second marker.
+      const advancedMarks = advanceCurrentProjectMark(marks, row, next);
+      if (advancedMarks === marks) return;
+      localStorage.setItem(key, JSON.stringify(advancedMarks));
+      setLastProjects(new Set());
       setRows((current) =>
         current.map((project) => (project.id === row.id ? next : project)),
       );

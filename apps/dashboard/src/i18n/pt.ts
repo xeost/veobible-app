@@ -1227,4 +1227,6 @@ export const portuguese: Record<string, string> = {
     "Marque um projeto em Vídeos curtos para vê-lo aqui.",
   "Mark a project in Long Videos to see it here.":
     "Marque um projeto em Vídeos longos para vê-lo aqui.",
+  "Two projects are already marked for this Bible version. Remove one mark to choose another.":
+    "Já há dois projetos marcados para esta versão da Bíblia. Remova uma marca para escolher outro.",
 };

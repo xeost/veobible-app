@@ -38,12 +38,16 @@ export async function listVideoProjects(
   ).results as VideoRow[];
 }
 
-export async function nextVideoProject(database: D1Database, id: number) {
+export async function nextVideoProject(
+  database: D1Database,
+  id: number,
+  exclude: number[] = [],
+) {
   const rows = await database
     .prepare(
-      `${listingSelect} JOIN video_projects current ON current.kind=p.kind AND current.bible_version_id=p.bible_version_id WHERE current.id=? AND p.id>current.id ORDER BY p.id ASC LIMIT 1`,
+      `${listingSelect} JOIN video_projects current ON current.kind=p.kind AND current.bible_version_id=p.bible_version_id WHERE current.id=? AND p.id>current.id${exclude.length ? ` AND p.id NOT IN (${exclude.map(() => "?").join(",")})` : ""} ORDER BY p.id ASC LIMIT 1`,
     )
-    .bind(id)
+    .bind(id, ...exclude)
     .all<VideoRow>();
   return rows.results[0] ?? null;
 }
