@@ -259,6 +259,9 @@ export function VoiceSettingsModal({
               <p className="notice">
                 {t(
                   "Use {passage_url} for a link to the beginning of the passage in its language and Bible version. The link includes the starting verse unless it is verse 1.",
+                )}{" "}
+                {t(
+                  "Use {episode} for the day number saved in this video project. You can add headings to separate the title and description.",
                 )}
               </p>
             )}

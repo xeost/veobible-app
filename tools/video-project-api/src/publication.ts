@@ -8,6 +8,7 @@ import {
 
 interface PublicationTitle {
   title: string;
+  episode?: number;
   reference: string;
   version: string;
 }
@@ -114,6 +115,10 @@ export function publicationDescriptions(
     result[publicationFilenames[platform]] =
       fillPublicationTemplate(template, {
         title: title.title,
+        episode:
+          kind === "long" && title.episode !== undefined
+            ? String(title.episode)
+            : "",
         reference: title.reference,
         version: title.version,
         passage,

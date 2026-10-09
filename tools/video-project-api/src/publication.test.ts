@@ -21,6 +21,7 @@ test("documented templates cover each platform and language with usable titles a
   assert.equal(formats.length, 2);
   const title = {
     title: "VeoBible",
+    episode: 7,
     reference: "John 3:16–17",
     version: "Test Bible",
   };
@@ -52,16 +53,38 @@ test("documented templates cover each platform and language with usable titles a
         Object.keys(result).length,
         publicationPlatforms(kind).length,
       );
-      for (const text of Object.values(result)) {
+      for (const [filename, text] of Object.entries(result)) {
         assert.ok(text.includes(title.reference));
         assert.ok(text.includes(title.version));
         assert.doesNotMatch(text, /[{}]/);
-        if (kind === "long") {
-          const [headline, ...description] = text.trim().split("\n\n");
-          assert.ok(headline.includes(title.reference));
-          assert.ok(!headline.includes("\n"));
-          assert.ok(!headline.includes("#"));
-          assert.ok(description.join("\n\n").includes(url));
+        if (kind === "long" || filename === "3-youtube.txt") {
+          const headers = {
+            en: ["# Title", "# Description", "The Bible in 365 Days | Day 7"],
+            es: ["# Título", "# Descripción", "La Biblia en 365 días | Día 7"],
+            pt: ["# Título", "# Descrição", "A Bíblia em 365 dias | Dia 7"],
+          }[locale];
+          const [heading, headline, descriptionHeading, ...description] = text
+            .trim()
+            .split("\n\n");
+          assert.equal(heading, headers[0]);
+          assert.equal(descriptionHeading, headers[1]);
+          const shortTitle = {
+            en: "A moment with the Bible",
+            es: "Un momento con la Biblia",
+            pt: "Um momento com a Bíblia",
+          }[locale];
+          assert.equal(
+            headline,
+            kind === "long"
+              ? `${headers[2]} | ${title.reference}`
+              : `${title.reference} | ${shortTitle}`,
+          );
+          assert.doesNotMatch(headline, /[\n#]|\p{Extended_Pictographic}/u);
+          assert.ok(description.join("\n\n").includes(title.version));
+          if (kind === "long")
+            assert.ok(description.join("\n\n").includes(url));
+        } else {
+          assert.doesNotMatch(text, /^# /m);
         }
       }
     }
@@ -91,6 +114,7 @@ test("custom publication copy preserves line breaks, omits empty templates, and 
   assert.throws(() =>
     fillPublicationTemplate("{unknown}", {
       title: "",
+      episode: "",
       reference: "",
       version: "",
       passage: "",
@@ -123,4 +147,40 @@ test("publication links use the saved language, version, book and first verse, o
       `https://veobible.com/${locale}/rv1909/genesis/7`,
     );
   }
+});
+
+test("episode placeholders use the saved day and remain empty when it is unavailable", () => {
+  const title = {
+    title: "Series",
+    reference: "Genesis 3",
+    version: "Bible",
+    episode: 42,
+  };
+  const templates = {
+    youtube:
+      "# Title\n\nDay {episode} | {reference}\n\n# Description\n\n{version}",
+  };
+  const text = publicationDescriptions("en", title, [], templates, "long")[
+    "3-youtube.txt"
+  ];
+  assert.ok(text.includes("Day 42 | Genesis 3"));
+  assert.ok(
+    publicationDescriptions(
+      "en",
+      { ...title, episode: undefined },
+      [],
+      { youtube: "[{episode}]" },
+      "long",
+    )["3-youtube.txt"].includes("[]"),
+  );
+  assert.equal(
+    publicationDescriptions(
+      "en",
+      title,
+      [],
+      { youtube: "[{episode}]" },
+      "short",
+    )["3-youtube.txt"],
+    "[]\n",
+  );
 });

@@ -1566,7 +1566,26 @@ audio {
 }
 .sections-toolbar > div:last-child {
   display: flex;
+  align-items: center;
+  flex-shrink: 0;
   gap: 6px;
+}
+.sections-toolbar .section-toolbar-button {
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--text);
+}
+.sections-toolbar .section-toolbar-button.project-published-button {
+  color: #7acaab;
+  background: #59be9518;
+  border-color: #59be9540;
+}
+.sections-toolbar .section-toolbar-button.project-published-button:hover {
+  background: #59be9528;
+  border-color: #59be9560;
 }
 .section-card {
   border: 1px solid #ffffff12;

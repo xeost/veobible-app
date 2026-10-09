@@ -1,4 +1,11 @@
 export const portuguese: Record<string, string> = {
+  "Generate all missing narrations": "Gerar todas as narrações pendentes",
+  "Adding narrations to the queue\u2026": "Adicionando narrações à fila…",
+  "All narrations are ready or queued":
+    "Todas as narrações estão prontas ou na fila",
+
+  "Use {episode} for the day number saved in this video project. You can add headings to separate the title and description.":
+    "Use {episode} para o número do dia salvo neste projeto de vídeo. Você pode adicionar cabeçalhos para separar o título e a descrição.",
   "Use {passage_url} for a link to the beginning of the passage in its language and Bible version. The link includes the starting verse unless it is verse 1.":
     "Use {passage_url} para um link ao início da passagem no idioma e na versão da Bíblia correspondentes. O link inclui o versículo inicial, exceto quando é o versículo 1.",
   "Publication templates": "Modelos de publicação",

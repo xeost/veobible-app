@@ -2,22 +2,25 @@
 
 Copia cada bloque en **Ajustes → Plantillas de publicación**, elige el formato y el idioma correspondientes y guarda esa pestaña. Los textos se usarán en la próxima generación del video; este documento no modifica las plantillas que ya hayas guardado.
 
-En los **videos largos**, la primera línea de cada bloque es el **título** y el resto, después de la línea en blanco, es la **descripción**. Ambos se generan en el mismo archivo de publicación. En YouTube, copia esa primera línea en el campo de título y el resto en la descripción; donde se utilice un solo texto, la primera línea funciona como apertura. Los títulos no incorporan hashtags: estos quedan en la descripción.
+Las descripciones presentan la lectura como una invitación a compartir un momento con la Biblia. El tono es cercano y tranquilo, con agradecimiento por la compañía y espacio para que cada persona decida cómo participar.
 
-Las propuestas presentan la experiencia real del video: escuchar el pasaje y seguir su lectura. Las aperturas buscan despertar curiosidad sin atribuir al episodio una explicación, una enseñanza específica o una promesa que el contenido no ofrece. Las versiones en inglés, español y portugués están adaptadas a cada idioma.
+En los **videos largos**, cada bloque incluye dos secciones con encabezados Markdown: `# Title` y `# Description` en inglés, `# Título` y `# Descripción` en español, y `# Título` y `# Descrição` en portugués. Ambos apartados se generan en el mismo archivo. Al publicar, copia el contenido de cada sección en su campo correspondiente, sin los encabezados. Los títulos identifican la serie, el día y el pasaje; los emojis se reservan para las descripciones.
+
+En **YouTube Shorts** también se separan el título y la descripción con estos encabezados, traducidos a cada idioma. En las demás plataformas, los videos cortos llevan únicamente la descripción, sin encabezados de sección.
 
 Los archivos de salida se ordenan para publicar: `0-short.mp4` o `0-episode.mp4` y `0-thumbnail.jpg`, seguidos de `1-instagram.txt`, `2-facebook.txt`, `3-youtube.txt`, `4-tiktok.txt` y `5-x.txt`. En videos largos no se genera Instagram; se conserva la misma numeración para las demás redes.
 
 ## Variables y uso
 
+- `{episode}`: número del episodio guardado en el proyecto de video largo, usado como día del recorrido. Por ejemplo, `Día {episode}` se convierte en `Día 1`. Asegúrate de que el proyecto tenga su número de episodio; si falta, la variable queda vacía. No se utiliza en las plantillas de videos cortos.
 - `{reference}`: referencia del pasaje seleccionado, con su rango de capítulos o versículos.
 - `{version}`: nombre de la versión de la Biblia.
 - `{passage_url}`: enlace al inicio del pasaje en el idioma y la versión del proyecto. Por ejemplo, `https://veobible.com/es/rv1909/genesis/3` si empieza en el versículo 1, o `https://veobible.com/es/rv1909/genesis/3#13` si empieza en el versículo 13.
 - `{hashtags}`: hashtags calculados según el idioma, libro, temas del pasaje, formato y red social. Puedes reemplazar esta variable por una selección propia. En X se propone solo `#VeoBible` para dejar más espacio al mensaje.
-- `{title}`: título visual que ya utiliza el video. Sigue disponible, aunque estas propuestas usan una apertura editorial propia.
-- `{passage}`: todos los versículos seleccionados, uno por línea. Es opcional; estas propuestas invitan a escuchar o a leer en el enlace, sin repetir el pasaje completo en la descripción.
+- `{title}`: título visual que ya utiliza el video. Sigue disponible, aunque las plantillas de videos largos construyen su título con el número de episodio y la referencia.
+- `{passage}`: todos los versículos seleccionados, uno por línea. Está disponible si deseas añadir el texto bíblico a alguna descripción.
 
-Una plantilla vacía omite su archivo. Las direcciones, llamadas a la acción y hashtags escritos como texto se pueden editar. Las descripciones de videos largos incluyen siempre `{passage_url}`. Revisa el título generado antes de publicar, especialmente cuando la referencia abarque varios libros o sea extensa.
+Una plantilla vacía omite su archivo. Las descripciones de videos largos incluyen siempre `{passage_url}`. Revisa la extensión del título y la descripción después de sustituir las variables, especialmente si la referencia abarca varios libros.
 
 ## Videos cortos
 
@@ -26,13 +29,13 @@ Una plantilla vacía omite su archivo. Las direcciones, llamadas a la acción y 
 #### Instagram
 
 ```text
-A little less scrolling. A little more listening. 📖
+Your daily dose of the word of God. 📖
 
-Take a moment with {reference}, read from {version}. Follow the words on screen and let the passage speak for itself.
+Today we're sharing {reference}, read from {version}, with the words on screen to follow along.
 
-Save this reading for a quieter moment.
+If you'd like to return to this passage another day, you're welcome to save it. Thank you for listening with us.
 
-More to explore: https://veobible.com
+https://veobible.com
 
 {hashtags}
 ```
@@ -40,13 +43,15 @@ More to explore: https://veobible.com
 #### Facebook
 
 ```text
-What will you notice when you pause to listen?
+We're glad to share this reading with you.
 
-Today's reading is {reference} · {version}. A short moment with the Bible, with the words on screen so you can follow along.
+Your daily dose of the word of God.
 
-Which part stayed with you? We'd love to hear it in the comments.
+{reference} · {version}
 
-Keep reading: https://veobible.com
+A short Bible passage to listen to and reflect on in your own time. If you'd like to share a thought, we'd be happy to read it.
+
+More readings at https://veobible.com
 
 {hashtags}
 ```
@@ -54,13 +59,19 @@ Keep reading: https://veobible.com
 #### YouTube
 
 ```text
-Pause the scroll. Listen to {reference}.
+# Title
 
-A moment with the Bible in the middle of your day. Listen to {reference} in {version} and follow the passage on screen.
+{reference} | A moment with the Bible
 
-Subscribe to VeoBible for more short Bible readings.
+# Description
 
-Read more: https://veobible.com
+Your daily dose of the word of God.
+
+Welcome to VeoBible. Today we're sharing {reference} in {version}, with the text on screen so you can follow the reading.
+
+We hope you'll enjoy spending this time with Scripture. You'll find more readings on our channel whenever you'd like to join us again.
+
+https://veobible.com
 
 {hashtags}
 ```
@@ -68,13 +79,13 @@ Read more: https://veobible.com
 #### TikTok
 
 ```text
-Before the next swipe, take a moment to listen. 🎧
+Your daily dose of the word of God. 📖
 
 {reference} · {version}
 
-Which words caught your attention?
+The words are on screen if you'd like to read along. Thank you for being here.
 
-More readings: veobible.com
+veobible.com
 
 {hashtags}
 ```
@@ -82,11 +93,9 @@ More readings: veobible.com
 #### X
 
 ```text
-A pause in your feed. A passage to listen to.
+Today we're sharing {reference}, read from {version}.
 
-{reference} · {version}
-
-What stays with you after listening?
+Your daily dose of the word of God. Thank you for listening with us.
 
 https://veobible.com
 #VeoBible
@@ -97,13 +106,13 @@ https://veobible.com
 #### Instagram
 
 ```text
-Menos scroll. Un momento para escuchar. 📖
+Tu dosis diaria de la palabra de Dios. 📖
 
-Haz una pausa con {reference}, en {version}. Sigue las palabras en pantalla y deja que el pasaje hable por sí mismo.
+Hoy compartimos {reference}, en {version}, con las palabras en pantalla para acompañar la lectura.
 
-Guarda esta lectura para volver a ella con calma.
+Si te gustaría volver a este pasaje otro día, puedes guardarlo. Gracias por compartir este momento con nosotros.
 
-Sigue explorando: https://veobible.com
+https://veobible.com
 
 {hashtags}
 ```
@@ -111,13 +120,15 @@ Sigue explorando: https://veobible.com
 #### Facebook
 
 ```text
-¿Qué descubres cuando te detienes a escuchar?
+Nos alegra compartir esta lectura contigo.
 
-Hoy leemos {reference} · {version}. Un momento con la Biblia, con el texto en pantalla para acompañar la lectura.
+Tu dosis diaria de la palabra de Dios.
 
-¿Qué parte se quedó contigo? Te leemos en los comentarios.
+{reference} · {version}
 
-Continúa leyendo: https://veobible.com
+Un breve pasaje de la Biblia para escuchar y reflexionar a tu ritmo. Si te apetece compartir alguna reflexión, nos gustará leerte.
+
+Más lecturas en https://veobible.com
 
 {hashtags}
 ```
@@ -125,13 +136,19 @@ Continúa leyendo: https://veobible.com
 #### YouTube
 
 ```text
-Detén el scroll. Escucha {reference}.
+# Título
 
-Un momento con la Biblia en medio de tu día. Escucha {reference} en {version} y acompaña la lectura con el texto en pantalla.
+{reference} | Un momento con la Biblia
 
-Suscríbete a VeoBible para descubrir más pasajes en videos cortos.
+# Descripción
 
-Sigue leyendo: https://veobible.com
+Tu dosis diaria de la palabra de Dios.
+
+Te damos la bienvenida a VeoBible. Hoy compartimos {reference} en {version}, con el texto en pantalla para acompañar la lectura.
+
+Esperamos que disfrutes este tiempo con las Escrituras. En el canal encontrarás más lecturas cuando quieras volver a acompañarnos.
+
+https://veobible.com
 
 {hashtags}
 ```
@@ -139,13 +156,13 @@ Sigue leyendo: https://veobible.com
 #### TikTok
 
 ```text
-Antes de deslizar, escucha un momento. 🎧
+Tu dosis diaria de la palabra de Dios. 📖
 
 {reference} · {version}
 
-¿Qué palabras llamaron tu atención?
+El texto está en pantalla por si quieres seguir la lectura. Gracias por estar aquí.
 
-Más lecturas: veobible.com
+veobible.com
 
 {hashtags}
 ```
@@ -153,11 +170,9 @@ Más lecturas: veobible.com
 #### X
 
 ```text
-Una pausa en tu feed. Un pasaje para escuchar.
+Hoy compartimos {reference}, en {version}.
 
-{reference} · {version}
-
-¿Con qué palabras te quedas?
+Tu dosis diaria de la palabra de Dios. Gracias por acompañarnos en la lectura.
 
 https://veobible.com
 #VeoBible
@@ -168,13 +183,13 @@ https://veobible.com
 #### Instagram
 
 ```text
-Menos rolagem. Mais espaço para ouvir. 📖
+Sua dose diária da palavra de Deus. 📖
 
-Faça uma pausa com {reference}, na versão {version}. Acompanhe as palavras na tela e deixe a passagem falar por si.
+Hoje compartilhamos {reference}, na versão {version}, com as palavras na tela para acompanhar a leitura.
 
-Salve esta leitura para ouvir de novo com calma.
+Se quiser voltar a esta passagem outro dia, você pode salvá-la. Obrigado por compartilhar este momento conosco.
 
-Continue explorando: https://veobible.com
+https://veobible.com
 
 {hashtags}
 ```
@@ -182,13 +197,15 @@ Continue explorando: https://veobible.com
 #### Facebook
 
 ```text
-O que você percebe quando para para ouvir?
+É uma alegria compartilhar esta leitura com você.
 
-A leitura de hoje é {reference} · {version}. Um momento com a Bíblia, com o texto na tela para você acompanhar.
+Sua dose diária da palavra de Deus.
 
-Que trecho ficou com você? Conte nos comentários.
+{reference} · {version}
 
-Continue lendo: https://veobible.com
+Uma breve passagem da Bíblia para ouvir e refletir no seu tempo. Se quiser compartilhar uma reflexão, vamos gostar de ler.
+
+Mais leituras em https://veobible.com
 
 {hashtags}
 ```
@@ -196,13 +213,19 @@ Continue lendo: https://veobible.com
 #### YouTube
 
 ```text
-Pare um instante. Ouça {reference}.
+# Título
 
-Um momento com a Bíblia no meio do seu dia. Ouça {reference} na versão {version} e acompanhe a leitura com o texto na tela.
+{reference} | Um momento com a Bíblia
 
-Inscreva-se no VeoBible para descobrir mais passagens em vídeos curtos.
+# Descrição
 
-Leia mais: https://veobible.com
+Sua dose diária da palavra de Deus.
+
+Boas-vindas ao VeoBible. Hoje compartilhamos {reference} na versão {version}, com o texto na tela para acompanhar a leitura.
+
+Esperamos que você aproveite este tempo com as Escrituras. Há mais leituras no canal para quando quiser nos acompanhar novamente.
+
+https://veobible.com
 
 {hashtags}
 ```
@@ -210,13 +233,13 @@ Leia mais: https://veobible.com
 #### TikTok
 
 ```text
-Antes de deslizar, dê um instante à leitura. 🎧
+Sua dose diária da palavra de Deus. 📖
 
 {reference} · {version}
 
-Que palavras chamaram sua atenção?
+O texto está na tela, caso você queira acompanhar a leitura. Obrigado por estar aqui.
 
-Mais leituras: veobible.com
+veobible.com
 
 {hashtags}
 ```
@@ -224,11 +247,9 @@ Mais leituras: veobible.com
 #### X
 
 ```text
-Uma pausa no feed. Uma passagem para ouvir.
+Hoje compartilhamos {reference}, na versão {version}.
 
-{reference} · {version}
-
-Que palavras ficaram com você?
+Sua dose diária da palavra de Deus. Obrigado por nos acompanhar na leitura.
 
 https://veobible.com
 #VeoBible
@@ -241,19 +262,22 @@ https://veobible.com
 #### YouTube
 
 ```text
-What will you notice this time? {reference} | Audio Bible
+# Title
 
-A familiar passage can invite a fresh look. A new one can open a door. Listen to {reference} at an unhurried pace, with the Bible text on screen so you can follow every verse.
+The Bible in 365 Days | Day {episode} | {reference}
 
-This episode is part of The Bible in 365 Days: a journey through Scripture, one reading at a time. Settle in, listen closely, and take a moment afterward to reflect on what you heard.
+# Description
 
-Reading: {reference}
-Bible version: {version}
+Welcome to day {episode} of The Bible in 365 Days. We're glad to share this reading with you.
 
-Read along or return to the opening passage:
+Today we read {reference} in {version}, with the Bible text on screen. You can listen and read along in your own time, whether this passage is familiar or new to you.
+
+📖 The passage is also available here:
 {passage_url}
 
-What caught your attention in this reading? Share the verse in the comments, and subscribe to VeoBible to continue the journey.
+This series is a journey through the Bible, one reading at a time. Each episode is here for whenever you'd like to continue. If you'd like to share a thought about today's passage, you're welcome to leave a comment.
+
+Thank you for spending this time with us.
 
 {hashtags}
 ```
@@ -261,16 +285,20 @@ What caught your attention in this reading? Share the verse in the comments, and
 #### Facebook
 
 ```text
-Make room to listen: {reference}
+# Title
 
-Some readings deserve more than a passing glance. Spend a little time with {reference}, narrated in {version}, with the words on screen to follow along.
+The Bible in 365 Days | Day {episode} | {reference}
 
-Part of The Bible in 365 Days, our journey through Scripture one reading at a time. Watch on your own or share a moment of listening with someone close to you.
+# Description
 
-Open the passage here:
+We're sharing day {episode} of The Bible in 365 Days: {reference}, read from {version}.
+
+The text appears on screen so you can read along with the narration. We hope this reading can be a welcome companion in your day.
+
+📖 You can also read the passage here:
 {passage_url}
 
-Which part would you like to talk about after listening?
+If you'd like to share a reflection, we'd be glad to hear it. Thank you for joining us.
 
 {hashtags}
 ```
@@ -278,14 +306,20 @@ Which part would you like to talk about after listening?
 #### TikTok
 
 ```text
-Stay a little longer. Listen to {reference}.
+# Title
 
-Let the next scroll wait. Follow this reading of {reference} in {version}, with the text on screen.
+The Bible in 365 Days | Day {episode} | {reference}
 
-An episode of The Bible in 365 Days. Save it for a moment when you can listen without rushing.
+# Description
 
-Read the passage:
+Day {episode} of The Bible in 365 Days. 📖
+
+Today we're sharing {reference} in {version}, with the text on screen to follow along.
+
+If you'd like to read the passage in your own time:
 {passage_url}
+
+Thank you for being part of this journey.
 
 {hashtags}
 ```
@@ -293,10 +327,15 @@ Read the passage:
 #### X
 
 ```text
-Hear {reference} with fresh ears.
+# Title
 
-Bible in 365 Days · {version}
-Listen, follow the text, and read on:
+The Bible in 365 Days | Day {episode} | {reference}
+
+# Description
+
+Today's reading: {reference} · {version}.
+
+Thank you for joining us. The passage is here if you'd like to read along:
 {passage_url}
 
 #VeoBible
@@ -307,19 +346,22 @@ Listen, follow the text, and read on:
 #### YouTube
 
 ```text
-¿Qué descubrirás al volver a escuchar? {reference} | Biblia en audio
+# Título
 
-Si ya conoces este pasaje, escúchalo con una mirada nueva. Si es tu primera vez, entra en la lectura sin prisa. Recorremos {reference} con el texto bíblico en pantalla para que puedas seguir cada versículo.
+La Biblia en 365 días | Día {episode} | {reference}
 
-Este episodio forma parte de La Biblia en 365 días: un recorrido por las Escrituras, una lectura a la vez. Busca un momento tranquilo, escucha y date un espacio para reflexionar sobre lo que acabas de leer.
+# Descripción
 
-Lectura: {reference}
-Versión de la Biblia: {version}
+Te damos la bienvenida al día {episode} de La Biblia en 365 días. Nos alegra compartir esta lectura contigo.
 
-Lee a la par o vuelve al inicio del pasaje:
+Hoy leemos {reference} en {version}, con el texto bíblico en pantalla. Puedes escuchar y seguir la lectura a tu ritmo, tanto si ya conoces este pasaje como si te acercas a él por primera vez.
+
+📖 El pasaje también está disponible aquí:
 {passage_url}
 
-¿Qué parte llamó tu atención? Comparte el versículo en los comentarios y suscríbete a VeoBible para continuar el recorrido.
+Esta serie propone recorrer la Biblia una lectura a la vez. Cada episodio queda disponible para cuando quieras continuar. Si te gustaría compartir alguna reflexión sobre la lectura de hoy, puedes dejarla en los comentarios.
+
+Gracias por compartir este tiempo con nosotros.
 
 {hashtags}
 ```
@@ -327,16 +369,20 @@ Lee a la par o vuelve al inicio del pasaje:
 #### Facebook
 
 ```text
-Hazle un lugar a esta lectura: {reference}
+# Título
 
-Hay lecturas que merecen algo más que una mirada rápida. Dedica un momento a {reference}, narrado en {version}, con las palabras en pantalla para acompañar cada versículo.
+La Biblia en 365 días | Día {episode} | {reference}
 
-Un episodio de La Biblia en 365 días, nuestro recorrido por las Escrituras una lectura a la vez. Puedes escucharlo a solas o compartir este momento con alguien cercano.
+# Descripción
 
-Abre aquí el pasaje:
+Compartimos el día {episode} de La Biblia en 365 días: {reference}, en {version}.
+
+El texto aparece en pantalla para que puedas acompañar la narración. Esperamos que esta lectura sea una buena compañía en algún momento de tu día.
+
+📖 También puedes leer el pasaje aquí:
 {passage_url}
 
-¿Qué parte te gustaría conversar después de escuchar?
+Si te apetece compartir una reflexión, nos alegrará leerte. Gracias por acompañarnos.
 
 {hashtags}
 ```
@@ -344,14 +390,20 @@ Abre aquí el pasaje:
 #### TikTok
 
 ```text
-Quédate un poco más. Escucha {reference}.
+# Título
 
-El siguiente video puede esperar. Acompaña esta lectura de {reference} en {version}, con el texto en pantalla.
+La Biblia en 365 días | Día {episode} | {reference}
 
-Un episodio de La Biblia en 365 días. Guárdalo para un momento en el que puedas escuchar sin prisa.
+# Descripción
 
-Lee el pasaje:
+Día {episode} de La Biblia en 365 días. 📖
+
+Hoy compartimos {reference} en {version}, con el texto en pantalla para acompañar la lectura.
+
+Si quieres leer el pasaje a tu ritmo:
 {passage_url}
+
+Gracias por ser parte de este recorrido.
 
 {hashtags}
 ```
@@ -359,10 +411,15 @@ Lee el pasaje:
 #### X
 
 ```text
-Vuelve a descubrir {reference} al escucharlo.
+# Título
 
-La Biblia en 365 días · {version}
-Escucha, sigue el texto y continúa aquí:
+La Biblia en 365 días | Día {episode} | {reference}
+
+# Descripción
+
+La lectura de hoy: {reference} · {version}.
+
+Gracias por acompañarnos. El pasaje está aquí por si quieres seguir la lectura:
 {passage_url}
 
 #VeoBible
@@ -373,19 +430,22 @@ Escucha, sigue el texto y continúa aquí:
 #### YouTube
 
 ```text
-O que você vai perceber desta vez? {reference} | Bíblia em áudio
+# Título
 
-Uma passagem conhecida pode ganhar um novo olhar. Uma leitura nova pode abrir uma porta. Ouça {reference} sem pressa, com o texto bíblico na tela para acompanhar cada versículo.
+A Bíblia em 365 dias | Dia {episode} | {reference}
 
-Este episódio faz parte de A Bíblia em 365 dias: uma jornada pelas Escrituras, uma leitura de cada vez. Encontre um momento tranquilo, ouça com atenção e reserve um espaço para refletir sobre o que acabou de ler.
+# Descrição
 
-Leitura: {reference}
-Versão da Bíblia: {version}
+Boas-vindas ao dia {episode} de A Bíblia em 365 dias. É uma alegria compartilhar esta leitura com você.
 
-Leia junto ou volte ao início da passagem:
+Hoje lemos {reference} na versão {version}, com o texto bíblico na tela. Você pode ouvir e acompanhar a leitura no seu tempo, tanto se já conhece a passagem quanto se está chegando a ela pela primeira vez.
+
+📖 A passagem também está disponível aqui:
 {passage_url}
 
-O que chamou sua atenção nesta leitura? Compartilhe o versículo nos comentários e inscreva-se no VeoBible para continuar a jornada.
+Esta série propõe um percurso pela Bíblia, uma leitura de cada vez. Cada episódio fica disponível para quando você quiser continuar. Se desejar compartilhar uma reflexão sobre a leitura de hoje, fique à vontade para deixar um comentário.
+
+Obrigado por compartilhar este tempo conosco.
 
 {hashtags}
 ```
@@ -393,16 +453,20 @@ O que chamou sua atenção nesta leitura? Compartilhe o versículo nos comentár
 #### Facebook
 
 ```text
-Abra espaço para esta leitura: {reference}
+# Título
 
-Algumas leituras merecem mais do que uma olhada rápida. Dedique um momento a {reference}, narrado na versão {version}, com as palavras na tela para acompanhar cada versículo.
+A Bíblia em 365 dias | Dia {episode} | {reference}
 
-Um episódio de A Bíblia em 365 dias, nossa jornada pelas Escrituras uma leitura de cada vez. Ouça no seu tempo ou compartilhe esse momento com alguém próximo.
+# Descrição
 
-Abra a passagem aqui:
+Compartilhamos o dia {episode} de A Bíblia em 365 dias: {reference}, na versão {version}.
+
+O texto aparece na tela para você acompanhar a narração. Esperamos que esta leitura seja uma boa companhia em algum momento do seu dia.
+
+📖 Você também pode ler a passagem aqui:
 {passage_url}
 
-Sobre qual trecho você gostaria de conversar depois de ouvir?
+Se quiser compartilhar uma reflexão, vamos gostar de ler. Obrigado por nos acompanhar.
 
 {hashtags}
 ```
@@ -410,14 +474,20 @@ Sobre qual trecho você gostaria de conversar depois de ouvir?
 #### TikTok
 
 ```text
-Fique mais um pouco. Ouça {reference}.
+# Título
 
-O próximo vídeo pode esperar. Acompanhe esta leitura de {reference} na versão {version}, com o texto na tela.
+A Bíblia em 365 dias | Dia {episode} | {reference}
 
-Um episódio de A Bíblia em 365 dias. Salve para um momento em que você possa ouvir sem pressa.
+# Descrição
 
-Leia a passagem:
+Dia {episode} de A Bíblia em 365 dias. 📖
+
+Hoje compartilhamos {reference} na versão {version}, com o texto na tela para acompanhar a leitura.
+
+Se quiser ler a passagem no seu tempo:
 {passage_url}
+
+Obrigado por fazer parte desta jornada.
 
 {hashtags}
 ```
@@ -425,26 +495,16 @@ Leia a passagem:
 #### X
 
 ```text
-Redescubra {reference} ao ouvir.
+# Título
 
-A Bíblia em 365 dias · {version}
-Ouça, acompanhe o texto e continue aqui:
+A Bíblia em 365 dias | Dia {episode} | {reference}
+
+# Descrição
+
+A leitura de hoje: {reference} · {version}.
+
+Obrigado por nos acompanhar. A passagem está aqui, caso queira ler junto:
 {passage_url}
 
 #VeoBible
 ```
-
-## Títulos propios para cada episodio
-
-Las plantillas anteriores son reutilizables. Para que el título destaque por el contenido de un episodio concreto, sustituye su primera línea al preparar la publicación por un gancho que realmente aparezca en el pasaje. `{reference}` por sí sola no permite generar ese gancho: el sistema no analiza la trama para escribir títulos ni admite una variable de título editorial por proyecto.
-
-Estos ejemplos muestran el enfoque para los pasajes indicados. Úsalos solo cuando el episodio incluya ese contenido; no los pegues como plantilla general de todos los videos.
-
-| Pasaje | Inglés | Español | Portugués |
-| --- | --- | --- | --- |
-| Génesis 1–3 | A garden. A choice. A world changed. — Genesis 1–3 | Un jardín, una decisión y un mundo que cambia — Génesis 1–3 | Um jardim, uma escolha e um mundo que muda — Gênesis 1–3 |
-| Éxodo 14 | The sea ahead. An army behind. — Exodus 14 | El mar delante. Un ejército detrás. — Éxodo 14 | O mar à frente. Um exército atrás. — Êxodo 14 |
-| Lucas 15 | He came home with nothing. His father ran to him. — Luke 15 | Volvió sin nada. Su padre corrió a recibirlo. — Lucas 15 | Voltou sem nada. O pai correu para recebê-lo. — Lucas 15 |
-| Juan 20 | The tomb was empty. What happened next? — John 20 | La tumba estaba vacía. ¿Qué pasó después? — Juan 20 | O túmulo estava vazio. O que aconteceu depois? — João 20 |
-
-Elige una escena, una pregunta o un contraste del pasaje, y deja que la lectura desarrolle la respuesta. Si la referencia ocupa demasiado espacio, acorta la frase editorial o reserva el rango detallado para la descripción. En X, revisa también la extensión del texto completo después de sustituir las variables.

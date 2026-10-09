@@ -25,6 +25,7 @@ import {
   Download,
   Check,
   Clapperboard,
+  CircleCheck,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
@@ -106,6 +107,8 @@ export function VideoProjectEditor({
     setSaved(false);
   }, [settings, projectId]);
   const [voices, setVoices] = useState<Voices>(emptyVoices);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
+  const [queuingVoices, setQueuingVoices] = useState(false);
   const [voiceRevision, setVoiceRevision] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [playingVoice, setPlayingVoice] = useState<VoicePart | null>(null);
@@ -216,12 +219,14 @@ export function VideoProjectEditor({
   }, [base, inspect]);
   useEffect(() => {
     if (!project?.project_id) return;
+    setVoicesLoaded(false);
     let live = true;
     const refresh = async () => {
       try {
         const data = await api<{ voices: Voices }>(endpoint("voices"));
         if (live) {
           setVoices(data.voices);
+          setVoicesLoaded(true);
           setVoiceError("");
         }
       } catch (cause) {
@@ -254,6 +259,16 @@ export function VideoProjectEditor({
     !Object.values(voices).some((voice) =>
       ["queued", "running"].includes(voice.status),
     );
+  const narrationParts: VoicePart[] = [
+    "intro",
+    ...(analysis?.chapterIntroductions ?? []).map((chapter) => chapter.part),
+    "outro",
+  ];
+  const missingNarrations = narrationParts.filter(
+    (part) =>
+      !voices[part]?.available &&
+      !["queued", "running"].includes(voices[part]?.status ?? ""),
+  );
   const narrationRequirement =
     kind === "long"
       ? "Generate all section narrations before generating the video."
@@ -388,20 +403,46 @@ export function VideoProjectEditor({
     trim(cue.reference, "end", cue.end);
     return true;
   };
+  const queueVoice = async (part: VoicePart) => {
+    await api(endpoint("voices"), {
+      method: "POST",
+      body: JSON.stringify({ part }),
+    });
+    setVoices((current) => ({
+      ...current,
+      [part]: { ...current[part], status: "queued", progress: 0 },
+    }));
+    setVoiceRevision((value) => value + 1);
+    window.dispatchEvent(new Event(queueChangedEvent));
+  };
+  const stopVoicePlayback = () => {
+    for (const player of Object.values(voicePlayers.current)) player?.pause();
+    setPlayingVoice(null);
+  };
   const generateVoice = (part: VoicePart) =>
     perform(async () => {
-      for (const player of Object.values(voicePlayers.current)) player?.pause();
-      setPlayingVoice(null);
-      await api(endpoint("voices"), {
-        method: "POST",
-        body: JSON.stringify({ part }),
-      });
-      setVoices((current) => ({
-        ...current,
-        [part]: { ...current[part], status: "queued", progress: 0 },
-      }));
-      setVoiceRevision((value) => value + 1);
-      window.dispatchEvent(new Event(queueChangedEvent));
+      stopVoicePlayback();
+      await queueVoice(part);
+    });
+  const generateMissingVoices = () =>
+    perform(async () => {
+      setQueuingVoices(true);
+      stopVoicePlayback();
+      try {
+        // Recheck shared chapter recordings and pending work before adding anything.
+        const current = await api<{ voices: Voices }>(endpoint("voices"));
+        setVoices(current.voices);
+        for (const part of narrationParts) {
+          const voice = current.voices[part];
+          if (
+            !voice?.available &&
+            !["queued", "running"].includes(voice?.status ?? "")
+          )
+            await queueVoice(part);
+        }
+      } finally {
+        setQueuingVoices(false);
+      }
     });
   const toggleVoicePlayback = async (part: VoicePart) => {
     const player = voicePlayers.current[part];
@@ -925,6 +966,59 @@ export function VideoProjectEditor({
             <div>
               <button
                 type="button"
+                className={`icon-button section-toolbar-button${project.published ? " project-published-button" : ""}`}
+                aria-label={t(
+                  project.published
+                    ? "Mark as unpublished"
+                    : "Mark as published",
+                )}
+                data-tooltip={t(
+                  project.published
+                    ? "Mark as unpublished"
+                    : "Mark as published",
+                )}
+                aria-pressed={Boolean(project.published)}
+                disabled={locked}
+                onClick={() =>
+                  void perform(async () => {
+                    await api(endpoint(), {
+                      method: "PATCH",
+                      body: JSON.stringify({ published: !project.published }),
+                    });
+                  })
+                }
+              >
+                <CircleCheck size={17} />
+              </button>
+              <button
+                type="button"
+                className="icon-button section-toolbar-button"
+                aria-label={t("Generate all missing narrations")}
+                data-tooltip={t(
+                  queuingVoices
+                    ? "Adding narrations to the queue…"
+                    : voicesLoaded && analysis && !missingNarrations.length
+                      ? "All narrations are ready or queued"
+                      : "Generate all missing narrations",
+                )}
+                disabled={
+                  editingLocked ||
+                  analyzing ||
+                  !analysis ||
+                  !voicesLoaded ||
+                  !missingNarrations.length
+                }
+                onClick={() => void generateMissingVoices()}
+              >
+                {queuingVoices ? (
+                  <LoaderCircle size={17} className="voice-spinner" />
+                ) : (
+                  <WandSparkles size={17} />
+                )}
+              </button>
+              <span className="section-action-separator" aria-hidden="true" />
+              <button
+                type="button"
                 aria-label={t("Expand all")}
                 onClick={() => setExpanded(new Set(sectionIds))}
               >
@@ -1138,29 +1232,6 @@ export function VideoProjectEditor({
                 <Download size={15} />
                 {t("Thumbnail")}
               </a>
-              <button
-                disabled={locked}
-                onClick={() =>
-                  void perform(async () => {
-                    await api(endpoint(), {
-                      method: "PATCH",
-                      body: JSON.stringify({
-                        published: !project.published,
-                      }),
-                    });
-                    setNotice(
-                      project.published
-                        ? "Marked as unpublished."
-                        : "Marked as published.",
-                    );
-                  })
-                }
-              >
-                <Check size={15} />
-                {project.published
-                  ? t("Mark as unpublished")
-                  : t("Mark as published")}
-              </button>
             </div>
           )}
         </VideoProjectPreviewModal>

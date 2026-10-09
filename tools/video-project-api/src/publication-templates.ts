@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const publicationFields = [
   "title",
+  "episode",
   "reference",
   "version",
   "passage",

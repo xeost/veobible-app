@@ -230,10 +230,12 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
         <div
           style={{
             position: "absolute",
-            left: sx(1300),
-            top: phaseY(t, dayPhase, sy(195), sy(30)),
+            left: sx(1260),
+            top: phaseY(t, dayPhase, sy(240), sy(30)),
             width: sx(480),
             height: sy(610),
+            transform: "scale(0.85)",
+            transformOrigin: "top left",
             opacity: dayAlpha,
           }}
         >
