@@ -234,6 +234,7 @@ export function CurrentVideoProjects() {
               <th>{t("Format")}</th>
               <th>{t("Bible version")}</th>
               <th>{t("Publication")}</th>
+              <th>{t("Actions")}</th>
               <th>{t("Updated")}</th>
             </tr>
           </thead>
@@ -350,6 +351,10 @@ export function CurrentVideoProjects() {
                       )}
                       {publicationLabel(row.published, language)}
                     </button>
+                  </div>
+                </td>
+                <td>
+                  <div className="project-publication-controls">
                     <button
                       type="button"
                       className="icon-button current-project-marker active"
