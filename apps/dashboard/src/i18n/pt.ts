@@ -1221,4 +1221,10 @@ export const portuguese: Record<string, string> = {
     "Não foi possível verificar se há um vídeo final.",
   "Final video rendered": "Vídeo final renderizado",
   "No final video rendered": "Sem vídeo final renderizado",
+  "Current projects \u00b7 Short videos": "Projetos atuais · Vídeos curtos",
+  "Current projects \u00b7 Long videos": "Projetos atuais · Vídeos longos",
+  "Mark a project in Short Videos to see it here.":
+    "Marque um projeto em Vídeos curtos para vê-lo aqui.",
+  "Mark a project in Long Videos to see it here.":
+    "Marque um projeto em Vídeos longos para vê-lo aqui.",
 };

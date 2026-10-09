@@ -6,8 +6,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bookmark,
-  Clapperboard,
-  Film,
   ArrowRightToLine,
   LoaderCircle,
   FileVideo,
@@ -220,205 +218,210 @@ export function CurrentVideoProjects() {
     }
   };
   return (
-    <section className="panel">
-      <div className="panel-heading">
-        <h3>{t("Current projects")}</h3>
-        <span className="muted">{t("Marked in this browser")}</span>
-      </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>{t("Project")}</th>
-              <th>{t("Format")}</th>
-              <th>{t("Bible version")}</th>
-              <th>{t("Publication")}</th>
-              <th>{t("Actions")}</th>
-              <th>{t("Updated")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orderedRows.map((row) => (
-              <tr
-                key={row.id}
-                className="video-project-row current-project"
-                tabIndex={0}
-                aria-label={`${t("Open project")}: ${row.title}`}
-                onClick={(event) => {
-                  if (!(event.target as Element).closest("a, button"))
-                    router.push(href(row));
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.target === event.currentTarget &&
-                    (event.key === "Enter" || event.key === " ")
-                  ) {
-                    event.preventDefault();
-                    router.push(href(row));
-                  }
-                }}
-              >
-                <td className="muted">{row.id}</td>
-                <td>
-                  <Link className="button project-name" href={href(row)}>
-                    <Bookmark size={17} aria-hidden="true" />
-                    {row.title}
-                  </Link>
-                </td>
-                <td>
-                  <span className="button">
-                    {row.kind === "short" ? (
-                      <Clapperboard size={16} aria-hidden="true" />
-                    ) : (
-                      <Film size={16} aria-hidden="true" />
-                    )}
-                    {t(row.kind === "short" ? "Short" : "Long")}
-                  </span>
-                </td>
-                <td>
-                  {row.version_code.toUpperCase()}
-                  <small className="muted">
-                    {" "}
-                    {row.locale.toUpperCase()} · {row.label}
-                  </small>
-                </td>
-                <td>
-                  <div className="project-publication-controls">
-                    <span
-                      className={`project-final-video-indicator${renderedVideos[row.id] ? " available" : ""}`}
-                      tabIndex={0}
-                      role="img"
-                      aria-label={t(
-                        checkingVideos
-                          ? "Checking final video availability…"
-                          : renderedVideos[row.id] === undefined
-                            ? "Final video availability could not be checked."
-                            : renderedVideos[row.id]
-                              ? "Final video rendered"
-                              : "No final video rendered",
-                      )}
-                      data-tooltip={t(
-                        checkingVideos
-                          ? "Checking final video availability…"
-                          : renderedVideos[row.id] === undefined
-                            ? "Final video availability could not be checked."
-                            : renderedVideos[row.id]
-                              ? "Final video rendered"
-                              : "No final video rendered",
-                      )}
-                    >
-                      {checkingVideos ? (
-                        <LoaderCircle
-                          size={17}
-                          className="voice-spinner"
-                          aria-hidden="true"
-                        />
-                      ) : renderedVideos[row.id] === undefined ? (
-                        <CircleHelp size={17} aria-hidden="true" />
-                      ) : renderedVideos[row.id] ? (
-                        <FileVideo size={17} aria-hidden="true" />
-                      ) : (
-                        <VideoOff size={17} aria-hidden="true" />
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      className={`badge${row.published ? " publication-published" : ""}`}
-                      aria-pressed={Boolean(row.published)}
-                      aria-label={`${t(row.published ? "Mark as unpublished" : "Mark as published")}: ${row.title}`}
-                      data-tooltip={t(
-                        row.published
-                          ? "Mark as unpublished"
-                          : "Mark as published",
-                      )}
-                      disabled={
-                        loading ||
-                        advancing !== null ||
-                        updatingPublication !== null
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void togglePublication(row);
-                      }}
-                    >
-                      {updatingPublication === row.id && (
-                        <LoaderCircle
-                          size={12}
-                          className="voice-spinner"
-                          aria-hidden="true"
-                        />
-                      )}
-                      {publicationLabel(row.published, language)}
-                    </button>
-                  </div>
-                </td>
-                <td>
-                  <div className="project-publication-controls">
-                    <button
-                      type="button"
-                      className="icon-button current-project-marker active"
-                      aria-label={`${t("Remove current project mark")}: ${row.title}`}
-                      data-tooltip={t("Remove current project mark")}
-                      disabled={
-                        loading ||
-                        advancing !== null ||
-                        updatingPublication !== null
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        removeMark(row);
-                      }}
-                    >
-                      <Bookmark size={16} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button current-project-marker"
-                      aria-label={`${t("Mark the next project")}: ${row.title}`}
-                      data-tooltip={t(
-                        lastProjects.has(row.id)
-                          ? "There is no next project for this format and Bible version."
-                          : "Mark the next project in this format and Bible version, ordered by ID.",
-                      )}
-                      disabled={
-                        loading ||
-                        advancing !== null ||
-                        updatingPublication !== null ||
-                        lastProjects.has(row.id)
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void markNext(row);
-                      }}
-                    >
-                      {advancing === row.id ? (
-                        <LoaderCircle
-                          size={16}
-                          className="voice-spinner"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <ArrowRightToLine size={16} aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-                </td>
-                <td className="muted">
-                  <UpdatedAt value={row.updated_at} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {error && <p className="error">{t(error)}</p>}
-        {loading && <div className="empty">{t("Loading projects…")}</div>}
-        {!loading && !error && rows.length === 0 && (
-          <div className="empty">
-            {t("Mark a project in Short Videos or Long Videos to see it here.")}
+    <>
+      {error && <p className="error">{t(error)}</p>}
+      {(["short", "long"] as const).map((kind) => (
+        <section className="panel" key={kind}>
+          <div className="panel-heading">
+            <h3>
+              {t(
+                kind === "short"
+                  ? "Current projects · Short videos"
+                  : "Current projects · Long videos",
+              )}
+            </h3>
+            <span className="muted">{t("Marked in this browser")}</span>
           </div>
-        )}
-      </div>
-    </section>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>{t("Project")}</th>
+                  <th>{t("Bible version")}</th>
+                  <th>{t("Publication")}</th>
+                  <th>{t("Actions")}</th>
+                  <th>{t("Updated")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderedRows
+                  .filter((row) => row.kind === kind)
+                  .map((row) => (
+                    <tr
+                      key={row.id}
+                      className="video-project-row current-project"
+                      tabIndex={0}
+                      aria-label={`${t("Open project")}: ${row.title}`}
+                      onClick={(event) => {
+                        if (!(event.target as Element).closest("a, button"))
+                          router.push(href(row));
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          event.target === event.currentTarget &&
+                          (event.key === "Enter" || event.key === " ")
+                        ) {
+                          event.preventDefault();
+                          router.push(href(row));
+                        }
+                      }}
+                    >
+                      <td className="muted">{row.id}</td>
+                      <td>
+                        <Link className="button project-name" href={href(row)}>
+                          <Bookmark size={17} aria-hidden="true" />
+                          {row.title}
+                        </Link>
+                      </td>
+                      <td>
+                        {row.version_code.toUpperCase()}
+                        <small className="muted">
+                          {" "}
+                          {row.locale.toUpperCase()} · {row.label}
+                        </small>
+                      </td>
+                      <td>
+                        <div className="project-publication-controls">
+                          <span
+                            className={`project-final-video-indicator${renderedVideos[row.id] ? " available" : ""}`}
+                            tabIndex={0}
+                            role="img"
+                            aria-label={t(
+                              checkingVideos
+                                ? "Checking final video availability…"
+                                : renderedVideos[row.id] === undefined
+                                  ? "Final video availability could not be checked."
+                                  : renderedVideos[row.id]
+                                    ? "Final video rendered"
+                                    : "No final video rendered",
+                            )}
+                            data-tooltip={t(
+                              checkingVideos
+                                ? "Checking final video availability…"
+                                : renderedVideos[row.id] === undefined
+                                  ? "Final video availability could not be checked."
+                                  : renderedVideos[row.id]
+                                    ? "Final video rendered"
+                                    : "No final video rendered",
+                            )}
+                          >
+                            {checkingVideos ? (
+                              <LoaderCircle
+                                size={17}
+                                className="voice-spinner"
+                                aria-hidden="true"
+                              />
+                            ) : renderedVideos[row.id] === undefined ? (
+                              <CircleHelp size={17} aria-hidden="true" />
+                            ) : renderedVideos[row.id] ? (
+                              <FileVideo size={17} aria-hidden="true" />
+                            ) : (
+                              <VideoOff size={17} aria-hidden="true" />
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            className={`badge${row.published ? " publication-published" : ""}`}
+                            aria-pressed={Boolean(row.published)}
+                            aria-label={`${t(row.published ? "Mark as unpublished" : "Mark as published")}: ${row.title}`}
+                            data-tooltip={t(
+                              row.published
+                                ? "Mark as unpublished"
+                                : "Mark as published",
+                            )}
+                            disabled={
+                              loading ||
+                              advancing !== null ||
+                              updatingPublication !== null
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void togglePublication(row);
+                            }}
+                          >
+                            {updatingPublication === row.id && (
+                              <LoaderCircle
+                                size={12}
+                                className="voice-spinner"
+                                aria-hidden="true"
+                              />
+                            )}
+                            {publicationLabel(row.published, language)}
+                          </button>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="project-publication-controls">
+                          <button
+                            type="button"
+                            className="icon-button current-project-marker active"
+                            aria-label={`${t("Remove current project mark")}: ${row.title}`}
+                            data-tooltip={t("Remove current project mark")}
+                            disabled={
+                              loading ||
+                              advancing !== null ||
+                              updatingPublication !== null
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              removeMark(row);
+                            }}
+                          >
+                            <Bookmark size={16} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-button current-project-marker"
+                            aria-label={`${t("Mark the next project")}: ${row.title}`}
+                            data-tooltip={t(
+                              lastProjects.has(row.id)
+                                ? "There is no next project for this format and Bible version."
+                                : "Mark the next project in this format and Bible version, ordered by ID.",
+                            )}
+                            disabled={
+                              loading ||
+                              advancing !== null ||
+                              updatingPublication !== null ||
+                              lastProjects.has(row.id)
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void markNext(row);
+                            }}
+                          >
+                            {advancing === row.id ? (
+                              <LoaderCircle
+                                size={16}
+                                className="voice-spinner"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <ArrowRightToLine size={16} aria-hidden="true" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="muted">
+                        <UpdatedAt value={row.updated_at} />
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+            {loading && <div className="empty">{t("Loading projects…")}</div>}
+            {!loading && !error && !rows.some((row) => row.kind === kind) && (
+              <div className="empty">
+                {t(
+                  kind === "short"
+                    ? "Mark a project in Short Videos to see it here."
+                    : "Mark a project in Long Videos to see it here.",
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      ))}
+    </>
   );
 }

@@ -1225,4 +1225,10 @@ export const spanish: Record<string, string> = {
     "No se pudo comprobar si hay un video final.",
   "Final video rendered": "Video final renderizado",
   "No final video rendered": "Sin video final renderizado",
+  "Current projects \u00b7 Short videos": "Proyectos actuales · Videos cortos",
+  "Current projects \u00b7 Long videos": "Proyectos actuales · Videos largos",
+  "Mark a project in Short Videos to see it here.":
+    "Marca un proyecto en Videos cortos para verlo aquí.",
+  "Mark a project in Long Videos to see it here.":
+    "Marca un proyecto en Videos largos para verlo aquí.",
 };
