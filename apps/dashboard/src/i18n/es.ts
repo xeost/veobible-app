@@ -1,4 +1,15 @@
 export const spanish: Record<string, string> = {
+  "Publication templates": "Plantillas de publicación",
+  "Publication language": "Idioma de publicación",
+  "Write the publication text for each platform and language. These templates will be used the next time a video is generated. Leave a template empty to skip its publication file.":
+    "Escribe el texto de publicación para cada red social e idioma. Estas plantillas se usarán la próxima vez que generes un video. Deja una plantilla vacía para omitir su archivo de publicación.",
+  "Use {title} for the video title, {reference} for the passage reference, {version} for the Bible version, {passage} for all selected verses and {hashtags} for automatic hashtags.":
+    "Usa {title} para el título del video, {reference} para la referencia del pasaje, {version} para la versión de la Biblia, {passage} para todos los versículos seleccionados y {hashtags} para los hashtags automáticos.",
+  "Check the publication placeholders and use no more than 20000 characters per template.":
+    "Revisa las variables de publicación y usa como máximo 20000 caracteres por plantilla.",
+  "Could not save publication templates. Try again.":
+    "No se pudieron guardar las plantillas de publicación. Inténtalo de nuevo.",
+
   "Generate all section narrations to preview the video.":
     "Genera las voces de todas las secciones para previsualizar el video.",
   "Generate all section narrations before generating the video.":

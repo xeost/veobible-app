@@ -1,3 +1,7 @@
+import {
+  loadPublicationSettings,
+  savePublicationSettings,
+} from "../../../lib/publication-settings";
 import { bibleBooksSchema } from "../../../lib/manual-video-project";
 import {
   bibleVersionSchema,
@@ -191,6 +195,17 @@ async function handle(req: Request, lang: Language) {
       admin();
       return json({
         templates: await saveVoiceSettings(database, kind, await body()),
+      });
+    }
+  }
+  if (parts.join("/") === "settings/publication-templates") {
+    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    if (method === "GET")
+      return json({ templates: await loadPublicationSettings(database, kind) });
+    if (method === "PUT") {
+      admin();
+      return json({
+        templates: await savePublicationSettings(database, kind, await body()),
       });
     }
   }

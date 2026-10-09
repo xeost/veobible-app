@@ -1,3 +1,4 @@
+import { publicationTemplatesSchema } from "./publication-templates.js";
 import type { VoicePart } from "./chapter-introductions.js";
 import { z } from "zod";
 const point = z.object({
@@ -81,6 +82,7 @@ export const renderSchema = z.object({
       outro: z.string().trim().max(10000),
     })
     .default({ intro: "", outro: "" }),
+  publicationTemplates: publicationTemplatesSchema.default({}),
   socialAccounts: z
     .object({
       youtube: z.string().trim().max(100),

@@ -73,6 +73,7 @@ const {
   sourceDir,
   projectDir,
   voiceFilename,
+  projectChapterVoiceFiles,
   generateProjectVoice,
 } = await import("../pipeline.js");
 const { renderSchema } = await import("../protocol.js");
@@ -132,6 +133,13 @@ for (const [kind, outputEnvironment] of [
       end: { chapter: 1, verse: 1 },
     },
     settings: { background: "bg-1.mp4" },
+    publicationTemplates: {
+      youtube: "{title}\n{reference} — {version}\n{hashtags}",
+      facebook: "{title}\n{reference} — {version}\n{hashtags}",
+      ...(kind === "short" ? { instagram: "{title}\n{hashtags}" } : {}),
+      tiktok: "{title}\n{hashtags}",
+      x: "{title}\n{passage}\n{hashtags}",
+    },
     voiceTemplates: {
       intro: "Introducción de prueba para {reference}.",
       outro: "Cierre de prueba para {reference}.",
@@ -331,10 +339,33 @@ for (const [kind, outputEnvironment] of [
     await generateProjectVoice(input, chapter.part);
     assert.equal(
       await fs.readFile(
-        path.join(voices, voiceFilename(chapter.part, "txt")),
+        (await projectChapterVoiceFiles(input))
+          .find((file) => file.part === chapter.part)!
+          .file.replace(/\.wav$/, ".txt"),
         "utf8",
       ),
       chapter.script,
+    );
+  }
+  if (kind === "long") {
+    const anotherProject = {
+      ...input,
+      passage: { ...input.passage, id: "not-generated-yet" },
+    };
+    const shared = await projectChapterVoiceFiles(anotherProject);
+    assert.equal(shared.length, 2);
+    assert.ok(shared.every((chapter) => chapter.available && chapter.cached));
+    assert.equal(shared[0].file, shared[1].file);
+    await assert.rejects(
+      fs.stat(
+        sourceDir(
+          kind,
+          input.version.id,
+          anotherProject.passage.id,
+          outputEnvironment,
+        ),
+      ),
+      { code: "ENOENT" },
     );
   }
   const otherVoice = await fs.readFile(
@@ -537,7 +568,8 @@ for (const [kind, outputEnvironment] of [
       (await fs.readdir(path.dirname(result.video))).sort(),
       [
         "_internal",
-        "instagram.txt",
+        "facebook.txt",
+        ...(kind === "short" ? ["instagram.txt"] : []),
         "thumbnail.jpg",
         "tiktok.txt",
         ...(kind === "short" ? ["short.mp4"] : ["episode.mp4"]),
@@ -549,10 +581,12 @@ for (const [kind, outputEnvironment] of [
       "0-metadata.txt",
       "1-intro.txt",
       "1-intro.wav",
-      ...preview.chapterIntroductions.flatMap((chapter) => [
-        voiceFilename(chapter.part, "txt"),
-        voiceFilename(chapter.part),
-      ]),
+      ...preview.chapterIntroductions
+        .filter((chapter) => !chapter.complete)
+        .flatMap((chapter) => [
+          voiceFilename(chapter.part, "txt"),
+          voiceFilename(chapter.part),
+        ]),
       "2-passage-audio-offsets.json",
       "2-versiculos.txt",
       "3-outro.txt",

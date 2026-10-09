@@ -3,7 +3,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { analyze, sourceDir, voiceFilename } from "./pipeline.js";
+import {
+  analyze,
+  sourceDir,
+  voiceFilename,
+  projectChapterVoiceFiles,
+} from "./pipeline.js";
 import { prepareVideoComposition as shortComposition } from "./engines/short/video.js";
 import { prepareVideoComposition as longComposition } from "./engines/long/video.js";
 import { introTitle as shortIntro } from "./engines/short/shorts.js";
@@ -43,6 +48,7 @@ export async function createPreview(
     version,
     m,
     chapterIntroductions,
+    episodeContent,
   } = await analyze(input);
   const chapterOnly = input.voicePart?.startsWith("chapter-");
   const readingOnly = Boolean(input.readingReferences) || Boolean(chapterOnly);
@@ -74,10 +80,16 @@ export async function createPreview(
         ? shortIntro(version.locale, data.label, data.index.metadata.name)
         : longIntro(
             version.locale,
-            data.label,
+            episodeContent!.display,
             data.index.metadata.name,
             input.passage.episode,
           );
+    const chapterFiles =
+      input.kind === "long" &&
+      !input.readingReferences &&
+      !(input.voicePart === "intro" || input.voicePart === "outro")
+        ? await projectChapterVoiceFiles(input)
+        : [];
     const prepare = input.kind === "short" ? shortComposition : longComposition;
     // Keep the prepared reading audio at its original volume so the Player can adjust it live.
     const composition = await prepare(
@@ -110,7 +122,8 @@ export async function createPreview(
             ? (selectedChapter ? [selectedChapter] : chapterIntroductions).map(
                 (chapter) => ({
                   ...chapter,
-                  file: path.join(voices, voiceFilename(chapter.part)),
+                  file: chapterFiles.find((file) => file.part === chapter.part)!
+                    .file,
                 }),
               )
             : [],

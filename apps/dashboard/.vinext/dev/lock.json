@@ -1,8 +1,8 @@
 {
-  "pid": 13483,
+  "pid": 72743,
   "port": 3003,
   "hostname": "127.0.0.1",
   "appUrl": "http://127.0.0.1:3003",
-  "startedAt": 1791430605659,
+  "startedAt": 1791514518040,
   "cwd": "/Users/fabian/Documents/CodeProjects/github.com/xeost/veobible-app/apps/dashboard"
 }

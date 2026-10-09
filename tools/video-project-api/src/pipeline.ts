@@ -1,3 +1,5 @@
+import { chapterVoiceCache } from "./chapter-voice-cache.js";
+import { episodeReference } from "./episode-reference.js";
 import {
   chapterIntroductionText,
   type VoicePart,
@@ -178,6 +180,20 @@ export async function analyze(
     data.index.metadata.name,
     input.voiceTemplates,
   );
+  const episodeContent =
+    input.kind === "long"
+      ? episodeReference(
+          long.passageChapters(data.index, input.passage),
+          version.locale,
+          (n) => longVoice.numberToWords(version.locale, n),
+          (name) => longVoice.spokenBookName(version.locale, name),
+        )
+      : null;
+  if (episodeContent) {
+    context.reference = episodeContent.spoken;
+    context.start = episodeContent.start;
+    context.end = episodeContent.end;
+  }
   const chapterIntroductions: ChapterIntroduction[] =
     input.kind === "long"
       ? long.passageChapters(data.index, input.passage).map((range, index) => {
@@ -188,6 +204,10 @@ export async function analyze(
           );
           return {
             part: `chapter-${index}` as const,
+            chapter: range.chapter,
+            complete:
+              range.first === 1 &&
+              range.last === range.book.versesPerChapter[range.chapter - 1],
             bookName: range.book.name,
             title,
             script,
@@ -197,7 +217,16 @@ export async function analyze(
           };
         })
       : [];
-  return { data, sections, cues, context, version, m, chapterIntroductions };
+  return {
+    data,
+    sections,
+    cues,
+    context,
+    version,
+    m,
+    chapterIntroductions,
+    episodeContent,
+  };
 }
 export async function inspection(
   input: Pick<
@@ -205,8 +234,16 @@ export async function inspection(
     "kind" | "passage" | "version" | "settings" | "voiceTemplates"
   >,
 ) {
-  const { data, sections, cues, context, version, m, chapterIntroductions } =
-    await analyze(input);
+  const {
+    data,
+    sections,
+    cues,
+    context,
+    version,
+    m,
+    chapterIntroductions,
+    episodeContent,
+  } = await analyze(input);
   return {
     label: data.label,
     lines: data.lines,
@@ -265,11 +302,23 @@ export async function generateProjectVoice(
         "intro",
         (progress) => update(10 + progress * 0.85),
       );
-      for (const extension of ["wav", "txt"])
-        await fs.rename(
-          path.join(staging, `intro.${extension}`),
-          path.join(sources, voiceFilename(part, extension)),
+      if (chapter.complete) {
+        await chapterVoiceCache.publish(
+          path.join(staging, "intro.wav"),
+          path.join(staging, "intro.txt"),
+          {
+            chapter: chapter.chapter,
+            complete: true,
+            locale: input.version.locale,
+          },
         );
+      } else {
+        for (const extension of ["wav", "txt"])
+          await fs.rename(
+            path.join(staging, `intro.${extension}`),
+            path.join(sources, voiceFilename(part, extension)),
+          );
+      }
     } finally {
       await fs.rm(staging, { recursive: true, force: true });
     }
@@ -285,14 +334,14 @@ export async function generateProjectVoice(
   update(99);
 }
 
-/** Validate chapter tracks without reanalyzing any reading audio. */
-export async function chapterVoicesAvailable(
+/** Resolve chapter recordings from the saved passage, without analyzing reading audio. */
+export async function projectChapterVoiceFiles(
   input: Pick<
     RenderRequest,
     "kind" | "version" | "passage" | "outputEnvironment"
   >,
 ) {
-  if (input.kind !== "long") return true;
+  if (input.kind !== "long") return [];
   const version = longConfig.versions.find(
     (item) =>
       item.id === input.version.id && item.locale === input.version.locale,
@@ -305,15 +354,39 @@ export async function chapterVoicesAvailable(
     input.passage.id,
     input.outputEnvironment,
   );
-  const present = await Promise.all(
-    long.passageChapters(index, input.passage).map((_, chapter) =>
-      fs.stat(path.join(directory, voiceFilename(`chapter-${chapter}`))).then(
-        (stat) => stat.isFile() && stat.size > 0,
-        () => false,
-      ),
-    ),
+  return Promise.all(
+    long
+      .passageChapters(index, input.passage)
+      .map(async (range, chapterIndex) => {
+        const part = `chapter-${chapterIndex}` as const;
+        const identity = {
+          chapter: range.chapter,
+          locale: version.locale,
+          complete:
+            range.first === 1 &&
+            range.last === range.book.versesPerChapter[range.chapter - 1],
+        };
+        return {
+          part,
+          ...(await chapterVoiceCache.resolve(
+            path.join(directory, voiceFilename(part)),
+            identity,
+          )),
+        };
+      }),
   );
-  return present.every(Boolean);
+}
+
+/** A shared complete-chapter voice is ready even before this project's directory exists. */
+export async function chapterVoicesAvailable(
+  input: Pick<
+    RenderRequest,
+    "kind" | "version" | "passage" | "outputEnvironment"
+  >,
+) {
+  return (await projectChapterVoiceFiles(input)).every(
+    (chapter) => chapter.available,
+  );
 }
 
 /** Final renders only consume narration explicitly generated beforehand. */
@@ -354,21 +427,22 @@ export async function render(
       "Generate the introduction and closing voices before generating the video.",
     );
   update("Analizando pasaje y tiempos", 2);
-  const { data, sections, cues, context, version, m, chapterIntroductions } =
-    await analyze(input);
+  const {
+    data,
+    sections,
+    cues,
+    context,
+    version,
+    m,
+    chapterIntroductions,
+    episodeContent,
+  } = await analyze(input);
   const { output, sources } = await prepareProjectDirectories(input);
-  for (const chapter of chapterIntroductions) {
-    if (
-      !(
-        await fs
-          .stat(path.join(sources, voiceFilename(chapter.part)))
-          .catch(() => null)
-      )?.size
-    )
-      throw new Error(
-        "Generate every chapter introduction before generating the video.",
-      );
-  }
+  const chapterFiles = await projectChapterVoiceFiles(input);
+  if (chapterFiles.some((chapter) => !chapter.available))
+    throw new Error(
+      "Generate every chapter introduction before generating the video.",
+    );
   await writePassageFiles(sources, data);
   const scripts = await m.voice.renderVoiceScripts(context);
   update("Preparando narraciones", 20);
@@ -384,7 +458,7 @@ export async function render(
         ? short.introTitle(version.locale, data.label, data.index.metadata.name)
         : long.introTitle(
             version.locale,
-            data.label,
+            episodeContent!.display,
             data.index.metadata.name,
             input.passage.episode,
           );
@@ -408,7 +482,7 @@ export async function render(
         background: input.settings.background,
         chapterIntroductions: chapterIntroductions.map((chapter) => ({
           ...chapter,
-          file: path.join(sources, voiceFilename(chapter.part)),
+          file: chapterFiles.find((file) => file.part === chapter.part)!.file,
         })),
         onProgress: (progress) =>
           update("Renderizando con Remotion", 45 + progress * 50),
@@ -425,7 +499,14 @@ export async function render(
       path.join(work, "thumbnail.jpg"),
       path.join(output, "thumbnail.jpg"),
     );
-    const descriptions = m.descriptions(version.locale, title, data.lines);
+    const descriptions = m.descriptions(
+      version.locale,
+      title,
+      data.lines,
+      input.publicationTemplates,
+    );
+    for (const platform of ["youtube", "instagram", "facebook", "tiktok", "x"])
+      await fs.rm(path.join(output, `${platform}.txt`), { force: true });
     for (const [name, text] of Object.entries(descriptions))
       await fs.writeFile(path.join(output, name), text, "utf8");
     await fs.writeFile(
@@ -466,9 +547,7 @@ export async function render(
         path.join(m.config.videosDir, "0-intro.mp4"),
         path.join(m.config.videosDir, result.background),
         path.join(m.config.videosDir, "0-outro.mp4"),
-        ...chapterIntroductions.map((chapter) =>
-          path.join(sources, voiceFilename(chapter.part)),
-        ),
+        ...chapterFiles.map((chapter) => chapter.file),
         ...(voices ? [voices.intro, voices.outro] : []),
       ],
       verseCues: cues,

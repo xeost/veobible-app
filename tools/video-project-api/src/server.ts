@@ -35,6 +35,7 @@ const {
   generateProjectVoice,
   existingProjectVoices,
   chapterVoicesAvailable,
+  projectChapterVoiceFiles,
 } = await import("./pipeline.js");
 const { createPreview, previewAsset } = await import("./preview.js");
 const token = process.env.PROXY_API_TOKEN;
@@ -59,6 +60,35 @@ type Job = {
   error?: string;
   failureReason?: ReturnType<typeof generationFailureReason>;
 };
+async function chapterFilesFromQuery(url: URL) {
+  if (
+    url.searchParams.get("kind") !== "long" ||
+    !url.searchParams.has("passageRange")
+  )
+    return [];
+  const passage = renderSchema.shape.passage.parse(
+    JSON.parse(url.searchParams.get("passageRange")!),
+  );
+  if (passage.id !== url.searchParams.get("passage"))
+    throw new Error("Project passage mismatch");
+  return projectChapterVoiceFiles({
+    kind: "long",
+    passage,
+    version: {
+      id: renderSchema.shape.version.shape.id.parse(
+        url.searchParams.get("version"),
+      ),
+      locale: renderSchema.shape.version.shape.locale.parse(
+        url.searchParams.get("locale"),
+      ),
+      label: "",
+    },
+    outputEnvironment: renderSchema.shape.outputEnvironment.parse(
+      url.searchParams.get("outputEnvironment") ?? undefined,
+    ),
+  });
+}
+
 const readingSources = new Map<
   string,
   { kind: string; sections: { file: string }[] }
@@ -253,11 +283,13 @@ const server = http.createServer(async (req, res) => {
           url.searchParams.get("outputEnvironment") ?? undefined,
         );
         const state = voiceJobs.get(`${environment}:${projectId}`) ?? {};
+        const chapterFiles = await chapterFilesFromQuery(url);
         const voices = await Promise.all(
           [
             ...new Set<VoicePart>([
               "intro",
               "outro",
+              ...chapterFiles.map((chapter) => chapter.part),
               ...(Object.keys(state) as VoicePart[]),
               ...(await fsp
                 .readdir(sourceDir(kind, version, passage, environment))
@@ -270,22 +302,28 @@ const server = http.createServer(async (req, res) => {
                 )),
             ]),
           ].map(async (part) => {
-            const available = await fsp
-              .stat(
-                path.join(
-                  sourceDir(kind, version, passage, environment),
-                  voiceFilename(part),
-                ),
-              )
-              .then(
-                (stat) => stat.size > 0,
-                () => false,
-              );
+            const cachedChapter = chapterFiles.find(
+              (chapter) => chapter.part === part,
+            );
+            const available = cachedChapter
+              ? cachedChapter.available
+              : await fsp
+                  .stat(
+                    path.join(
+                      sourceDir(kind, version, passage, environment),
+                      voiceFilename(part),
+                    ),
+                  )
+                  .then(
+                    (stat) => stat.size > 0,
+                    () => false,
+                  );
             const job = state[part];
             return [
               part,
               {
                 available,
+                cached: cachedChapter?.cached ?? false,
                 status: job?.status ?? "idle",
                 progress:
                   job?.status === "done"
@@ -515,6 +553,9 @@ const server = http.createServer(async (req, res) => {
           z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
         ])
         .parse(parts[4]);
+      const chapterFiles = asset.startsWith("chapter-")
+        ? await chapterFilesFromQuery(url)
+        : [];
       const reading = readingSources.get(`${environment}:${id}`);
       if (asset.startsWith("reading-") && reading?.kind !== kind)
         return json(res, 404, { error: "Analyze the passage first" });
@@ -531,10 +572,11 @@ const server = http.createServer(async (req, res) => {
           : asset === "intro" ||
               asset === "outro" ||
               asset.startsWith("chapter-")
-            ? path.join(
+            ? (chapterFiles.find((chapter) => chapter.part === asset)?.file ??
+              path.join(
                 sourceDir(kind, version, passage, environment),
                 voiceFilename(asset as VoicePart),
-              )
+              ))
             : path.join(
                 projectDir(kind, version, passage, environment),
                 asset === "video" ? videoFilename(kind) : "thumbnail.jpg",

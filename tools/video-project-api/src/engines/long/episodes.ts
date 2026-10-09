@@ -191,7 +191,9 @@ export function introTitle(
   return {
     title: titles[locale],
     reference: passageReference,
-    version: `${versionName}${episode ? ` · ${day} ${episode}` : ""}`,
+    version: versionName,
+    episode,
+    dayLabel: day,
   };
 }
 

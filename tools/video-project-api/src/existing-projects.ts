@@ -294,9 +294,9 @@ export async function existingRenderResult(
   for (const name of [
     "youtube.txt",
     "instagram.txt",
+    "facebook.txt",
     "tiktok.txt",
     "x.txt",
-    "facebook.txt",
   ]) {
     const content = await optionalText([path.join(directory, name)]);
     if (content !== undefined) descriptions[name] = content;

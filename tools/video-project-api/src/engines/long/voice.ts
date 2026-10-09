@@ -183,7 +183,7 @@ export function numberToWords(
   return `${ptHundreds[Math.floor(number / 100)]}${number % 100 ? ` e ${numberToWords(locale, number % 100)}` : ""}`;
 }
 
-function spokenBookName(locale: Version["locale"], book: string): string {
+export function spokenBookName(locale: Version["locale"], book: string): string {
   const numbered = /^([123]) (.+)$/.exec(book);
   if (!numbered) return book;
   const order = Number(numbered[1]) - 1;

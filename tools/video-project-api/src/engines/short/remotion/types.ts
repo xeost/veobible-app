@@ -19,6 +19,8 @@ export interface VerseCue {
 }
 
 export interface IntroTitle {
+  episode?: number;
+  dayLabel?: string;
   title: string;
   reference: string;
   version: string;

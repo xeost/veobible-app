@@ -57,6 +57,8 @@ test("chapter introductions preserve trimmed sources and finish before the next 
     base,
     cuts.map((cue, i) => ({
       part: `chapter-${i}` as const,
+      chapter: 1,
+      complete: true,
       bookName: i === 0 ? "Genesis" : "Exodus",
       title: "Chapter 1",
       script: "Chapter one.",

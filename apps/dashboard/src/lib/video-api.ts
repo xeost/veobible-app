@@ -1,3 +1,4 @@
+import { loadPublicationSettings } from "./publication-settings";
 import { readingCutsSchema } from "../../../../tools/video-project-api/src/protocol";
 import { projectProposalsSchema, syncVideoProjects } from "./project-proposals";
 import {
@@ -290,6 +291,8 @@ export async function videoApi(
     kind: project.kind,
     version: project.version_code,
     passage: project.slug,
+    locale: project.locale,
+    passageRange: project.passage,
     outputEnvironment,
   });
   const mediaAccess = async () => {
@@ -460,6 +463,9 @@ export async function videoApi(
     const request = renderSchema.parse({
       ...common,
       id: crypto.randomUUID(),
+      publicationTemplates: (
+        await loadPublicationSettings(database, project.kind)
+      )[project.locale],
       socialAccounts: (await loadSocialSettings(database))[project.locale],
     });
     const response = await videoFetch(

@@ -1,5 +1,5 @@
 /**
- * IntroScene – React component for the intro segment of a VeoBible Short.
+ * IntroScene – React component for the intro segment of a VeoBible long-form video.
  *
  * Mirrors the `introGraph` FFmpeg filter chain from motion-design.ts:
  * - Dark scrim overlay with vignette
@@ -22,13 +22,14 @@ import {
   phaseY,
   positionY,
   introVersionDelay,
+  fitFontSize,
 } from "./animation";
 import type { IntroTitle, VoiceTracks } from "./types";
 import { ScrimOverlay } from "./ScrimOverlay";
 import { AnimatedText } from "./AnimatedText";
 import { GoldRule } from "./GoldRule";
 
-// ─── design tokens (1080 × 1920 artboard) ────────────────────────────────────
+// ─── design tokens (1920 × 1080 artboard) ────────────────────────────────────
 const palette = {
   paper: "#FFF8EA",
   gold: "#E8C68A",
@@ -164,6 +165,8 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
     },
   ];
 
+  const dayPhase = introPhase(0.35, 0.1);
+  const dayAlpha = phaseAlpha(t, dayPhase);
   const rulePhase = introPhase(0.6, 0.1);
   return (
     <div
@@ -191,7 +194,13 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
 
       {/* Optional music from intro clip at 25% when mixing with voice */}
       {voices?.mode === "mix" && introAudioPath && (
-        <Audio src={introAudioPath} useWebAudioApi crossOrigin="anonymous" volume={0.25} endAt={introLength * fps} />
+        <Audio
+          src={introAudioPath}
+          useWebAudioApi
+          crossOrigin="anonymous"
+          volume={0.25}
+          endAt={introLength * fps}
+        />
       )}
 
       {/* Intro voice-over */}
@@ -215,6 +224,130 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
         phase={introPhase(0)}
         maxOpacity={0.35}
       />
+
+      {/* The cover frame shows the complete day badge for thumbnail readability. */}
+      {title.episode && dayAlpha > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            left: sx(1300),
+            top: phaseY(t, dayPhase, sy(195), sy(30)),
+            width: sx(480),
+            height: sy(610),
+            opacity: dayAlpha,
+          }}
+        >
+          {/* Translucent paper and layered bottom edges suggest a tear-off calendar. */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              overflow: "hidden",
+              borderRadius: sx(14),
+              background:
+                "linear-gradient(145deg, rgba(255, 251, 239, 0.84), rgba(243, 237, 218, 0.72))",
+              border: `${sx(1)}px solid rgba(255, 252, 238, 0.6)`,
+              boxShadow: `0 ${sy(8)}px 0 ${sx(-2)}px rgba(226, 219, 198, 0.65), 0 ${sy(15)}px 0 ${sx(-5)}px rgba(207, 199, 177, 0.5), 0 ${sy(28)}px ${sx(65)}px rgba(0, 0, 0, 0.3)`,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+                background: `repeating-linear-gradient(0deg, transparent 0 ${sy(3)}px, rgba(92, 75, 45, 0.025) ${sy(3)}px ${sy(4)}px)`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: "0 0 auto",
+                height: sy(155),
+                background:
+                  "linear-gradient(140deg, rgba(45, 77, 61, 0.88), rgba(26, 54, 43, 0.84))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingTop: sy(16),
+                boxSizing: "border-box",
+                borderBottom: `${sy(2)}px dashed rgba(90, 75, 48, 0.45)`,
+                fontFamily: "Avenir, sans-serif",
+                fontSize: sx(68),
+                fontWeight: 800,
+                letterSpacing: sx(10),
+                textTransform: "uppercase",
+                color: palette.paper,
+                textIndent: sx(10),
+              }}
+            >
+              {title.dayLabel ?? "Day"}
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                top: sy(155),
+                left: 0,
+                right: 0,
+                bottom: sy(12),
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#203C30",
+                fontFamily: "Georgia, serif",
+                fontSize: sx(fitFontSize(String(title.episode), 360, 400)),
+                fontWeight: 400,
+                lineHeight: 1,
+                letterSpacing: sx(-8),
+                paddingRight: sx(8),
+                fontVariantNumeric: "lining-nums tabular-nums",
+              }}
+            >
+              {title.episode}
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                bottom: 0,
+                width: sx(42),
+                height: sy(42),
+                clipPath: "polygon(100% 0, 100% 100%, 0 100%)",
+                background:
+                  "linear-gradient(135deg, rgba(154, 141, 109, 0.08), rgba(255, 253, 245, 0.85))",
+              }}
+            />
+          </div>
+          {[105, 375].map((x) => (
+            <React.Fragment key={x}>
+              <div
+                style={{
+                  position: "absolute",
+                  left: sx(x - 16),
+                  top: sy(26),
+                  width: sx(32),
+                  height: sy(16),
+                  borderRadius: "50%",
+                  background: "rgba(8, 24, 17, 0.7)",
+                  boxShadow: `0 ${sy(2)}px ${sy(3)}px rgba(255, 255, 255, 0.15)`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: sx(x - 7),
+                  top: sy(-22),
+                  width: sx(14),
+                  height: sy(62),
+                  borderRadius: sx(7),
+                  background:
+                    "linear-gradient(90deg, #746449, #DFD0AC 45%, #AA9470 70%, #65543B)",
+                  boxShadow: `${sx(3)}px ${sy(4)}px ${sx(5)}px rgba(0, 0, 0, 0.25)`,
+                }}
+              />
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       {/* Gold rule at y=984 */}
       <GoldRule
@@ -245,7 +378,7 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
             color={opt.color}
             alpha={alpha}
             shadow={opt.shadow}
-            width={sx(1600)}
+            width={sx(title.episode ? 1100 : 1600)}
           />
         );
       })}

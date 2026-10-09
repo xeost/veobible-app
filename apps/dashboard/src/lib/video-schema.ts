@@ -1,3 +1,4 @@
+import { publicationTemplatesSchema } from "../../../../tools/video-project-api/src/publication-templates";
 import { z } from "zod";
 const point = z.object({
   chapter: z.number().int().positive(),
@@ -12,11 +13,16 @@ export const settingsSchema = z.object({
       endSeconds: z.number().finite(),
     })
     .default({ startSeconds: 0, endSeconds: 0 }),
-  readingSectionPadding: z.array(z.object({
-    sectionIndex: z.number().int().nonnegative(),
-    beforeSeconds: z.number().finite().nonnegative(),
-    afterSeconds: z.number().finite().nonnegative(),
-  })).max(1000).default([]),
+  readingSectionPadding: z
+    .array(
+      z.object({
+        sectionIndex: z.number().int().nonnegative(),
+        beforeSeconds: z.number().finite().nonnegative(),
+        afterSeconds: z.number().finite().nonnegative(),
+      }),
+    )
+    .max(1000)
+    .default([]),
   verseOffsets: z
     .array(
       z.object({
@@ -65,6 +71,7 @@ export const renderSchema = z.object({
       outro: z.string().trim().max(10000),
     })
     .default({ intro: "", outro: "" }),
+  publicationTemplates: publicationTemplatesSchema.default({}),
   socialAccounts: z
     .object({
       youtube: z.string().trim().max(100),
