@@ -1,3 +1,10 @@
+import {
+  videoFilename,
+  thumbnailFilename,
+  publicationFilenames,
+} from "./output-files.js";
+export { videoFilename } from "./output-files.js";
+import { publicationPassageUrl } from "./publication.js";
 import { chapterVoiceCache } from "./chapter-voice-cache.js";
 import { episodeReference } from "./episode-reference.js";
 import {
@@ -45,8 +52,6 @@ export const voiceFilename = (part: VoicePart, extension = "wav") =>
   part.startsWith("chapter-")
     ? `2-${part}.${extension}`
     : `${part === "intro" ? "1" : "3"}-${part}.${extension}`;
-export const videoFilename = (kind: string) =>
-  kind === "short" ? "short.mp4" : "episode.mp4";
 async function prepareProjectDirectories(
   input: Pick<
     RenderRequest,
@@ -497,16 +502,21 @@ export async function render(
     await fs.rename(final, path.join(output, videoFilename(input.kind)));
     await fs.rename(
       path.join(work, "thumbnail.jpg"),
-      path.join(output, "thumbnail.jpg"),
+      path.join(output, thumbnailFilename),
     );
     const descriptions = m.descriptions(
       version.locale,
       title,
       data.lines,
       input.publicationTemplates,
+      publicationPassageUrl(input),
     );
-    for (const platform of ["youtube", "instagram", "facebook", "tiktok", "x"])
+    for (const [platform, filename] of Object.entries(publicationFilenames)) {
       await fs.rm(path.join(output, `${platform}.txt`), { force: true });
+      await fs.rm(path.join(output, filename), { force: true });
+    }
+    for (const name of [videoFilename(input.kind).slice(2), "thumbnail.jpg"])
+      await fs.rm(path.join(output, name), { force: true });
     for (const [name, text] of Object.entries(descriptions))
       await fs.writeFile(path.join(output, name), text, "utf8");
     await fs.writeFile(
@@ -520,7 +530,7 @@ export async function render(
         `Start: ${input.passage.start.chapter}:${input.passage.start.verse}`,
         `End: ${input.passage.end.chapter}:${input.passage.end.verse}`,
         `Final video: ../${videoFilename(input.kind)}`,
-        `Thumbnail: ../thumbnail.jpg (frame at ${result.thumbnailTime.toFixed(6)} s)`,
+        `Thumbnail: ../${thumbnailFilename} (frame at ${result.thumbnailTime.toFixed(6)} s)`,
         `Background: ${result.background}`,
         "Narration mode: voice",
         `Reading volume: ${input.settings.volumeMultiplier}x`,
@@ -539,7 +549,7 @@ export async function render(
       ...result,
       output,
       video: path.join(output, videoFilename(input.kind)),
-      thumbnail: path.join(output, "thumbnail.jpg"),
+      thumbnail: path.join(output, thumbnailFilename),
       descriptions,
       voiceScripts: scripts,
       sources: [

@@ -3,6 +3,7 @@ import { loadProjectProposals } from "./project-proposals.js";
 import {
   discoverExistingProjects,
   existingRenderResult,
+  existingOutputMedia,
 } from "./existing-projects.js";
 import {
   availableBibleBooks,
@@ -31,7 +32,6 @@ const {
   projectDir,
   sourceDir,
   voiceFilename,
-  videoFilename,
   generateProjectVoice,
   existingProjectVoices,
   chapterVoicesAvailable,
@@ -577,9 +577,10 @@ const server = http.createServer(async (req, res) => {
                 sourceDir(kind, version, passage, environment),
                 voiceFilename(asset as VoicePart),
               ))
-            : path.join(
+            : await existingOutputMedia(
                 projectDir(kind, version, passage, environment),
-                asset === "video" ? videoFilename(kind) : "thumbnail.jpg",
+                kind,
+                asset as "video" | "thumbnail",
               );
       if (!file) return json(res, 404, { error: "Audio section not found" });
       let stat;

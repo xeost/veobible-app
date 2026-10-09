@@ -7,6 +7,7 @@ export function publicationDescriptions(
   title: IntroTitle,
   verses: string[],
   templates: PublicationTemplates = {},
+  passageUrl = "",
 ): Record<string, string> {
-  return descriptions(locale, title, verses, templates, "short");
+  return descriptions(locale, title, verses, templates, "short", passageUrl);
 }

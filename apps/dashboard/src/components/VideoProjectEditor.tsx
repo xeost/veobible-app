@@ -1040,20 +1040,38 @@ export function VideoProjectEditor({
           <div className="project-studio-details">
             <details className="panel studio-history">
               <summary>{t("Publication texts")}</summary>
-              {Object.entries(result.descriptions).map(([name, text]) => (
-                <label key={name}>
-                  {(
-                    {
-                      "youtube.txt": "YouTube",
-                      "instagram.txt": "Instagram",
-                      "tiktok.txt": "TikTok",
-                      "x.txt": "X",
-                      "facebook.txt": "Facebook",
-                    } as Record<string, string>
-                  )[name] || t("social media")}
-                  <textarea readOnly rows={5} value={String(text)} />
-                </label>
-              ))}
+              {Object.entries(result.descriptions)
+                .sort(([left], [right]) => {
+                  const order = [
+                    "instagram",
+                    "facebook",
+                    "youtube",
+                    "tiktok",
+                    "x",
+                  ];
+                  return (
+                    order.indexOf(
+                      left.replace(/^\d+-/, "").replace(/\.txt$/, ""),
+                    ) -
+                    order.indexOf(
+                      right.replace(/^\d+-/, "").replace(/\.txt$/, ""),
+                    )
+                  );
+                })
+                .map(([name, text]) => (
+                  <label key={name}>
+                    {(
+                      {
+                        "youtube.txt": "YouTube",
+                        "instagram.txt": "Instagram",
+                        "tiktok.txt": "TikTok",
+                        "x.txt": "X",
+                        "facebook.txt": "Facebook",
+                      } as Record<string, string>
+                    )[name.replace(/^\d+-/, "")] || t("social media")}
+                    <textarea readOnly rows={5} value={String(text)} />
+                  </label>
+                ))}
             </details>
           </div>
         )}

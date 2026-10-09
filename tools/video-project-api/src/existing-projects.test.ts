@@ -153,10 +153,45 @@ test("short outputs can be reconstructed from metadata and older timing filename
     await fs.writeFile(path.join(project, "youtube.txt"), "Saved caption");
     assert.equal(
       (await existingRenderResult(project, "short"))?.descriptions[
-        "youtube.txt"
+        "3-youtube.txt"
       ],
       "Saved caption",
     );
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("numbered final files are preferred for both formats and legacy texts retain their publication order", async () => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), "numbered-outputs-"),
+  );
+  try {
+    for (const kind of ["short", "long"] as const) {
+      const project = path.join(directory, kind);
+      await fs.mkdir(project);
+      const video = kind === "short" ? "0-short.mp4" : "0-episode.mp4";
+      await fs.writeFile(path.join(project, video), "new");
+      await fs.writeFile(path.join(project, video.slice(2)), "old");
+      await fs.writeFile(
+        path.join(project, "0-thumbnail.jpg"),
+        "new thumbnail",
+      );
+      await fs.writeFile(path.join(project, "thumbnail.jpg"), "old thumbnail");
+      await fs.writeFile(path.join(project, "youtube.txt"), "old description");
+      await fs.writeFile(
+        path.join(project, "3-youtube.txt"),
+        "new description",
+      );
+      await fs.writeFile(path.join(project, "2-facebook.txt"), "Facebook");
+      const result = await existingRenderResult(project, kind);
+      assert.equal(result?.video, path.join(project, video));
+      assert.equal(result?.thumbnail, path.join(project, "0-thumbnail.jpg"));
+      assert.deepEqual(result?.descriptions, {
+        "2-facebook.txt": "Facebook",
+        "3-youtube.txt": "new description",
+      });
+    }
   } finally {
     await fs.rm(directory, { recursive: true, force: true });
   }

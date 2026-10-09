@@ -255,6 +255,13 @@ export function VoiceSettingsModal({
                 "Use {title} for the video title, {reference} for the passage reference, {version} for the Bible version, {passage} for all selected verses and {hashtags} for automatic hashtags.",
               )}
             </p>
+            {kind === "long" && (
+              <p className="notice">
+                {t(
+                  "Use {passage_url} for a link to the beginning of the passage in its language and Bible version. The link includes the starting verse unless it is verse 1.",
+                )}
+              </p>
+            )}
             <div
               className="tabs profile-tabs"
               aria-label={t("Publication language")}

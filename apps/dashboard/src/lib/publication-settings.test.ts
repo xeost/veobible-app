@@ -35,7 +35,7 @@ test("publication settings have no seeded copy and are independent by format and
       long = emptyPublicationSettings("long");
     short.en.instagram = "Short {title}\n\n{hashtags}";
     short.es.facebook = "{passage}";
-    long.pt.youtube = "Long {reference} — {version}";
+    long.pt.youtube = "Long {reference} — {version}\n{passage_url}";
     await savePublicationSettings(database, "short", short);
     await savePublicationSettings(database, "long", long);
     assert.deepEqual(await loadPublicationSettings(database, "short"), short);

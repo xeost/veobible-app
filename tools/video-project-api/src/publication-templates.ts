@@ -5,6 +5,7 @@ export const publicationFields = [
   "reference",
   "version",
   "passage",
+  "passage_url",
   "hashtags",
 ] as const;
 export const publicationPlatforms = (kind: "short" | "long") =>

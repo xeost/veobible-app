@@ -70,7 +70,7 @@ test(
         completed: 0,
         total: 0,
       });
-      assert.equal(data.result.descriptions["youtube.txt"], "Caption");
+      assert.equal(data.result.descriptions["3-youtube.txt"], "Caption");
       const voices = await fetch(`${base}/v1/projects/1/voices?${query}`, {
         headers,
       });
@@ -78,24 +78,66 @@ test(
       assert.equal(voiceData.intro.available, true);
       assert.equal(voiceData.intro.progress, 100);
       assert.equal(voiceData.outro.progress, 0);
-      const bibleIndex = JSON.parse(await fs.readFile(new URL("../../../apps/frontend/public/bible-data/es/rv1909/index.json", import.meta.url), "utf8"));
-      const firstChapterVerses = bibleIndex.books.find((book: { id: string }) => book.id === "genesis").versesPerChapter[0];
+      const bibleIndex = JSON.parse(
+        await fs.readFile(
+          new URL(
+            "../../../apps/frontend/public/bible-data/es/rv1909/index.json",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      );
+      const firstChapterVerses = bibleIndex.books.find(
+        (book: { id: string }) => book.id === "genesis",
+      ).versesPerChapter[0];
       const cache = path.join(directory, "long/cache/chapter-voices/es");
       await fs.mkdir(cache, { recursive: true });
-      await fs.writeFile(path.join(cache, "chapter-1.wav"), "cached chapter one");
-      const savedRange = { id: "cached-first-chapter", book: "genesis", start: { chapter: 1, verse: 1 }, end: { chapter: 1, verse: firstChapterVerses } };
-      const longQuery = new URLSearchParams({ kind: "long", version: "rv1909", locale: "es", passage: savedRange.id, passageRange: JSON.stringify(savedRange), outputEnvironment: "development" });
-      const cachedVoices = await fetch(`${base}/v1/projects/7/voices?${longQuery}`, { headers });
+      await fs.writeFile(
+        path.join(cache, "chapter-1.wav"),
+        "cached chapter one",
+      );
+      const savedRange = {
+        id: "cached-first-chapter",
+        book: "genesis",
+        start: { chapter: 1, verse: 1 },
+        end: { chapter: 1, verse: firstChapterVerses },
+      };
+      const longQuery = new URLSearchParams({
+        kind: "long",
+        version: "rv1909",
+        locale: "es",
+        passage: savedRange.id,
+        passageRange: JSON.stringify(savedRange),
+        outputEnvironment: "development",
+      });
+      const cachedVoices = await fetch(
+        `${base}/v1/projects/7/voices?${longQuery}`,
+        { headers },
+      );
       assert.equal(cachedVoices.status, 200);
       const cachedState = (await cachedVoices.json()).voices["chapter-0"];
       assert.equal(cachedState.available, true);
       assert.equal(cachedState.cached, true);
-      const cachedAudio = await fetch(`${base}/v1/projects/7/media/chapter-0?${longQuery}`, { headers });
+      const cachedAudio = await fetch(
+        `${base}/v1/projects/7/media/chapter-0?${longQuery}`,
+        { headers },
+      );
       assert.equal(cachedAudio.status, 200);
       assert.equal(await cachedAudio.text(), "cached chapter one");
-      await assert.rejects(fs.stat(path.join(directory, "long/outputs-dev/rv1909/cached-first-chapter")), { code: "ENOENT" });
-      longQuery.set("passageRange", JSON.stringify({ ...savedRange, end: { chapter: 1, verse: 2 } }));
-      const partialVoices = await fetch(`${base}/v1/projects/7/voices?${longQuery}`, { headers });
+      await assert.rejects(
+        fs.stat(
+          path.join(directory, "long/outputs-dev/rv1909/cached-first-chapter"),
+        ),
+        { code: "ENOENT" },
+      );
+      longQuery.set(
+        "passageRange",
+        JSON.stringify({ ...savedRange, end: { chapter: 1, verse: 2 } }),
+      );
+      const partialVoices = await fetch(
+        `${base}/v1/projects/7/voices?${longQuery}`,
+        { headers },
+      );
       const partialState = (await partialVoices.json()).voices["chapter-0"];
       assert.equal(partialState.available, false);
       assert.equal(partialState.cached, false);
@@ -146,6 +188,34 @@ test(
       });
       assert.equal(media.status, 200);
       assert.equal(await media.text(), "video");
+      await fs.writeFile(path.join(output, "0-short.mp4"), "numbered video");
+      await fs.writeFile(
+        path.join(output, "0-thumbnail.jpg"),
+        "numbered thumbnail",
+      );
+      await fs.writeFile(path.join(output, "3-youtube.txt"), "Updated caption");
+      const numberedMedia = await fetch(
+        `${base}/v1/projects/1/media/video?${query}`,
+        { headers: { ...headers, Range: "bytes=0-7" } },
+      );
+      assert.equal(numberedMedia.status, 206);
+      assert.equal(await numberedMedia.text(), "numbered");
+      const thumbnail = await fetch(
+        `${base}/v1/projects/1/media/thumbnail?${query}`,
+        { headers },
+      );
+      assert.equal(thumbnail.status, 200);
+      assert.equal(await thumbnail.text(), "numbered thumbnail");
+      const numberedState = await fetch(
+        `${base}/v1/projects/1/state?${query}`,
+        { headers },
+      );
+      const numberedResult = (await numberedState.json()).result;
+      assert.equal(numberedResult.video, path.join(output, "0-short.mp4"));
+      assert.equal(
+        numberedResult.descriptions["3-youtube.txt"],
+        "Updated caption",
+      );
       const development = await fetch(
         `${base}/v1/projects/1/state?${query.replace("production", "development")}`,
         { headers },

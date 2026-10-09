@@ -1,4 +1,6 @@
 export const portuguese: Record<string, string> = {
+  "Use {passage_url} for a link to the beginning of the passage in its language and Bible version. The link includes the starting verse unless it is verse 1.":
+    "Use {passage_url} para um link ao início da passagem no idioma e na versão da Bíblia correspondentes. O link inclui o versículo inicial, exceto quando é o versículo 1.",
   "Publication templates": "Modelos de publicação",
   "Publication language": "Idioma da publicação",
   "Write the publication text for each platform and language. These templates will be used the next time a video is generated. Leave a template empty to skip its publication file.":

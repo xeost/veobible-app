@@ -1,3 +1,5 @@
+import { publicationFilenames } from "./output-files.js";
+import type { RenderRequest } from "./protocol.js";
 import {
   fillPublicationTemplate,
   publicationPlatforms,
@@ -8,6 +10,16 @@ interface PublicationTitle {
   title: string;
   reference: string;
   version: string;
+}
+/** Use the project's original starting point, even when it spans books or chapters. */
+export function publicationPassageUrl(
+  input: Pick<RenderRequest, "version" | "passage">,
+) {
+  const { version, passage } = input;
+  const chapter = `https://veobible.com/${version.locale}/${version.id}/${passage.book}/${passage.start.chapter}`;
+  return passage.start.verse === 1
+    ? chapter
+    : `${chapter}#${passage.start.verse}`;
 }
 const longSeries = {
   es: "BibliaEn365Dias",
@@ -47,6 +59,7 @@ export function publicationDescriptions(
   verses: string[],
   templates: PublicationTemplates,
   kind: "short" | "long",
+  passageUrl = "",
 ): Record<string, string> {
   const language = copy[locale];
   const passage = verses
@@ -98,12 +111,13 @@ export function publicationDescriptions(
               ? "BibleTok"
               : "BibliaTikTok"
             : "";
-    result[`${platform}.txt`] =
+    result[publicationFilenames[platform]] =
       fillPublicationTemplate(template, {
         title: title.title,
         reference: title.reference,
         version: title.version,
         passage,
+        passage_url: passageUrl,
         hashtags: hashtags(extra),
       }).trimEnd() + "\n";
   }

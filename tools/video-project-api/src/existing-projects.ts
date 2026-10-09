@@ -1,3 +1,8 @@
+import {
+  videoFilename,
+  thumbnailFilename,
+  publicationFilenames,
+} from "./output-files.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { availableBibleVersions } from "./bible-versions.js";
@@ -280,30 +285,40 @@ export async function discoverExistingProjects(
   return { projects, skipped };
 }
 
+/** Prefer numbered media while keeping previously generated projects playable. */
+export async function existingOutputMedia(
+  directory: string,
+  kind: "short" | "long",
+  asset: "video" | "thumbnail",
+) {
+  const filename = asset === "video" ? videoFilename(kind) : thumbnailFilename;
+  for (const name of [filename, filename.slice(2)]) {
+    const file = path.join(directory, name);
+    if ((await fs.stat(file).catch(() => null))?.isFile()) return file;
+  }
+  return null;
+}
+
 /** Read final media directly; older outputs do not have a dashboard render manifest. */
 export async function existingRenderResult(
   directory: string,
   kind: "short" | "long",
 ) {
-  const video = path.join(
-    directory,
-    kind === "short" ? "short.mp4" : "episode.mp4",
-  );
-  if (!(await fs.stat(video).catch(() => null))?.isFile()) return null;
+  const video = await existingOutputMedia(directory, kind, "video");
+  if (!video) return null;
   const descriptions: Record<string, string> = {};
-  for (const name of [
-    "youtube.txt",
-    "instagram.txt",
-    "facebook.txt",
-    "tiktok.txt",
-    "x.txt",
-  ]) {
-    const content = await optionalText([path.join(directory, name)]);
-    if (content !== undefined) descriptions[name] = content;
+  for (const [platform, filename] of Object.entries(publicationFilenames)) {
+    const content = await optionalText([
+      path.join(directory, filename),
+      path.join(directory, `${platform}.txt`),
+    ]);
+    if (content !== undefined) descriptions[filename] = content;
   }
   return {
     video,
-    thumbnail: path.join(directory, "thumbnail.jpg"),
+    thumbnail:
+      (await existingOutputMedia(directory, kind, "thumbnail")) ??
+      path.join(directory, thumbnailFilename),
     descriptions,
   };
 }

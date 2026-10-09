@@ -134,7 +134,7 @@ for (const [kind, outputEnvironment] of [
     },
     settings: { background: "bg-1.mp4" },
     publicationTemplates: {
-      youtube: "{title}\n{reference} — {version}\n{hashtags}",
+      youtube: "{title}\n{reference} — {version}\n{passage_url}\n{hashtags}",
       facebook: "{title}\n{reference} — {version}\n{hashtags}",
       ...(kind === "short" ? { instagram: "{title}\n{hashtags}" } : {}),
       tiktok: "{title}\n{hashtags}",
@@ -529,7 +529,7 @@ for (const [kind, outputEnvironment] of [
               input.passage.id,
               outputEnvironment,
             ),
-            kind === "short" ? "short.mp4" : "episode.mp4",
+            kind === "short" ? "0-short.mp4" : "0-episode.mp4",
           ),
         ),
         { code: "ENOENT" },
@@ -542,6 +542,14 @@ for (const [kind, outputEnvironment] of [
     const introVoice = await fs.readFile(
       path.join(voices, voiceFilename("intro")),
     );
+    const output = path.dirname(voices);
+    for (const name of [
+      kind === "short" ? "short.mp4" : "episode.mp4",
+      "thumbnail.jpg",
+      "youtube.txt",
+      "1-instagram.txt",
+    ])
+      await fs.writeFile(path.join(output, name), "obsolete output");
     const result = await render(input, () => {});
     assert.deepEqual(
       await fs.readFile(path.join(voices, voiceFilename("intro"))),
@@ -551,6 +559,18 @@ for (const [kind, outputEnvironment] of [
     assert.deepEqual(
       await fs.readFile(path.join(voices, voiceFilename("outro"))),
       otherVoice,
+    );
+    assert.ok(
+      result.descriptions["3-youtube.txt"].includes(
+        "https://veobible.com/es/rv1909/genesis/1\n",
+      ),
+    );
+    assert.equal(
+      await fs.readFile(
+        path.join(path.dirname(result.video), "3-youtube.txt"),
+        "utf8",
+      ),
+      result.descriptions["3-youtube.txt"],
     );
     assert.ok((await fs.stat(result.video)).size > 100);
     assert.ok((await fs.stat(result.thumbnail)).size > 100);
@@ -568,13 +588,13 @@ for (const [kind, outputEnvironment] of [
       (await fs.readdir(path.dirname(result.video))).sort(),
       [
         "_internal",
-        "facebook.txt",
-        ...(kind === "short" ? ["instagram.txt"] : []),
-        "thumbnail.jpg",
-        "tiktok.txt",
-        ...(kind === "short" ? ["short.mp4"] : ["episode.mp4"]),
-        "x.txt",
-        "youtube.txt",
+        "2-facebook.txt",
+        ...(kind === "short" ? ["1-instagram.txt"] : []),
+        "0-thumbnail.jpg",
+        "4-tiktok.txt",
+        ...(kind === "short" ? ["0-short.mp4"] : ["0-episode.mp4"]),
+        "5-x.txt",
+        "3-youtube.txt",
       ].sort(),
     );
     assert.deepEqual((await fs.readdir(voices)).sort(), [
