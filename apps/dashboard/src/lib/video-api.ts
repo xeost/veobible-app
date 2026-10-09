@@ -124,6 +124,51 @@ export async function videoApi(
     }
   }
   if (parts[0] !== "videos") return null;
+  if (parts[1] === "final-videos" && parts.length === 2 && method === "POST") {
+    const { ids } = z
+      .object({
+        ids: z
+          .array(z.number().int().positive().max(Number.MAX_SAFE_INTEGER))
+          .min(1)
+          .max(80),
+      })
+      .parse(await req.json());
+    const projects = (
+      await database
+        .prepare(
+          `SELECT p.id,p.kind,p.slug,v.code version FROM video_projects p JOIN bible_versions v ON v.id=p.bible_version_id WHERE p.id IN (${ids.map(() => "?").join(",")})`,
+        )
+        .bind(...ids)
+        .all()
+    ).results;
+    try {
+      const response = await videoFetch("/v1/projects/final-videos", {
+        method: "POST",
+        body: JSON.stringify({ projects, outputEnvironment }),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("Final videos unavailable");
+      const data = z
+        .object({
+          projects: z
+            .array(
+              z.object({
+                id: z.number().int().positive(),
+                rendered: z.boolean(),
+              }),
+            )
+            .max(80),
+        })
+        .parse(await response.json());
+      return json(data);
+    } catch (error) {
+      console.error("Final video availability check failed", error);
+      return json(
+        { error: "Final video availability could not be checked." },
+        502,
+      );
+    }
+  }
   if (!parts[1] && method === "GET") {
     const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
     return json({

@@ -1219,4 +1219,10 @@ export const spanish: Record<string, string> = {
     "No hay un proyecto siguiente para este formato y versión de la Biblia.",
   "Mark the next project in this format and Bible version, ordered by ID.":
     "Marcar el siguiente proyecto de este formato y versión de la Biblia, por orden de ID.",
+  "Checking final video availability\u2026":
+    "Comprobando si hay un video final…",
+  "Final video availability could not be checked.":
+    "No se pudo comprobar si hay un video final.",
+  "Final video rendered": "Video final renderizado",
+  "No final video rendered": "Sin video final renderizado",
 };

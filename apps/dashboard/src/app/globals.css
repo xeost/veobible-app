@@ -925,6 +925,16 @@ tbody tr:last-child td {
   background: #59be9528;
   border-color: #59be9560;
 }
+.project-final-video-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.project-final-video-indicator.available {
+  color: #7acaab;
+}
 .project-publication-controls {
   display: flex;
   align-items: center;

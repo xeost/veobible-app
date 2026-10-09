@@ -142,6 +142,41 @@ const server = http.createServer(async (req, res) => {
         videoProjectProtocolVersion: 1,
         active: generationQueue.pendingCount,
       });
+    if (url.pathname === "/v1/projects/final-videos" && req.method === "POST") {
+      const input = z
+        .object({
+          outputEnvironment: renderSchema.shape.outputEnvironment,
+          projects: z
+            .array(
+              z.object({
+                id: z.number().int().positive(),
+                kind: renderSchema.shape.kind,
+                version: renderSchema.shape.version.shape.id,
+                slug: renderSchema.shape.passage.shape.id,
+              }),
+            )
+            .max(80),
+        })
+        .parse(await body(req));
+      const projects = await Promise.all(
+        input.projects.map(async (project) => ({
+          id: project.id,
+          rendered: Boolean(
+            await existingOutputMedia(
+              projectDir(
+                project.kind,
+                project.version,
+                project.slug,
+                input.outputEnvironment,
+              ),
+              project.kind,
+              "video",
+            ),
+          ),
+        })),
+      );
+      return json(res, 200, { projects });
+    }
     if (url.pathname === "/v1/projects/existing" && req.method === "GET") {
       const kind = z
         .enum(["short", "long"])

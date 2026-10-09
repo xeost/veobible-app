@@ -64,6 +64,42 @@ test(
       const data = await state.json();
       assert.equal(data.status, "ready");
       assert.equal(data.progress, 100);
+      const finalVideos = async (outputEnvironment: string) => {
+        const response = await fetch(`${base}/v1/projects/final-videos`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            outputEnvironment,
+            projects: [
+              { id: 1, kind: "short", version: "rv1909", slug: "john-3-16" },
+              {
+                id: 2,
+                kind: "short",
+                version: "rv1909",
+                slug: "missing-video",
+              },
+              { id: 3, kind: "long", version: "rv1909", slug: "john-3-16" },
+            ],
+          }),
+        });
+        assert.equal(response.status, 200);
+        return response.json();
+      };
+      assert.deepEqual(await finalVideos("production"), {
+        projects: [
+          { id: 1, rendered: true },
+          { id: 2, rendered: false },
+          { id: 3, rendered: false },
+        ],
+      });
+      assert.deepEqual(await finalVideos("development"), {
+        projects: [
+          { id: 1, rendered: false },
+          { id: 2, rendered: false },
+          { id: 3, rendered: false },
+        ],
+      });
+
       const queue = await fetch(`${base}/v1/queue`, { headers });
       assert.deepEqual((await queue.json()).summary, {
         progress: 0,
@@ -200,6 +236,12 @@ test(
       );
       assert.equal(numberedMedia.status, 206);
       assert.equal(await numberedMedia.text(), "numbered");
+      await fs.unlink(path.join(output, "short.mp4"));
+      assert.equal(
+        (await finalVideos("production")).projects[0].rendered,
+        true,
+      );
+
       const thumbnail = await fetch(
         `${base}/v1/projects/1/media/thumbnail?${query}`,
         { headers },

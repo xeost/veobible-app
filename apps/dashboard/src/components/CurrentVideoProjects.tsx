@@ -10,6 +10,9 @@ import {
   Film,
   ArrowRightToLine,
   LoaderCircle,
+  FileVideo,
+  VideoOff,
+  CircleHelp,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { userMessage, publicationLabel } from "../lib/presentation";
@@ -27,6 +30,10 @@ export function CurrentVideoProjects() {
   const { orderVersions } = usePinnedBibleVersions();
   const router = useRouter();
   const [rows, setRows] = useState<VideoRow[]>([]);
+  const [renderedVideos, setRenderedVideos] = useState<Record<number, boolean>>(
+    {},
+  );
+  const [checkingVideos, setCheckingVideos] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [advancing, setAdvancing] = useState<number | null>(null);
@@ -91,6 +98,45 @@ export function CurrentVideoProjects() {
       window.removeEventListener("storage", onStorage);
     };
   }, []);
+
+  const projectIds = rows
+    .map((row) => row.id)
+    .sort((a, b) => a - b)
+    .join(",");
+  useEffect(() => {
+    let live = true;
+    const ids = projectIds ? projectIds.split(",").map(Number) : [];
+    setRenderedVideos({});
+    if (!ids.length) {
+      setCheckingVideos(false);
+      return;
+    }
+    setCheckingVideos(true);
+    const check = async () => {
+      try {
+        const statuses: Record<number, boolean> = {};
+        for (let index = 0; index < ids.length; index += 80) {
+          const data = await api<{
+            projects: { id: number; rendered: boolean }[];
+          }>("videos/final-videos", {
+            method: "POST",
+            body: JSON.stringify({ ids: ids.slice(index, index + 80) }),
+          });
+          for (const project of data.projects)
+            statuses[project.id] = project.rendered;
+        }
+        if (live) setRenderedVideos(statuses);
+      } catch {
+        // An unavailable generation service must not look like a missing final video.
+      } finally {
+        if (live) setCheckingVideos(false);
+      }
+    };
+    void check();
+    return () => {
+      live = false;
+    };
+  }, [projectIds]);
 
   const orderedRows = (["short", "long"] as const).flatMap((kind) =>
     orderVersions(
@@ -238,6 +284,43 @@ export function CurrentVideoProjects() {
                 </td>
                 <td>
                   <div className="project-publication-controls">
+                    <span
+                      className={`project-final-video-indicator${renderedVideos[row.id] ? " available" : ""}`}
+                      tabIndex={0}
+                      role="img"
+                      aria-label={t(
+                        checkingVideos
+                          ? "Checking final video availability…"
+                          : renderedVideos[row.id] === undefined
+                            ? "Final video availability could not be checked."
+                            : renderedVideos[row.id]
+                              ? "Final video rendered"
+                              : "No final video rendered",
+                      )}
+                      data-tooltip={t(
+                        checkingVideos
+                          ? "Checking final video availability…"
+                          : renderedVideos[row.id] === undefined
+                            ? "Final video availability could not be checked."
+                            : renderedVideos[row.id]
+                              ? "Final video rendered"
+                              : "No final video rendered",
+                      )}
+                    >
+                      {checkingVideos ? (
+                        <LoaderCircle
+                          size={17}
+                          className="voice-spinner"
+                          aria-hidden="true"
+                        />
+                      ) : renderedVideos[row.id] === undefined ? (
+                        <CircleHelp size={17} aria-hidden="true" />
+                      ) : renderedVideos[row.id] ? (
+                        <FileVideo size={17} aria-hidden="true" />
+                      ) : (
+                        <VideoOff size={17} aria-hidden="true" />
+                      )}
+                    </span>
                     <button
                       type="button"
                       className={`badge${row.published ? " publication-published" : ""}`}
