@@ -1070,6 +1070,7 @@ export function VideoProjectEditor({
                     >
                       {expanded.has(id) && (
                         <VerseWaveform
+                          locale={project.locale}
                           src={media(id)}
                           sourceStart={section.start}
                           sourceEnd={section.end}

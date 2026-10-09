@@ -1,6 +1,18 @@
 import type { Language } from "../i18n/context";
 import { translateServer } from "./i18n-server";
 
+export function publicationLabel(
+  published: boolean | number,
+  language: Language = "en",
+): string {
+  const labels = {
+    en: { published: "Published", unpublished: "Unpublished" },
+    es: { published: "Publicado", unpublished: "No publicado" },
+    pt: { published: "Publicado", unpublished: "Não publicado" },
+  };
+  return labels[language][published ? "published" : "unpublished"];
+}
+
 /** User-facing vocabulary. Diagnostic details remain in logs and saved job records. */
 export const statusLabel = (status: string, lang?: Language): string => {
   const label =

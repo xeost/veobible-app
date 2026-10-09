@@ -1203,4 +1203,11 @@ export const portuguese: Record<string, string> = {
   "Another narration is still being generated. Wait for it to finish and try again.":
     "Outra voz ainda está sendo gerada. Aguarde a conclusão e tente novamente.",
   "Preview this passage": "Pré-visualizar esta passagem",
+  "Current projects": "Projetos atuais",
+  "Marked in this browser": "Marcados neste navegador",
+  "Mark a project in Short Videos or Long Videos to see it here.":
+    "Marque um projeto em Vídeos curtos ou Vídeos longos para vê-lo aqui.",
+  "Playback speed for listening in the editor only. Saved for this Bible language; previews and the final video keep their original speed.":
+    "Velocidade de escuta apenas no editor. Salva para este idioma da Bíblia; as prévias e o vídeo final mantêm a velocidade original.",
+  "Playback speed": "Velocidade de reprodução",
 };

@@ -1,3 +1,4 @@
+import { listingSelect, listVideoProjects } from "./video-listing";
 import { loadPublicationSettings } from "./publication-settings";
 import { readingCutsSchema } from "../../../../tools/video-project-api/src/protocol";
 import { projectProposalsSchema, syncVideoProjects } from "./project-proposals";
@@ -32,9 +33,6 @@ const projectJoin =
   " FROM video_projects p JOIN bible_versions v ON v.id=p.bible_version_id";
 const select =
   "SELECT p.*,p.id project_id,v.id version_id,v.code version_code,v.locale,v.label" +
-  projectJoin;
-const listingSelect =
-  "SELECT p.id,p.id project_id,p.kind,p.title,p.published,p.updated_at,v.id version_id,v.code version_code,v.locale,v.label" +
   projectJoin;
 type Project = {
   id: number;
@@ -124,20 +122,13 @@ export async function videoApi(
   if (parts[0] !== "videos") return null;
   if (!parts[1] && method === "GET") {
     const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
-    const version = url.searchParams.get("version");
     return json({
-      videos: (
-        await database
-          .prepare(
-            `${listingSelect} WHERE p.kind=?${version && version !== "all" ? " AND v.id=?" : ""} ORDER BY p.id ASC`,
-          )
-          .bind(
-            ...(version && version !== "all"
-              ? [kind, z.coerce.number().int().positive().parse(version)]
-              : [kind]),
-          )
-          .all()
-      ).results,
+      videos: await listVideoProjects(
+        database,
+        kind,
+        url.searchParams.get("version"),
+        url.searchParams.get("ids"),
+      ),
     });
   }
   if (!parts[1] && method === "POST") {

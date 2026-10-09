@@ -5,7 +5,7 @@ import { CreateVideoProjectModal } from "./CreateVideoProjectModal";
 import { useI18n } from "../i18n/context";
 import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
 import type { BibleVersion } from "../lib/bible-versions";
-import { userMessage } from "../lib/presentation";
+import { userMessage, publicationLabel } from "../lib/presentation";
 import { useEffect, useState, useCallback } from "react";
 import {
   Search,
@@ -22,6 +22,11 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, date } from "./api";
+import {
+  parseCurrentProjects,
+  projectVersionKey,
+  currentProjectStorageKey as storageKey,
+} from "../lib/current-video-projects";
 import { type VideoRow } from "./video-project";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
 
@@ -33,23 +38,6 @@ function versionFilter(value: string | null): string {
     ? value
     : "all";
 }
-const projectVersionKey = (row: VideoRow) =>
-  `${row.locale}:${row.version_code}`;
-function parseCurrentProjects(value: string | null): Record<string, number> {
-  try {
-    const parsed: unknown = JSON.parse(value ?? "{}");
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-      return {};
-    return Object.fromEntries(
-      Object.entries(parsed).filter(
-        ([, id]) =>
-          typeof id === "number" && Number.isSafeInteger(id) && id > 0,
-      ),
-    );
-  } catch {
-    return {};
-  }
-}
 export function Videos({ kind }: { kind: "short" | "long" }) {
   const { t, language } = useI18n();
   const { orderVersions } = usePinnedBibleVersions();
@@ -57,7 +45,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
   const searchParams = useSearchParams();
   const requestedVersion = searchParams.get("version");
   const versionStorageKey = `veo-video-version-filter:${kind}`;
-  const currentProjectStorageKey = `veo-current-video-projects:${kind}`;
+  const currentProjectStorageKey = storageKey(kind);
   const [currentProjects, setCurrentProjects] = useState<
     Record<string, number>
   >({});
@@ -401,7 +389,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                             }
                           }}
                         >
-                          {row.published ? t("Published") : t("Unpublished")}
+                          {publicationLabel(row.published, language)}
                         </button>
                         <button
                           type="button"

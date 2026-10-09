@@ -1,6 +1,7 @@
 "use client";
 import { useI18n } from "../../i18n/context";
-import { userMessage, statusLabel } from "../../lib/presentation";
+import { CurrentVideoProjects } from "../../components/CurrentVideoProjects";
+import { userMessage, publicationLabel } from "../../lib/presentation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -65,6 +66,7 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+      <CurrentVideoProjects />
       <div className="overview-grid">
         <section className="hero-card">
           <div className="hero-orb">
@@ -120,8 +122,10 @@ export default function Dashboard() {
                   <td>{t(p.kind === "short" ? "Short" : "Long")}</td>
                   <td>{p.label}</td>
                   <td>
-                    <span className="badge">
-                      {p.published ? t("Published") : t("Unpublished")}
+                    <span
+                      className={`badge${p.published ? " publication-published" : ""}`}
+                    >
+                      {publicationLabel(p.published, language)}
                     </span>
                   </td>
                   <td className="muted">{date(p.updated_at, language)}</td>

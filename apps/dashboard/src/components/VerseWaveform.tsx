@@ -1,6 +1,20 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, AudioLines, ZoomIn, ZoomOut, ArrowLeftToLine, ArrowRightToLine, ChevronRight } from "lucide-react";
+import {
+  Play,
+  Pause,
+  AudioLines,
+  ZoomIn,
+  ZoomOut,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  ChevronRight,
+} from "lucide-react";
+import {
+  readingPlaybackSpeeds,
+  useReadingPlaybackSpeed,
+} from "./useReadingPlaybackSpeed";
+import { applyReadingPlaybackSpeed } from "../lib/reading-playback";
 import { useI18n } from "../i18n/context";
 import {
   type VerseCue,
@@ -13,6 +27,7 @@ import {
 } from "../lib/video-timing";
 export function VerseWaveform({
   src,
+  locale,
   sourceStart,
   sourceEnd,
   sourceDuration,
@@ -25,6 +40,7 @@ export function VerseWaveform({
   onShift,
 }: {
   src: string;
+  locale: string;
   sourceStart: number;
   sourceEnd: number;
   sourceDuration: number;
@@ -37,6 +53,7 @@ export function VerseWaveform({
   onShift: (cue: VerseCue) => boolean;
 }) {
   const { t } = useI18n();
+  const { playbackSpeed, setPlaybackSpeed } = useReadingPlaybackSpeed(locale);
   const [selected, setSelected] = useState(0);
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
   const [focus, setFocus] = useState(
@@ -53,6 +70,11 @@ export function VerseWaveform({
   const [zoom, setZoom] = useState(1);
   const [revision, setRevision] = useState(0);
   const audio = useRef<HTMLAudioElement>(null);
+  const playbackSpeedRef = useRef(playbackSpeed);
+  playbackSpeedRef.current = playbackSpeed;
+  useEffect(() => {
+    if (audio.current) applyReadingPlaybackSpeed(audio.current, playbackSpeed);
+  }, [playbackSpeed]);
   const audioGraph = useRef<{
     context: AudioContext;
     source: MediaElementAudioSourceNode;
@@ -71,9 +93,10 @@ export function VerseWaveform({
     () => () => {
       const graph = audioGraph.current;
       if (!graph) return;
+      audioGraph.current = null;
       graph.source.disconnect();
       graph.gain.disconnect();
-      void graph.context.close();
+      if (graph.context.state !== "closed") void graph.context.close();
     },
     [],
   );
@@ -96,9 +119,12 @@ export function VerseWaveform({
     const item = active.getBoundingClientRect();
     // Scroll only the verse list, including its horizontal layout on narrow screens.
     if (item.top < viewport.top) list.scrollTop += item.top - viewport.top - 4;
-    else if (item.bottom > viewport.bottom) list.scrollTop += item.bottom - viewport.bottom + 4;
-    if (item.left < viewport.left) list.scrollLeft += item.left - viewport.left - 4;
-    else if (item.right > viewport.right) list.scrollLeft += item.right - viewport.right + 4;
+    else if (item.bottom > viewport.bottom)
+      list.scrollTop += item.bottom - viewport.bottom + 4;
+    if (item.left < viewport.left)
+      list.scrollLeft += item.left - viewport.left - 4;
+    else if (item.right > viewport.right)
+      list.scrollLeft += item.right - viewport.right + 4;
   }, [index, cue?.reference]);
   useEffect(() => {
     let live = true;
@@ -128,7 +154,14 @@ export function VerseWaveform({
       audio.current?.pause();
     };
   }, [src, revision]);
-  const window = waveformWindow({ start: focus.start - extraContext.before, end: focus.end + extraContext.after }, timelineStart, timelineStart + duration);
+  const window = waveformWindow(
+    {
+      start: focus.start - extraContext.before,
+      end: focus.end + extraContext.after,
+    },
+    timelineStart,
+    timelineStart + duration,
+  );
   const visibleDuration = window.end - window.start;
   useEffect(() => {
     if (latest.current[index]) setFocus(latest.current[index]);
@@ -138,7 +171,10 @@ export function VerseWaveform({
     setZoom(1);
     if (scroll.current) scroll.current.scrollLeft = 0;
   }, [cue?.reference, src, sourceStart, sourceEnd, timelineStart]);
-  useEffect(() => setExtraContext({ before: 0, after: 0 }), [cue?.reference, src]);
+  useEffect(
+    () => setExtraContext({ before: 0, after: 0 }),
+    [cue?.reference, src],
+  );
   const peaks = useMemo(() => {
     if (!buffer || visibleDuration <= 0) return [];
     const channels = Array.from(
@@ -193,6 +229,7 @@ export function VerseWaveform({
     if (!player || range.end <= range.start) return;
     const request = ++playbackRequest.current;
     player.pause();
+    applyReadingPlaybackSpeed(player, playbackSpeedRef.current);
     player.currentTime = sourceStart + range.start - timelineStart;
     stopAt.current = sourceStart + range.end - timelineStart;
     setPlayhead(player.currentTime);
@@ -211,6 +248,8 @@ export function VerseWaveform({
       graph.gain.gain.setValueAtTime(volume.current, graph.context.currentTime);
       player.volume = 1;
       await Promise.all([graph.context.resume(), player.play()]);
+      if (request === playbackRequest.current)
+        applyReadingPlaybackSpeed(player, playbackSpeedRef.current, true);
     } catch (error) {
       if (
         request === playbackRequest.current &&
@@ -315,7 +354,11 @@ export function VerseWaveform({
     if (!latest.current[nextIndex]) return;
     audio.current?.pause();
     playbackRequest.current++;
-    const result = alignSelectedVerse(latest.current, nextIndex, timelineStart + sourceDuration - sourceStart);
+    const result = alignSelectedVerse(
+      latest.current,
+      nextIndex,
+      timelineStart + sourceDuration - sourceStart,
+    );
     const moved = !disabled && result.moved && onShift(result.cue);
     setSelected(nextIndex);
     setFocus(moved ? result.cue : latest.current[nextIndex]);
@@ -354,23 +397,58 @@ export function VerseWaveform({
           <AudioLines size={18} />
           <strong>{t("Synchronize text and audio")}</strong>
           <div>
+            <select
+              className="waveform-playback-speed"
+              aria-label={t("Playback speed")}
+              data-tooltip={t(
+                "Playback speed for listening in the editor only. Saved for this Bible language; previews and the final video keep their original speed.",
+              )}
+              value={playbackSpeed}
+              onChange={(event) => setPlaybackSpeed(Number(event.target.value))}
+            >
+              {readingPlaybackSpeeds.map((speed) => (
+                <option key={speed} value={speed}>
+                  {speed}×
+                </option>
+              ))}
+            </select>
+            <span className="section-action-separator" aria-hidden="true" />
             {(["start", "end"] as const).map((edge) => {
-              const label = edge === "start" ? "Add up to 10 seconds of audio on the left" : "Add up to 10 seconds of audio on the right";
-              const unavailable = edge === "start" ? sourceStart <= 0 : sourceEnd >= sourceDuration - 0.001;
-              return <button
-                type="button" key={edge} className="waveform-context-button" aria-label={t(label)} data-tooltip={t(label)}
-                disabled={disabled || unavailable}
-                onClick={() => {
-                  onExpand(edge);
-                  setExtraContext((current) => ({ ...current,
-                    [edge === "start" ? "before" : "after"]: current[edge === "start" ? "before" : "after"] + 10,
-                  }));
-                }}
-              >
-                {edge === "start" ? <ArrowLeftToLine size={16} /> : <ArrowRightToLine size={16} />}
-                <span>+10 s</span>
-              </button>;
+              const label =
+                edge === "start"
+                  ? "Add up to 10 seconds of audio on the left"
+                  : "Add up to 10 seconds of audio on the right";
+              const unavailable =
+                edge === "start"
+                  ? sourceStart <= 0
+                  : sourceEnd >= sourceDuration - 0.001;
+              return (
+                <button
+                  type="button"
+                  key={edge}
+                  className="waveform-context-button"
+                  aria-label={t(label)}
+                  data-tooltip={t(label)}
+                  disabled={disabled || unavailable}
+                  onClick={() => {
+                    onExpand(edge);
+                    setExtraContext((current) => ({
+                      ...current,
+                      [edge === "start" ? "before" : "after"]:
+                        current[edge === "start" ? "before" : "after"] + 10,
+                    }));
+                  }}
+                >
+                  {edge === "start" ? (
+                    <ArrowLeftToLine size={16} />
+                  ) : (
+                    <ArrowRightToLine size={16} />
+                  )}
+                  <span>+10 s</span>
+                </button>
+              );
             })}
+            <span className="section-action-separator" aria-hidden="true" />
             <button
               type="button"
               aria-label={t("Zoom out")}
@@ -518,7 +596,40 @@ export function VerseWaveform({
           crossOrigin="anonymous"
           src={src}
           preload="metadata"
-          onPlay={() => setPlaying(true)}
+          onLoadedMetadata={(event) =>
+            applyReadingPlaybackSpeed(
+              event.currentTarget,
+              playbackSpeedRef.current,
+            )
+          }
+          onPlay={(event) => {
+            applyReadingPlaybackSpeed(
+              event.currentTarget,
+              playbackSpeedRef.current,
+            );
+            setPlaying(true);
+          }}
+          onSeeked={(event) =>
+            applyReadingPlaybackSpeed(
+              event.currentTarget,
+              playbackSpeedRef.current,
+              true,
+            )
+          }
+          onPlaying={(event) =>
+            applyReadingPlaybackSpeed(
+              event.currentTarget,
+              playbackSpeedRef.current,
+              true,
+            )
+          }
+          onRateChange={(event) => {
+            if (event.currentTarget.playbackRate !== playbackSpeedRef.current)
+              applyReadingPlaybackSpeed(
+                event.currentTarget,
+                playbackSpeedRef.current,
+              );
+          }}
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
           onError={() => setWaveError(true)}
