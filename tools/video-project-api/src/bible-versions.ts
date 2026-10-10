@@ -1,41 +1,55 @@
 import fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  bibleDataRoot,
+  overridesForBibleRoot,
+  readBibleDataFile,
+} from "./bible-data.js";
 import { z } from "zod";
 
-const bibleDataRoot = fileURLToPath(
-  new URL("../../../apps/frontend/public/bible-data/", import.meta.url),
-);
 const indexSchema = z.object({
   metadata: z.object({ name: z.string().trim().min(1).max(120) }),
   books: z.array(z.unknown()).min(1),
 });
-export async function availableBibleVersions(root = bibleDataRoot) {
+export async function availableBibleVersions(
+  root = bibleDataRoot,
+  overridesRoot = overridesForBibleRoot(root),
+) {
   const versions: {
     locale: "es" | "en" | "pt";
     code: string;
     label: string;
   }[] = [];
   for (const locale of ["es", "en", "pt"] as const) {
-    const directories = await fs
-      .readdir(path.join(root, locale), { withFileTypes: true })
-      .catch((error) => {
-        if (error.code === "ENOENT") return [];
-        throw error;
-      });
-    for (const directory of directories) {
+    const directories = new Map<string, Dirent>();
+    for (const source of [root, overridesRoot]) {
+      if (!source) continue;
+      const entries = await fs
+        .readdir(path.join(source, locale), { withFileTypes: true })
+        .catch((error) => {
+          if (error.code === "ENOENT") return [];
+          throw error;
+        });
+      for (const entry of entries) {
+        if (entry.isDirectory()) directories.set(entry.name, entry);
+      }
+    }
+    for (const directory of directories.values()) {
       if (
         !directory.isDirectory() ||
         !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(directory.name) ||
         directory.name.length > 60
       )
         continue;
-      const content = await fs
-        .readFile(path.join(root, locale, directory.name, "index.json"), "utf8")
-        .catch((error) => {
-          if (error.code === "ENOENT") return null;
-          throw error;
-        });
+      const content = await readBibleDataFile(
+        path.join(locale, directory.name, "index.json"),
+        root,
+        overridesRoot,
+      ).catch((error) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
       if (content === null) continue;
       const index = indexSchema.parse(JSON.parse(content));
       versions.push({
@@ -53,11 +67,14 @@ export async function availableBibleVersions(root = bibleDataRoot) {
 export async function availableBibleBooks(
   locale: "es" | "en" | "pt",
   code: string,
+  root = bibleDataRoot,
+  overridesRoot = overridesForBibleRoot(root),
 ) {
   const data = JSON.parse(
-    await fs.readFile(
-      path.join(bibleDataRoot, locale, code, "index.json"),
-      "utf8",
+    await readBibleDataFile(
+      path.join(locale, code, "index.json"),
+      root,
+      overridesRoot,
     ),
   );
   return z

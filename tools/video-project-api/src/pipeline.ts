@@ -2,6 +2,8 @@ import {
   videoFilename,
   thumbnailFilename,
   publicationFilenames,
+  isPublicationFilename,
+  isNumberedThumbnailFilename,
 } from "./output-files.js";
 export { videoFilename } from "./output-files.js";
 import { publicationPassageUrl } from "./publication.js";
@@ -499,11 +501,6 @@ export async function render(
       path.join(work, "thumbnail.jpg"),
       result.thumbnailTime,
     );
-    await fs.rename(final, path.join(output, videoFilename(input.kind)));
-    await fs.rename(
-      path.join(work, "thumbnail.jpg"),
-      path.join(output, thumbnailFilename),
-    );
     const descriptions = m.descriptions(
       version.locale,
       title,
@@ -511,10 +508,23 @@ export async function render(
       input.publicationTemplates,
       publicationPassageUrl(input),
     );
-    for (const [platform, filename] of Object.entries(publicationFilenames)) {
-      await fs.rm(path.join(output, `${platform}.txt`), { force: true });
-      await fs.rm(path.join(output, filename), { force: true });
+    const thumbnailName = thumbnailFilename(descriptions);
+    // Remove obsolete generated files when headings or platform templates change.
+    for (const name of await fs.readdir(output)) {
+      if (
+        isPublicationFilename(name) ||
+        isNumberedThumbnailFilename(name) ||
+        name === "0-thumbnail.jpg"
+      )
+        await fs.rm(path.join(output, name), { force: true });
     }
+    await fs.rename(final, path.join(output, videoFilename(input.kind)));
+    await fs.rename(
+      path.join(work, "thumbnail.jpg"),
+      path.join(output, thumbnailName),
+    );
+    for (const platform of Object.keys(publicationFilenames))
+      await fs.rm(path.join(output, `${platform}.txt`), { force: true });
     for (const name of [videoFilename(input.kind).slice(2), "thumbnail.jpg"])
       await fs.rm(path.join(output, name), { force: true });
     for (const [name, text] of Object.entries(descriptions))
@@ -530,7 +540,7 @@ export async function render(
         `Start: ${input.passage.start.chapter}:${input.passage.start.verse}`,
         `End: ${input.passage.end.chapter}:${input.passage.end.verse}`,
         `Final video: ../${videoFilename(input.kind)}`,
-        `Thumbnail: ../${thumbnailFilename} (frame at ${result.thumbnailTime.toFixed(6)} s)`,
+        `Thumbnail: ../${thumbnailName} (frame at ${result.thumbnailTime.toFixed(6)} s)`,
         `Background: ${result.background}`,
         "Narration mode: voice",
         `Reading volume: ${input.settings.volumeMultiplier}x`,
@@ -549,7 +559,7 @@ export async function render(
       ...result,
       output,
       video: path.join(output, videoFilename(input.kind)),
-      thumbnail: path.join(output, thumbnailFilename),
+      thumbnail: path.join(output, thumbnailName),
       descriptions,
       voiceScripts: scripts,
       sources: [

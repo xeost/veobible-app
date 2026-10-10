@@ -134,7 +134,7 @@ for (const [kind, outputEnvironment] of [
     },
     settings: { background: "bg-1.mp4" },
     publicationTemplates: {
-      youtube: "{title}\n{reference} — {version}\n{passage_url}\n{hashtags}",
+      youtube: "# Title\n{title}\n\n# Description\n{reference} — {version}\n{passage_url}\n{hashtags}",
       facebook: "{title}\n{reference} — {version}\n{hashtags}",
       ...(kind === "short" ? { instagram: "{title}\n{hashtags}" } : {}),
       tiktok: "{title}\n{hashtags}",
@@ -561,16 +561,16 @@ for (const [kind, outputEnvironment] of [
       otherVoice,
     );
     assert.ok(
-      result.descriptions["3-youtube.txt"].includes(
+      result.descriptions["3.2-youtube.txt"].includes(
         "https://veobible.com/es/rv1909/genesis/1\n",
       ),
     );
     assert.equal(
       await fs.readFile(
-        path.join(path.dirname(result.video), "3-youtube.txt"),
+        path.join(path.dirname(result.video), "3.2-youtube.txt"),
         "utf8",
       ),
-      result.descriptions["3-youtube.txt"],
+      result.descriptions["3.2-youtube.txt"],
     );
     assert.ok((await fs.stat(result.video)).size > 100);
     assert.ok((await fs.stat(result.thumbnail)).size > 100);
@@ -590,11 +590,12 @@ for (const [kind, outputEnvironment] of [
         "_internal",
         "2-facebook.txt",
         ...(kind === "short" ? ["1-instagram.txt"] : []),
-        "0-thumbnail.jpg",
+        "3.3-thumbnail.jpg",
         "4-tiktok.txt",
         ...(kind === "short" ? ["0-short.mp4"] : ["0-episode.mp4"]),
         "5-x.txt",
-        "3-youtube.txt",
+        "3.1-youtube.txt",
+        "3.2-youtube.txt",
       ].sort(),
     );
     assert.deepEqual((await fs.readdir(voices)).sort(), [

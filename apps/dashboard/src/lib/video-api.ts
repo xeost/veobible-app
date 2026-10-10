@@ -334,6 +334,31 @@ export async function videoApi(
       url.searchParams.get("kind") !== project.kind)
   )
     return json({ error: "Video not found" }, 404);
+  if (parts[2] === "open-folder" && parts.length === 3 && method === "POST") {
+    try {
+      const response = await videoFetch(`/v1/projects/${id}/open-folder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: project.kind,
+          version: project.version_code,
+          slug: project.slug,
+          outputEnvironment,
+        }),
+      });
+      if (!response.ok) throw new Error("Folder opening failed");
+      return json({ opened: true });
+    } catch (error) {
+      console.error("Could not open project folder", error);
+      return json(
+        {
+          error:
+            "Could not open the project folder. Check that generation is available and try again.",
+        },
+        502,
+      );
+    }
+  }
   const version = {
     id: project.version_code,
     locale: project.locale,

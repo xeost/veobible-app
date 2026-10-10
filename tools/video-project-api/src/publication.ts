@@ -78,7 +78,7 @@ export function publicationDescriptions(
     )
     .slice(0, 3);
   const book = title.reference
-    .replace(/\s+\d+:.*$/u, "")
+    .replace(/\s+(?:(?:chapters?|capítulos?)\s+)?\d+.*$/iu, "")
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .replace(/[^\p{L}\p{N}]/gu, "");
@@ -112,8 +112,26 @@ export function publicationDescriptions(
               ? "BibleTok"
               : "BibliaTikTok"
             : "";
-    result[publicationFilenames[platform]] =
-      fillPublicationTemplate(template, {
+    // Split template headings before substitution so Bible text cannot create sections.
+    const headings = [
+      ...template.matchAll(/^ {0,3}#{1,6}[ \t]+[^\r\n]+(?:\r?\n|$)/gm),
+    ];
+    const sections = headings.length
+      ? headings.map((heading, index) => {
+          const start = heading.index! + heading[0].length;
+          const end = headings[index + 1]?.index ?? template.length;
+          const prefix =
+            index === 0 ? template.slice(0, heading.index).trim() : "";
+          return [prefix, template.slice(start, end).trim()]
+            .filter(Boolean)
+            .join("\n\n");
+        })
+      : [template];
+    for (const [index, section] of sections.entries()) {
+      const filename = headings.length
+        ? publicationFilenames[platform].replace("-", `.${index + 1}-`)
+        : publicationFilenames[platform];
+      result[filename] = fillPublicationTemplate(section, {
         title: title.title,
         episode:
           kind === "long" && title.episode !== undefined
@@ -125,6 +143,7 @@ export function publicationDescriptions(
         passage_url: passageUrl,
         hashtags: hashtags(extra),
       }).trimEnd() + "\n";
+    }
   }
   return result;
 }

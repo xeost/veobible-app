@@ -191,6 +191,13 @@ test("numbered final files are preferred for both formats and legacy texts retai
         "2-facebook.txt": "Facebook",
         "3-youtube.txt": "new description",
       });
+      await fs.writeFile(path.join(project, "3.3-thumbnail.jpg"), "YouTube thumbnail");
+      await fs.writeFile(path.join(project, "3.1-youtube.txt"), "Title");
+      await fs.writeFile(path.join(project, "3.2-youtube.txt"), "Description");
+      const updated = await existingRenderResult(project, kind);
+      assert.equal(updated?.thumbnail, path.join(project, "3.3-thumbnail.jpg"));
+      assert.equal(updated?.descriptions["3.1-youtube.txt"], "Title");
+      assert.equal(updated?.descriptions["3.2-youtube.txt"], "Description");
     }
   } finally {
     await fs.rm(directory, { recursive: true, force: true });

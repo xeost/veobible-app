@@ -24,3 +24,42 @@ test("both video formats read every Bible version from the frontend static direc
     }
   }
 });
+
+test("overrides take precedence per file and only missing files fall back", async () => {
+  const { default: os } = await import("node:os");
+  const { readBibleDataFile } = await import("./bible-data.js");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "bible-overrides-"));
+  const original = path.join(root, "original"), overrides = path.join(root, "overrides");
+  try {
+    for (const source of [original, overrides]) await fs.mkdir(source);
+    await fs.writeFile(path.join(original, "index.json"), '{"name":"Original"}');
+    await fs.writeFile(path.join(overrides, "index.json"), '{"name":"Override"}');
+    await fs.writeFile(path.join(original, "chapter.json"), "Original chapter");
+    assert.equal(JSON.parse(await readBibleDataFile("index.json", original, overrides)).name, "Override");
+    assert.equal(await readBibleDataFile("chapter.json", original, overrides), "Original chapter");
+    await fs.writeFile(path.join(overrides, "index.json"), "malformed");
+    await assert.rejects(async () => JSON.parse(await readBibleDataFile("index.json", original, overrides)));
+    await fs.mkdir(path.join(overrides, "chapter.json"));
+    await assert.rejects(readBibleDataFile("chapter.json", original, overrides));
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("both video engines use ARC override texts and chapter lengths", async () => {
+  const short = await import("./engines/short/shorts.js");
+  const long = await import("./engines/long/episodes.js");
+  for (const [config, engine] of [[shortConfig, short], [longConfig, long]] as const) {
+    const version = config.versions.find((v) => v.locale === "pt" && v.id === "arc")!;
+    assert.ok(version);
+    const index = await engine.readIndex(version);
+    assert.equal(index.books.find((b) => b.id === "judges")?.versesPerChapter[4], 32);
+    const passage = {
+      id: "genesis-1-1", book: "genesis",
+      start: { book: "genesis", chapter: 1, verse: 1 },
+      end: { book: "genesis", chapter: 1, verse: 1 },
+    };
+    const context = await engine.readPassageTextContext(version, passage);
+    assert.equal(context.find((v) => v.inPassage)?.text, "No princípio criou Deus o céu e a terra.");
+  }
+});

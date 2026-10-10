@@ -2,6 +2,8 @@ import {
   videoFilename,
   thumbnailFilename,
   publicationFilenames,
+  isPublicationFilename,
+  isNumberedThumbnailFilename,
 } from "./output-files.js";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -291,8 +293,17 @@ export async function existingOutputMedia(
   kind: "short" | "long",
   asset: "video" | "thumbnail",
 ) {
-  const filename = asset === "video" ? videoFilename(kind) : thumbnailFilename;
-  for (const name of [filename, filename.slice(2)]) {
+  const filename = videoFilename(kind);
+  const candidates = asset === "video"
+    ? [filename, filename.slice(2)]
+    : [
+        ...(await fs.readdir(directory).catch((error) => {
+          if (error.code === "ENOENT") return [];
+          throw error;
+        })).filter(isNumberedThumbnailFilename).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+        "0-thumbnail.jpg", "thumbnail.jpg",
+      ];
+  for (const name of candidates) {
     const file = path.join(directory, name);
     if ((await fs.stat(file).catch(() => null))?.isFile()) return file;
   }
@@ -314,11 +325,14 @@ export async function existingRenderResult(
     ]);
     if (content !== undefined) descriptions[filename] = content;
   }
+  for (const filename of (await fs.readdir(directory)).filter(isPublicationFilename)) {
+    descriptions[filename] = await fs.readFile(path.join(directory, filename), "utf8");
+  }
   return {
     video,
     thumbnail:
       (await existingOutputMedia(directory, kind, "thumbnail")) ??
-      path.join(directory, thumbnailFilename),
+      path.join(directory, thumbnailFilename(descriptions)),
     descriptions,
   };
 }

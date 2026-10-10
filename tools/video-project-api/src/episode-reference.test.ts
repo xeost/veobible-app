@@ -26,7 +26,7 @@ test("episode references omit verses only for complete chapters and group consec
   assert.equal(reference.display, "Génesis 4–6; 7:1–12");
   assert.equal(
     reference.spoken,
-    "Génesis, capítulos cuatro al seis; capítulo siete, versículos uno al doce",
+    "Génesis, capítulos cuatro al siete, versículo doce",
   );
 });
 
@@ -61,5 +61,42 @@ test("single full chapters and cross-book partial chapters work in every narrati
       title.dayLabel,
       locale === "en" ? "Day" : locale === "es" ? "Día" : "Dia",
     );
+  }
+});
+
+test("long intro and outro references compact the final partial chapter in every language", () => {
+  const matthew = {
+    id: "matthew",
+    name: "Mateo",
+    versesPerChapter: [25, 23, 17, 25],
+  };
+  const ranges = [
+    { book: matthew, chapter: 1, first: 1, last: 25 },
+    { book: matthew, chapter: 2, first: 1, last: 23 },
+    { book: matthew, chapter: 3, first: 1, last: 17 },
+    { book: matthew, chapter: 4, first: 1, last: 17 },
+  ];
+  const expected = {
+    es: "Mateo, capítulos uno al cuatro, versículo diecisiete",
+    en: "Mateo, chapters one to four, verse seventeen",
+    pt: "Mateo, capítulos um a quatro, versículo dezessete",
+  };
+  for (const locale of ["es", "en", "pt"] as const) {
+    const reference = episodeReference(ranges, locale, (n) =>
+      numberToWords(locale, n),
+    );
+    assert.equal(reference.spoken, expected[locale]);
+    assert.equal(reference.display, "Mateo 1–3; 4:1–17");
+    const full = episodeReference(
+      [...ranges.slice(0, -1), { ...ranges[3], last: 25 }],
+      locale,
+      (n) => numberToWords(locale, n),
+    );
+    assert.doesNotMatch(full.spoken, /verse|versículo/);
+    const partialOnly = episodeReference([ranges[3]], locale, (n) =>
+      numberToWords(locale, n),
+    );
+    assert.ok(partialOnly.spoken.includes(numberToWords(locale, 1)));
+    assert.ok(partialOnly.spoken.includes(numberToWords(locale, 17)));
   }
 });

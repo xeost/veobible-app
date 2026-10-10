@@ -51,6 +51,33 @@ test(
       });
       const headers = { Authorization: `Bearer ${token}` };
       const base = `http://127.0.0.1:${port}`;
+      const openUrl = `${base}/v1/projects/1/open-folder`;
+      assert.equal((await fetch(openUrl, { method: "POST" })).status, 401);
+      const openRequest = {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "short",
+          version: "rv1909",
+          slug: "missing-project",
+          outputEnvironment: "development",
+        }),
+      };
+      assert.equal((await fetch(openUrl, openRequest)).status, 409);
+      assert.equal(
+        (
+          await fetch(openUrl, {
+            ...openRequest,
+            body: JSON.stringify({
+              kind: "short",
+              version: "rv1909",
+              slug: "../escape",
+              outputEnvironment: "development",
+            }),
+          })
+        ).status,
+        400,
+      );
       const found = await fetch(`${base}/v1/projects/existing?kind=short`, {
         headers,
       });

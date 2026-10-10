@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { thumbnailFilename } from "./output-files.js";
 import {
   publicationDescriptions,
   publicationPassageUrl,
@@ -49,42 +50,29 @@ test("documented templates cover each platform and language with usable titles a
         kind,
         url,
       );
-      assert.equal(
-        Object.keys(result).length,
-        publicationPlatforms(kind).length,
-      );
+      assert.equal(Object.keys(result).length, publicationPlatforms(kind).length * (kind === "long" ? 2 : 1) + (kind === "short" ? 1 : 0));
       for (const [filename, text] of Object.entries(result)) {
         assert.ok(text.includes(title.reference));
-        assert.ok(text.includes(title.version));
         assert.doesNotMatch(text, /[{}]/);
-        if (kind === "long" || filename === "3-youtube.txt") {
-          const headers = {
-            en: ["# Title", "# Description", "The Bible in 365 Days | Day 7"],
-            es: ["# Título", "# Descripción", "La Biblia en 365 días | Día 7"],
-            pt: ["# Título", "# Descrição", "A Bíblia em 365 dias | Dia 7"],
+        assert.doesNotMatch(text, /^#{1,6} /m);
+        if (/^[2-5]\.1-/.test(filename)) {
+          const longTitle = {
+            en: "The Bible in 365 Days | Day 7",
+            es: "La Biblia en 365 días | Día 7",
+            pt: "A Bíblia em 365 dias | Dia 7",
           }[locale];
-          const [heading, headline, descriptionHeading, ...description] = text
-            .trim()
-            .split("\n\n");
-          assert.equal(heading, headers[0]);
-          assert.equal(descriptionHeading, headers[1]);
           const shortTitle = {
             en: "A moment with the Bible",
             es: "Un momento con la Biblia",
             pt: "Um momento com a Bíblia",
           }[locale];
-          assert.equal(
-            headline,
-            kind === "long"
-              ? `${headers[2]} | ${title.reference}`
-              : `${title.reference} | ${shortTitle}`,
-          );
-          assert.doesNotMatch(headline, /[\n#]|\p{Extended_Pictographic}/u);
-          assert.ok(description.join("\n\n").includes(title.version));
-          if (kind === "long")
-            assert.ok(description.join("\n\n").includes(url));
+          assert.equal(text.trim(), kind === "long"
+            ? `${longTitle} | ${title.reference}`
+            : `${title.reference} | ${shortTitle}`);
+          assert.doesNotMatch(text, /\p{Extended_Pictographic}/u);
         } else {
-          assert.doesNotMatch(text, /^# /m);
+          assert.ok(text.includes(title.version));
+          if (kind === "long") assert.ok(text.includes(url));
         }
       }
     }
@@ -161,7 +149,7 @@ test("episode placeholders use the saved day and remain empty when it is unavail
       "# Title\n\nDay {episode} | {reference}\n\n# Description\n\n{version}",
   };
   const text = publicationDescriptions("en", title, [], templates, "long")[
-    "3-youtube.txt"
+    "3.1-youtube.txt"
   ];
   assert.ok(text.includes("Day 42 | Genesis 3"));
   assert.ok(
@@ -183,4 +171,34 @@ test("episode placeholders use the saved day and remain empty when it is unavail
     )["3-youtube.txt"],
     "[]\n",
   );
+});
+
+
+test("book hashtags omit chapter and verse ranges, preserving numbered book names", () => {
+  for (const kind of ["short", "long"] as const) {
+    for (const [reference, expected] of [
+      ["Mateo 1–4", "#Mateo"], ["Mateo capítulos 1 al 4", "#Mateo"],
+      ["John chapters 1 to 4", "#John"], ["João 3:16–17", "#Joao"],
+      ["1 Samuel 1–3", "#1Samuel"], ["Genesis 1–2 · Exodus 1", "#Genesis"],
+    ]) {
+      const text = publicationDescriptions("es", { title: "Title", reference, version: "Bible" }, [], { youtube: "{hashtags}" }, kind)["3-youtube.txt"];
+      assert.ok(text.split(/\s+/).includes(expected), text);
+      assert.doesNotMatch(text, /#(?:Mateo|John|Joao|Genesis)\d/);
+    }
+  }
+});
+
+test("headings split into numbered plain text files before placeholders are expanded", () => {
+  const result = publicationDescriptions("en", { title: "A title", reference: "John 1", version: "Bible" }, ["# Not a template heading"], {
+    youtube: "# Title\r\n{title}\r\n\r\n# Description\r\n{passage}\r\n\r\n## Extra\r\nMore text",
+    facebook: "# Description\nFacebook copy",
+  }, "short");
+  assert.equal(thumbnailFilename(result), "3.4-thumbnail.jpg");
+  assert.equal(thumbnailFilename({ "3-youtube.txt": "Copy" }), "3.1-thumbnail.jpg");
+  assert.deepEqual(result, {
+    "2.1-facebook.txt": "Facebook copy\n",
+    "3.1-youtube.txt": "A title\n",
+    "3.2-youtube.txt": "# Not a template heading\n",
+    "3.3-youtube.txt": "More text\n",
+  });
 });

@@ -71,10 +71,28 @@ export function episodeReference(
       )
       .join(" · "),
     spoken: groups
-      .map(
-        (group) =>
-          `${spokenBook(group.book.name)}, ${group.ranges.map((range) => `${range.first === range.last ? chapter : chapters} ${words(range.first)}${range.first === range.last ? "" : ` ${to} ${words(range.last)}`}${range.verses ? `, ${range.verses.first === range.verses.last ? verse : verses} ${words(range.verses.first)}${range.verses.first === range.verses.last ? "" : ` ${to} ${words(range.verses.last)}`}` : ""}`).join("; ")}`,
-      )
+      .map((group, index) => {
+        const last = group.ranges.at(-1);
+        const previous = group.ranges.at(-2);
+        const compactEnd =
+          index === groups.length - 1 &&
+          last?.verses?.first === 1 &&
+          previous &&
+          !previous.verses &&
+          previous.last + 1 === last.first;
+        const spokenRanges = (
+          compactEnd ? group.ranges.slice(0, -2) : group.ranges
+        ).map(
+          (range) =>
+            `${range.first === range.last ? chapter : chapters} ${words(range.first)}${range.first === range.last ? "" : ` ${to} ${words(range.last)}`}${range.verses ? `, ${range.verses.first === range.verses.last ? verse : verses} ${words(range.verses.first)}${range.verses.first === range.verses.last ? "" : ` ${to} ${words(range.verses.last)}`}` : ""}`,
+        );
+        // State the final partial chapter as the endpoint of the contiguous chapter range.
+        if (compactEnd)
+          spokenRanges.push(
+            `${chapters} ${words(previous.first)} ${to} ${words(last.last)}, ${verse} ${words(last.verses!.last)}`,
+          );
+        return `${spokenBook(group.book.name)}, ${spokenRanges.join("; ")}`;
+      })
       .join("; "),
   };
 }

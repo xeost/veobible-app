@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { readBibleDataFile } from "../../bible-data.js";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -189,9 +190,9 @@ export function introTitle(
 
 export async function readIndex(version: Version): Promise<BibleIndex> {
   return JSON.parse(
-    await fs.readFile(
-      path.join(config.bibleDataDir, version.locale, version.id, "index.json"),
-      "utf8",
+    await readBibleDataFile(
+      path.join(version.locale, version.id, "index.json"),
+      config.bibleDataDir,
     ),
   ) as BibleIndex;
 }
@@ -220,9 +221,10 @@ async function versesForChapter(
   book: Book,
   chapter: number,
 ): Promise<Verse[]> {
-  const root = path.join(config.bibleDataDir, version.locale, version.id);
-  const file = path.join(root, book.id, `${chapter}.json`);
-  const parsed: unknown = JSON.parse(await fs.readFile(file, "utf8"));
+  const file = path.join(version.locale, version.id, book.id, `${chapter}.json`);
+  const parsed: unknown = JSON.parse(
+    await readBibleDataFile(file, config.bibleDataDir),
+  );
   if (
     !Array.isArray(parsed) ||
     !parsed.every(

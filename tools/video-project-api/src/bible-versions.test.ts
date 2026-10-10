@@ -29,3 +29,29 @@ test("version discovery reads each language directory and current index metadata
     await assert.rejects(availableBibleVersions(root));
   } finally {await fs.rm(root,{recursive:true,force:true});}
 });
+
+test("discovery merges overrides and originals while books use the effective index", async () => {
+  const { availableBibleBooks } = await import("./bible-versions.js");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "bible-version-overrides-"));
+  const original = path.join(root, "original"), overrides = path.join(root, "overrides");
+  const index = async (source: string, code: string, name: string, verses: number) => {
+    const directory = path.join(source, "pt", code);
+    await fs.mkdir(directory, { recursive: true });
+    await fs.writeFile(path.join(directory, "index.json"), JSON.stringify({
+      metadata: { name }, books: [{ id: "genesis", name: "Gênesis", chapters: 1, versesPerChapter: [verses] }],
+    }));
+  };
+  try {
+    await index(original, "arc", "Original", 31);
+    await index(overrides, "arc", "Replacement", 32);
+    await index(overrides, "new", "New version", 20);
+    await index(original, "partial", "Partial version", 30);
+    await fs.mkdir(path.join(overrides, "pt", "partial"), { recursive: true });
+    assert.deepEqual(await availableBibleVersions(original, overrides), [
+      { locale: "pt", code: "arc", label: "Replacement" },
+      { locale: "pt", code: "new", label: "New version" },
+      { locale: "pt", code: "partial", label: "Partial version" },
+    ]);
+    assert.deepEqual((await availableBibleBooks("pt", "arc", original, overrides))[0].versesPerChapter, [32]);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});

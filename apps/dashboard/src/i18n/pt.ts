@@ -1,4 +1,10 @@
 export const portuguese: Record<string, string> = {
+  "Open project folder in Finder": "Abrir pasta do projeto no Finder",
+  "Open the project folder in Finder on the Mac that generates videos":
+    "Abrir a pasta do projeto no Finder no Mac que gera os vídeos",
+  "Could not open the project folder. Check that generation is available and try again.":
+    "Não foi possível abrir a pasta do projeto. Verifique se a geração está disponível e tente novamente.",
+
   "Generate all missing narrations": "Gerar todas as narrações pendentes",
   "Adding narrations to the queue\u2026": "Adicionando narrações à fila…",
   "All narrations are ready or queued":

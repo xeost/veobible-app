@@ -8,7 +8,7 @@ En los **videos largos**, cada bloque incluye dos secciones con encabezados Mark
 
 En **YouTube Shorts** también se separan el título y la descripción con estos encabezados, traducidos a cada idioma. En las demás plataformas, los videos cortos llevan únicamente la descripción, sin encabezados de sección.
 
-Los archivos de salida se ordenan para publicar: `0-short.mp4` o `0-episode.mp4` y `0-thumbnail.jpg`, seguidos de `1-instagram.txt`, `2-facebook.txt`, `3-youtube.txt`, `4-tiktok.txt` y `5-x.txt`. En videos largos no se genera Instagram; se conserva la misma numeración para las demás redes.
+Los archivos de salida se ordenan para publicar: `0-short.mp4` o `0-episode.mp4`, seguidos de los textos con los prefijos `1-instagram`, `2-facebook`, `3-youtube`, `4-tiktok` y `5-x`. Cada heading del template genera su propio archivo, sin incluir el heading: por ejemplo, `3.1-youtube.txt` para el título y `3.2-youtube.txt` para la descripción. La miniatura sigue a los textos de YouTube: en ese caso, `3.3-thumbnail.jpg`. Sin headings se conserva `3-youtube.txt` y la miniatura se llama `3.1-thumbnail.jpg`. En videos largos no se genera Instagram; se conserva la misma numeración para las demás redes.
 
 ## Variables y uso
 

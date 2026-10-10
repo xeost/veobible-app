@@ -1,3 +1,4 @@
+import { openProjectFolder } from "./open-project-folder.js";
 import type { VoicePart } from "./chapter-introductions.js";
 import { loadProjectProposals } from "./project-proposals.js";
 import {
@@ -37,6 +38,7 @@ const {
   chapterVoicesAvailable,
   projectChapterVoiceFiles,
 } = await import("./pipeline.js");
+const { outputRoot } = await import("./working-directories.js");
 const { createPreview, previewAsset } = await import("./preview.js");
 const token = process.env.PROXY_API_TOKEN;
 if (!token || token.length < 32)
@@ -142,6 +144,35 @@ const server = http.createServer(async (req, res) => {
         videoProjectProtocolVersion: 1,
         active: generationQueue.pendingCount,
       });
+    if (
+      /^\/v1\/projects\/[1-9]\d*\/open-folder$/.test(url.pathname) &&
+      req.method === "POST"
+    ) {
+      const input = z
+        .object({
+          kind: renderSchema.shape.kind,
+          version: renderSchema.shape.version.shape.id,
+          slug: renderSchema.shape.passage.shape.id,
+          outputEnvironment: renderSchema.shape.outputEnvironment,
+        })
+        .parse(await body(req));
+      try {
+        await openProjectFolder(
+          projectDir(
+            input.kind,
+            input.version,
+            input.slug,
+            input.outputEnvironment,
+          ),
+          outputRoot(input.kind, input.outputEnvironment),
+          input.kind,
+        );
+        return json(res, 200, { opened: true });
+      } catch (error) {
+        console.error("Could not open project folder", error);
+        return json(res, 409, { error: "Could not open project folder" });
+      }
+    }
     if (url.pathname === "/v1/projects/final-videos" && req.method === "POST") {
       const input = z
         .object({

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { bibleDataRoot, readBibleDataFile } from "./bible-data.js";
 import { z } from "zod";
 
 const identifier = z
@@ -32,9 +32,6 @@ export const projectProposalsSchema = z
         message: "Duplicate proposal identifier",
       });
   });
-const bibleDataRoot = fileURLToPath(
-  new URL("../../../apps/frontend/public/bible-data/", import.meta.url),
-);
 export async function loadProjectProposals(
   kind: "short" | "long",
   version: { locale: "es" | "en" | "pt"; code: string },
@@ -56,9 +53,9 @@ export async function loadProjectProposals(
     .object({ books: z.array(z.object({ id: z.string(), name: z.string() })) })
     .parse(
       JSON.parse(
-        await fs.readFile(
-          path.join(bibleRoot, version.locale, version.code, "index.json"),
-          "utf8",
+        await readBibleDataFile(
+          path.join(version.locale, version.code, "index.json"),
+          bibleRoot,
         ),
       ),
     );
