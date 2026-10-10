@@ -31,6 +31,14 @@ export function alignmentSignature(input: {
   passage: unknown;
   settings: { passageOffsets: { startSeconds: number; endSeconds: number } };
 }) {
+  const passage =
+    input.passage && typeof input.passage === "object"
+      ? Object.fromEntries(
+          Object.entries(input.passage).filter(
+            ([key]) => key !== "bookName" && key !== "endBookName",
+          ),
+        )
+      : input.passage;
   // Canonical JSON: object insertion order must not invalidate a result.
   const canonical = (value: unknown): unknown =>
     Array.isArray(value)
@@ -47,10 +55,29 @@ export function alignmentSignature(input: {
       kind: input.kind,
       version: input.version.id,
       locale: input.version.locale,
-      passage: input.passage,
+      passage,
       passageOffsets: input.settings.passageOffsets,
     }),
   );
+}
+/** Accept retained results created before display names were excluded. */
+export function alignmentSignatureMatches(
+  signature: string,
+  input: Parameters<typeof alignmentSignature>[0],
+) {
+  try {
+    const previous = JSON.parse(signature);
+    return (
+      alignmentSignature({
+        kind: previous.kind,
+        version: { id: previous.version, locale: previous.locale },
+        passage: previous.passage,
+        settings: { passageOffsets: previous.passageOffsets },
+      }) === alignmentSignature(input)
+    );
+  } catch {
+    return false;
+  }
 }
 export function mergeAlignment<
   T extends {

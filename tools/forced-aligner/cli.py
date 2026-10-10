@@ -1,6 +1,7 @@
 """Local, sequential MLX alignment worker. stdout is a JSON-lines progress channel."""
 import argparse
 import contextlib
+import gc
 import json
 import math
 import os
@@ -10,9 +11,11 @@ import subprocess
 import sys
 import tempfile
 import unicodedata
+from headings import spoken_prefix
 
 LANGUAGES = {"es": "Spanish", "en": "English", "pt": "Portuguese"}
 MODEL = "mlx-community/Qwen3-ForcedAligner-0.6B-8bit"
+ASR_MODEL = "mlx-community/Qwen3-ASR-0.6B-8bit"
 
 
 def tokens(text):
@@ -47,8 +50,8 @@ def validate(request):
     return request
 
 
-def word_units(chapter):
-    result = []
+def word_units(chapter, prefix=()):
+    result = [{"text": word, "id": None, "estimate": 0.0} for word in prefix]
     for segment in chapter["segments"]:
         words = tokens(segment["text"])
         step = (segment["end"] - segment["start"]) / len(words)
@@ -68,6 +71,10 @@ def windows(units, duration):
         last = first + 1
         while last < len(units) and units[last]["estimate"] - units[first]["estimate"] < 100:
             last += 1
+        # Keep a verse inside one core. Joining two independent predictions in
+        # the middle of a sentence can produce contradictory word boundaries.
+        while last < len(units) and units[last]["id"] == units[last - 1]["id"]:
+            last += 1
         left, right = first, last
         while left > 0 and units[first]["estimate"] - units[left - 1]["estimate"] < 25:
             left -= 1
@@ -82,8 +89,30 @@ def windows(units, duration):
     return result
 
 
-def align_chapter(chapter, model, language, ffmpeg, progress):
-    units = word_units(chapter)
+def detect_heading(chapter, model, language, ffmpeg):
+    bible_words = [word for segment in chapter["segments"] for word in tokens(segment["text"])]
+    with tempfile.TemporaryDirectory(prefix="veobible-heading-") as directory:
+        wav = str(Path(directory) / "opening.wav")
+        for limit in (30, 60):
+            duration = min(limit, chapter["duration"])
+            subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+                            "-i", chapter["audio"], "-t", str(duration),
+                            "-vn", "-ac", "1", "-ar", "16000", wav], check=True,
+                           stdout=subprocess.DEVNULL, timeout=120)
+            with contextlib.redirect_stdout(sys.stderr):
+                text = model.generate(audio=wav, language=LANGUAGES[language],
+                                      max_tokens=512, temperature=0.0, verbose=False).text
+            prefix = spoken_prefix(tokens(text), bible_words)
+            if prefix is not None:
+                return prefix
+            if duration >= chapter["duration"]:
+                break
+    # Do not save guessed boundaries when an introduction cannot be separated.
+    raise ValueError("Could not locate the chapter opening in the source audio")
+
+
+def align_chapter(chapter, model, language, ffmpeg, progress, prefix=()):
+    units = word_units(chapter, prefix)
     chunks = windows(units, chapter["duration"])
     aligned = []
     drift = 0.0
@@ -95,29 +124,43 @@ def align_chapter(chapter, model, language, ffmpeg, progress):
             end = min(chapter["duration"], end + drift)
             if end <= start or end - start > 240:
                 raise ValueError("Invalid anchored audio window")
-            subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
-                            "-ss", str(start), "-i", chapter["audio"], "-t", str(end - start),
-                            "-vn", "-ac", "1", "-ar", "16000", wav], check=True,
-                           stdout=subprocess.DEVNULL, timeout=120)
             words = units[left:right]
-            with contextlib.redirect_stdout(sys.stderr):
-                items = list(model.generate(audio=wav, text=" ".join(w["text"] for w in words),
-                                            language=LANGUAGES[language]))
-            if len(items) != len(words):
-                raise ValueError("Alignment word count mismatch")
-            previous = 0.0
-            for item, word in zip(items, words):
-                if (tokens(item.text) != [word["text"]] or
-                        not all(math.isfinite(t) for t in (item.start_time, item.end_time)) or
-                        item.start_time < previous - 0.08 or item.end_time < item.start_time or
-                        item.end_time > end - start + 0.08):
-                    raise ValueError("Invalid alignment timestamps")
-                previous = item.end_time
-            core = items[first - left:last - left]
-            # Context guards reject edge-pinned chunks instead of silently accepting truncation.
-            if ((first > 0 and core[0].start_time < 0.5) or
-                    (last < len(units) and core[-1].end_time > end - start - 0.5)):
-                raise ValueError("Alignment reached a chunk boundary; review source transcript")
+            for attempt in range(2):
+                subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+                                "-ss", str(start), "-i", chapter["audio"], "-t", str(end - start),
+                                "-vn", "-ac", "1", "-ar", "16000", wav], check=True,
+                               stdout=subprocess.DEVNULL, timeout=120)
+                with contextlib.redirect_stdout(sys.stderr):
+                    items = list(model.generate(audio=wav, text=" ".join(w["text"] for w in words),
+                                                language=LANGUAGES[language]))
+                try:
+                    if len(items) != len(words):
+                        raise ValueError("Alignment word count mismatch")
+                    previous = 0.0
+                    for item, word in zip(items, words):
+                        if (tokens(item.text) != [word["text"]] or
+                                not all(math.isfinite(t) for t in (item.start_time, item.end_time)) or
+                                item.start_time < previous - 0.08 or item.end_time < item.start_time or
+                                item.end_time > end - start + 0.08):
+                            raise ValueError(f"Invalid alignment timestamps in chunk {number + 1}: "
+                                             f"{word['text']!r} ({item.start_time}, {item.end_time}), "
+                                             f"previous={previous}, duration={end - start}")
+                        previous = item.end_time
+                    core = items[first - left:last - left]
+                    # Reject edge-pinned chunks instead of accepting truncation.
+                    if ((first > 0 and core[0].start_time < 0.5) or
+                            (last < len(units) and core[-1].end_time > end - start - 0.5)):
+                        raise ValueError("Alignment reached a chunk boundary; review source transcript")
+                    break
+                except ValueError:
+                    # A speech-rate anchor can miss context in a later window.
+                    # Retry with more original audio, retaining every validation.
+                    expanded_start = max(0.0, start - 10)
+                    expanded_end = min(chapter["duration"], end + 10)
+                    if (attempt or (expanded_start == start and expanded_end == end)
+                            or expanded_end - expanded_start > 240):
+                        raise
+                    start, end = expanded_start, expanded_end
             for index, item in enumerate(core, first):
                 aligned.append({"id": units[index]["id"], "text": item.text,
                                 "start": max(0, start + item.start_time),
@@ -126,7 +169,8 @@ def align_chapter(chapter, model, language, ffmpeg, progress):
             progress((number + 1) / len(chunks))
     for previous, word in zip(aligned, aligned[1:]):
         if word["start"] < previous["end"] - 0.08:
-            raise ValueError("Overlapping alignment windows disagree")
+            raise ValueError(f"Overlapping alignment windows disagree: {previous['text']!r} "
+                             f"ends at {previous['end']}, {word['text']!r} starts at {word['start']}")
     segments = []
     for segment in chapter["segments"]:
         words = [word for word in aligned if word["id"] == segment["id"]]
@@ -149,6 +193,7 @@ def main():
     parser.add_argument("--request", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--model", default=MODEL)
+    parser.add_argument("--asr-model", default=os.environ.get("VIDEO_ALIGNER_ASR_MODEL", ASR_MODEL))
     parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -167,13 +212,24 @@ def main():
     mx.set_memory_limit(6 * 1024 * 1024 * 1024)
     print(json.dumps({"progress": 2, "stage": "loading"}), flush=True)
     with contextlib.redirect_stdout(sys.stderr):
+        recognizer = load(args.asr_model)
+    prefixes = []
+    for index, chapter in enumerate(request["chapters"]):
+        prefixes.append(detect_heading(chapter, recognizer, request["language"], args.ffmpeg))
+        print(json.dumps({"progress": 3 + 17 * (index + 1) / len(request["chapters"]),
+                          "stage": "detecting_headings"}), flush=True)
+        mx.clear_cache()
+    del recognizer
+    gc.collect()
+    mx.clear_cache()
+    with contextlib.redirect_stdout(sys.stderr):
         model = load(args.model)
     results = []
     for index, chapter in enumerate(request["chapters"]):
         def progress(fraction):
-            print(json.dumps({"progress": 5 + 90 * (index + fraction) / len(request["chapters"]),
+            print(json.dumps({"progress": 20 + 75 * (index + fraction) / len(request["chapters"]),
                               "stage": "aligning"}), flush=True)
-        results.append(align_chapter(chapter, model, request["language"], args.ffmpeg, progress))
+        results.append(align_chapter(chapter, model, request["language"], args.ffmpeg, progress, prefixes[index]))
         mx.clear_cache()
     output = Path(args.output)
     temporary = output.with_suffix(output.suffix + ".tmp")

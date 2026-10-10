@@ -1,5 +1,5 @@
 import {
-  alignmentSignature,
+  alignmentSignatureMatches,
   mergeAlignment,
   type AlignmentJob,
 } from "../../../../tools/video-project-api/src/forced-alignment-result";
@@ -516,8 +516,7 @@ export async function videoApi(
         409,
       );
     if (
-      job.result.signature !==
-      alignmentSignature({
+      !alignmentSignatureMatches(job.result.signature, {
         kind: project.kind,
         version,
         passage: JSON.parse(project.passage),

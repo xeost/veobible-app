@@ -3,15 +3,14 @@ export const portuguese: Record<string, string> = {
     "Ouça com atenção os cortes destes versículos: {references}",
   "Apply analyzed timings": "Aplicar tempos analisados",
   "Analyze this reading with AI": "Analisar esta leitura com IA",
+  "Reset manual verse cuts": "Redefinir cortes manuais",
+  "Restore estimated cuts for manually adjusted verses in this reading so AI can update them again. Other verse cuts are kept.":
+    "Restaura os cortes estimados dos versículos ajustados manualmente nesta leitura para que a IA possa atualizá-los novamente. Os cortes dos demais versículos são mantidos.",
   "Analyze this reading with AI. Manual verse adjustments are preserved.":
     "Analisar esta leitura com IA. Os ajustes manuais dos versículos são preservados.",
   "Analyze all readings with AI": "Analisar todas as leituras com IA",
   "Analyze all readings with AI. Manual verse adjustments are preserved.":
     "Analisar todas as leituras com IA. Os ajustes manuais dos versículos são preservados.",
-  "AI timing analysis is saved. Review the verse cuts; your manual adjustments were preserved.":
-    "A análise de tempos com IA foi salva. Revise os cortes dos versículos; seus ajustes manuais foram preservados.",
-  "Timing analysis was added to the generation queue. You can leave this project and return when it finishes.":
-    "A análise de tempos foi adicionada à fila de geração. Você pode sair do projeto e voltar quando terminar.",
   "Applying analyzed timings…": "Aplicando os tempos analisados…",
   "Timing analysis is queued": "Análise de tempos na fila",
   "Analyzing reading timings…": "Analisando os tempos de leitura…",
@@ -80,6 +79,7 @@ export const portuguese: Record<string, string> = {
   "Generate every chapter introduction before generating the video.":
     "Gere todas as introduções aos capítulos antes de gerar o vídeo.",
   "Next verse": "Próximo versículo",
+  "Next verse and play": "Ir ao próximo versículo e reproduzir",
   "Add up to 10 seconds of audio on the left":
     "Adicionar até 10 segundos de áudio à esquerda",
   "Add up to 10 seconds of audio on the right":

@@ -132,18 +132,35 @@ export function verseHasManualCuts(offsets: VerseOffset[], reference: string) {
   return Boolean(offset && offset.manuallyAdjusted !== false);
 }
 
+/** Remove only this reading's manual overrides so a new AI result can replace them. */
+export function resetManualVerseCuts(
+  offsets: VerseOffset[],
+  references: string[],
+) {
+  const selected = new Set(references);
+  return offsets.filter(
+    (offset) =>
+      !selected.has(offset.reference) || offset.manuallyAdjusted === false,
+  );
+}
+
+/** Navigation must preserve established cuts, including automatic AI results. */
+export function verseHasSavedCuts(offsets: VerseOffset[], reference: string) {
+  return offsets.some((offset) => offset.reference === reference);
+}
+
 /** Align only the selected verse, preserving its length and respecting the original audio end. */
 export function alignSelectedVerse(
   cues: VerseCue[],
   index: number,
   sourceEnd: number,
-  manuallyAdjusted = false,
+  preserveCuts = false,
 ) {
   const cue = cues[index];
   if (!cue) throw new Error("Missing selected verse");
   if (
     index === 0 ||
-    manuallyAdjusted ||
+    preserveCuts ||
     Math.abs(cue.start - cues[index - 1].end) < 1e-6
   )
     return { cue, moved: false, blocked: false };

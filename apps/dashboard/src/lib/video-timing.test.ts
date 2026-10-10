@@ -4,6 +4,8 @@ import {
   adjustedCues,
   alignSelectedVerse,
   verseHasManualCuts,
+  verseHasSavedCuts,
+  resetManualVerseCuts,
   readingTimeline,
   trimCue,
   trimPreviewRange,
@@ -14,6 +16,7 @@ import {
 } from "./video-timing";
 import { applyVerseOffsets } from "../../../../tools/video-project-api/src/engines/short/verse-timing";
 import { buildVerseReading } from "../../../../tools/video-project-api/src/reading-timeline";
+import { mergeAlignment } from "../../../../tools/video-project-api/src/forced-alignment-result";
 
 test("reading previews use unsaved waveform cuts against the same original chapter audio", () => {
   const sections = [
@@ -246,6 +249,112 @@ test("automatic alignment respects manual cuts, including legacy and zero offset
   const overlap = [{ ...cues[0], end: 30 }, cues[1]];
   assert.equal(alignSelectedVerse(overlap, 1, 60, true).moved, false);
   assert.equal(alignSelectedVerse(overlap, 1, 60, false).cue.start, 30);
+});
+
+test("navigating away and back preserves AI cuts and natural pauses, while explicit alignment remains available", () => {
+  const baseline = [
+    { reference: "first", text: "First", start: 1, end: 12 },
+    { reference: "second", text: "Second", start: 12, end: 20 },
+    { reference: "third", text: "Third", start: 20, end: 28 },
+  ];
+  const offsets = [
+    {
+      reference: "first",
+      startOffsetSeconds: 0,
+      endOffsetSeconds: 0,
+      manuallyAdjusted: false,
+    },
+    {
+      reference: "second",
+      startOffsetSeconds: 1.25,
+      endOffsetSeconds: -0.5,
+      manuallyAdjusted: false,
+    },
+    {
+      reference: "third",
+      startOffsetSeconds: 0.75,
+      endOffsetSeconds: 0,
+      manuallyAdjusted: false,
+    },
+  ];
+  const cues = adjustedCues(baseline, offsets);
+  const original = structuredClone(cues);
+  for (const index of [1, 2, 1]) {
+    const selected = alignSelectedVerse(
+      cues,
+      index,
+      60,
+      verseHasSavedCuts(offsets, cues[index].reference),
+    );
+    assert.equal(selected.moved, false);
+    assert.deepEqual(selected.cue, original[index]);
+  }
+  assert.deepEqual(cues, original);
+  assert.equal(verseHasSavedCuts(offsets, "first"), true);
+  assert.equal(verseHasSavedCuts([], "second"), false);
+  assert.equal(alignSelectedVerse(cues, 1, 60).cue.start, cues[0].end);
+  assert.deepEqual(applyVerseOffsets(baseline, offsets, 60), original);
+});
+
+test("resetting a reading removes manual and legacy cuts, preserves automatic and other readings, and allows AI replacement", () => {
+  const offsets = [
+    {
+      reference: "manual",
+      startOffsetSeconds: 2,
+      endOffsetSeconds: -1,
+      manuallyAdjusted: true,
+    },
+    { reference: "legacy", startOffsetSeconds: 0, endOffsetSeconds: 0 },
+    {
+      reference: "automatic",
+      startOffsetSeconds: 1,
+      endOffsetSeconds: 1,
+      manuallyAdjusted: false,
+    },
+    {
+      reference: "other-block",
+      startOffsetSeconds: 3,
+      endOffsetSeconds: 3,
+      manuallyAdjusted: true,
+    },
+  ];
+  const references = ["manual", "legacy", "automatic"];
+  const reset = resetManualVerseCuts(offsets, references);
+  assert.deepEqual(reset, [offsets[2], offsets[3]]);
+  assert.equal(
+    references.some((ref) => verseHasManualCuts(reset, ref)),
+    false,
+  );
+  const baseline = [{ reference: "manual", text: "Verse", start: 10, end: 20 }];
+  assert.deepEqual(adjustedCues(baseline, reset), baseline);
+  const ai = references.map((reference) => ({
+    reference,
+    startOffsetSeconds: 0.5,
+    endOffsetSeconds: -0.5,
+  }));
+  const applied = mergeAlignment(
+    { verseOffsets: reset, readingSectionPadding: [] },
+    { signature: "test", model: "test", offsets: ai, padding: [] },
+    "new-analysis",
+  );
+  for (const reference of references) {
+    const offset = applied.verseOffsets.find(
+      (item) => item.reference === reference,
+    )!;
+    assert.equal(offset.startOffsetSeconds, 0.5);
+    assert.equal(offset.endOffsetSeconds, -0.5);
+    assert.equal(offset.manuallyAdjusted, false);
+  }
+  assert.deepEqual(
+    applied.verseOffsets.find((item) => item.reference === "other-block"),
+    offsets[3],
+  );
+  assert.deepEqual(offsets[0], {
+    reference: "manual",
+    startOffsetSeconds: 2,
+    endOffsetSeconds: -1,
+    manuallyAdjusted: true,
+  });
 });
 
 test("saved settings retain automatic versus manual alignment in both services", async () => {

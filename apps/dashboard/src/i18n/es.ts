@@ -3,15 +3,14 @@ export const spanish: Record<string, string> = {
     "Escucha con atención los cortes de estos versículos: {references}",
   "Apply analyzed timings": "Aplicar tiempos analizados",
   "Analyze this reading with AI": "Analizar esta lectura con IA",
+  "Reset manual verse cuts": "Restablecer recortes manuales",
+  "Restore estimated cuts for manually adjusted verses in this reading so AI can update them again. Other verse cuts are kept.":
+    "Restablece los recortes estimados de los versículos ajustados manualmente en esta lectura para que la IA pueda actualizarlos de nuevo. Se conservan los recortes de los demás versículos.",
   "Analyze this reading with AI. Manual verse adjustments are preserved.":
     "Analizar esta lectura con IA. Se conservan los ajustes manuales de los versículos.",
   "Analyze all readings with AI": "Analizar todas las lecturas con IA",
   "Analyze all readings with AI. Manual verse adjustments are preserved.":
     "Analizar todas las lecturas con IA. Se conservan los ajustes manuales de los versículos.",
-  "AI timing analysis is saved. Review the verse cuts; your manual adjustments were preserved.":
-    "El análisis de tiempos con IA está guardado. Revisa los cortes de los versículos; se conservaron tus ajustes manuales.",
-  "Timing analysis was added to the generation queue. You can leave this project and return when it finishes.":
-    "El análisis de tiempos se agregó a la cola de generación. Puedes salir del proyecto y volver cuando termine.",
   "Applying analyzed timings…": "Aplicando los tiempos analizados…",
   "Timing analysis is queued": "Análisis de tiempos en cola",
   "Analyzing reading timings…": "Analizando los tiempos de lectura…",
@@ -80,6 +79,7 @@ export const spanish: Record<string, string> = {
   "Generate every chapter introduction before generating the video.":
     "Genera todas las introducciones a los capítulos antes de generar el video.",
   "Next verse": "Siguiente versículo",
+  "Next verse and play": "Ir al siguiente versículo y reproducirlo",
   "Add up to 10 seconds of audio on the left":
     "Añadir hasta 10 segundos de audio a la izquierda",
   "Add up to 10 seconds of audio on the right":

@@ -9,6 +9,7 @@ import {
   ArrowLeftToLine,
   ArrowRightToLine,
   ChevronRight,
+  ListVideo,
   AlignStartVertical,
 } from "lucide-react";
 import {
@@ -39,7 +40,8 @@ export function VerseWaveform({
   disabled,
   onTrim,
   onShift,
-  manualReferences,
+  preservedReferences,
+  resetRevision = 0,
 }: {
   src: string;
   locale: string;
@@ -53,7 +55,8 @@ export function VerseWaveform({
   disabled: boolean;
   onTrim: (reference: string, edge: "start" | "end", value: number) => void;
   onShift: (cue: VerseCue, manuallyAdjusted: boolean) => boolean;
-  manualReferences: string[];
+  preservedReferences: string[];
+  resetRevision?: number;
 }) {
   const { t } = useI18n();
   const { playbackSpeed, setPlaybackSpeed } = useReadingPlaybackSpeed(locale);
@@ -108,6 +111,7 @@ export function VerseWaveform({
   const scroll = useRef<HTMLDivElement>(null);
   const stopAt = useRef(sourceEnd);
   const playbackRequest = useRef(0);
+  const playOnSelection = useRef<string | null>(null);
   const draggedCue = useRef<VerseCue | null>(null);
   const latest = useRef(cues);
   latest.current = cues;
@@ -173,10 +177,21 @@ export function VerseWaveform({
     setHasPlayhead(false);
     setZoom(1);
     if (scroll.current) scroll.current.scrollLeft = 0;
-  }, [cue?.reference, src, sourceStart, sourceEnd, timelineStart]);
+    const requestedVerse = playOnSelection.current;
+    playOnSelection.current = null;
+    if (requestedVerse && requestedVerse === cue?.reference)
+      void playRange(latest.current[index]);
+  }, [
+    cue?.reference,
+    src,
+    sourceStart,
+    sourceEnd,
+    timelineStart,
+    resetRevision,
+  ]);
   useEffect(
     () => setExtraContext({ before: 0, after: 0 }),
-    [cue?.reference, src],
+    [cue?.reference, src, resetRevision],
   );
   const peaks = useMemo(() => {
     if (!buffer || visibleDuration <= 0) return [];
@@ -353,8 +368,15 @@ export function VerseWaveform({
       </button>
     );
   };
-  const selectVerse = (nextIndex: number, forceAlignment = false) => {
+  const selectVerse = (
+    nextIndex: number,
+    forceAlignment = false,
+    autoplay = false,
+  ) => {
     if (!latest.current[nextIndex]) return;
+    playOnSelection.current = autoplay
+      ? latest.current[nextIndex].reference
+      : null;
     audio.current?.pause();
     playbackRequest.current++;
     const result = alignSelectedVerse(
@@ -362,7 +384,7 @@ export function VerseWaveform({
       nextIndex,
       timelineStart + sourceDuration - sourceStart,
       !forceAlignment &&
-        manualReferences.includes(latest.current[nextIndex].reference),
+        preservedReferences.includes(latest.current[nextIndex].reference),
     );
     const moved =
       !disabled && result.moved && onShift(result.cue, forceAlignment);
@@ -566,6 +588,8 @@ export function VerseWaveform({
         <div className="verse-playback">
           <button
             type="button"
+            className="icon-button verse-playback-icon"
+            aria-label={t("Align with previous verse")}
             disabled={disabled || !alignment?.moved}
             data-tooltip={t(
               "Move both trim edges so this verse starts at the previous verse’s end, keeping its duration. Your other verse cuts stay unchanged.",
@@ -573,19 +597,40 @@ export function VerseWaveform({
             onClick={() => selectVerse(index, true)}
           >
             <AlignStartVertical size={16} aria-hidden="true" />
-            {t("Align with previous verse")}
           </button>
-          <button type="button" onClick={preview}>
-            <span>{playing ? <Pause size={16} /> : <Play size={16} />}</span>
-            {playing ? t("Pause") : t("Listen to verse")}
+          <span className="section-action-separator" aria-hidden="true" />
+          <button
+            type="button"
+            className="icon-button verse-playback-icon"
+            aria-label={t(playing ? "Pause" : "Listen to verse")}
+            data-tooltip={t(playing ? "Pause" : "Listen to verse")}
+            onClick={preview}
+          >
+            {playing ? (
+              <Pause size={16} aria-hidden="true" />
+            ) : (
+              <Play size={16} aria-hidden="true" />
+            )}
           </button>
           <button
             type="button"
+            className="icon-button verse-playback-icon"
+            aria-label={t("Next verse")}
+            data-tooltip={t("Next verse")}
             disabled={index >= cues.length - 1}
             onClick={() => selectVerse(index + 1)}
           >
-            {t("Next verse")}
-            <ChevronRight size={16} />
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="icon-button verse-playback-icon"
+            aria-label={t("Next verse and play")}
+            data-tooltip={t("Next verse and play")}
+            disabled={index >= cues.length - 1}
+            onClick={() => selectVerse(index + 1, false, true)}
+          >
+            <ListVideo size={16} aria-hidden="true" />
           </button>
         </div>
         <div className="verse-preview">

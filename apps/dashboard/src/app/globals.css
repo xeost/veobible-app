@@ -2027,7 +2027,8 @@ audio {
   background: var(--line);
   pointer-events: none;
 }
-.section-preview-button {
+.section-preview-button,
+.section-action-button {
   flex-shrink: 0;
   width: 34px;
   height: 34px;
@@ -2249,6 +2250,15 @@ audio {
 .verse-playback button {
   font-size: 10px;
   padding: 7px 10px;
+}
+.verse-playback .verse-playback-icon {
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  border: 1px solid var(--line);
+}
+.verse-playback .section-action-separator {
+  align-self: center;
 }
 .trim-fields {
   display: grid;

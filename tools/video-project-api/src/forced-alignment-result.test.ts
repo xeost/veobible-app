@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   alignmentSignature,
+  alignmentSignatureMatches,
   mergeAlignment,
   type AlignmentResult,
 } from "./forced-alignment-result.js";
@@ -118,6 +119,57 @@ test("alignment identity ignores JSON insertion order but rejects changed versio
       settings: { passageOffsets: { startSeconds: 2, endSeconds: 0 } },
     }),
   );
+});
+
+test("long analysis accepts added book display names in retained results but rejects changed passages", () => {
+  const input = {
+    kind: "long",
+    version: { id: "rv1909", locale: "es" },
+    passage: {
+      book: "genesis",
+      endBook: "genesis",
+      start: { chapter: 4, verse: 1 },
+      end: { chapter: 7, verse: 12 },
+    },
+    settings: { passageOffsets: { startSeconds: 0, endSeconds: 0 } },
+  };
+  const historical = JSON.stringify({
+    kind: input.kind,
+    version: input.version.id,
+    locale: input.version.locale,
+    passage: { ...input.passage, endBookName: "Génesis" },
+    passageOffsets: input.settings.passageOffsets,
+  });
+  assert.equal(alignmentSignatureMatches(historical, input), true);
+  assert.equal(
+    alignmentSignature({
+      ...input,
+      passage: { ...input.passage, endBookName: "Génesis" },
+    }),
+    alignmentSignature(input),
+  );
+  assert.equal(
+    alignmentSignatureMatches(historical, {
+      ...input,
+      passage: { ...input.passage, end: { chapter: 7, verse: 13 } },
+    }),
+    false,
+  );
+  assert.equal(
+    alignmentSignatureMatches(historical, {
+      ...input,
+      version: { id: "arc", locale: "pt" },
+    }),
+    false,
+  );
+  assert.equal(
+    alignmentSignatureMatches(historical, {
+      ...input,
+      settings: { passageOffsets: { startSeconds: 1, endSeconds: 0 } },
+    }),
+    false,
+  );
+  assert.equal(alignmentSignatureMatches("invalid", input), false);
 });
 
 test("review flags update only analyzed verses and exclude preserved manual cuts", () => {
