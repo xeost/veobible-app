@@ -285,11 +285,7 @@ Thank you for spending this time with us.
 #### Facebook
 
 ```text
-# Title
-
 The Bible in 365 Days | Day {episode} | {reference}
-
-# Description
 
 We're sharing day {episode} of The Bible in 365 Days: {reference}, read from {version}.
 
@@ -306,11 +302,7 @@ If you'd like to share a reflection, we'd be glad to hear it. Thank you for join
 #### TikTok
 
 ```text
-# Title
-
 The Bible in 365 Days | Day {episode} | {reference}
-
-# Description
 
 Day {episode} of The Bible in 365 Days. 📖
 
@@ -327,11 +319,7 @@ Thank you for being part of this journey.
 #### X
 
 ```text
-# Title
-
 The Bible in 365 Days | Day {episode} | {reference}
-
-# Description
 
 Today's reading: {reference} · {version}.
 
@@ -369,11 +357,7 @@ Gracias por compartir este tiempo con nosotros.
 #### Facebook
 
 ```text
-# Título
-
 La Biblia en 365 días | Día {episode} | {reference}
-
-# Descripción
 
 Compartimos el día {episode} de La Biblia en 365 días: {reference}, en {version}.
 
@@ -390,11 +374,7 @@ Si te apetece compartir una reflexión, nos alegrará leerte. Gracias por acompa
 #### TikTok
 
 ```text
-# Título
-
 La Biblia en 365 días | Día {episode} | {reference}
-
-# Descripción
 
 Día {episode} de La Biblia en 365 días. 📖
 
@@ -411,11 +391,7 @@ Gracias por ser parte de este recorrido.
 #### X
 
 ```text
-# Título
-
 La Biblia en 365 días | Día {episode} | {reference}
-
-# Descripción
 
 La lectura de hoy: {reference} · {version}.
 
@@ -453,11 +429,7 @@ Obrigado por compartilhar este tempo conosco.
 #### Facebook
 
 ```text
-# Título
-
 A Bíblia em 365 dias | Dia {episode} | {reference}
-
-# Descrição
 
 Compartilhamos o dia {episode} de A Bíblia em 365 dias: {reference}, na versão {version}.
 
@@ -474,11 +446,7 @@ Se quiser compartilhar uma reflexão, vamos gostar de ler. Obrigado por nos acom
 #### TikTok
 
 ```text
-# Título
-
 A Bíblia em 365 dias | Dia {episode} | {reference}
-
-# Descrição
 
 Dia {episode} de A Bíblia em 365 dias. 📖
 
@@ -495,11 +463,7 @@ Obrigado por fazer parte desta jornada.
 #### X
 
 ```text
-# Título
-
 A Bíblia em 365 dias | Dia {episode} | {reference}
-
-# Descrição
 
 A leitura de hoje: {reference} · {version}.
 

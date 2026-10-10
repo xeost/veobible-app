@@ -1,6 +1,7 @@
 "use client";
 import { UpdatedAt } from "../../components/UpdatedAt";
 import { useI18n } from "../../i18n/context";
+import { useHomeScrollPosition } from "../../components/useHomeScrollPosition";
 import { CurrentVideoProjects } from "../../components/CurrentVideoProjects";
 import { userMessage, publicationLabel } from "../../lib/presentation";
 import { useEffect, useState } from "react";
@@ -18,10 +19,14 @@ export default function Dashboard() {
   const { t, language } = useI18n();
   const [data, setData] = useState<any>(null),
     [error, setError] = useState("");
+  const [summaryLoaded, setSummaryLoaded] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  useHomeScrollPosition(summaryLoaded && !projectsLoading);
   useEffect(() => {
     api("summary")
       .then(setData)
-      .catch((e) => setError(userMessage(e)));
+      .catch((e) => setError(userMessage(e)))
+      .finally(() => setSummaryLoaded(true));
   }, []);
   const count = (kind: string) =>
     data?.projects.find((v: any) => v.kind === kind)?.total ?? 0;
@@ -67,7 +72,7 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
-      <CurrentVideoProjects />
+      <CurrentVideoProjects onLoadingChange={setProjectsLoading} />
       <div className="overview-grid">
         <section className="hero-card">
           <div className="hero-orb">

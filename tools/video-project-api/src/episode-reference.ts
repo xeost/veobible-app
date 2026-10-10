@@ -47,19 +47,17 @@ export function episodeReference(
       });
   }
   const chapter = { en: "chapter", es: "capítulo", pt: "capítulo" }[locale];
-  const chapters = { en: "chapters", es: "capítulos", pt: "capítulos" }[locale];
   const verse = { en: "verse", es: "versículo", pt: "versículo" }[locale];
-  const verses = { en: "verses", es: "versículos", pt: "versículos" }[locale];
-  const to = { en: "to", es: "al", pt: "a" }[locale];
   const endpoint = (
     range: EpisodeChapterRange | undefined,
     edge: "first" | "last",
   ) => {
     if (!range) return "";
-    const complete =
-      range.first === 1 &&
-      range.last === range.book.versesPerChapter[range.chapter - 1];
-    return `${chapter} ${words(range.chapter)}${complete ? "" : `, ${verse} ${words(range[edge])}`}`;
+    const partial =
+      edge === "first"
+        ? range.first > 1
+        : range.last < range.book.versesPerChapter[range.chapter - 1];
+    return `${chapter} ${words(range.chapter)}${partial ? ` ${verse} ${words(range[edge])}` : ""}`;
   };
   return {
     start: endpoint(ranges[0], "first"),
@@ -70,29 +68,41 @@ export function episodeReference(
           `${group.book.name} ${group.ranges.map((range) => `${range.first}${range.last !== range.first ? `–${range.last}` : ""}${range.verses ? `:${range.verses.first}${range.verses.last !== range.verses.first ? `–${range.verses.last}` : ""}` : ""}`).join("; ")}`,
       )
       .join(" · "),
-    spoken: groups
-      .map((group, index) => {
-        const last = group.ranges.at(-1);
-        const previous = group.ranges.at(-2);
-        const compactEnd =
-          index === groups.length - 1 &&
-          last?.verses?.first === 1 &&
-          previous &&
-          !previous.verses &&
-          previous.last + 1 === last.first;
-        const spokenRanges = (
-          compactEnd ? group.ranges.slice(0, -2) : group.ranges
-        ).map(
-          (range) =>
-            `${range.first === range.last ? chapter : chapters} ${words(range.first)}${range.first === range.last ? "" : ` ${to} ${words(range.last)}`}${range.verses ? `, ${range.verses.first === range.verses.last ? verse : verses} ${words(range.verses.first)}${range.verses.first === range.verses.last ? "" : ` ${to} ${words(range.verses.last)}`}` : ""}`,
-        );
-        // State the final partial chapter as the endpoint of the contiguous chapter range.
-        if (compactEnd)
-          spokenRanges.push(
-            `${chapters} ${words(previous.first)} ${to} ${words(last.last)}, ${verse} ${words(last.verses!.last)}`,
-          );
-        return `${spokenBook(group.book.name)}, ${spokenRanges.join("; ")}`;
-      })
-      .join("; "),
+    spoken: (() => {
+      const first = ranges[0],
+        last = ranges.at(-1);
+      if (!first || !last) return "";
+      const book = spokenBook(first.book.name);
+      const start = endpoint(first, "first"),
+        end = endpoint(last, "last");
+      const sameBook = first.book.id === last.book.id;
+      if (sameBook && first.chapter === last.chapter) {
+        if (
+          first.first === 1 &&
+          last.last === first.book.versesPerChapter[first.chapter - 1]
+        )
+          return `${book} ${start}`;
+        if (first.first === 1) {
+          const until = { en: "through", es: "hasta el", pt: "até o" }[locale];
+          return `${book} ${start} ${until} ${verse} ${words(last.last)}`;
+        }
+        if (last.last === last.book.versesPerChapter[last.chapter - 1]) {
+          const from = { en: "from", es: "desde el", pt: "a partir do" }[
+            locale
+          ];
+          return `${book} ${chapter} ${words(first.chapter)} ${from} ${verse} ${words(first.first)}`;
+        }
+        const plural = { en: "verses", es: "versículos", pt: "versículos" }[
+          locale
+        ];
+        const to = { en: "to", es: "al", pt: "a" }[locale];
+        return `${book} ${chapter} ${words(first.chapter)} ${first.first === last.last ? verse : plural} ${words(first.first)}${first.first === last.last ? "" : ` ${to} ${words(last.last)}`}`;
+      }
+      const from = { en: "from", es: "desde el", pt: "do" }[locale];
+      const to = sameBook
+        ? { en: "to", es: "al", pt: "ao" }[locale]
+        : { en: "to", es: "hasta", pt: "até" }[locale];
+      return `${book} ${from} ${start} ${to} ${sameBook ? "" : `${spokenBook(last.book.name)} `}${end}`;
+    })(),
   };
 }

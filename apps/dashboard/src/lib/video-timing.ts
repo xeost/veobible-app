@@ -9,6 +9,7 @@ export interface VerseOffset {
   reference: string;
   startOffsetSeconds: number;
   endOffsetSeconds: number;
+  manuallyAdjusted?: boolean;
 }
 export interface ReadingSection {
   sourceDuration?: number;
@@ -125,15 +126,26 @@ export function waveformSeekRange(
     : null;
 }
 
+/** Existing saved offsets are treated as manual unless explicitly recorded as automatic. */
+export function verseHasManualCuts(offsets: VerseOffset[], reference: string) {
+  const offset = offsets.find((entry) => entry.reference === reference);
+  return Boolean(offset && offset.manuallyAdjusted !== false);
+}
+
 /** Align only the selected verse, preserving its length and respecting the original audio end. */
 export function alignSelectedVerse(
   cues: VerseCue[],
   index: number,
   sourceEnd: number,
+  manuallyAdjusted = false,
 ) {
   const cue = cues[index];
   if (!cue) throw new Error("Missing selected verse");
-  if (index === 0 || cue.start >= cues[index - 1].end)
+  if (
+    index === 0 ||
+    manuallyAdjusted ||
+    Math.abs(cue.start - cues[index - 1].end) < 1e-6
+  )
     return { cue, moved: false, blocked: false };
   const start = cues[index - 1].end;
   const duration = cue.end - cue.start;

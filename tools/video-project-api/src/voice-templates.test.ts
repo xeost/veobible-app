@@ -63,3 +63,29 @@ test("an unconfigured narration is rejected before invoking synthesis", async ()
     await fs.rm(folder, { recursive: true, force: true });
   }
 });
+
+test("custom narration is used literally in both formats without changing the other script", async () => {
+  for (const engine of [short, long]) {
+    const scripts = await engine.renderVoiceScripts({
+      ...context,
+      scriptOverrides: {
+        intro: "  Texto manual con {reference}, sin sustitución.  ",
+      },
+    });
+    assert.equal(
+      scripts.intro,
+      "Texto manual con {reference}, sin sustitución.",
+    );
+    assert.equal(scripts.outro, "Juan: 3:16 al 3:17.");
+    assert.equal(
+      (
+        await engine.renderVoiceScripts({
+          ...context,
+          templates: { intro: "", outro: "" },
+          scriptOverrides: { outro: "Cierre manual." },
+        })
+      ).outro,
+      "Cierre manual.",
+    );
+  }
+});

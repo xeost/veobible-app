@@ -27,7 +27,11 @@ import { api } from "./api";
 import type { VideoRow } from "./video-project";
 import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
 
-export function CurrentVideoProjects() {
+export function CurrentVideoProjects({
+  onLoadingChange,
+}: {
+  onLoadingChange?: (loading: boolean) => void;
+}) {
   const { t, language } = useI18n();
   const { orderVersions } = usePinnedBibleVersions();
   const router = useRouter();
@@ -44,6 +48,10 @@ export function CurrentVideoProjects() {
     null,
   );
   const [lastProjects, setLastProjects] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
 
   useEffect(() => {
     let revision = 0;
@@ -428,7 +436,7 @@ export function CurrentVideoProjects() {
                           {renderedVideos[row.id] && !checkingVideos && (
                             <button
                               type="button"
-                              className="icon-button"
+                              className="icon-button current-project-marker"
                               aria-label={`${t("Open project folder in Finder")}: ${row.title}`}
                               data-tooltip={t(
                                 "Open the project folder in Finder on the Mac that generates videos",

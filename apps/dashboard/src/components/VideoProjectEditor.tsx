@@ -39,6 +39,7 @@ import { settingsSchema, type RenderRequest } from "../lib/video-schema";
 import { type VideoRow, type VideoKind } from "./video-project";
 import {
   adjustedCues,
+  verseHasManualCuts,
   validVerseTimings,
   readingTimeline,
   type Inspection,
@@ -318,7 +319,12 @@ export function VideoProjectEditor({
     });
     setSaved(true);
   };
-  const trim = (reference: string, edge: "start" | "end", value: number) => {
+  const trim = (
+    reference: string,
+    edge: "start" | "end",
+    value: number,
+    manuallyAdjusted = true,
+  ) => {
     const original = analysis?.cues.find((cue) => cue.reference === reference);
     if (!original) return;
     setSettings((current) => {
@@ -327,6 +333,7 @@ export function VideoProjectEditor({
       ) ?? { reference, startOffsetSeconds: 0, endOffsetSeconds: 0 };
       const next = {
         ...old,
+        manuallyAdjusted,
         [edge === "start" ? "startOffsetSeconds" : "endOffsetSeconds"]:
           value - original[edge],
       };
@@ -388,7 +395,11 @@ export function VideoProjectEditor({
       };
     });
   };
-  const shiftVerse = (sectionIndex: number, cue: VerseCue) => {
+  const shiftVerse = (
+    sectionIndex: number,
+    cue: VerseCue,
+    manuallyAdjusted: boolean,
+  ) => {
     if (!analysis || editingLocked || analyzing) return false;
     const section = timeline[sectionIndex];
     const availableEnd =
@@ -399,14 +410,14 @@ export function VideoProjectEditor({
     // Expose enough original audio without moving this chapter's existing source cuts.
     if (cue.end > section.timelineEnd)
       expandSection(sectionIndex, "end", cue.end - section.timelineEnd);
-    trim(cue.reference, "start", cue.start);
-    trim(cue.reference, "end", cue.end);
+    trim(cue.reference, "start", cue.start, manuallyAdjusted);
+    trim(cue.reference, "end", cue.end, manuallyAdjusted);
     return true;
   };
   const queueVoice = async (part: VoicePart) => {
     await api(endpoint("voices"), {
       method: "POST",
-      body: JSON.stringify({ part }),
+      body: JSON.stringify({ part, settings: checkedSettings() }),
     });
     setVoices((current) => ({
       ...current,
@@ -595,6 +606,12 @@ export function VideoProjectEditor({
     const chapter = analysis?.chapterIntroductions?.find(
       (item) => item.part === part,
     );
+    const defaultScript =
+      chapter?.script ??
+      (part === "intro" || part === "outro" ? analysis?.scripts[part] : "") ??
+      "";
+    const narrationText =
+      settings.voiceScriptOverrides?.[part] ?? defaultScript;
     const title = chapter
       ? `${t("Chapter introduction")} · ${chapter.title}`
       : part === "intro"
@@ -629,7 +646,9 @@ export function VideoProjectEditor({
               type="button"
               aria-label={`${generateLabel} · ${title}`}
               data-tooltip={generateLabel}
-              disabled={editingLocked || pending || !analysis}
+              disabled={
+                editingLocked || pending || !analysis || !narrationText.trim()
+              }
               onClick={() => void generateVoice(part)}
             >
               {pending ? (
@@ -699,16 +718,26 @@ export function VideoProjectEditor({
         >
           <div className="narration-script">
             <p className="eyebrow">{t("Narration script")}</p>
-            <p>
-              {(chapter?.script ??
-                (part === "intro" || part === "outro"
-                  ? analysis?.scripts[part]
-                  : undefined)) ||
-                t("The script will appear once the passage loads.")}
-            </p>
+            <textarea
+              aria-label={`${t("Narration script")} · ${title}`}
+              rows={5}
+              maxLength={10000}
+              disabled={editingLocked || pending || !analysis}
+              placeholder={t("The script will appear once the passage loads.")}
+              value={narrationText}
+              onChange={(event) => {
+                const text = event.target.value;
+                setSettings((current) => {
+                  const overrides = { ...current.voiceScriptOverrides };
+                  if (text === defaultScript) delete overrides[part];
+                  else overrides[part] = text;
+                  return { ...current, voiceScriptOverrides: overrides };
+                });
+              }}
+            />
             <span className="muted">
               {t(
-                "The script and presentation of this section are defined for this format.",
+                "Edit the narration before generating or regenerating its audio. Save changes to keep this text for the project. Write numbers as words for clearer pronunciation.",
               )}
             </span>
           </div>
@@ -771,7 +800,9 @@ export function VideoProjectEditor({
             <button
               type="button"
               className="primary"
-              disabled={editingLocked || pending || !analysis}
+              disabled={
+                editingLocked || pending || !analysis || !narrationText.trim()
+              }
               onClick={() => void generateVoice(part)}
             >
               <WandSparkles size={16} />
@@ -1083,7 +1114,17 @@ export function VideoProjectEditor({
                           cues={verses}
                           disabled={editingLocked || analyzing}
                           onTrim={trim}
-                          onShift={(cue) => shiftVerse(section.index, cue)}
+                          manualReferences={verses
+                            .filter((cue) =>
+                              verseHasManualCuts(
+                                settings.verseOffsets,
+                                cue.reference,
+                              ),
+                            )
+                            .map((cue) => cue.reference)}
+                          onShift={(cue, manuallyAdjusted) =>
+                            shiftVerse(section.index, cue, manuallyAdjusted)
+                          }
                         />
                       )}
                       {readingVolume}

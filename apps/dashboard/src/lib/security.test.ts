@@ -61,3 +61,22 @@ test("project settings discard obsolete narration controls while preserving all 
     "volumeMultiplier",
   ]);
 });
+
+test("project narration overrides survive saving and reject empty or unsupported sections", () => {
+  const overrides = {
+    intro: "Introducción manual.",
+    outro: "Cierre manual.",
+    "chapter-0": "Capítulo uno, primera parte.",
+  };
+  assert.deepEqual(
+    settingsSchema.parse({ voiceScriptOverrides: overrides })
+      .voiceScriptOverrides,
+    overrides,
+  );
+  assert.throws(() =>
+    settingsSchema.parse({ voiceScriptOverrides: { intro: "  " } }),
+  );
+  assert.throws(() =>
+    settingsSchema.parse({ voiceScriptOverrides: { "reading-0": "Text" } }),
+  );
+});

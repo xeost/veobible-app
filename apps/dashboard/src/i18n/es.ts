@@ -1,4 +1,11 @@
 export const spanish: Record<string, string> = {
+  "Edit the narration before generating or regenerating its audio. Save changes to keep this text for the project. Write numbers as words for clearer pronunciation.":
+    "Edita el texto antes de generar o regenerar su audio. Guarda los cambios para conservar este texto en el proyecto. Escribe los números en letras para mejorar la pronunciación.",
+
+  "Align with previous verse": "Alinear con el versículo anterior",
+  "Move both trim edges so this verse starts at the previous verse’s end, keeping its duration. Your other verse cuts stay unchanged.":
+    "Desplaza ambos extremos de recorte para que este versículo comience al final del anterior, manteniendo su duración. Los cortes de los demás versículos no cambian.",
+
   "Open project folder in Finder": "Abrir carpeta del proyecto en Finder",
   "Open the project folder in Finder on the Mac that generates videos":
     "Abrir la carpeta del proyecto en Finder en la Mac que genera los videos",

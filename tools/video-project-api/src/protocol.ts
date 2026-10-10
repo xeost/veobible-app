@@ -6,6 +6,12 @@ const point = z.object({
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  voiceScriptOverrides: z
+    .record(
+      z.string().regex(/^(?:intro|outro|chapter-\d+)$/),
+      z.string().trim().min(1).max(10000),
+    )
+    .optional(),
   volumeMultiplier: z.number().min(0).max(4).default(1),
   passageOffsets: z
     .object({
@@ -29,6 +35,7 @@ export const settingsSchema = z.object({
         reference: z.string().min(1),
         startOffsetSeconds: z.number().finite(),
         endOffsetSeconds: z.number().finite(),
+        manuallyAdjusted: z.boolean().optional(),
       }),
     )
     .default([]),

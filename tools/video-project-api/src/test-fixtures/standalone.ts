@@ -134,7 +134,8 @@ for (const [kind, outputEnvironment] of [
     },
     settings: { background: "bg-1.mp4" },
     publicationTemplates: {
-      youtube: "# Title\n{title}\n\n# Description\n{reference} — {version}\n{passage_url}\n{hashtags}",
+      youtube:
+        "# Title\n{title}\n\n# Description\n{reference} — {version}\n{passage_url}\n{hashtags}",
       facebook: "{title}\n{reference} — {version}\n{hashtags}",
       ...(kind === "short" ? { instagram: "{title}\n{hashtags}" } : {}),
       tiktok: "{title}\n{hashtags}",
@@ -367,6 +368,50 @@ for (const [kind, outputEnvironment] of [
       ),
       { code: "ENOENT" },
     );
+  }
+  const custom = {
+    ...input,
+    settings: {
+      ...input.settings,
+      voiceScriptOverrides: {
+        intro: "Introducción manual para este proyecto.",
+      },
+    },
+  };
+  await generateProjectVoice(custom, "intro");
+  assert.equal(
+    await fs.readFile(path.join(voices, voiceFilename("intro", "txt")), "utf8"),
+    custom.settings.voiceScriptOverrides.intro,
+  );
+  if (kind === "long") {
+    const chapter = preview.chapterIntroductions[0];
+    const sharedFile = (await projectChapterVoiceFiles(input))[0].file;
+    const sharedScript = await fs.readFile(
+      sharedFile.replace(/\.wav$/, ".txt"),
+      "utf8",
+    );
+    const chapterCustom = {
+      ...input,
+      settings: {
+        ...input.settings,
+        voiceScriptOverrides: {
+          [chapter.part]: "Capítulo uno. Introducción personalizada.",
+        },
+      },
+    };
+    await generateProjectVoice(chapterCustom, chapter.part);
+    const customFile = (await projectChapterVoiceFiles(input))[0];
+    assert.equal(customFile.cached, false);
+    assert.equal(
+      await fs.readFile(customFile.file.replace(/\.wav$/, ".txt"), "utf8"),
+      chapterCustom.settings.voiceScriptOverrides[chapter.part],
+    );
+    assert.equal(
+      await fs.readFile(sharedFile.replace(/\.wav$/, ".txt"), "utf8"),
+      sharedScript,
+    );
+    await generateProjectVoice(input, chapter.part);
+    assert.equal((await projectChapterVoiceFiles(input))[0].cached, true);
   }
   const otherVoice = await fs.readFile(
     path.join(voices, voiceFilename("outro")),

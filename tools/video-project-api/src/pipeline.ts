@@ -187,6 +187,7 @@ export async function analyze(
     data.index.metadata.name,
     input.voiceTemplates,
   );
+  context.scriptOverrides = input.settings.voiceScriptOverrides;
   const episodeContent =
     input.kind === "long"
       ? episodeReference(
@@ -260,7 +261,10 @@ export async function inspection(
     })),
     cues,
     chapterIntroductions,
-    scripts: await m.voice.renderVoiceScripts(context),
+    scripts: await m.voice.renderVoiceScripts({
+      ...context,
+      scriptOverrides: undefined,
+    }),
     text: await m.passages.readPassageTextContext(
       version,
       input.passage,
@@ -303,13 +307,21 @@ export async function generateProjectVoice(
         staging,
         {
           ...context,
-          templates: { ...context.templates, intro: chapter.script },
+          scriptOverrides: {
+            intro:
+              input.settings.voiceScriptOverrides?.[part] ?? chapter.script,
+          },
         },
         true,
         "intro",
         (progress) => update(10 + progress * 0.85),
       );
-      if (chapter.complete) {
+      if (
+        chapter.complete &&
+        (
+          input.settings.voiceScriptOverrides?.[part] ?? chapter.script
+        ).trim() === chapter.script.trim()
+      ) {
         await chapterVoiceCache.publish(
           path.join(staging, "intro.wav"),
           path.join(staging, "intro.txt"),
@@ -319,6 +331,10 @@ export async function generateProjectVoice(
             locale: input.version.locale,
           },
         );
+        for (const extension of ["wav", "txt"])
+          await fs.rm(path.join(sources, voiceFilename(part, extension)), {
+            force: true,
+          });
       } else {
         for (const extension of ["wav", "txt"])
           await fs.rename(
@@ -373,6 +389,25 @@ export async function projectChapterVoiceFiles(
             range.first === 1 &&
             range.last === range.book.versesPerChapter[range.chapter - 1],
         };
+        if (identity.complete) {
+          const savedScript = await fs
+            .readFile(path.join(directory, voiceFilename(part, "txt")), "utf8")
+            .catch((error) => {
+              if (error.code === "ENOENT") return null;
+              throw error;
+            });
+          const standard = chapterIntroductionText(
+            version.locale,
+            {
+              ...range,
+              total: range.book.versesPerChapter[range.chapter - 1],
+            },
+            (n) => longVoice.numberToWords(version.locale, n),
+          ).script;
+          // Custom chapter narration belongs to this project, never the shared cache.
+          if (savedScript !== null && savedScript.trim() !== standard.trim())
+            identity.complete = false;
+        }
         return {
           part,
           ...(await chapterVoiceCache.resolve(

@@ -9,6 +9,7 @@ import {
   ArrowLeftToLine,
   ArrowRightToLine,
   ChevronRight,
+  AlignStartVertical,
 } from "lucide-react";
 import {
   readingPlaybackSpeeds,
@@ -38,6 +39,7 @@ export function VerseWaveform({
   disabled,
   onTrim,
   onShift,
+  manualReferences,
 }: {
   src: string;
   locale: string;
@@ -50,7 +52,8 @@ export function VerseWaveform({
   cues: VerseCue[];
   disabled: boolean;
   onTrim: (reference: string, edge: "start" | "end", value: number) => void;
-  onShift: (cue: VerseCue) => boolean;
+  onShift: (cue: VerseCue, manuallyAdjusted: boolean) => boolean;
+  manualReferences: string[];
 }) {
   const { t } = useI18n();
   const { playbackSpeed, setPlaybackSpeed } = useReadingPlaybackSpeed(locale);
@@ -350,7 +353,7 @@ export function VerseWaveform({
       </button>
     );
   };
-  const selectVerse = (nextIndex: number) => {
+  const selectVerse = (nextIndex: number, forceAlignment = false) => {
     if (!latest.current[nextIndex]) return;
     audio.current?.pause();
     playbackRequest.current++;
@@ -358,8 +361,11 @@ export function VerseWaveform({
       latest.current,
       nextIndex,
       timelineStart + sourceDuration - sourceStart,
+      !forceAlignment &&
+        manualReferences.includes(latest.current[nextIndex].reference),
     );
-    const moved = !disabled && result.moved && onShift(result.cue);
+    const moved =
+      !disabled && result.moved && onShift(result.cue, forceAlignment);
     setSelected(nextIndex);
     setFocus(moved ? result.cue : latest.current[nextIndex]);
     setExtraContext({ before: 0, after: 0 });
@@ -367,6 +373,13 @@ export function VerseWaveform({
     setZoom(1);
     if (scroll.current) scroll.current.scrollLeft = 0;
   };
+  const alignment = cue
+    ? alignSelectedVerse(
+        cues,
+        index,
+        timelineStart + sourceDuration - sourceStart,
+      )
+    : null;
   if (!cue)
     return (
       <p className="muted">
@@ -551,6 +564,17 @@ export function VerseWaveform({
           <span>{(window.end - timelineStart).toFixed(2)} s</span>
         </div>
         <div className="verse-playback">
+          <button
+            type="button"
+            disabled={disabled || !alignment?.moved}
+            data-tooltip={t(
+              "Move both trim edges so this verse starts at the previous verse’s end, keeping its duration. Your other verse cuts stay unchanged.",
+            )}
+            onClick={() => selectVerse(index, true)}
+          >
+            <AlignStartVertical size={16} aria-hidden="true" />
+            {t("Align with previous verse")}
+          </button>
           <button type="button" onClick={preview}>
             <span>{playing ? <Pause size={16} /> : <Play size={16} />}</span>
             {playing ? t("Pause") : t("Listen to verse")}

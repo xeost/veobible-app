@@ -1743,10 +1743,11 @@ audio {
   border-radius: 10px;
   border: 1px solid #ffffff09;
 }
-.narration-script > p:not(.eyebrow) {
+.narration-script textarea {
   font-size: 13px;
-  line-height: 1.9;
-  white-space: pre-wrap;
+  line-height: 1.7;
+  min-height: 130px;
+  resize: vertical;
   color: #d6d0df;
 }
 .narration-script .muted {

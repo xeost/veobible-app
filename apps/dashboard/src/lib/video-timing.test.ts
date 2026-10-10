@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   adjustedCues,
   alignSelectedVerse,
+  verseHasManualCuts,
   readingTimeline,
   trimCue,
   trimPreviewRange,
@@ -15,7 +16,10 @@ import { applyVerseOffsets } from "../../../../tools/video-project-api/src/engin
 import { buildVerseReading } from "../../../../tools/video-project-api/src/reading-timeline";
 
 test("reading previews use unsaved waveform cuts against the same original chapter audio", () => {
-  const sections = [{ start: 100, end: 120 }, { start: 40, end: 50 }];
+  const sections = [
+    { start: 100, end: 120 },
+    { start: 40, end: 50 },
+  ];
   const baseline = [
     { reference: "first", text: "First verse", start: 3, end: 6 },
     { reference: "second", text: "Second verse", start: 21, end: 25 },
@@ -26,14 +30,23 @@ test("reading previews use unsaved waveform cuts against the same original chapt
   ]);
   const sources = waveformReadingSources(sections);
   const preview = buildVerseReading(sources, adjusted, [2, 2]);
-  assert.deepEqual(preview.sections.map(({ file, start, end }) => ({ file, start, end })), [
-    { file: "reading-0", start: 103.75, end: 105.75 },
-    { file: "reading-1", start: 42, end: 45.5 },
-  ]);
+  assert.deepEqual(
+    preview.sections.map(({ file, start, end }) => ({ file, start, end })),
+    [
+      { file: "reading-0", start: 103.75, end: 105.75 },
+      { file: "reading-1", start: 42, end: 45.5 },
+    ],
+  );
   const selected = buildVerseReading(sources, [adjusted[1]], [2]);
   const waveform = readingTimeline(sections)[1];
-  assert.equal(selected.sections[0].start, waveform.start + adjusted[1].start - waveform.timelineStart);
-  assert.equal(selected.sections[0].end, waveform.start + adjusted[1].end - waveform.timelineStart);
+  assert.equal(
+    selected.sections[0].start,
+    waveform.start + adjusted[1].start - waveform.timelineStart,
+  );
+  assert.equal(
+    selected.sections[0].end,
+    waveform.start + adjusted[1].end - waveform.timelineStart,
+  );
   assert.equal(selected.duration, 3.5);
   assert.equal(selected.cues[0].start, 0);
 });
@@ -133,20 +146,27 @@ test("selecting an overlapping verse moves both edges without changing its durat
   const selected = alignSelectedVerse(cues, 1, 60);
   assert.equal(selected.moved, true);
   assert.deepEqual(selected.cue, { ...cues[1], start: 22, end: 27 });
-  assert.equal(selected.cue.end - selected.cue.start, cues[1].end - cues[1].start);
+  assert.equal(
+    selected.cue.end - selected.cue.start,
+    cues[1].end - cues[1].start,
+  );
   assert.deepEqual(cues, original);
   const next = alignSelectedVerse([cues[0], selected.cue, cues[2]], 2, 60);
   assert.deepEqual(next.cue, { ...cues[2], start: 27, end: 33 });
 });
 
-test("selection leaves the first verse, aligned ranges and later non-overlapping ranges untouched", () => {
+test("selection leaves the first verse and already aligned ranges untouched", () => {
   const cues = [
     { reference: "first", text: "First", start: 5, end: 10 },
     { reference: "second", text: "Second", start: 10, end: 15 },
     { reference: "third", text: "Third", start: 20, end: 25 },
   ];
-  for (const index of [0, 1, 2]) {
-    assert.deepEqual(alignSelectedVerse(cues, index, 30), { cue: cues[index], moved: false, blocked: false });
+  for (const index of [0, 1]) {
+    assert.deepEqual(alignSelectedVerse(cues, index, 30), {
+      cue: cues[index],
+      moved: false,
+      blocked: false,
+    });
   }
   assert.equal(alignSelectedVerse([cues[2]], 0, 30).moved, false);
 });
@@ -156,14 +176,100 @@ test("selection can use additional source context but never truncates a verse at
     { reference: "first", text: "First", start: 10, end: 25 },
     { reference: "second", text: "Second", start: 18, end: 23 },
   ];
-  assert.deepEqual(alignSelectedVerse(cues, 1, 28), { cue: cues[1], moved: false, blocked: true });
+  assert.deepEqual(alignSelectedVerse(cues, 1, 28), {
+    cue: cues[1],
+    moved: false,
+    blocked: true,
+  });
   const selected = alignSelectedVerse(cues, 1, 30);
   assert.deepEqual(selected.cue, { ...cues[1], start: 25, end: 30 });
-  const offsets = [{ reference: "second", startOffsetSeconds: 7, endOffsetSeconds: 7 }];
+  const offsets = [
+    { reference: "second", startOffsetSeconds: 7, endOffsetSeconds: 7 },
+  ];
   const adjusted = adjustedCues(cues, offsets);
   assert.deepEqual(adjusted[1], selected.cue);
   assert.deepEqual(applyVerseOffsets(cues, offsets, 30), adjusted);
-  const rendered = buildVerseReading([{ file: "chapter.mp3", start: 100, end: 130 }], adjusted, [2, 2]);
+  const rendered = buildVerseReading(
+    [{ file: "chapter.mp3", start: 100, end: 130 }],
+    adjusted,
+    [2, 2],
+  );
   assert.equal(rendered.sections[1].start, 125);
   assert.equal(rendered.sections[1].end, 130);
+});
+
+test("estimated verse gaps are closed without changing duration or neighboring cuts", () => {
+  const cues = [
+    { reference: "first", text: "First", start: 1, end: 12 },
+    { reference: "second", text: "Second", start: 27, end: 33 },
+    { reference: "third", text: "Third", start: 35, end: 40 },
+  ];
+  const original = structuredClone(cues);
+  const aligned = alignSelectedVerse(cues, 1, 60);
+  assert.deepEqual(aligned.cue, { ...cues[1], start: 12, end: 18 });
+  assert.equal(aligned.moved, true);
+  assert.deepEqual(cues, original);
+  const offsets = [
+    {
+      reference: "second",
+      startOffsetSeconds: -15,
+      endOffsetSeconds: -15,
+      manuallyAdjusted: false,
+    },
+  ];
+  assert.deepEqual(adjustedCues(cues, offsets)[1], aligned.cue);
+  assert.deepEqual(applyVerseOffsets(cues, offsets, 60)[1], aligned.cue);
+});
+
+test("automatic alignment respects manual cuts, including legacy and zero offsets, while explicit alignment is available", () => {
+  const cues = [
+    { reference: "first", text: "First", start: 1, end: 12 },
+    { reference: "second", text: "Second", start: 27, end: 33 },
+  ];
+  const offset = {
+    reference: "second",
+    startOffsetSeconds: 0,
+    endOffsetSeconds: 0,
+  };
+  assert.equal(verseHasManualCuts([], "second"), false);
+  assert.equal(verseHasManualCuts([offset], "second"), true);
+  assert.equal(
+    verseHasManualCuts([{ ...offset, manuallyAdjusted: true }], "second"),
+    true,
+  );
+  assert.equal(
+    verseHasManualCuts([{ ...offset, manuallyAdjusted: false }], "second"),
+    false,
+  );
+  assert.equal(alignSelectedVerse(cues, 1, 60, true).moved, false);
+  assert.equal(alignSelectedVerse(cues, 1, 60, false).cue.start, 12);
+  const overlap = [{ ...cues[0], end: 30 }, cues[1]];
+  assert.equal(alignSelectedVerse(overlap, 1, 60, true).moved, false);
+  assert.equal(alignSelectedVerse(overlap, 1, 60, false).cue.start, 30);
+});
+
+test("saved settings retain automatic versus manual alignment in both services", async () => {
+  const { settingsSchema: dashboardSettings } = await import("./video-schema");
+  const { settingsSchema: generatorSettings } =
+    await import("../../../../tools/video-project-api/src/protocol");
+  const offsets = [
+    {
+      reference: "first",
+      startOffsetSeconds: 0,
+      endOffsetSeconds: 1,
+      manuallyAdjusted: true,
+    },
+    {
+      reference: "second",
+      startOffsetSeconds: -15,
+      endOffsetSeconds: -15,
+      manuallyAdjusted: false,
+    },
+  ];
+  const saved = JSON.parse(
+    JSON.stringify(dashboardSettings.parse({ verseOffsets: offsets })),
+  );
+  assert.deepEqual(generatorSettings.parse(saved).verseOffsets, offsets);
+  assert.equal(verseHasManualCuts(saved.verseOffsets, "first"), true);
+  assert.equal(verseHasManualCuts(saved.verseOffsets, "second"), false);
 });

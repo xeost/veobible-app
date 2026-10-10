@@ -479,7 +479,12 @@ export async function videoApi(
   ) {
     const values = (await req.json()) as Record<string, unknown>;
     const settings = settingsSchema.parse(
-      parts[2] === "voices" ? JSON.parse(project.settings) : values,
+      parts[2] === "voices"
+        ? {
+            ...JSON.parse(project.settings),
+            ...(values.settings ? settingsSchema.parse(values.settings) : {}),
+          }
+        : values,
     );
     const defaults = versionProjectSettings(
       await loadProjectSettings(database, project.kind),
@@ -509,7 +514,11 @@ export async function videoApi(
       const part = z
         .union([z.enum(["intro", "outro"]), z.string().regex(/^chapter-\d+$/)])
         .parse(values.part);
-      if ((part === "intro" || part === "outro") && !voiceTemplates[part])
+      if (
+        (part === "intro" || part === "outro") &&
+        !voiceTemplates[part] &&
+        !settings.voiceScriptOverrides?.[part]
+      )
         return json(
           {
             error: "Configure narration scripts in Settings before generating.",

@@ -195,6 +195,7 @@ function spokenBookName(locale: Version["locale"], book: string): string {
 }
 
 export interface VoiceContext {
+  scriptOverrides?: Partial<Record<"intro" | "outro", string>>;
   templates: { intro: string; outro: string };
   locale: Version["locale"];
   reference: string;
@@ -257,6 +258,8 @@ export async function renderVoiceScripts(
   const templates = context.templates;
   const values = context as unknown as Record<string, string>;
   const render = (part: "intro" | "outro"): string => {
+    if (context.scriptOverrides?.[part] !== undefined)
+      return context.scriptOverrides[part]!.trim();
     const template = templates[part];
     if (!template.trim()) return "";
     const result = template.replace(/\{([^{}]+)\}/g, (_, key: string) => {
