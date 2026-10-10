@@ -681,3 +681,58 @@ for (const [kind, outputEnvironment] of [
 console.log("standalone pipeline passed: short, long");
 if (process.env.VIDEO_SMOKE_RENDER === "1")
   console.log("standalone renders passed: short, long");
+
+// Exercise the actual Python-process contract with a deterministic local provider.
+const aligner = path.join(working, "aligner-fixture.mjs");
+await fs.writeFile(
+  aligner,
+  `import fs from 'node:fs/promises';
+const arg = key => process.argv[process.argv.indexOf(key)+1];
+const request = JSON.parse(await fs.readFile(arg('--request'),'utf8'));
+console.log(JSON.stringify({progress: 55}));
+await fs.writeFile(arg('--output'),JSON.stringify({model:'fixture',chapters:request.chapters.map(chapter=>({index:chapter.index,segments:chapter.segments.map(segment=>({id:segment.id,words:[{text:segment.text,start:segment.start+0.1,end:segment.end-0.1}]}))}))}));`,
+);
+process.env.VIDEO_ALIGNER_PYTHON = process.execPath;
+process.env.VIDEO_ALIGNER_SCRIPT = aligner;
+const { alignProjectReading } = await import("../forced-alignment.js");
+const { mergeAlignment } = await import("../forced-alignment-result.js");
+const alignmentInput = renderSchema.parse({
+  id: randomUUID(),
+  projectId: 1,
+  kind: "long",
+  version: { id: "rv1909", locale: "es", label: "Test" },
+  passage: {
+    id: "cross-book",
+    book: "genesis",
+    endBook: "exodus",
+    start: { chapter: 1, verse: 1 },
+    end: { chapter: 1, verse: 1 },
+  },
+  settings: {},
+  voiceTemplates: { intro: "Intro", outro: "Outro" },
+});
+const progress: number[] = [];
+const block = await alignProjectReading(
+  { ...alignmentInput, sectionIndex: 1 },
+  (value) => progress.push(value),
+);
+assert.equal(block.offsets.length, 1);
+assert.equal(block.offsets[0].reference, "Éxodo 1:1");
+assert.ok(Math.abs(block.offsets[0].startOffsetSeconds - 0.07) < 1e-6);
+assert.ok(Math.abs(block.offsets[0].endOffsetSeconds + 0.05) < 1e-6);
+assert.deepEqual(progress, [55]);
+const all = await alignProjectReading(alignmentInput, () => {});
+assert.equal(all.offsets.length, 2);
+const aligned = await analyze({
+  ...alignmentInput,
+  settings: mergeAlignment(alignmentInput.settings, all, randomUUID()),
+});
+assert.ok(aligned.cues[0].start > 0);
+assert.ok(aligned.cues[1].start > aligned.cues[0].end);
+await assert.rejects(
+  () => alignProjectReading({ ...alignmentInput, sectionIndex: 99 }, () => {}),
+  /Invalid reading section/,
+);
+console.log(
+  "standalone alignment passed: block, all, source coordinates, rendering settings",
+);

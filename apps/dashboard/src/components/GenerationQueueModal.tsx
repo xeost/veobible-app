@@ -11,6 +11,7 @@ import {
   ListOrdered,
   RefreshCw,
   History,
+  ScanText,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { generationStage, statusLabel } from "../lib/presentation";
@@ -75,7 +76,7 @@ export function GenerationQueueModal({
       </div>
       <p className="muted">
         {t(
-          "You can keep editing other projects while narration and videos are prepared.",
+          "You can keep editing other projects while narration, reading timings and videos are prepared.",
         )}
       </p>
       <div className="generation-queue-summary">
@@ -170,24 +171,39 @@ export function GenerationQueueModal({
               className={`generation-queue-item ${item.status}`}
             >
               <span className="generation-queue-icon">
-                {item.type === "video" ? <Film size={19} /> : <Mic size={19} />}
+                {item.type.startsWith("alignment") ? (
+                  <ScanText size={19} />
+                ) : item.type === "video" ? (
+                  <Film size={19} />
+                ) : (
+                  <Mic size={19} />
+                )}
               </span>
               <span className="generation-queue-details">
                 <strong>{item.title}</strong>
                 <small>
                   {t(
-                    item.type === "video"
-                      ? "Final video"
-                      : item.type === "intro"
-                        ? "Introduction narration"
-                        : item.type === "outro"
-                          ? "Closing narration"
-                          : "Chapter introduction",
+                    item.type.startsWith("alignment")
+                      ? "Reading timing analysis"
+                      : item.type === "video"
+                        ? "Final video"
+                        : item.type === "intro"
+                          ? "Introduction narration"
+                          : item.type === "outro"
+                            ? "Closing narration"
+                            : "Chapter introduction",
                   )}{" "}
+                  {item.type.startsWith("alignment-") &&
+                    ` · ${t("Reading")} ${Number(item.type.split("-")[1]) + 1}`}
                   · {item.version.toUpperCase()}
                 </small>
                 <span>
-                  {t(statusLabel(item.status))}
+                  {t(
+                    item.type.startsWith("alignment") &&
+                      item.status === "running"
+                      ? "Analyzing reading timings…"
+                      : statusLabel(item.status),
+                  )}
                   {item.status === "queued"
                     ? ` · ${t("Position")} ${item.position}`
                     : item.status === "running" && item.type === "video"

@@ -55,6 +55,32 @@ export function generationStage(
 }
 
 const messages = new Set([
+  ...(["es", "pt"] as const).map((lang) =>
+    translateServer(
+      "The project changed in another window. Reload it before applying the analysis.",
+      lang,
+    ),
+  ),
+  ...(["es", "pt"] as const).map((lang) =>
+    translateServer(
+      "The passage changed after analysis. Analyze its timing again.",
+      lang,
+    ),
+  ),
+  ...(["es", "pt"] as const).map((lang) =>
+    translateServer(
+      "The timing analysis is not ready. Try again in a moment.",
+      lang,
+    ),
+  ),
+  ...(["es", "pt"] as const).map((lang) =>
+    translateServer("Could not load the timing analysis. Try again.", lang),
+  ),
+  "Could not load the timing analysis. Try again.",
+  "The timing analysis is not ready. Try again in a moment.",
+  "The passage changed after analysis. Analyze its timing again.",
+  "The project changed in another window. Reload it before applying the analysis.",
+
   "Generate every chapter introduction before generating the video.",
   "Generate the introduction and closing voices before generating the video.",
   "Could not sync existing projects. Check that generation is available and try again.",

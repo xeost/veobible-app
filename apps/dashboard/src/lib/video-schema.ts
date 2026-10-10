@@ -5,6 +5,8 @@ const point = z.object({
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  alignmentJobId: z.string().uuid().optional(),
+  alignmentReviewReferences: z.array(z.string().min(1)).max(1000).optional(),
   voiceTrims: z
     .record(
       z.string().regex(/^(?:intro|outro|chapter-\d+)$/),

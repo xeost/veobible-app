@@ -221,7 +221,12 @@ async function versesForChapter(
   book: Book,
   chapter: number,
 ): Promise<Verse[]> {
-  const file = path.join(version.locale, version.id, book.id, `${chapter}.json`);
+  const file = path.join(
+    version.locale,
+    version.id,
+    book.id,
+    `${chapter}.json`,
+  );
   const parsed: unknown = JSON.parse(
     await readBibleDataFile(file, config.bibleDataDir),
   );
@@ -281,6 +286,7 @@ export async function analyzePassageAudio(version: Version, passage: Passage) {
   const sections: AudioSection[] = [];
   const timingInputs: VerseTimingInput[] = [];
   const sourceDurations: number[] = [];
+  const chapterVerses: Verse[][] = [];
   for (
     let chapter = passage.start.chapter;
     chapter <= passage.end.chapter;
@@ -292,6 +298,7 @@ export async function analyzePassageAudio(version: Version, passage: Passage) {
         ? passage.end.verse
         : book.versesPerChapter[chapter - 1];
     const all = await versesForChapter(version, book, chapter);
+    chapterVerses.push(all);
     const selected = all.filter((v) => v.verse >= first && v.verse <= last);
     if (
       selected.length !== last - first + 1 ||
@@ -320,7 +327,16 @@ export async function analyzePassageAudio(version: Version, passage: Passage) {
     sourceDurations.push(sourceDuration);
   }
 
-  return { index, book, label, lines, sections, timingInputs, sourceDurations };
+  return {
+    index,
+    book,
+    label,
+    lines,
+    sections,
+    timingInputs,
+    sourceDurations,
+    chapterVerses,
+  };
 }
 
 /** Include up to two neighboring verses on each side, crossing chapter boundaries within the book. */

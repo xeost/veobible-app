@@ -1,4 +1,9 @@
 import {
+  alignmentSignature,
+  mergeAlignment,
+  type AlignmentJob,
+} from "../../../../tools/video-project-api/src/forced-alignment-result";
+import {
   listingSelect,
   listVideoProjects,
   nextVideoProject,
@@ -463,6 +468,88 @@ export async function videoApi(
       },
     });
   }
+  if (parts[2] === "alignment" && method === "GET") {
+    const response = await videoFetch(`/v1/projects/${id}/alignment?${query}`);
+    return new Response(response.body, {
+      status: response.status,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+  if (parts[2] === "alignment" && parts[3] === "apply" && method === "POST") {
+    const {
+      jobId,
+      settings: currentSettings,
+      expectedSettings,
+    } = z
+      .object({
+        jobId: z.string().uuid(),
+        settings: settingsSchema,
+        expectedSettings: z.string(),
+      })
+      .parse(await req.json());
+    if (["queued", "running"].includes((await state()).status))
+      return json({ error: "Wait for generation to finish" }, 409);
+    const response = await videoFetch(`/v1/projects/${id}/alignment?${query}`);
+    if (!response.ok)
+      return json(
+        { error: "Could not load the timing analysis. Try again." },
+        502,
+      );
+    const { job } = (await response.json()) as { job: AlignmentJob | null };
+    const stored = settingsSchema.parse(JSON.parse(project.settings));
+    if (project.settings !== expectedSettings)
+      return json(
+        {
+          error:
+            "The project changed in another window. Reload it before applying the analysis.",
+        },
+        409,
+      );
+    if (stored.alignmentJobId === jobId)
+      return json({ settings: currentSettings });
+    if (!job || job.id !== jobId || job.status !== "done" || !job.result)
+      return json(
+        { error: "The timing analysis is not ready. Try again in a moment." },
+        409,
+      );
+    if (
+      job.result.signature !==
+      alignmentSignature({
+        kind: project.kind,
+        version,
+        passage: JSON.parse(project.passage),
+        settings: currentSettings,
+      })
+    )
+      return json(
+        {
+          error:
+            "The passage changed after analysis. Analyze its timing again.",
+        },
+        409,
+      );
+    const settings = settingsSchema.parse(
+      mergeAlignment(currentSettings, job.result, jobId),
+    );
+    const updated = await database
+      .prepare(
+        "UPDATE video_projects SET settings=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND settings=?",
+      )
+      .bind(JSON.stringify(settings), id, project.settings)
+      .run();
+    if (updated.meta.changes !== 1)
+      return json(
+        {
+          error:
+            "The project changed in another window. Reload it before applying the analysis.",
+        },
+        409,
+      );
+    return json({ settings });
+  }
   if (parts[2] === "voices" && method === "GET") {
     const response = await videoFetch(`/v1/projects/${id}/voices?${query}`);
     return new Response(response.body, {
@@ -475,7 +562,7 @@ export async function videoApi(
   }
   if (
     method === "POST" &&
-    ["analyze", "voices", "render", "preview"].includes(parts[2])
+    ["analyze", "alignment", "voices", "render", "preview"].includes(parts[2])
   ) {
     const values = (await req.json()) as Record<string, unknown>;
     const settings = settingsSchema.parse(
@@ -545,6 +632,24 @@ export async function videoApi(
             .run();
         }
       }
+      return new Response(response.body, {
+        status: response.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (parts[2] === "alignment") {
+      const sectionIndex = z
+        .number()
+        .int()
+        .nonnegative()
+        .max(999)
+        .optional()
+        .parse(values.sectionIndex);
+      const response = await videoFetch(`/v1/projects/${id}/alignment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...common, sectionIndex }),
+      });
       return new Response(response.body, {
         status: response.status,
         headers: { "Content-Type": "application/json" },

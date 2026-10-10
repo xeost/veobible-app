@@ -36,7 +36,9 @@ Routes authenticated with a 32+ character Bearer token:
 - `POST /v1/analyze`: text, context, scripts, cuts, timing, and backgrounds.
 - `POST /v1/jobs`: render with task ID, numeric project ID, passage, version, and settings. Authenticated callback is optional; the dashboard does not use it.
 - `GET /v1/jobs/:id`: ephemeral progress of a render task.
-- `GET /v1/queue`: voice and video tasks; the dashboard only shows active or pending ones.
+- `POST /v1/projects/:id/alignment`: queue optional AI timing analysis; same input as analysis, plus optional zero-based `sectionIndex` (omit for all reading blocks).
+- `GET /v1/projects/:id/alignment?kind=short|long&outputEnvironment=production|development`: latest timing job, progress and completed result.
+- `GET /v1/queue`: voice, timing-analysis and video tasks; the dashboard only shows active or pending ones.
 - `GET /v1/projects/:id/state`: state derived from active queue and output saved in project files.
 - `GET /v1/projects/:id/media/:asset?kind=short|long&version=rv1909&passage=<id>&outputEnvironment=production|development`: video, thumbnail, intro/outro; supports Range requests.
 
@@ -84,3 +86,9 @@ Publication templates with Markdown headings produce one plain text file per hea
 Project settings may include `voiceScriptOverrides`, keyed by `intro`, `outro`, or `chapter-N`. These are literal spoken scripts, not templates. Voice generation accepts the editor’s current settings, including unsaved text; saving the project preserves them for subsequent visits. Chapter-specific custom scripts use project-local voices and never replace the shared full-chapter cache. Regenerating the default chapter script restores shared-cache use.
 
 `settings.voiceTrims` stores a start and end in seconds per narration (`intro`, `outro`, `chapter-N`). The editor plays the selected fragment; composition previews and final rendering use temporary sample-trimmed copies and derive section lengths from those copies. Original recordings and shared chapter caches remain intact. Regenerating a narration from the dashboard clears that section’s saved cut so the new recording starts with its full range.
+
+## AI reading timings
+
+See [the forced-aligner tool](../forced-aligner/README.md) for installation, model configuration, resource limits and the worker contract. AI analysis is explicitly queued from the editor; the initial heuristic analysis remains available. Full chapter transcripts are passed to the local MLX worker, even for partial passages. The API maps word times back to the existing source/timeline coordinates and returns verse offsets and any additional context padding.
+
+The latest alignment job is stored at `<output-root>/.alignment/<project-id>.json`, isolated by format and output environment. Completed results survive API restarts. The dashboard applies results through `POST /api/videos/:id/alignment/apply`, preserves manual offsets, and saves automatic offsets plus an applied-job identifier in the existing project settings. Application checks the passage/version/trim signature and uses an optimistic database update to avoid overwriting a concurrent save. Video rendering continues to use the saved/reviewed cuts.

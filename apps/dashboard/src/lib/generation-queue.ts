@@ -1,7 +1,13 @@
 export type GenerationQueueItem = {
   id: string;
   projectId: number;
-  type: "intro" | "outro" | `chapter-${number}` | "video";
+  type:
+    | "intro"
+    | "outro"
+    | `chapter-${number}`
+    | "video"
+    | "alignment"
+    | `alignment-${number}`;
   status: "queued" | "running" | "done" | "failed";
   stage: string;
   progress: number;

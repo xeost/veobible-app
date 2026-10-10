@@ -1,4 +1,36 @@
 export const portuguese: Record<string, string> = {
+  "Listen carefully to these verse cuts: {references}":
+    "Ouça com atenção os cortes destes versículos: {references}",
+  "Apply analyzed timings": "Aplicar tempos analisados",
+  "Analyze this reading with AI": "Analisar esta leitura com IA",
+  "Analyze this reading with AI. Manual verse adjustments are preserved.":
+    "Analisar esta leitura com IA. Os ajustes manuais dos versículos são preservados.",
+  "Analyze all readings with AI": "Analisar todas as leituras com IA",
+  "Analyze all readings with AI. Manual verse adjustments are preserved.":
+    "Analisar todas as leituras com IA. Os ajustes manuais dos versículos são preservados.",
+  "AI timing analysis is saved. Review the verse cuts; your manual adjustments were preserved.":
+    "A análise de tempos com IA foi salva. Revise os cortes dos versículos; seus ajustes manuais foram preservados.",
+  "Timing analysis was added to the generation queue. You can leave this project and return when it finishes.":
+    "A análise de tempos foi adicionada à fila de geração. Você pode sair do projeto e voltar quando terminar.",
+  "Applying analyzed timings…": "Aplicando os tempos analisados…",
+  "Timing analysis is queued": "Análise de tempos na fila",
+  "Analyzing reading timings…": "Analisando os tempos de leitura…",
+  "Manual verse adjustments are preserved. You can keep editing other projects.":
+    "Os ajustes manuais dos versículos são preservados. Você pode continuar editando outros projetos.",
+  "Could not analyze the reading. Check that the recording matches the Bible text and try again. If the problem continues, contact your administrator.":
+    "Não foi possível analisar a leitura. Verifique se a gravação corresponde ao texto bíblico e tente novamente. Se o problema continuar, contate o administrador.",
+  "Reading timing analysis": "Análise de tempos de leitura",
+  "You can keep editing other projects while narration, reading timings and videos are prepared.":
+    "Você pode continuar editando outros projetos enquanto as narrações, os tempos de leitura e os vídeos são preparados.",
+  "Could not load the timing analysis. Try again.":
+    "Não foi possível carregar a análise de tempos. Tente novamente.",
+  "The timing analysis is not ready. Try again in a moment.":
+    "A análise de tempos ainda não está pronta. Tente novamente em instantes.",
+  "The passage changed after analysis. Analyze its timing again.":
+    "A passagem mudou após a análise. Analise seus tempos novamente.",
+  "The project changed in another window. Reload it before applying the analysis.":
+    "O projeto mudou em outra janela. Recarregue-o antes de aplicar a análise.",
+
   "Voice trim start": "Início do recorte de voz",
   "Voice trim end": "Fim do recorte de voz",
   "Select the voice fragment to use in previews and the final video. The original recording is kept.":

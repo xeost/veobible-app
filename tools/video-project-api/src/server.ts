@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { timingSafeEqual } from "node:crypto";
 import { renderSchema, previewSchema } from "./protocol.js";
 import { z } from "zod";
+import type { AlignmentJob } from "./forced-alignment-result.js";
 import { GenerationQueue } from "./generation-queue.js";
 import { clampProgress } from "./generation-progress.js";
 import { generationFailureReason } from "./generation-failure.js";
@@ -39,6 +40,8 @@ const {
   projectChapterVoiceFiles,
 } = await import("./pipeline.js");
 const { outputRoot } = await import("./working-directories.js");
+const { alignProjectReading, stopAlignmentWorkers } =
+  await import("./forced-alignment.js");
 const { createPreview, previewAsset } = await import("./preview.js");
 const token = process.env.PROXY_API_TOKEN;
 if (!token || token.length < 32)
@@ -98,6 +101,29 @@ const readingSources = new Map<
 const jobs = new Map<string, Job>();
 const voiceJobs = new Map<string, Partial<Record<VoicePart, Job>>>();
 const generationQueue = new GenerationQueue();
+const alignmentJobs = new Map<string, AlignmentJob>();
+const alignmentFile = (
+  kind: string,
+  environment: "production" | "development",
+  projectId: number,
+) =>
+  path.join(outputRoot(kind, environment), ".alignment", `${projectId}.json`);
+async function saveAlignment(file: string, job: AlignmentJob) {
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  await fsp.writeFile(file + ".tmp", JSON.stringify(job));
+  await fsp.rename(file + ".tmp", file);
+}
+function alignmentPending(projectId: number, environment: string) {
+  return generationQueue
+    .snapshot()
+    .some(
+      (entry) =>
+        entry.projectId === projectId &&
+        (entry.outputEnvironment ?? "production") === environment &&
+        entry.type.startsWith("alignment") &&
+        ["queued", "running"].includes(entry.status),
+    );
+}
 const json = (res: http.ServerResponse, status: number, value: unknown) => {
   res.writeHead(status, {
     "Content-Type": "application/json",
@@ -271,6 +297,113 @@ const server = http.createServer(async (req, res) => {
               (item.outputEnvironment ?? "production") === environment,
           ),
       });
+    }
+    if (
+      parts[1] === "projects" &&
+      parts[3] === "alignment" &&
+      parts.length === 4
+    ) {
+      const projectId = z.coerce.number().int().positive().parse(parts[2]);
+      if (req.method === "GET") {
+        const kind = z
+          .enum(["short", "long"])
+          .parse(url.searchParams.get("kind"));
+        const environment = renderSchema.shape.outputEnvironment.parse(
+          url.searchParams.get("outputEnvironment") ?? undefined,
+        );
+        const file = alignmentFile(kind, environment, projectId);
+        let job = alignmentJobs.get(file);
+        if (!job) {
+          try {
+            job = JSON.parse(await fsp.readFile(file, "utf8"));
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+          }
+          // Reserve the recovered state before an asynchronous interrupted-job save.
+          if (job) alignmentJobs.set(file, job);
+          if (job && ["queued", "running"].includes(job.status)) {
+            job.status = "failed";
+            job.stage = "Interrupted";
+            await saveAlignment(file, job);
+          }
+        }
+        return json(res, 200, { job: job ?? null });
+      }
+      if (req.method === "POST") {
+        const input = analysisSchema
+          .extend({
+            sectionIndex: z.number().int().nonnegative().max(999).optional(),
+          })
+          .parse(await body(req));
+        if (input.projectId !== projectId)
+          return json(res, 400, { error: "Project mismatch" });
+        if (
+          alignmentPending(projectId, input.outputEnvironment) ||
+          generationQueue.hasPending(
+            projectId,
+            "video",
+            input.outputEnvironment,
+          )
+        )
+          return json(res, 409, { error: "Wait for generation to finish" });
+        if (generationQueue.pendingCount >= 20)
+          return json(res, 503, { error: "Render queue is full" });
+        const file = alignmentFile(
+          input.kind,
+          input.outputEnvironment,
+          projectId,
+        );
+        const job: AlignmentJob = {
+          id: crypto.randomUUID(),
+          status: "queued",
+          stage: "Queued",
+          progress: 0,
+          sectionIndex: input.sectionIndex,
+        };
+        // Reserve synchronously before persistence so simultaneous requests cannot replace each other.
+        if (
+          ["queued", "running"].includes(alignmentJobs.get(file)?.status ?? "")
+        )
+          return json(res, 409, { error: "Wait for generation to finish" });
+        alignmentJobs.set(file, job);
+        try {
+          await saveAlignment(file, job);
+        } catch (error) {
+          alignmentJobs.delete(file);
+          throw error;
+        }
+        generationQueue.enqueue(
+          {
+            projectId,
+            kind: input.kind,
+            outputEnvironment: input.outputEnvironment,
+            type:
+              input.sectionIndex === undefined
+                ? "alignment"
+                : `alignment-${input.sectionIndex}`,
+          },
+          job,
+          async () => {
+            try {
+              job.stage = "Aligning";
+              await saveAlignment(file, job);
+              job.result = await alignProjectReading(input, (progress) => {
+                job.progress = Math.max(job.progress, progress);
+              });
+              job.status = "done";
+              job.stage = "Complete";
+              job.progress = 100;
+            } catch (error) {
+              console.error("Reading alignment failed", error);
+              job.status = "failed";
+              job.stage = "Failed";
+            } finally {
+              await saveAlignment(file, job);
+            }
+          },
+        );
+        return json(res, 202, { job });
+      }
     }
     if (url.pathname === "/v1/analyze" && req.method === "POST") {
       const input = analysisSchema.parse(await body(req));
@@ -473,6 +606,8 @@ const server = http.createServer(async (req, res) => {
       if (input.callback && !origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));
+      if (alignmentPending(input.projectId, input.outputEnvironment))
+        return json(res, 409, { error: "Wait for generation to finish" });
       if (
         generationQueue.hasPending(
           input.projectId,
@@ -706,3 +841,12 @@ for (const signal of ["SIGINT", "SIGTERM"] as const)
     server.close();
     process.exit(0);
   });
+
+// A detached alignment process group must not survive an API restart.
+process.once("exit", stopAlignmentWorkers);
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, () => {
+    stopAlignmentWorkers();
+    process.exit(0);
+  });
+}

@@ -1,4 +1,5 @@
 "use client";
+import type { AlignmentJob } from "../../../../tools/video-project-api/src/forced-alignment-result";
 import type { VoicePart } from "../../../../tools/video-project-api/src/chapter-introductions";
 import { pollWhileVisible } from "../lib/visible-polling";
 import Link from "next/link";
@@ -26,6 +27,7 @@ import {
   Check,
   Clapperboard,
   CircleCheck,
+  ScanText,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
@@ -85,7 +87,19 @@ export function VideoProjectEditor({
   settingsRef.current = settings;
   const [analysis, setAnalysis] = useState<Inspection | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const analysisRequest = useRef(0);
+  const [alignmentJob, setAlignmentJob] = useState<AlignmentJob | null>(null);
+  const [alignmentLoaded, setAlignmentLoaded] = useState(false);
+  const [applyingAlignment, setApplyingAlignment] = useState(false);
+  const [alignmentError, setAlignmentError] = useState("");
+  const handledAlignment = useRef<string | null>(null);
+  const [alignmentRevision, setAlignmentRevision] = useState(0);
+  const alignmentPending = Boolean(
+    alignmentJob && ["queued", "running"].includes(alignmentJob.status),
+  );
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
   const [error, setError] = useState("");
   const [analysisError, setAnalysisError] = useState("");
   const [voiceError, setVoiceError] = useState("");
@@ -146,6 +160,13 @@ export function VideoProjectEditor({
   );
   useEffect(() => {
     setMediaAccess(null);
+    setAnalysis(null);
+    analysisRequest.current++;
+    setAlignmentJob(null);
+    setAlignmentLoaded(false);
+    setAlignmentError("");
+    setApplyingAlignment(false);
+    handledAlignment.current = null;
     setExpanded(new Set());
     setPreviewOpen(false);
     setPreviewReading(null);
@@ -153,9 +174,13 @@ export function VideoProjectEditor({
     setPreviewView("composition");
     setPlayingVoice(null);
     for (const player of Object.values(voicePlayers.current)) player?.pause();
+    return () => {
+      analysisRequest.current++;
+    };
   }, [base]);
   const inspect = useCallback(
     async (values: Settings) => {
+      const request = ++analysisRequest.current;
       setAnalyzing(true);
       setAnalysisError("");
       try {
@@ -164,11 +189,12 @@ export function VideoProjectEditor({
           method: "POST",
           body: JSON.stringify({ ...values, verseOffsets: [] }),
         });
-        setAnalysis(data);
+        if (request === analysisRequest.current) setAnalysis(data);
       } catch (cause) {
-        setAnalysisError(userMessage(cause));
+        if (request === analysisRequest.current)
+          setAnalysisError(userMessage(cause));
       } finally {
-        setAnalyzing(false);
+        if (request === analysisRequest.current) setAnalyzing(false);
       }
     },
     [endpoint],
@@ -249,6 +275,84 @@ export function VideoProjectEditor({
       stopPolling();
     };
   }, [project?.project_id, endpoint]);
+  useEffect(() => {
+    if (String(project?.project_id) !== projectId || !analysis) return;
+    let live = true;
+    const refresh = async () => {
+      try {
+        const { job } = await api<{ job: AlignmentJob | null }>(
+          endpoint("alignment"),
+        );
+        if (!live) return;
+        setAlignmentJob(job);
+        setAlignmentLoaded(true);
+        if (job?.status === "failed") {
+          setAlignmentError(
+            "Could not analyze the reading. Check that the recording matches the Bible text and try again. If the problem continues, contact your administrator.",
+          );
+        }
+        if (
+          job?.status === "done" &&
+          !busyRef.current &&
+          job.result &&
+          settingsRef.current.alignmentJobId !== job.id &&
+          handledAlignment.current !== job.id
+        ) {
+          handledAlignment.current = job.id;
+          setApplyingAlignment(true);
+          try {
+            const data = await api<{ settings: Settings }>(
+              endpoint("alignment/apply"),
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  jobId: job.id,
+                  settings: settingsRef.current,
+                  expectedSettings: projectState.current?.settings,
+                }),
+              },
+            );
+            if (!live) return;
+            setSettings(data.settings);
+            setProject((current) =>
+              current
+                ? { ...current, settings: JSON.stringify(data.settings) }
+                : current,
+            );
+            await inspect(data.settings);
+            if (live)
+              setNotice(
+                "AI timing analysis is saved. Review the verse cuts; your manual adjustments were preserved.",
+              );
+            window.dispatchEvent(new Event(queueChangedEvent));
+          } catch (cause) {
+            if (live) setAlignmentError(userMessage(cause));
+          } finally {
+            if (live) setApplyingAlignment(false);
+          }
+        }
+      } catch (cause) {
+        if (live) {
+          setAlignmentLoaded(true);
+          setAlignmentError(userMessage(cause));
+        }
+        throw cause;
+      }
+    };
+    // Also discover jobs started in another editor and results finished while away.
+    const stop = pollWhileVisible(refresh, () => true, 5000);
+    return () => {
+      live = false;
+      stop();
+    };
+  }, [
+    project?.project_id,
+    projectId,
+    Boolean(analysis),
+    endpoint,
+    inspect,
+    alignmentRevision,
+  ]);
   const active = Boolean(
     project && ["queued", "running"].includes(project.status),
   );
@@ -275,7 +379,12 @@ export function VideoProjectEditor({
     kind === "long"
       ? "Generate all section narrations before generating the video."
       : "Generate the introduction and closing voices before generating the video.";
-  const editingLocked = busy || active;
+  const editingLocked =
+    busy ||
+    active ||
+    alignmentPending ||
+    applyingAlignment ||
+    Boolean(analysis && !alignmentLoaded);
   const locked = editingLocked;
   const timeline = readingTimeline(analysis?.sections ?? []);
   const cues = adjustedCues(analysis?.cues ?? [], settings.verseOffsets);
@@ -320,6 +429,23 @@ export function VideoProjectEditor({
     });
     setSaved(true);
   };
+  const queueAlignment = async (sectionIndex?: number) => {
+    if (!analysis || analyzing || editingLocked) return;
+    await perform(async () => {
+      await save();
+      setAlignmentError("");
+      const { job } = await api<{ job: AlignmentJob }>(endpoint("alignment"), {
+        method: "POST",
+        body: JSON.stringify({ ...checkedSettings(), sectionIndex }),
+      });
+      setAlignmentJob(job);
+      handledAlignment.current = null;
+      setNotice(
+        "Timing analysis was added to the generation queue. You can leave this project and return when it finishes.",
+      );
+      window.dispatchEvent(new Event(queueChangedEvent));
+    });
+  };
   const trim = (
     reference: string,
     edge: "start" | "end",
@@ -340,6 +466,11 @@ export function VideoProjectEditor({
       };
       return {
         ...current,
+        alignmentReviewReferences: manuallyAdjusted
+          ? current.alignmentReviewReferences?.filter(
+              (item) => item !== reference,
+            )
+          : current.alignmentReviewReferences,
         verseOffsets: [
           ...current.verseOffsets.filter(
             (offset) => offset.reference !== reference,
@@ -578,6 +709,20 @@ export function VideoProjectEditor({
           ) : (
             <AudioWaveform size={17} />
           )}
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={t("Analyze this reading with AI")}
+          data-tooltip={t(
+            "Analyze this reading with AI. Manual verse adjustments are preserved.",
+          )}
+          disabled={locked || analyzing || !readingReferences.length}
+          onClick={() =>
+            void queueAlignment(Number(id.replace("reading-", "")))
+          }
+        >
+          <ScanText size={17} />
         </button>
         <span className="section-action-separator" aria-hidden="true" />
         <button
@@ -1063,6 +1208,18 @@ export function VideoProjectEditor({
                   <WandSparkles size={17} />
                 )}
               </button>
+              <button
+                type="button"
+                className="icon-button section-toolbar-button"
+                aria-label={t("Analyze all readings with AI")}
+                data-tooltip={t(
+                  "Analyze all readings with AI. Manual verse adjustments are preserved.",
+                )}
+                disabled={locked || analyzing || !analysis}
+                onClick={() => void queueAlignment()}
+              >
+                <ScanText size={17} />
+              </button>
               <span className="section-action-separator" aria-hidden="true" />
               <button
                 type="button"
@@ -1080,6 +1237,44 @@ export function VideoProjectEditor({
               </button>
             </div>
           </div>
+          {(alignmentPending || applyingAlignment) && (
+            <div role="status" className="notice">
+              <GenerationProgress
+                value={alignmentJob?.progress ?? 0}
+                label={t(
+                  applyingAlignment
+                    ? "Applying analyzed timings…"
+                    : alignmentJob?.status === "queued"
+                      ? "Timing analysis is queued"
+                      : "Analyzing reading timings…",
+                )}
+              />
+              <p>
+                {t(
+                  "Manual verse adjustments are preserved. You can keep editing other projects.",
+                )}
+              </p>
+            </div>
+          )}
+          {alignmentError && (
+            <div role="alert" className="notice">
+              <p>{t(alignmentError)}</p>
+              {alignmentJob?.status === "done" &&
+                settings.alignmentJobId !== alignmentJob.id && (
+                  <button
+                    type="button"
+                    disabled={locked || analyzing}
+                    onClick={() => {
+                      handledAlignment.current = null;
+                      setAlignmentError("");
+                      setAlignmentRevision((value) => value + 1);
+                    }}
+                  >
+                    {t("Apply analyzed timings")}
+                  </button>
+                )}
+            </div>
+          )}
           {voiceSection("intro", 1)}
           {timeline.length ? (
             timeline.map((section) => {
@@ -1115,6 +1310,24 @@ export function VideoProjectEditor({
                       hidden={!expanded.has(id)}
                       className="section-body"
                     >
+                      {settings.alignmentReviewReferences?.some((reference) =>
+                        verses.some((cue) => cue.reference === reference),
+                      ) && (
+                        <p className="notice">
+                          {t(
+                            "Listen carefully to these verse cuts: {references}",
+                          ).replace(
+                            "{references}",
+                            settings.alignmentReviewReferences
+                              .filter((reference) =>
+                                verses.some(
+                                  (cue) => cue.reference === reference,
+                                ),
+                              )
+                              .join(", "),
+                          )}
+                        </p>
+                      )}
                       {expanded.has(id) && (
                         <VerseWaveform
                           locale={project.locale}
