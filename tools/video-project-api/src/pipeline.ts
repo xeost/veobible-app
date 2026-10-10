@@ -1,3 +1,4 @@
+import { prepareTrimmedVoice } from "./voice-trim.js";
 import {
   videoFilename,
   thumbnailFilename,
@@ -508,6 +509,35 @@ export async function render(
       input.kind === "short"
         ? shortVideo.renderShortVideo
         : longVideo.renderEpisodeVideo;
+    const trimmedVoices = {
+      ...voices,
+      intro: await prepareTrimmedVoice(
+        voices.intro,
+        input.settings.voiceTrims?.intro,
+        work,
+        "intro",
+        m.config,
+      ),
+      outro: await prepareTrimmedVoice(
+        voices.outro,
+        input.settings.voiceTrims?.outro,
+        work,
+        "outro",
+        m.config,
+      ),
+    };
+    const trimmedChapters = await Promise.all(
+      chapterIntroductions.map(async (chapter) => ({
+        ...chapter,
+        file: await prepareTrimmedVoice(
+          chapterFiles.find((file) => file.part === chapter.part)!.file,
+          input.settings.voiceTrims?.[chapter.part],
+          work,
+          chapter.part,
+          m.config,
+        ),
+      })),
+    );
     const final = path.join(work, "video.mp4");
     const result = await renderer(
       final,
@@ -516,16 +546,13 @@ export async function render(
       title,
       await m.outro(version.locale, input.socialAccounts),
       cues,
-      voices,
+      trimmedVoices,
       work,
       input.settings.volumeMultiplier,
       {
         bibleVersionTitle: input.version.label,
         background: input.settings.background,
-        chapterIntroductions: chapterIntroductions.map((chapter) => ({
-          ...chapter,
-          file: chapterFiles.find((file) => file.part === chapter.part)!.file,
-        })),
+        chapterIntroductions: trimmedChapters,
         onProgress: (progress) =>
           update("Renderizando con Remotion", 45 + progress * 50),
       },

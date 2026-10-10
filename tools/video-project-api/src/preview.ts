@@ -1,3 +1,4 @@
+import { prepareTrimmedVoice } from "./voice-trim.js";
 import type { VoicePart } from "./chapter-introductions.js";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -90,6 +91,45 @@ export async function createPreview(
       !(input.voicePart === "intro" || input.voicePart === "outro")
         ? await projectChapterVoiceFiles(input)
         : [];
+    const narration = readingOnly
+      ? undefined
+      : {
+          intro: await prepareTrimmedVoice(
+            path.join(voices, voiceFilename("intro")),
+            input.voicePart === "outro"
+              ? undefined
+              : input.settings.voiceTrims?.intro,
+            directory,
+            "intro",
+            m.config,
+          ),
+          outro: await prepareTrimmedVoice(
+            path.join(voices, voiceFilename("outro")),
+            input.voicePart === "intro"
+              ? undefined
+              : input.settings.voiceTrims?.outro,
+            directory,
+            "outro",
+            m.config,
+          ),
+          mode: "voice" as const,
+        };
+    const trimmedChapters = await Promise.all(
+      (selectedChapter ? [selectedChapter] : chapterIntroductions)
+        .filter((chapter) =>
+          chapterFiles.some((file) => file.part === chapter.part),
+        )
+        .map(async (chapter) => ({
+          ...chapter,
+          file: await prepareTrimmedVoice(
+            chapterFiles.find((file) => file.part === chapter.part)!.file,
+            input.settings.voiceTrims?.[chapter.part],
+            directory,
+            chapter.part,
+            m.config,
+          ),
+        })),
+    );
     const prepare = input.kind === "short" ? shortComposition : longComposition;
     // Keep the prepared reading audio at its original volume so the Player can adjust it live.
     const composition = await prepare(
@@ -98,13 +138,7 @@ export async function createPreview(
       title,
       await m.outro(version.locale, input.socialAccounts),
       cues,
-      readingOnly
-        ? undefined
-        : {
-            intro: path.join(voices, voiceFilename("intro")),
-            outro: path.join(voices, voiceFilename("outro")),
-            mode: "voice",
-          },
+      narration,
       directory,
       1,
       {
@@ -115,18 +149,7 @@ export async function createPreview(
           input.voicePart === "intro" || input.voicePart === "outro"
             ? input.voicePart
             : undefined,
-        chapterIntroductions:
-          input.kind === "long" &&
-          !input.readingReferences &&
-          !(input.voicePart === "intro" || input.voicePart === "outro")
-            ? (selectedChapter ? [selectedChapter] : chapterIntroductions).map(
-                (chapter) => ({
-                  ...chapter,
-                  file: chapterFiles.find((file) => file.part === chapter.part)!
-                    .file,
-                }),
-              )
-            : [],
+        chapterIntroductions: trimmedChapters,
       },
     );
     if (chapterOnly && composition.props.chapterIntroductions?.length) {

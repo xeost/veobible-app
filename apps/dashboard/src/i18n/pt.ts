@@ -1,4 +1,12 @@
 export const portuguese: Record<string, string> = {
+  "Voice trim start": "Início do recorte de voz",
+  "Voice trim end": "Fim do recorte de voz",
+  "Select the voice fragment to use in previews and the final video. The original recording is kept.":
+    "Selecione o trecho de voz a usar nas prévias e no vídeo final. A gravação original é preservada.",
+  "Could not load the waveform. You can still adjust the start and end times.":
+    "Não foi possível carregar a forma de onda. Você ainda pode ajustar os tempos de início e fim.",
+  "Use full recording": "Usar gravação completa",
+
   "Edit the narration before generating or regenerating its audio. Save changes to keep this text for the project. Write numbers as words for clearer pronunciation.":
     "Edite o texto antes de gerar ou regenerar seu áudio. Salve as alterações para manter este texto no projeto. Escreva os números por extenso para uma pronúncia mais clara.",
 

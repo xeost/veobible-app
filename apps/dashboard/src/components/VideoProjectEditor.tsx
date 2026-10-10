@@ -54,6 +54,7 @@ import {
 } from "./VideoProjectPreview";
 import { GenerationProgress } from "./GenerationProgress";
 import { expandReadingContext } from "../../../../tools/video-project-api/src/reading-timeline";
+import { VoiceWaveform } from "./VoiceWaveform";
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
 type Settings = RenderRequest["settings"];
@@ -415,9 +416,20 @@ export function VideoProjectEditor({
     return true;
   };
   const queueVoice = async (part: VoicePart) => {
+    const generationSettings = checkedSettings();
+    const trims = { ...generationSettings.voiceTrims };
+    delete trims[part];
     await api(endpoint("voices"), {
       method: "POST",
-      body: JSON.stringify({ part, settings: checkedSettings() }),
+      body: JSON.stringify({
+        part,
+        settings: { ...generationSettings, voiceTrims: trims },
+      }),
+    });
+    setSettings((current) => {
+      const currentTrims = { ...current.voiceTrims };
+      delete currentTrims[part];
+      return { ...current, voiceTrims: currentTrims };
     });
     setVoices((current) => ({
       ...current,
@@ -747,33 +759,37 @@ export function VideoProjectEditor({
             </div>
             <h3>{t("Narration preview")}</h3>
             {voice.available && !pending ? (
-              <audio
-                ref={(player) => {
+              <VoiceWaveform
+                audioRef={(player) => {
                   if (player) voicePlayers.current[part] = player;
                   else delete voicePlayers.current[part];
                 }}
                 key={`${part}-${voice.status}-${voiceRevision}`}
-                controls
-                preload="metadata"
                 src={`${media(part)}&revision=${voiceRevision}`}
-                onPlay={() => {
-                  Object.entries(voicePlayers.current).forEach(
-                    ([key, player]) => {
-                      if (key !== part) player?.pause();
-                    },
-                  );
-                  setPlayingVoice(part);
+                expanded={expanded.has(part)}
+                disabled={editingLocked || pending}
+                trim={settings.voiceTrims?.[part]}
+                onTrim={(trim) =>
+                  setSettings((current) => {
+                    const trims = { ...current.voiceTrims };
+                    if (trim) trims[part] = trim;
+                    else delete trims[part];
+                    return { ...current, voiceTrims: trims };
+                  })
+                }
+                onPlaybackChange={(playing) => {
+                  if (playing) {
+                    Object.entries(voicePlayers.current).forEach(
+                      ([key, player]) => {
+                        if (key !== part) player?.pause();
+                      },
+                    );
+                    setPlayingVoice(part);
+                  } else
+                    setPlayingVoice((current) =>
+                      current === part ? null : current,
+                    );
                 }}
-                onPause={() =>
-                  setPlayingVoice((current) =>
-                    current === part ? null : current,
-                  )
-                }
-                onEnded={() =>
-                  setPlayingVoice((current) =>
-                    current === part ? null : current,
-                  )
-                }
                 onError={() => {
                   setPlayingVoice((current) =>
                     current === part ? null : current,

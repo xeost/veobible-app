@@ -77,6 +77,7 @@ const {
   generateProjectVoice,
 } = await import("../pipeline.js");
 const { renderSchema } = await import("../protocol.js");
+const { audioDurationSeconds } = await import("../engines/short/shorts.js");
 for (const [kind, outputEnvironment] of [
   ["short", "production"],
   ["long", "production"],
@@ -431,6 +432,13 @@ for (const [kind, outputEnvironment] of [
     await fs.readFile(path.join(voices, voiceFilename("intro", "txt")), "utf8"),
     /Introducción/,
   );
+  input.settings.voiceTrims = {
+    intro: { startSeconds: 0.05, endSeconds: 0.2 },
+    outro: { startSeconds: 0.025, endSeconds: 0.175 },
+    ...(kind === "long"
+      ? { "chapter-0": { startSeconds: 0.05, endSeconds: 0.15 } }
+      : {}),
+  };
   // Current waveform cuts must survive request parsing and replace estimated timings.
   input.readingCuts = preview.cues.map((cue) => ({
     reference: cue.reference,
@@ -484,9 +492,17 @@ for (const [kind, outputEnvironment] of [
       version: input.version.id,
       passage: input.passage.id,
     };
-    assert.equal(
-      previewAsset(prepared.props.voices!.intro, scope),
-      path.join(voices, voiceFilename("intro")),
+    const selectedVoice = previewAsset(prepared.props.voices!.intro, scope)!;
+    assert.equal(path.basename(selectedVoice), "intro-trimmed.wav");
+    assert.ok(
+      Math.abs((await audioDurationSeconds(selectedVoice)) - 0.15) < 0.001,
+    );
+    assert.ok(
+      Math.abs(
+        (await audioDurationSeconds(
+          path.join(voices, voiceFilename("intro")),
+        )) - 0.25,
+      ) < 0.001,
     );
     assert.equal(
       previewAsset(prepared.props.voices!.intro, {

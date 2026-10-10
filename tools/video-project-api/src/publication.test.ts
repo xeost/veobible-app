@@ -50,7 +50,15 @@ test("documented templates cover each platform and language with usable titles a
         kind,
         url,
       );
-      assert.equal(Object.keys(result).length, publicationPlatforms(kind).length * (kind === "long" ? 2 : 1) + (kind === "short" ? 1 : 0));
+      assert.equal(
+        Object.keys(result).length,
+        Object.values(templates).reduce(
+          (total, template) =>
+            total +
+            Math.max(1, [...template.matchAll(/^ {0,3}#{1,6}[ \t]+/gm)].length),
+          0,
+        ),
+      );
       for (const [filename, text] of Object.entries(result)) {
         assert.ok(text.includes(title.reference));
         assert.doesNotMatch(text, /[{}]/);
@@ -66,9 +74,12 @@ test("documented templates cover each platform and language with usable titles a
             es: "Un momento con la Biblia",
             pt: "Um momento com a Bíblia",
           }[locale];
-          assert.equal(text.trim(), kind === "long"
-            ? `${longTitle} | ${title.reference}`
-            : `${title.reference} | ${shortTitle}`);
+          assert.equal(
+            text.trim(),
+            kind === "long"
+              ? `${longTitle} | ${title.reference}`
+              : `${title.reference} | ${shortTitle}`,
+          );
           assert.doesNotMatch(text, /\p{Extended_Pictographic}/u);
         } else {
           assert.ok(text.includes(title.version));
@@ -173,15 +184,23 @@ test("episode placeholders use the saved day and remain empty when it is unavail
   );
 });
 
-
 test("book hashtags omit chapter and verse ranges, preserving numbered book names", () => {
   for (const kind of ["short", "long"] as const) {
     for (const [reference, expected] of [
-      ["Mateo 1–4", "#Mateo"], ["Mateo capítulos 1 al 4", "#Mateo"],
-      ["John chapters 1 to 4", "#John"], ["João 3:16–17", "#Joao"],
-      ["1 Samuel 1–3", "#1Samuel"], ["Genesis 1–2 · Exodus 1", "#Genesis"],
+      ["Mateo 1–4", "#Mateo"],
+      ["Mateo capítulos 1 al 4", "#Mateo"],
+      ["John chapters 1 to 4", "#John"],
+      ["João 3:16–17", "#Joao"],
+      ["1 Samuel 1–3", "#1Samuel"],
+      ["Genesis 1–2 · Exodus 1", "#Genesis"],
     ]) {
-      const text = publicationDescriptions("es", { title: "Title", reference, version: "Bible" }, [], { youtube: "{hashtags}" }, kind)["3-youtube.txt"];
+      const text = publicationDescriptions(
+        "es",
+        { title: "Title", reference, version: "Bible" },
+        [],
+        { youtube: "{hashtags}" },
+        kind,
+      )["3-youtube.txt"];
       assert.ok(text.split(/\s+/).includes(expected), text);
       assert.doesNotMatch(text, /#(?:Mateo|John|Joao|Genesis)\d/);
     }
@@ -189,12 +208,22 @@ test("book hashtags omit chapter and verse ranges, preserving numbered book name
 });
 
 test("headings split into numbered plain text files before placeholders are expanded", () => {
-  const result = publicationDescriptions("en", { title: "A title", reference: "John 1", version: "Bible" }, ["# Not a template heading"], {
-    youtube: "# Title\r\n{title}\r\n\r\n# Description\r\n{passage}\r\n\r\n## Extra\r\nMore text",
-    facebook: "# Description\nFacebook copy",
-  }, "short");
+  const result = publicationDescriptions(
+    "en",
+    { title: "A title", reference: "John 1", version: "Bible" },
+    ["# Not a template heading"],
+    {
+      youtube:
+        "# Title\r\n{title}\r\n\r\n# Description\r\n{passage}\r\n\r\n## Extra\r\nMore text",
+      facebook: "# Description\nFacebook copy",
+    },
+    "short",
+  );
   assert.equal(thumbnailFilename(result), "3.4-thumbnail.jpg");
-  assert.equal(thumbnailFilename({ "3-youtube.txt": "Copy" }), "3.1-thumbnail.jpg");
+  assert.equal(
+    thumbnailFilename({ "3-youtube.txt": "Copy" }),
+    "3.1-thumbnail.jpg",
+  );
   assert.deepEqual(result, {
     "2.1-facebook.txt": "Facebook copy\n",
     "3.1-youtube.txt": "A title\n",

@@ -525,11 +525,26 @@ export async function videoApi(
           },
           400,
         );
+      const voiceTrims = { ...common.settings.voiceTrims };
+      delete voiceTrims[part];
+      common.settings.voiceTrims = voiceTrims;
       const response = await videoFetch(`/v1/projects/${id}/voices`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...common, part }),
       });
+      if (response.ok) {
+        const stored = settingsSchema.parse(JSON.parse(project.settings));
+        if (stored.voiceTrims?.[part]) {
+          delete stored.voiceTrims[part];
+          await database
+            .prepare(
+              "UPDATE video_projects SET settings=?,updated_at=? WHERE id=?",
+            )
+            .bind(JSON.stringify(stored), new Date().toISOString(), id)
+            .run();
+        }
+      }
       return new Response(response.body, {
         status: response.status,
         headers: { "Content-Type": "application/json" },

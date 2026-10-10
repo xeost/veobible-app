@@ -80,3 +80,26 @@ test("project narration overrides survive saving and reject empty or unsupported
     settingsSchema.parse({ voiceScriptOverrides: { "reading-0": "Text" } }),
   );
 });
+
+test("voice cuts are saved per narration and reject reversed or empty selections", () => {
+  const cuts = {
+    intro: { startSeconds: 0.4, endSeconds: 5.5 },
+    "chapter-0": { startSeconds: 0, endSeconds: 2 },
+  };
+  assert.deepEqual(settingsSchema.parse({ voiceTrims: cuts }).voiceTrims, cuts);
+  assert.throws(() =>
+    settingsSchema.parse({
+      voiceTrims: { outro: { startSeconds: 2, endSeconds: 1 } },
+    }),
+  );
+  assert.throws(() =>
+    settingsSchema.parse({
+      voiceTrims: { intro: { startSeconds: -1, endSeconds: 3 } },
+    }),
+  );
+  assert.throws(() =>
+    settingsSchema.parse({
+      voiceTrims: { "reading-0": { startSeconds: 0, endSeconds: 2 } },
+    }),
+  );
+});

@@ -6,6 +6,17 @@ const point = z.object({
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  voiceTrims: z
+    .record(
+      z.string().regex(/^(?:intro|outro|chapter-\d+)$/),
+      z
+        .object({
+          startSeconds: z.number().finite().nonnegative(),
+          endSeconds: z.number().finite().positive(),
+        })
+        .refine((trim) => trim.endSeconds - trim.startSeconds >= 0.02),
+    )
+    .optional(),
   voiceScriptOverrides: z
     .record(
       z.string().regex(/^(?:intro|outro|chapter-\d+)$/),
