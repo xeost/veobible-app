@@ -1,4 +1,26 @@
 export const spanish: Record<string, string> = {
+  "Wait for cleanup to finish before starting generation.":
+    "Espera a que termine la limpieza antes de iniciar la generación.",
+  "Clean up published short video files":
+    "Limpiar archivos de videos cortos publicados",
+  "Clean up published long video files":
+    "Limpiar archivos de videos largos publicados",
+  "Clean up published files": "Limpiar archivos publicados",
+  "Delete local folders for all published projects of this format. Projects with generation tasks are kept.":
+    "Elimina las carpetas locales de todos los proyectos publicados de este formato. Se conservan los proyectos con tareas de generación.",
+  "Delete {count} published project folders? This permanently removes their local videos, narrations, images and other generated files. Saved projects and publication marks are kept.":
+    "¿Eliminar {count} carpetas de proyectos publicados? Se eliminarán permanentemente sus videos locales, narraciones, imágenes y demás archivos generados. Se conservan los proyectos guardados y sus marcas de publicación.",
+  "No published project folders to delete.":
+    "No hay carpetas de proyectos publicados para eliminar.",
+  "{count} projects with generation tasks will be kept.":
+    "Se conservarán {count} proyectos con tareas de generación.",
+  "Delete project folders": "Eliminar carpetas de proyectos",
+  "Deleted {count} published project folders.":
+    "Se eliminaron {count} carpetas de proyectos publicados.",
+  "Some project folders could not be deleted. Try again.":
+    "No se pudieron eliminar algunas carpetas de proyectos. Inténtalo de nuevo.",
+  "Could not clean up published project files. Check that generation is available and try again.":
+    "No se pudieron limpiar los archivos de los proyectos publicados. Comprueba que la generación esté disponible e inténtalo de nuevo.",
   "Listen carefully to these verse cuts: {references}":
     "Escucha con atención los cortes de estos versículos: {references}",
   "Apply analyzed timings": "Aplicar tiempos analizados",

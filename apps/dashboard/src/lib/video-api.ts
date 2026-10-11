@@ -4,6 +4,10 @@ import {
   type AlignmentJob,
 } from "../../../../tools/video-project-api/src/forced-alignment-result";
 import {
+  publishedCleanupSchema,
+  publishedCleanupProjects,
+} from "./project-cleanup";
+import {
   listingSelect,
   listVideoProjects,
   nextVideoProject,
@@ -129,6 +133,47 @@ export async function videoApi(
     }
   }
   if (parts[0] !== "videos") return null;
+  if (
+    parts[1] === "cleanup-published" &&
+    parts.length === 2 &&
+    method === "POST"
+  ) {
+    const input = publishedCleanupSchema.parse(await req.json());
+    const projects = await publishedCleanupProjects(database, input);
+    try {
+      const response = await videoFetch("/v1/projects/cleanup-published", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: input.kind,
+          action: input.action,
+          projects,
+          outputEnvironment,
+        }),
+        signal: AbortSignal.timeout(120000),
+      });
+      if (!response.ok) throw new Error("Project cleanup unavailable");
+      const data = z
+        .object({
+          eligibleIds: z.array(z.number().int().positive()),
+          deletedIds: z.array(z.number().int().positive()),
+          skippedIds: z.array(z.number().int().positive()),
+          missingIds: z.array(z.number().int().positive()),
+          failedIds: z.array(z.number().int().positive()),
+        })
+        .parse(await response.json());
+      return json(data);
+    } catch (error) {
+      console.error("Published project cleanup failed", error);
+      return json(
+        {
+          error:
+            "Could not clean up published project files. Check that generation is available and try again.",
+        },
+        503,
+      );
+    }
+  }
   if (parts[1] === "final-videos" && parts.length === 2 && method === "POST") {
     const { ids } = z
       .object({

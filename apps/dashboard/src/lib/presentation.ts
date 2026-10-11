@@ -111,6 +111,8 @@ const messages = new Set([
   "Version not found",
   "No files available",
   "Wait for generation to finish",
+  "Wait for cleanup to finish before starting generation.",
+  "Could not clean up published project files. Check that generation is available and try again.",
   "A generation is already in progress",
   "Generation was interrupted. You can generate the video again with your saved settings.",
   "Publishing updates is not available yet. Contact your administrator.",
@@ -170,6 +172,8 @@ export function userMessage(
     status === 403
   ) {
     result = "You do not have permission to perform this action.";
+  } else if (/Wait for project cleanup/i.test(text)) {
+    result = "Wait for cleanup to finish before starting generation.";
   } else if (/overlap|solap|invalid verse timing/i.test(text)) {
     result =
       "Some verse times overlap or fall outside the passage. Review the start and end adjustments.";

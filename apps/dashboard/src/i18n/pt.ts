@@ -1,4 +1,26 @@
 export const portuguese: Record<string, string> = {
+  "Wait for cleanup to finish before starting generation.":
+    "Aguarde a limpeza terminar antes de iniciar a geração.",
+  "Clean up published short video files":
+    "Limpar arquivos de vídeos curtos publicados",
+  "Clean up published long video files":
+    "Limpar arquivos de vídeos longos publicados",
+  "Clean up published files": "Limpar arquivos publicados",
+  "Delete local folders for all published projects of this format. Projects with generation tasks are kept.":
+    "Exclui as pastas locais de todos os projetos publicados deste formato. Projetos com tarefas de geração são mantidos.",
+  "Delete {count} published project folders? This permanently removes their local videos, narrations, images and other generated files. Saved projects and publication marks are kept.":
+    "Excluir {count} pastas de projetos publicados? Seus vídeos locais, narrações, imagens e outros arquivos gerados serão excluídos permanentemente. Os projetos salvos e suas marcas de publicação serão mantidos.",
+  "No published project folders to delete.":
+    "Não há pastas de projetos publicados para excluir.",
+  "{count} projects with generation tasks will be kept.":
+    "Serão mantidos {count} projetos com tarefas de geração.",
+  "Delete project folders": "Excluir pastas de projetos",
+  "Deleted {count} published project folders.":
+    "Foram excluídas {count} pastas de projetos publicados.",
+  "Some project folders could not be deleted. Try again.":
+    "Não foi possível excluir algumas pastas de projetos. Tente novamente.",
+  "Could not clean up published project files. Check that generation is available and try again.":
+    "Não foi possível limpar os arquivos dos projetos publicados. Verifique se a geração está disponível e tente novamente.",
   "Listen carefully to these verse cuts: {references}":
     "Ouça com atenção os cortes destes versículos: {references}",
   "Apply analyzed timings": "Aplicar tempos analisados",

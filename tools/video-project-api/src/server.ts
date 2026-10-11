@@ -1,4 +1,8 @@
 import { openProjectFolder } from "./open-project-folder.js";
+import {
+  cleanupProjectFolders,
+  cleanupRequestSchema,
+} from "./project-cleanup.js";
 import type { VoicePart } from "./chapter-introductions.js";
 import { loadProjectProposals } from "./project-proposals.js";
 import {
@@ -101,6 +105,9 @@ const readingSources = new Map<
 const jobs = new Map<string, Job>();
 const voiceJobs = new Map<string, Partial<Record<VoicePart, Job>>>();
 const generationQueue = new GenerationQueue();
+const cleaningOutputs = new Set<string>();
+const cleanupKey = (kind: string, environment: string) =>
+  `${environment}:${kind}`;
 const alignmentJobs = new Map<string, AlignmentJob>();
 const alignmentFile = (
   kind: string,
@@ -197,6 +204,50 @@ const server = http.createServer(async (req, res) => {
       } catch (error) {
         console.error("Could not open project folder", error);
         return json(res, 409, { error: "Could not open project folder" });
+      }
+    }
+    if (
+      url.pathname === "/v1/projects/cleanup-published" &&
+      req.method === "POST"
+    ) {
+      const input = cleanupRequestSchema.parse(await body(req));
+      const key = cleanupKey(input.kind, input.outputEnvironment);
+      if (cleaningOutputs.has(key))
+        return json(res, 409, { error: "Project cleanup is already running" });
+      // Reserve before any filesystem await. Generation requests cannot start
+      // writing new folders while this cleanup is checking or removing them.
+      cleaningOutputs.add(key);
+      try {
+        const activeIds = new Set(
+          generationQueue
+            .snapshot()
+            .filter(
+              (entry) =>
+                entry.kind === input.kind &&
+                (entry.outputEnvironment ?? "production") ===
+                  input.outputEnvironment &&
+                ["queued", "running"].includes(entry.status),
+            )
+            .map((entry) => entry.projectId),
+        );
+        for (const project of input.projects) {
+          const job = alignmentJobs.get(
+            alignmentFile(input.kind, input.outputEnvironment, project.id),
+          );
+          if (job && ["queued", "running"].includes(job.status))
+            activeIds.add(project.id);
+        }
+        return json(
+          res,
+          200,
+          await cleanupProjectFolders(
+            input,
+            outputRoot(input.kind, input.outputEnvironment),
+            activeIds,
+          ),
+        );
+      } finally {
+        cleaningOutputs.delete(key);
       }
     }
     if (url.pathname === "/v1/projects/final-videos" && req.method === "POST") {
@@ -337,6 +388,12 @@ const server = http.createServer(async (req, res) => {
           .parse(await body(req));
         if (input.projectId !== projectId)
           return json(res, 400, { error: "Project mismatch" });
+        if (
+          cleaningOutputs.has(cleanupKey(input.kind, input.outputEnvironment))
+        )
+          return json(res, 409, {
+            error: "Wait for project cleanup to finish",
+          });
         if (
           alignmentPending(projectId, input.outputEnvironment) ||
           generationQueue.hasPending(
@@ -550,6 +607,12 @@ const server = http.createServer(async (req, res) => {
         if (input.projectId !== projectId)
           return json(res, 400, { error: "Project mismatch" });
         if (
+          cleaningOutputs.has(cleanupKey(input.kind, input.outputEnvironment))
+        )
+          return json(res, 409, {
+            error: "Wait for project cleanup to finish",
+          });
+        if (
           generationQueue.hasPending(
             projectId,
             input.part,
@@ -603,6 +666,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/v1/jobs" && req.method === "POST") {
       const input = renderSchema.parse(await body(req));
+      if (cleaningOutputs.has(cleanupKey(input.kind, input.outputEnvironment)))
+        return json(res, 409, { error: "Wait for project cleanup to finish" });
       if (input.callback && !origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));

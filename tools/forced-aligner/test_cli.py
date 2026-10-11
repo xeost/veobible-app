@@ -124,6 +124,72 @@ class AlignmentTests(unittest.TestCase):
         self.assertEqual(output["segments"][-1]["words"][-1]["end"], 319.8)
 
 
+    def test_negative_rate_drift_keeps_the_source_ending_in_the_last_window(self):
+        chapter = {"index": 0, "audio": "audio.mp3", "duration": 320, "segments": [
+            {"id": str(i), "text": " ".join(f"w{n}" for n in range(i * 5, (i + 1) * 5)),
+             "start": i * 5, "end": (i + 1) * 5} for i in range(64)]}
+        converted = []
+        def convert(args, **kwargs):
+            converted.append((float(args[args.index("-ss") + 1]), float(args[args.index("-t") + 1])))
+        def generate(**kwargs):
+            start, duration = converted[-1]
+            if kwargs["text"].endswith("w319"):
+                self.assertAlmostEqual(start + duration, chapter["duration"])
+            return [SimpleNamespace(text=word, start_time=max(0, int(word[1:]) - 2) + 0.2 - start,
+                                    end_time=max(0, int(word[1:]) - 2) + 0.8 - start)
+                    for word in kwargs["text"].split()]
+        # Keep the first two words distinct while the rest of the recording runs
+        # ahead of the estimated times, as in the English Genesis recording.
+        chapter["segments"][0]["text"] = "w2 w3 w4"
+        with patch("cli.subprocess.run", side_effect=convert):
+            output = align_chapter(chapter, SimpleNamespace(generate=generate), "en", "ffmpeg", lambda value: None)
+        self.assertAlmostEqual(output["segments"][-1]["words"][-1]["end"], 317.8)
+
+    def test_collapsed_verse_retries_with_acoustic_neighbors_and_source_coordinates(self):
+        chapter = {"index": 1, "audio": "audio.mp3", "duration": 60, "segments": [
+            {"id": str(i), "text": " ".join(f"w{n}" for n in range(i * 6, (i + 1) * 6)),
+             "start": i * 12, "end": (i + 1) * 12} for i in range(5)]}
+        calls = []
+        def generate(**kwargs):
+            calls.append(kwargs["text"].split())
+            origin = 0 if len(calls) == 1 else 11.8
+            return [SimpleNamespace(text=word, start_time=int(word[1:]) * 2 + 0.2 - origin,
+                                    end_time=int(word[1:]) * 2 +
+                                    (0.2 if len(calls) == 1 and 12 <= int(word[1:]) <= 15 else 0.8) - origin)
+                    for word in calls[-1]]
+        with patch("cli.subprocess.run") as convert:
+            result = align_chapter(chapter, SimpleNamespace(generate=generate), "en", "ffmpeg", lambda n: None)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1], [f"w{n}" for n in range(6, 24)])
+        extraction = convert.call_args_list[1].args[0]
+        self.assertAlmostEqual(float(extraction[extraction.index("-ss") + 1]), 11.8)
+        self.assertAlmostEqual(result["segments"][2]["words"][0]["start"], 24.2)
+        self.assertAlmostEqual(result["segments"][2]["words"][0]["end"], 24.8)
+        self.assertFalse(result["segments"][2]["needsReview"])
+        self.assertAlmostEqual(result["segments"][1]["words"][0]["start"], 12.2)
+
+    def test_local_refinement_still_rejects_persistently_collapsed_words(self):
+        chapter = {"index": 0, "audio": "audio.mp3", "duration": 20, "segments": [
+            {"id": "a", "text": "one two three four five six", "start": 0, "end": 20}]}
+        def generate(**kwargs):
+            return [SimpleNamespace(text=word, start_time=i, end_time=i + (0.5 if i == 5 else 0))
+                    for i, word in enumerate(kwargs["text"].split())]
+        with patch("cli.subprocess.run"), self.assertRaisesRegex(ValueError, "Too many words.*a"):
+            align_chapter(chapter, SimpleNamespace(generate=generate), "en", "ffmpeg", lambda n: None)
+
+    def test_local_refinement_cannot_overlap_unchanged_neighboring_verses(self):
+        chapter = {"index": 0, "audio": "audio.mp3", "duration": 20, "segments": [
+            {"id": "a", "text": "one two three", "start": 0, "end": 10},
+            {"id": "b", "text": "four five six seven eight nine", "start": 10, "end": 20}]}
+        def generate(**kwargs):
+            return [SimpleNamespace(text=word, start_time=i, end_time=i + (0.5 if i < 3 or i == 8 else 0))
+                    for i, word in enumerate(kwargs["text"].split())]
+        replacement = [{"id": "b", "text": word, "start": i + 2, "end": i + 2.5}
+                       for i, word in enumerate(chapter["segments"][1]["text"].split())]
+        with patch("cli.subprocess.run"), patch("cli.refine_segment", return_value=replacement), \
+                self.assertRaisesRegex(ValueError, "Overlapping alignment windows disagree"):
+            align_chapter(chapter, SimpleNamespace(generate=generate), "en", "ffmpeg", lambda n: None)
+
     def test_short_collapsed_words_are_reviewable_but_empty_segments_fail(self):
         chapter = {"index": 0, "audio": "audio.mp3", "duration": 10, "segments": [
             {"id": "a", "text": "Praise the Lord for his mercy", "start": 0, "end": 10}]}

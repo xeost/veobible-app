@@ -1,5 +1,6 @@
 "use client";
 import { UpdatedAt } from "./UpdatedAt";
+import { PublishedProjectCleanup } from "./PublishedProjectCleanup";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -40,6 +41,7 @@ export function CurrentVideoProjects({
     {},
   );
   const [checkingVideos, setCheckingVideos] = useState(false);
+  const [videoRevision, setVideoRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [openingFolder, setOpeningFolder] = useState<number | null>(null);
@@ -148,7 +150,7 @@ export function CurrentVideoProjects({
     return () => {
       live = false;
     };
-  }, [projectIds]);
+  }, [projectIds, videoRevision]);
 
   const orderedRows = (["short", "long"] as const).flatMap((kind) =>
     orderVersions(
@@ -263,7 +265,10 @@ export function CurrentVideoProjects({
                   : "Current projects · Long videos",
               )}
             </h3>
-            <span className="muted">{t("Marked in this browser")}</span>
+            <PublishedProjectCleanup
+              kind={kind}
+              onDeleted={() => setVideoRevision((value) => value + 1)}
+            />
           </div>
           <div className="table-wrap">
             <table>

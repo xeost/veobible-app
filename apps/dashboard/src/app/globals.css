@@ -722,6 +722,56 @@ main {
 .panel-heading .muted {
   font-size: 10px;
 }
+.published-project-cleanup {
+  text-align: right;
+}
+.published-cleanup-button {
+  padding: 6px 9px;
+  gap: 6px;
+  font-size: 11px;
+  color: #ffabab;
+  border-color: #b9535366;
+  background: #83363633;
+}
+.published-cleanup-button:hover {
+  background: #a43d3d44;
+  border-color: #d4656580;
+}
+.published-cleanup-button svg {
+  width: 14px;
+  height: 14px;
+}
+.published-project-cleanup p {
+  margin: 8px 0 0;
+}
+dialog.published-cleanup-dialog {
+  width: 560px;
+  max-width: calc(100vw - 40px);
+  color: var(--text);
+  text-align: left;
+}
+dialog.published-cleanup-dialog::backdrop {
+  background: #050509c7;
+  backdrop-filter: blur(6px);
+}
+.published-cleanup-dialog h2 {
+  margin-top: 0;
+}
+.published-cleanup-dialog p {
+  line-height: 1.6;
+  font-size: 14px;
+}
+.published-cleanup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+.published-cleanup-actions .danger {
+  color: #ffc1c1;
+  border-color: #b9535366;
+  background: #83363633;
+}
 .state-line {
   display: flex;
   align-items: center;

@@ -111,7 +111,42 @@ def detect_heading(chapter, model, language, ffmpeg):
     raise ValueError("Could not locate the chapter opening in the source audio")
 
 
-def align_chapter(chapter, model, language, ffmpeg, progress, prefix=()):
+def segment_error(words):
+    if not words or words[-1]["end"] - words[0]["start"] < 0.08:
+        return "A transcript segment could not be aligned"
+    if sum(word["end"] <= word["start"] for word in words) > max(2, len(words) * 0.5):
+        return "Too many words without speech duration"
+    return None
+
+
+def refine_segment(chapter, aligned, index, model, language, ffmpeg):
+    # Repeated phrases can collapse inside a long transcript. Use acoustic
+    # boundaries already found for the neighboring verses, not text estimates.
+    selected = chapter["segments"][max(0, index - 1):index + 2]
+    groups = {segment["id"]: [word for word in aligned if word["id"] == segment["id"]]
+              for segment in selected}
+    start = max(0.0, groups[selected[0]["id"]][0]["start"] - 0.4)
+    end = min(chapter["duration"], groups[selected[-1]["id"]][-1]["end"] + 0.4)
+    if end - start < 0.08 or end - start > 240:
+        raise ValueError("Invalid local refinement window")
+    with tempfile.TemporaryDirectory(prefix="veobible-refine-") as directory:
+        wav = str(Path(directory) / "context.wav")
+        subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+                        "-ss", str(start), "-i", chapter["audio"], "-t", str(end - start),
+                        "-vn", "-ac", "1", "-ar", "16000", wav], check=True,
+                       stdout=subprocess.DEVNULL, timeout=120)
+        context = {"index": chapter["index"], "audio": wav, "duration": end - start,
+                   "segments": [{**segment,
+                                 "start": max(0, groups[segment["id"]][0]["start"] - start),
+                                 "end": min(end - start, groups[segment["id"]][-1]["end"] - start)}
+                                for segment in selected]}
+        result = align_chapter(context, model, language, ffmpeg, lambda value: None, refine=False)
+    target = chapter["segments"][index]["id"]
+    words = next(segment["words"] for segment in result["segments"] if segment["id"] == target)
+    return [{**word, "start": word["start"] + start, "end": word["end"] + start} for word in words]
+
+
+def align_chapter(chapter, model, language, ffmpeg, progress, prefix=(), refine=True):
     units = word_units(chapter, prefix)
     chunks = windows(units, chapter["duration"])
     aligned = []
@@ -120,8 +155,11 @@ def align_chapter(chapter, model, language, ffmpeg, progress, prefix=()):
         wav = str(Path(directory) / "chunk.wav")
         for number, (first, last, left, right, start, end) in enumerate(chunks):
             # Carry the previous acoustic anchor forward, avoiding cumulative rate drift.
-            start = max(0.0, start + drift)
-            end = min(chapter["duration"], end + drift)
+            start = 0.0 if left == 0 else max(0.0, start + drift)
+            # The source edges are absolute anchors. A negative rate correction
+            # must not trim the chapter's final words from its last window.
+            end = (chapter["duration"] if right == len(units)
+                   else min(chapter["duration"], end + drift))
             if end <= start or end - start > 240:
                 raise ValueError("Invalid anchored audio window")
             words = units[left:right]
@@ -167,6 +205,13 @@ def align_chapter(chapter, model, language, ffmpeg, progress, prefix=()):
                                 "end": min(chapter["duration"], start + item.end_time)})
             drift = start + core[-1].start_time - units[last - 1]["estimate"]
             progress((number + 1) / len(chunks))
+    if refine:
+        for index, segment in enumerate(chapter["segments"]):
+            words = [word for word in aligned if word["id"] == segment["id"]]
+            if segment_error(words):
+                replacement = refine_segment(chapter, aligned, index, model, language, ffmpeg)
+                first = next(i for i, word in enumerate(aligned) if word["id"] == segment["id"])
+                aligned[first:first + len(words)] = replacement
     for previous, word in zip(aligned, aligned[1:]):
         if word["start"] < previous["end"] - 0.08:
             raise ValueError(f"Overlapping alignment windows disagree: {previous['text']!r} "
@@ -174,12 +219,10 @@ def align_chapter(chapter, model, language, ffmpeg, progress, prefix=()):
     segments = []
     for segment in chapter["segments"]:
         words = [word for word in aligned if word["id"] == segment["id"]]
-        if not words or words[-1]["end"] - words[0]["start"] < 0.08:
-            raise ValueError("A transcript segment could not be aligned")
         # Qwen's quantized timestamps can collapse short function words legitimately.
         # Reject mostly collapsed segments, not ordinary sub-frame words.
-        if sum(word["end"] - word["start"] <= 0 for word in words) > max(2, len(words) * 0.5):
-            raise ValueError("Too many words without speech duration")
+        if error := segment_error(words):
+            raise ValueError(f"{error}: {segment['id']}")
         # A long internal gap may be a spoken heading matched to a verse's first word.
         # Flag it for listening rather than reporting a calibrated confidence score.
         needs_review = (sum(word["end"] <= word["start"] for word in words) > max(1, len(words) * 0.2)

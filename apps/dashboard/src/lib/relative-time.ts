@@ -6,20 +6,21 @@ export function relativeTime(
   now = Date.now(),
 ): string {
   if (!value) return "";
-  const timestamp = new Date(value).getTime();
-  if (!Number.isFinite(timestamp)) return "";
-  const seconds = (timestamp - now) / 1000;
-  const age = Math.abs(seconds);
-  const formatter = new Intl.RelativeTimeFormat(language, { numeric: "auto" });
-  if (age < 60) return formatter.format(0, "second");
-  const units: [number, Intl.RelativeTimeFormatUnit][] = [
-    [365 * 86400, "year"],
-    [30 * 86400, "month"],
-    [7 * 86400, "week"],
-    [86400, "day"],
-    [3600, "hour"],
-    [60, "minute"],
-  ];
-  const [size, unit] = units.find(([size]) => age >= size)!;
-  return formatter.format(Math.sign(seconds) * Math.floor(age / size), unit);
+  const updated = new Date(value);
+  const current = new Date(now);
+  if (
+    !Number.isFinite(updated.getTime()) ||
+    !Number.isFinite(current.getTime())
+  )
+    return "";
+  // Compare local calendar dates rather than elapsed hours. UTC ordinals avoid
+  // the 23/25-hour days introduced by daylight-saving transitions.
+  const calendarDay = (date: Date) =>
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
+  const days = calendarDay(updated) - calendarDay(current);
+  const formatter = new Intl.RelativeTimeFormat(language, {
+    numeric: days === 0 || days === -1 ? "auto" : "always",
+  });
+  const label = formatter.format(days, "day");
+  return label.charAt(0).toLocaleUpperCase(language) + label.slice(1);
 }
