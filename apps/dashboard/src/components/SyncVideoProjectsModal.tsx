@@ -5,7 +5,7 @@ import { LoaderCircle, RefreshCw, X } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import { userMessage } from "../lib/presentation";
-import type { BibleVersion } from "../lib/bible-versions";
+import type { BibleVersionOption as BibleVersion } from "../lib/bible-versions";
 export function SyncVideoProjectsModal({
   kind,
   selectedVersion,
@@ -34,7 +34,7 @@ export function SyncVideoProjectsModal({
     dialog.current?.showModal();
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    api<{ versions: BibleVersion[] }>("versions")
+    api<{ versions: BibleVersion[] }>("versions/options")
       .then((data) => {
         if (live) {
           setVersions(data.versions);

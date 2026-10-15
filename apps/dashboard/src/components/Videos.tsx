@@ -1,13 +1,15 @@
 "use client";
+import { useDebouncedValue } from "./useDebouncedValue";
+import type { PageInfo } from "../lib/pagination";
 import { UpdatedAt } from "./UpdatedAt";
 import { SyncVideoProjectsModal } from "./SyncVideoProjectsModal";
 import { VideoProjectMenu } from "./VideoProjectMenu";
 import { CreateVideoProjectModal } from "./CreateVideoProjectModal";
 import { useI18n } from "../i18n/context";
 import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
-import type { BibleVersion } from "../lib/bible-versions";
+import type { BibleVersionOption as BibleVersion } from "../lib/bible-versions";
 import { userMessage, publicationLabel } from "../lib/presentation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Search,
   Check,
@@ -94,40 +96,86 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     [version, setVersion] = useState<string | null>(null),
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState("unpublished"),
-    [page, setPage] = useState(0),
+    [page, setPage] = useState(1),
     [pageSize, setPageSize] = useState(10),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
+  const [pagination, setPagination] = useState<PageInfo>({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    pages: 1,
+  });
+  const [summary, setSummary] = useState({
+    total: 0,
+    published: 0,
+    unpublished: 0,
+  });
+  const debouncedQuery = useDebouncedValue(query);
+  const request = useRef<AbortController | null>(null);
   const load = useCallback(async () => {
-    if (version === null) return;
+    request.current?.abort();
+    if (version === null || query !== debouncedQuery) return;
+    const controller = new AbortController();
+    request.current = controller;
+    setLoading(true);
     try {
-      setError("");
-      const data = await api(`videos?kind=${kind}&version=${version}`);
+      const params = new URLSearchParams({
+        kind,
+        version,
+        page: String(page),
+        pageSize: String(pageSize),
+        query: debouncedQuery,
+        publication: filter,
+      });
+      const data = await api<{
+        videos: VideoRow[];
+        pagination: PageInfo;
+        summary: typeof summary;
+      }>(`videos?${params}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       setRows(data.videos);
-      setLoading(false);
-    } catch (e) {
-      setError(userMessage(e));
-      setLoading(false);
+      setPagination(data.pagination);
+      setSummary(data.summary);
+      setError("");
+      if (data.pagination.page !== page) setPage(data.pagination.page);
+    } catch (cause) {
+      if (!controller.signal.aborted) setError(userMessage(cause));
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
     }
-  }, [kind, version]);
+  }, [kind, version, page, pageSize, debouncedQuery, query, filter]);
   useEffect(() => {
-    // Preserve the previous format-wide mark once its project appears in the list.
-    const legacyKey = `veo-current-video-project:${kind}`;
-    try {
-      const id = Number(localStorage.getItem(legacyKey));
-      const row = rows.find((item) => item.id === id);
-      if (!row) return;
-      const key = projectVersionKey(row);
-      if (currentProjects[key] === undefined) {
-        const next = { ...currentProjects, [key]: [row.id] };
-        localStorage.setItem(currentProjectStorageKey, JSON.stringify(next));
-        setCurrentProjects(next);
+    const controller = new AbortController();
+    const migrate = async () => {
+      const legacyKey = `veo-current-video-project:${kind}`;
+      try {
+        const id = Number(localStorage.getItem(legacyKey));
+        if (!Number.isSafeInteger(id) || id <= 0) return;
+        const data = await api<{ videos: VideoRow[] }>(
+          `videos?kind=${kind}&ids=${id}`,
+          { signal: controller.signal },
+        );
+        if (controller.signal.aborted || !data.videos[0]) return;
+        const row = data.videos[0];
+        const marks = parseCurrentProjects(
+          localStorage.getItem(currentProjectStorageKey),
+          kind,
+        );
+        const key = projectVersionKey(row);
+        if (marks[key] === undefined) {
+          const next = { ...marks, [key]: [row.id] };
+          localStorage.setItem(currentProjectStorageKey, JSON.stringify(next));
+          setCurrentProjects(next);
+        }
+        localStorage.removeItem(legacyKey);
+      } catch {
+        // Mark migration is optional when storage or the connection is unavailable.
       }
-      localStorage.removeItem(legacyKey);
-    } catch {
-      // Migration is optional when local storage is unavailable.
-    }
-  }, [rows, kind, currentProjects, currentProjectStorageKey]);
+    };
+    void migrate();
+    return () => controller.abort();
+  }, [kind, currentProjectStorageKey]);
   useEffect(() => {
     let next = versionFilter(requestedVersion);
     try {
@@ -138,10 +186,12 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       // Explicit URL filters still work when browser storage is unavailable.
     }
     setVersion(next);
+    setPage(1);
   }, [requestedVersion, versionStorageKey]);
   const selectVersion = (value: string) => {
     const next = versionFilter(value);
     setVersion(next);
+    setPage(1);
     try {
       localStorage.setItem(versionStorageKey, next);
     } catch {
@@ -159,14 +209,13 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     void api("auth/me")
       .then((data) => setCanEditSettings(data.user.role === "admin"))
       .catch(() => {});
-    void api("versions")
+    void api("versions/options")
       .then((d) => setVersions(d.versions))
       .catch((e) => setError(userMessage(e)));
   }, []);
   useEffect(() => {
-    setLoading(true);
-    setPage(0);
     void load();
+    return () => request.current?.abort();
   }, [load]);
   const Icon = kind === "short" ? Clapperboard : Film;
   const syncExisting = async () => {
@@ -195,14 +244,6 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
   };
   const projectHref = (row: VideoRow) =>
     `/${kind === "short" ? "short-videos" : "long-videos"}/${String(row.id)}`;
-  const filtered = rows.filter(
-    (r) =>
-      (r.title + " " + r.id).toLowerCase().includes(query.toLowerCase()) &&
-      (filter === "all" ||
-        (filter === "published" ? Boolean(r.published) : !r.published)),
-  );
-  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, pages - 1);
   return (
     <>
       <div className="page-heading">
@@ -242,17 +283,17 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       <div className="video-summary">
         <div>
           <Icon size={21} />
-          <strong>{rows.length}</strong>
+          <strong>{summary.total}</strong>
           <span>{t(kind === "short" ? "passages" : "episodes")}</span>
         </div>
         <div>
           <span className="dot green" />
-          <strong>{rows.filter((r) => !r.published).length}</strong>
+          <strong>{summary.unpublished}</strong>
           <span>{t("Unpublished")}</span>
         </div>
         <div>
           <Check size={17} />
-          <strong>{rows.filter((r) => r.published).length}</strong>
+          <strong>{summary.published}</strong>
           <span>{t("Published")}</span>
         </div>
       </div>
@@ -281,7 +322,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
-                setPage(0);
+                setPage(1);
               }}
             />
           </div>
@@ -305,7 +346,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
-              setPage(0);
+              setPage(1);
             }}
           >
             <option value="all">{t("All projects")}</option>
@@ -326,121 +367,116 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               </tr>
             </thead>
             <tbody>
-              {filtered
-                .slice(currentPage * pageSize, (currentPage + 1) * pageSize)
-                .map((row) => (
-                  <tr
-                    key={row.id}
-                    className={`video-project-row${isCurrentProject(row) ? " current-project" : ""}`}
-                    tabIndex={0}
-                    aria-label={`${t("Open project")}: ${row.title}`}
-                    onClick={(event) => {
-                      if ((event.target as Element).closest("a, button"))
-                        return;
+              {rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className={`video-project-row${isCurrentProject(row) ? " current-project" : ""}`}
+                  tabIndex={0}
+                  aria-label={`${t("Open project")}: ${row.title}`}
+                  onClick={(event) => {
+                    if ((event.target as Element).closest("a, button")) return;
+                    router.push(projectHref(row));
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
                       router.push(projectHref(row));
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.target !== event.currentTarget) return;
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        router.push(projectHref(row));
-                      }
-                    }}
-                  >
-                    <td className="muted">{row.id}</td>
-                    <td>
-                      <Link
-                        className="button project-name"
-                        href={projectHref(row)}
-                      >
-                        <span className={`video-icon ${kind}`}>
-                          <Icon size={19} />
-                        </span>
-                        <span>
-                          {row.title}
-                          <small>
-                            {t(kind === "short" ? "Daily Dose" : "365 Days")} ·{" "}
-                            {row.locale.toUpperCase()} · {row.label}
-                          </small>
-                        </span>
-                      </Link>
-                    </td>
-                    <td>{row.version_code.toUpperCase()}</td>
-                    <td>
-                      <div className="project-publication-controls">
-                        <button
-                          type="button"
-                          className={
-                            row.published
-                              ? "project-published-button"
-                              : undefined
+                    }
+                  }}
+                >
+                  <td className="muted">{row.id}</td>
+                  <td>
+                    <Link
+                      className="button project-name"
+                      href={projectHref(row)}
+                    >
+                      <span className={`video-icon ${kind}`}>
+                        <Icon size={19} />
+                      </span>
+                      <span>
+                        {row.title}
+                        <small>
+                          {t(kind === "short" ? "Daily Dose" : "365 Days")} ·{" "}
+                          {row.locale.toUpperCase()} · {row.label}
+                        </small>
+                      </span>
+                    </Link>
+                  </td>
+                  <td>{row.version_code.toUpperCase()}</td>
+                  <td>
+                    <div className="project-publication-controls">
+                      <button
+                        type="button"
+                        className={
+                          row.published ? "project-published-button" : undefined
+                        }
+                        onClick={async () => {
+                          try {
+                            await api(`videos/${row.id}`, {
+                              method: "PATCH",
+                              body: JSON.stringify({
+                                published: !row.published,
+                              }),
+                            });
+                            await load();
+                          } catch (cause) {
+                            setError(userMessage(cause));
                           }
-                          onClick={async () => {
-                            try {
-                              await api(`videos/${row.id}`, {
-                                method: "PATCH",
-                                body: JSON.stringify({
-                                  published: !row.published,
-                                }),
-                              });
-                              await load();
-                            } catch (cause) {
-                              setError(userMessage(cause));
-                            }
-                          }}
-                        >
-                          {publicationLabel(row.published, language)}
-                        </button>
-                        <button
-                          type="button"
-                          className={`icon-button current-project-marker${isCurrentProject(row) ? " active" : ""}`}
-                          aria-pressed={isCurrentProject(row)}
-                          aria-label={`${t(isCurrentProject(row) ? "Remove current project mark" : "Mark as current project")}: ${row.title}`}
-                          disabled={
-                            kind === "long" &&
+                        }}
+                      >
+                        {publicationLabel(row.published, language)}
+                      </button>
+                      <button
+                        type="button"
+                        className={`icon-button current-project-marker${isCurrentProject(row) ? " active" : ""}`}
+                        aria-pressed={isCurrentProject(row)}
+                        aria-label={`${t(isCurrentProject(row) ? "Remove current project mark" : "Mark as current project")}: ${row.title}`}
+                        disabled={
+                          kind === "long" &&
+                          !isCurrentProject(row) &&
+                          (currentProjects[projectVersionKey(row)]?.length ??
+                            0) >= 2
+                        }
+                        data-tooltip={t(
+                          kind === "long" &&
                             !isCurrentProject(row) &&
                             (currentProjects[projectVersionKey(row)]?.length ??
                               0) >= 2
-                          }
-                          data-tooltip={t(
-                            kind === "long" &&
-                              !isCurrentProject(row) &&
-                              (currentProjects[projectVersionKey(row)]
-                                ?.length ?? 0) >= 2
-                              ? "Two projects are already marked for this Bible version. Remove one mark to choose another."
-                              : isCurrentProject(row)
-                                ? "Remove current project mark"
-                                : "Mark as current project",
-                          )}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleCurrentProject(row);
-                          }}
-                        >
-                          <Bookmark size={16} aria-hidden="true" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="muted">
-                      <UpdatedAt value={row.updated_at} />
-                    </td>
-                    <td>
-                      <Link
-                        className="button icon-button"
-                        aria-label={`${t("Open project")}: ${row.title}`}
-                        href={projectHref(row)}
+                            ? "Two projects are already marked for this Bible version. Remove one mark to choose another."
+                            : isCurrentProject(row)
+                              ? "Remove current project mark"
+                              : "Mark as current project",
+                        )}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleCurrentProject(row);
+                        }}
                       >
-                        <ArrowRight size={17} />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                        <Bookmark size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                  <td className="muted">
+                    <UpdatedAt value={row.updated_at} />
+                  </td>
+                  <td>
+                    <Link
+                      className="button icon-button"
+                      aria-label={`${t("Open project")}: ${row.title}`}
+                      href={projectHref(row)}
+                    >
+                      <ArrowRight size={17} />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
           {loading && <div className="empty">{t("Loading projects…")}</div>}
-          {!loading && !filtered.length && (
+          {!loading && !rows.length && (
             <div className="empty">
-              {rows.length === 0 && version === "all" && !query
+              {summary.total === 0 && version === "all" && !query
                 ? t("Create your first video project to get started.")
                 : t("No videos match these filters.")}
             </div>
@@ -448,8 +484,8 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
         </div>
         <div className="pagination">
           <span>
-            {filtered.length} {t("projects · page")} {currentPage + 1} {t("of")}{" "}
-            {pages}
+            {pagination.total} {t("projects · page")} {pagination.page}{" "}
+            {t("of")} {pagination.pages}
           </span>
           <div>
             <label className="pagination-page-size">
@@ -458,7 +494,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                 value={pageSize}
                 onChange={(event) => {
                   setPageSize(Number(event.target.value));
-                  setPage(0);
+                  setPage(1);
                 }}
               >
                 {[10, 20, 50, 100].map((size) => (
@@ -473,24 +509,26 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               className="icon-button"
               aria-label={t("First page")}
               data-tooltip={t("First page")}
-              disabled={currentPage === 0}
-              onClick={() => setPage(0)}
+              disabled={pagination.page === 1}
+              onClick={() => setPage(1)}
             >
               <ChevronsLeft size={17} aria-hidden="true" />
             </button>
             <button
               className="icon-button"
               aria-label={t("Previous page")}
-              disabled={currentPage === 0}
-              onClick={() => setPage(currentPage - 1)}
+              disabled={pagination.page === 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
             >
               <ChevronLeft size={17} />
             </button>
             <button
               className="icon-button"
               aria-label={t("Next page")}
-              disabled={currentPage + 1 >= pages}
-              onClick={() => setPage(currentPage + 1)}
+              disabled={pagination.page >= pagination.pages}
+              onClick={() =>
+                setPage((current) => Math.min(pagination.pages, current + 1))
+              }
             >
               <ChevronRight size={17} />
             </button>
@@ -499,8 +537,8 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               className="icon-button"
               aria-label={t("Last page")}
               data-tooltip={t("Last page")}
-              disabled={currentPage + 1 >= pages}
-              onClick={() => setPage(pages - 1)}
+              disabled={pagination.page >= pagination.pages}
+              onClick={() => setPage(pagination.pages)}
             >
               <ChevronsRight size={17} aria-hidden="true" />
             </button>
@@ -524,7 +562,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           onSynced={(id) => {
             setQuery("");
             setFilter("all");
-            setPage(0);
+            setPage(1);
             if (version === String(id)) void load();
             else selectVersion(String(id));
           }}

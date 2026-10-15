@@ -2,7 +2,7 @@
 import { UpdatedAt } from "./UpdatedAt";
 import { PublishedProjectCleanup } from "./PublishedProjectCleanup";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -26,7 +26,56 @@ import {
 } from "../lib/current-video-projects";
 import { api } from "./api";
 import type { VideoRow } from "./video-project";
+import { useHomeUpdates } from "./useHomeUpdates";
+import { useGenerationQueue } from "./GenerationQueueContext";
+import { projectChangedEvent, projectRenderStatus } from "../lib/home-updates";
 import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
+
+function FinalVideoIndicator({
+  row,
+  rendered,
+  checking,
+}: {
+  row: VideoRow;
+  rendered?: boolean;
+  checking: boolean;
+}) {
+  const { t } = useI18n();
+  const queue = useGenerationQueue();
+  const renderStatus = projectRenderStatus(queue, row.id, row.kind);
+  const loading = checking && rendered === undefined;
+  const label =
+    renderStatus === "running"
+      ? "Creating the video"
+      : renderStatus === "queued"
+        ? "Waiting to generate the video"
+        : loading
+          ? "Checking final video availability…"
+          : rendered === undefined
+            ? "Final video availability could not be checked."
+            : rendered
+              ? "Final video rendered"
+              : "No final video rendered";
+  return (
+    <span
+      className={`project-final-video-indicator${rendered && !renderStatus ? " available" : ""}`}
+      tabIndex={0}
+      role="img"
+      aria-label={t(label)}
+      data-tooltip={t(label)}
+    >
+      {renderStatus || loading ? (
+        <LoaderCircle size={17} className="voice-spinner" aria-hidden="true" />
+      ) : rendered === undefined ? (
+        <CircleHelp size={17} aria-hidden="true" />
+      ) : rendered ? (
+        <FileVideo size={17} aria-hidden="true" />
+      ) : (
+        <VideoOff size={17} aria-hidden="true" />
+      )}
+    </span>
+  );
+}
 
 export function CurrentVideoProjects({
   onLoadingChange,
@@ -36,12 +85,12 @@ export function CurrentVideoProjects({
   const { t, language } = useI18n();
   const { orderVersions } = usePinnedBibleVersions();
   const router = useRouter();
+  const revision = useRef(0);
   const [rows, setRows] = useState<VideoRow[]>([]);
   const [renderedVideos, setRenderedVideos] = useState<Record<number, boolean>>(
     {},
   );
   const [checkingVideos, setCheckingVideos] = useState(false);
-  const [videoRevision, setVideoRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [openingFolder, setOpeningFolder] = useState<number | null>(null);
@@ -55,78 +104,45 @@ export function CurrentVideoProjects({
     onLoadingChange?.(loading);
   }, [loading, onLoadingChange]);
 
-  useEffect(() => {
-    let revision = 0;
-    const load = async () => {
-      const requestRevision = ++revision;
-      setLoading(true);
+  useHomeUpdates(async (signal) => {
+    const requestRevision = ++revision.current;
+    const current = () =>
+      !signal.aborted && requestRevision === revision.current;
+    try {
+      const groups = await Promise.all(
+        (["short", "long"] as const).map(async (kind) => {
+          let marks: CurrentProjects = {};
+          try {
+            marks = parseCurrentProjects(
+              localStorage.getItem(currentProjectStorageKey(kind)),
+              kind,
+            );
+          } catch {
+            // Browser marks are unavailable when local storage is blocked.
+          }
+          const ids = [...new Set(Object.values(marks).flat())];
+          const projects: VideoRow[] = [];
+          for (let index = 0; index < ids.length; index += 80) {
+            const data = await api<{ videos: VideoRow[] }>(
+              `videos?kind=${kind}&ids=${ids.slice(index, index + 80).join(",")}`,
+              { signal },
+            );
+            projects.push(
+              ...data.videos.filter((row) =>
+                marks[projectVersionKey(row)]?.includes(row.id),
+              ),
+            );
+          }
+          return projects;
+        }),
+      );
+      if (!current()) return;
+      const projects = groups.flat().sort((a, b) => a.id - b.id);
+      setRows(projects);
+      setLoading(false);
       setError("");
-      try {
-        const groups = await Promise.all(
-          (["short", "long"] as const).map(async (kind) => {
-            let marks: CurrentProjects = {};
-            try {
-              marks = parseCurrentProjects(
-                localStorage.getItem(currentProjectStorageKey(kind)),
-                kind,
-              );
-            } catch {
-              // Browser marks are unavailable when local storage is blocked.
-            }
-            const ids = [...new Set(Object.values(marks).flat())];
-            const projects: VideoRow[] = [];
-            for (let index = 0; index < ids.length; index += 80) {
-              const data = await api<{ videos: VideoRow[] }>(
-                `videos?kind=${kind}&ids=${ids.slice(index, index + 80).join(",")}`,
-              );
-              projects.push(
-                ...data.videos.filter((row) =>
-                  marks[projectVersionKey(row)]?.includes(row.id),
-                ),
-              );
-            }
-            return projects;
-          }),
-        );
-        if (requestRevision === revision)
-          setRows(groups.flat().sort((a, b) => a.id - b.id));
-      } catch (error) {
-        if (requestRevision === revision) setError(userMessage(error));
-      } finally {
-        if (requestRevision === revision) setLoading(false);
-      }
-    };
-    const onStorage = (event: StorageEvent) => {
-      if (
-        event.key === null ||
-        (["short", "long"] as const).some(
-          (kind) => event.key === currentProjectStorageKey(kind),
-        )
-      )
-        void load();
-    };
-    void load();
-    window.addEventListener("storage", onStorage);
-    return () => {
-      revision++;
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
-
-  const projectIds = rows
-    .map((row) => row.id)
-    .sort((a, b) => a - b)
-    .join(",");
-  useEffect(() => {
-    let live = true;
-    const ids = projectIds ? projectIds.split(",").map(Number) : [];
-    setRenderedVideos({});
-    if (!ids.length) {
-      setCheckingVideos(false);
-      return;
-    }
-    setCheckingVideos(true);
-    const check = async () => {
+      const ids = projects.map((row) => row.id);
+      setCheckingVideos(Boolean(ids.length));
       try {
         const statuses: Record<number, boolean> = {};
         for (let index = 0; index < ids.length; index += 80) {
@@ -134,23 +150,24 @@ export function CurrentVideoProjects({
             projects: { id: number; rendered: boolean }[];
           }>("videos/final-videos", {
             method: "POST",
+            signal,
             body: JSON.stringify({ ids: ids.slice(index, index + 80) }),
           });
           for (const project of data.projects)
             statuses[project.id] = project.rendered;
         }
-        if (live) setRenderedVideos(statuses);
+        if (current()) setRenderedVideos(statuses);
       } catch {
-        // An unavailable generation service must not look like a missing final video.
+        // Retain known availability during a temporary connection failure.
       } finally {
-        if (live) setCheckingVideos(false);
+        if (current()) setCheckingVideos(false);
       }
-    };
-    void check();
-    return () => {
-      live = false;
-    };
-  }, [projectIds, videoRevision]);
+    } catch (cause) {
+      if (current()) setError(userMessage(cause));
+    } finally {
+      if (current()) setLoading(false);
+    }
+  });
 
   const orderedRows = (["short", "long"] as const).flatMap((kind) =>
     orderVersions(
@@ -174,9 +191,11 @@ export function CurrentVideoProjects({
         key,
         JSON.stringify(removeCurrentProject(marks, row)),
       );
+      revision.current++;
       setRows((current) => current.filter((project) => project.id !== row.id));
       setLastProjects(new Set());
       setError("");
+      window.dispatchEvent(new Event(projectChangedEvent));
     } catch (error) {
       setError(userMessage(error));
     }
@@ -190,6 +209,7 @@ export function CurrentVideoProjects({
         method: "PATCH",
         body: JSON.stringify({ published }),
       });
+      revision.current++;
       setRows((current) =>
         current.map((project) =>
           project.id === row.id
@@ -201,6 +221,7 @@ export function CurrentVideoProjects({
             : project,
         ),
       );
+      window.dispatchEvent(new Event(projectChangedEvent));
     } catch (error) {
       setError(userMessage(error));
     } finally {
@@ -243,9 +264,11 @@ export function CurrentVideoProjects({
       if (advancedMarks === marks) return;
       localStorage.setItem(key, JSON.stringify(advancedMarks));
       setLastProjects(new Set());
+      revision.current++;
       setRows((current) =>
         current.map((project) => (project.id === row.id ? next : project)),
       );
+      window.dispatchEvent(new Event(projectChangedEvent));
     } catch (error) {
       setError(userMessage(error));
     } finally {
@@ -267,7 +290,9 @@ export function CurrentVideoProjects({
             </h3>
             <PublishedProjectCleanup
               kind={kind}
-              onDeleted={() => setVideoRevision((value) => value + 1)}
+              onDeleted={() =>
+                window.dispatchEvent(new Event(projectChangedEvent))
+              }
             />
           </div>
           <div className="table-wrap">
@@ -321,43 +346,11 @@ export function CurrentVideoProjects({
                       </td>
                       <td>
                         <div className="project-publication-controls">
-                          <span
-                            className={`project-final-video-indicator${renderedVideos[row.id] ? " available" : ""}`}
-                            tabIndex={0}
-                            role="img"
-                            aria-label={t(
-                              checkingVideos
-                                ? "Checking final video availability…"
-                                : renderedVideos[row.id] === undefined
-                                  ? "Final video availability could not be checked."
-                                  : renderedVideos[row.id]
-                                    ? "Final video rendered"
-                                    : "No final video rendered",
-                            )}
-                            data-tooltip={t(
-                              checkingVideos
-                                ? "Checking final video availability…"
-                                : renderedVideos[row.id] === undefined
-                                  ? "Final video availability could not be checked."
-                                  : renderedVideos[row.id]
-                                    ? "Final video rendered"
-                                    : "No final video rendered",
-                            )}
-                          >
-                            {checkingVideos ? (
-                              <LoaderCircle
-                                size={17}
-                                className="voice-spinner"
-                                aria-hidden="true"
-                              />
-                            ) : renderedVideos[row.id] === undefined ? (
-                              <CircleHelp size={17} aria-hidden="true" />
-                            ) : renderedVideos[row.id] ? (
-                              <FileVideo size={17} aria-hidden="true" />
-                            ) : (
-                              <VideoOff size={17} aria-hidden="true" />
-                            )}
-                          </span>
+                          <FinalVideoIndicator
+                            row={row}
+                            rendered={renderedVideos[row.id]}
+                            checking={checkingVideos}
+                          />
                           <button
                             type="button"
                             className={`badge${row.published ? " publication-published" : ""}`}
@@ -438,7 +431,7 @@ export function CurrentVideoProjects({
                               <ArrowRightToLine size={16} aria-hidden="true" />
                             )}
                           </button>
-                          {renderedVideos[row.id] && !checkingVideos && (
+                          {renderedVideos[row.id] && (
                             <button
                               type="button"
                               className="icon-button current-project-marker"

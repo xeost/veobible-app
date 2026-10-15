@@ -42,35 +42,54 @@ export async function syncExistingProjects(
 ) {
   const input = existingProjectsSchema.parse(values);
   const versions = (
-    await database.prepare("SELECT * FROM bible_versions").all<BibleVersion>()
-  ).results;
-  const projects = (
     await database
-      .prepare("SELECT * FROM video_projects WHERE kind=?")
-      .bind(kind)
-      .all<{
-        id: number;
-        bible_version_id: number;
-        slug: string;
-        settings: string;
-        published: number;
-      }>()
+      .prepare("SELECT id,locale,code FROM bible_versions")
+      .all<BibleVersion>()
   ).results;
+  const versionByIdentity = new Map(
+    versions.map((version) => [`${version.locale}/${version.code}`, version]),
+  );
+  const requested = input.projects.flatMap((row) => {
+    const version = versionByIdentity.get(
+      `${row.version.locale}/${row.version.code}`,
+    );
+    return version ? [{ version: version.id, slug: row.slug }] : [];
+  });
+  const projects = requested.length
+    ? (
+        await database
+          .prepare(
+            "SELECT p.id,p.bible_version_id,p.slug,p.settings,p.published FROM json_each(?) selected JOIN video_projects p ON p.kind=? AND p.bible_version_id=json_extract(selected.value,'$.version') AND p.slug=json_extract(selected.value,'$.slug')",
+          )
+          .bind(JSON.stringify(requested), kind)
+          .all<{
+            id: number;
+            bible_version_id: number;
+            slug: string;
+            settings: string;
+            published: number;
+          }>()
+      ).results
+    : [];
+  const projectByIdentity = new Map(
+    projects.map((project) => [
+      `${project.bible_version_id}/${project.slug}`,
+      project,
+    ]),
+  );
+  const activeIds = new Set(input.activeProjectIds);
   let updated = 0,
     unchanged = 0,
     skipped = input.skipped;
   const statements: D1PreparedStatement[] = [];
   for (const row of input.projects) {
-    const version = versions.find(
-      (item) =>
-        item.locale === row.version.locale && item.code === row.version.code,
+    const version = versionByIdentity.get(
+      `${row.version.locale}/${row.version.code}`,
     );
     if (!version) continue;
-    const existing = projects.find(
-      (item) => item.bible_version_id === version.id && item.slug === row.slug,
-    );
+    const existing = projectByIdentity.get(`${version.id}/${row.slug}`);
     if (!existing) continue;
-    if (input.activeProjectIds.includes(existing.id)) {
+    if (activeIds.has(existing.id)) {
       skipped++;
       continue;
     }

@@ -22,6 +22,10 @@ import { fileURLToPath } from "node:url";
 import { timingSafeEqual } from "node:crypto";
 import { renderSchema, previewSchema } from "./protocol.js";
 import { z } from "zod";
+import {
+  AlignmentJobStore,
+  alignmentIsPending,
+} from "./alignment-job-store.js";
 import type { AlignmentJob } from "./forced-alignment-result.js";
 import { GenerationQueue } from "./generation-queue.js";
 import { clampProgress } from "./generation-progress.js";
@@ -108,28 +112,21 @@ const generationQueue = new GenerationQueue();
 const cleaningOutputs = new Set<string>();
 const cleanupKey = (kind: string, environment: string) =>
   `${environment}:${kind}`;
-const alignmentJobs = new Map<string, AlignmentJob>();
+const alignmentJobs = new AlignmentJobStore();
 const alignmentFile = (
   kind: string,
   environment: "production" | "development",
   projectId: number,
 ) =>
   path.join(outputRoot(kind, environment), ".alignment", `${projectId}.json`);
-async function saveAlignment(file: string, job: AlignmentJob) {
-  await fsp.mkdir(path.dirname(file), { recursive: true });
-  await fsp.writeFile(file + ".tmp", JSON.stringify(job));
-  await fsp.rename(file + ".tmp", file);
-}
-function alignmentPending(projectId: number, environment: string) {
-  return generationQueue
-    .snapshot()
-    .some(
-      (entry) =>
-        entry.projectId === projectId &&
-        (entry.outputEnvironment ?? "production") === environment &&
-        entry.type.startsWith("alignment") &&
-        ["queued", "running"].includes(entry.status),
-    );
+async function alignmentPending(
+  projectId: number,
+  environment: "production" | "development",
+  kind: string,
+) {
+  return (
+    await alignmentJobs.list(alignmentFile(kind, environment, projectId))
+  ).some(alignmentIsPending);
 }
 const json = (res: http.ServerResponse, status: number, value: unknown) => {
   res.writeHead(status, {
@@ -231,11 +228,12 @@ const server = http.createServer(async (req, res) => {
             .map((entry) => entry.projectId),
         );
         for (const project of input.projects) {
-          const job = alignmentJobs.get(
-            alignmentFile(input.kind, input.outputEnvironment, project.id),
+          const pending = await alignmentPending(
+            project.id,
+            input.outputEnvironment,
+            input.kind,
           );
-          if (job && ["queued", "running"].includes(job.status))
-            activeIds.add(project.id);
+          if (pending) activeIds.add(project.id);
         }
         return json(
           res,
@@ -363,22 +361,8 @@ const server = http.createServer(async (req, res) => {
           url.searchParams.get("outputEnvironment") ?? undefined,
         );
         const file = alignmentFile(kind, environment, projectId);
-        let job = alignmentJobs.get(file);
-        if (!job) {
-          try {
-            job = JSON.parse(await fsp.readFile(file, "utf8"));
-          } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-          }
-          // Reserve the recovered state before an asynchronous interrupted-job save.
-          if (job) alignmentJobs.set(file, job);
-          if (job && ["queued", "running"].includes(job.status)) {
-            job.status = "failed";
-            job.stage = "Interrupted";
-            await saveAlignment(file, job);
-          }
-        }
-        return json(res, 200, { job: job ?? null });
+        const jobs = await alignmentJobs.list(file);
+        return json(res, 200, { job: jobs.at(-1) ?? null, jobs });
       }
       if (req.method === "POST") {
         const input = analysisSchema
@@ -395,7 +379,6 @@ const server = http.createServer(async (req, res) => {
             error: "Wait for project cleanup to finish",
           });
         if (
-          alignmentPending(projectId, input.outputEnvironment) ||
           generationQueue.hasPending(
             projectId,
             "video",
@@ -415,20 +398,11 @@ const server = http.createServer(async (req, res) => {
           status: "queued",
           stage: "Queued",
           progress: 0,
+          createdAt: new Date().toISOString(),
           sectionIndex: input.sectionIndex,
         };
-        // Reserve synchronously before persistence so simultaneous requests cannot replace each other.
-        if (
-          ["queued", "running"].includes(alignmentJobs.get(file)?.status ?? "")
-        )
+        if (!(await alignmentJobs.reserve(file, job)))
           return json(res, 409, { error: "Wait for generation to finish" });
-        alignmentJobs.set(file, job);
-        try {
-          await saveAlignment(file, job);
-        } catch (error) {
-          alignmentJobs.delete(file);
-          throw error;
-        }
         generationQueue.enqueue(
           {
             projectId,
@@ -443,7 +417,7 @@ const server = http.createServer(async (req, res) => {
           async () => {
             try {
               job.stage = "Aligning";
-              await saveAlignment(file, job);
+              await alignmentJobs.save(file, job);
               job.result = await alignProjectReading(input, (progress) => {
                 job.progress = Math.max(job.progress, progress);
               });
@@ -455,7 +429,7 @@ const server = http.createServer(async (req, res) => {
               job.status = "failed";
               job.stage = "Failed";
             } finally {
-              await saveAlignment(file, job);
+              await alignmentJobs.save(file, job);
             }
           },
         );
@@ -671,7 +645,13 @@ const server = http.createServer(async (req, res) => {
       if (input.callback && !origins.has(new URL(input.callback.url).origin))
         return json(res, 400, { error: "Callback origin not allowed" });
       if (jobs.has(input.id)) return json(res, 202, jobs.get(input.id));
-      if (alignmentPending(input.projectId, input.outputEnvironment))
+      if (
+        await alignmentPending(
+          input.projectId,
+          input.outputEnvironment,
+          input.kind,
+        )
+      )
         return json(res, 409, { error: "Wait for generation to finish" });
       if (
         generationQueue.hasPending(

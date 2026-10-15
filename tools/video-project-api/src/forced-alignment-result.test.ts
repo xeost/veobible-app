@@ -191,3 +191,46 @@ test("review flags update only analyzed verses and exclude preserved manual cuts
   );
   assert.deepEqual(merged.alignmentReviewReferences, ["other", "new"]);
 });
+
+test("multiple results merge independently and replaying an applied job never overwrites later cuts", () => {
+  const first = mergeAlignment(
+    { verseOffsets: [], readingSectionPadding: [] },
+    {
+      ...result,
+      offsets: [result.offsets[2]],
+      reviewReferences: ["auto"],
+    },
+    "first",
+  );
+  const second = mergeAlignment(
+    first,
+    {
+      ...result,
+      offsets: [result.offsets[3]],
+      padding: [{ sectionIndex: 1, beforeSeconds: 2, afterSeconds: 1 }],
+      reviewReferences: ["new"],
+    },
+    "second",
+  );
+  assert.deepEqual(second.alignmentAppliedJobIds, ["first", "second"]);
+  assert.deepEqual(
+    second.verseOffsets.map((item) => item.reference),
+    ["auto", "new"],
+  );
+  assert.deepEqual(second.alignmentReviewReferences, ["auto", "new"]);
+  assert.equal(second.readingSectionPadding.length, 2);
+  const adjusted = {
+    ...second,
+    verseOffsets: second.verseOffsets.map((item) => ({
+      ...item,
+      startOffsetSeconds: 42,
+    })),
+  };
+  assert.deepEqual(mergeAlignment(adjusted, result, "first"), adjusted);
+  const migrated = mergeAlignment(
+    { ...first, alignmentAppliedJobIds: undefined },
+    result,
+    "second",
+  );
+  assert.deepEqual(migrated.alignmentAppliedJobIds, ["first", "second"]);
+});

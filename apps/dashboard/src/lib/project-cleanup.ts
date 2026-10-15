@@ -15,14 +15,17 @@ export async function publishedCleanupProjects(
 ) {
   // Recheck publication on deletion, and intersect with the exact IDs the user
   // reviewed. Never delete projects published after the confirmation opened.
-  const selected = input.action === "delete" ? new Set(input.ids) : null;
-  const rows = (
-    await database
+  const ids = input.action === "delete" ? [...new Set(input.ids)] : null;
+  const rows: { id: number; slug: string; version: string }[] = [];
+  for (let offset = 0; offset < (ids?.length ?? 1); offset += 80) {
+    const batch = ids?.slice(offset, offset + 80);
+    const result = await database
       .prepare(
-        "SELECT p.id,p.slug,v.code version FROM video_projects p JOIN bible_versions v ON v.id=p.bible_version_id WHERE p.kind=? AND p.published=1 ORDER BY p.id",
+        `SELECT p.id,p.slug,v.code version FROM video_projects p JOIN bible_versions v ON v.id=p.bible_version_id WHERE p.kind=? AND p.published=1${batch ? ` AND p.id IN (${batch.map(() => "?").join(",")})` : ""} ORDER BY p.id`,
       )
-      .bind(input.kind)
-      .all<{ id: number; slug: string; version: string }>()
-  ).results;
-  return rows.filter((project) => !selected || selected.has(project.id));
+      .bind(input.kind, ...(batch ?? []))
+      .all<{ id: number; slug: string; version: string }>();
+    rows.push(...result.results);
+  }
+  return rows.sort((a, b) => a.id - b.id);
 }

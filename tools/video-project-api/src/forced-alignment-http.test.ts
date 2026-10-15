@@ -150,6 +150,11 @@ await fs.writeFile(arg('--output'),JSON.stringify({model:'fixture',chapters:inpu
       assert.equal(queued.status, 202);
       const first = (await queued.json()).job;
       assert.equal((await submit()).status, 409);
+      assert.equal((await submit({ sectionIndex: 1 })).status, 409);
+      const next = await submit({ sectionIndex: 0 });
+      assert.equal(next.status, 202);
+      const second = (await next.json()).job;
+      assert.notEqual(second.id, first.id);
       const rendering = await fetch(`${base}/v1/jobs`, {
         method: "POST",
         headers,
@@ -161,7 +166,10 @@ await fs.writeFile(arg('--output'),JSON.stringify({model:'fixture',chapters:inpu
           headers,
         })
       ).json();
-      assert.equal(queue.items[0].type, "alignment-1");
+      assert.deepEqual(
+        queue.items.map((item: { type: string }) => item.type),
+        ["alignment-1", "alignment-0"],
+      );
       const read = async (environment = "development") =>
         (
           await (
@@ -172,25 +180,51 @@ await fs.writeFile(arg('--output'),JSON.stringify({model:'fixture',chapters:inpu
           ).json()
         ).job;
       assert.equal(await read("production"), null);
-      const finish = async () => {
+      const readAll = async () =>
+        (
+          await (
+            await fetch(`${route}?kind=short&outputEnvironment=development`, {
+              headers,
+            })
+          ).json()
+        ).jobs;
+      const finish = async (id?: string) => {
         for (let i = 0; i < 100; i++) {
-          const job = await read();
+          const job = id
+            ? (await readAll()).find((job: { id: string }) => job.id === id)
+            : await read();
           if (["done", "failed"].includes(job.status)) return job;
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
         throw new Error("Alignment did not finish");
       };
-      const completed = await finish();
+      const completed = await finish(first.id);
       assert.equal(completed.status, "done");
       assert.equal(completed.id, first.id);
       assert.deepEqual(
         completed.result.offsets.map((v: { reference: string }) => v.reference),
         ["Psalms 2:1"],
       );
+      const secondCompleted = await finish(second.id);
+      assert.equal(secondCompleted.status, "done");
+      assert.deepEqual(
+        secondCompleted.result.offsets.map(
+          (v: { reference: string }) => v.reference,
+        ),
+        ["Psalms 1:1"],
+      );
       child!.kill("SIGTERM");
       await once(child!, "exit");
       await start();
-      assert.deepEqual(await read(), completed);
+      const retained = await readAll();
+      assert.deepEqual(
+        retained.find((job: { id: string }) => job.id === first.id),
+        completed,
+      );
+      assert.deepEqual(
+        retained.find((job: { id: string }) => job.id === second.id),
+        secondCompleted,
+      );
       assert.equal((await submit()).status, 202);
       const all = await finish();
       assert.equal(all.status, "done");

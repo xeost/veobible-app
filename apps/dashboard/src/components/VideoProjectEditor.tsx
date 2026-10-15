@@ -1,11 +1,16 @@
 "use client";
-import type { AlignmentJob } from "../../../../tools/video-project-api/src/forced-alignment-result";
+import {
+  alignmentWasApplied,
+  alignmentSignatureMatches,
+  type AlignmentJob,
+} from "../../../../tools/video-project-api/src/forced-alignment-result";
 import type { VoicePart } from "../../../../tools/video-project-api/src/chapter-introductions";
 import { pollWhileVisible } from "../lib/visible-polling";
 import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent,
@@ -63,6 +68,7 @@ import { VoiceWaveform } from "./VoiceWaveform";
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
 type Settings = RenderRequest["settings"];
+type EditorProject = VideoRow & { passage: string };
 type VoiceState = {
   available: boolean;
   status: string;
@@ -82,7 +88,7 @@ export function VideoProjectEditor({
   projectId: string;
 }) {
   const { t } = useI18n();
-  const [project, setProject] = useState<VideoRow | null>(null);
+  const [project, setProject] = useState<EditorProject | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
   const [versionVolume, setVersionVolume] = useState(1);
   const readingVolumeValue = effectiveReadingVolume(settings, versionVolume);
@@ -91,13 +97,37 @@ export function VideoProjectEditor({
   const [analysis, setAnalysis] = useState<Inspection | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const analysisRequest = useRef(0);
-  const [alignmentJob, setAlignmentJob] = useState<AlignmentJob | null>(null);
+  const [alignmentJobs, setAlignmentJobs] = useState<AlignmentJob[]>([]);
   const [alignmentLoaded, setAlignmentLoaded] = useState(false);
-  const [applyingAlignment, setApplyingAlignment] = useState(false);
-  const handledAlignment = useRef<string | null>(null);
-  const alignmentPending = Boolean(
-    alignmentJob && ["queued", "running"].includes(alignmentJob.status),
+  const [applyingAlignment, setApplyingAlignment] =
+    useState<AlignmentJob | null>(null);
+  const applyingAlignmentRef = useRef(false);
+  const alignmentPending = alignmentJobs.some((job) =>
+    ["queued", "running"].includes(job.status),
   );
+  const needsAlignmentApply = (job: AlignmentJob) =>
+    Boolean(
+      project &&
+      job.status === "done" &&
+      job.result &&
+      !alignmentWasApplied(settings, job.id) &&
+      alignmentSignatureMatches(job.result.signature, {
+        kind,
+        version: { id: project.version_code, locale: project.locale },
+        passage: JSON.parse(project.passage),
+        settings,
+      }),
+    );
+  const alignmentAwaitingApply = alignmentJobs.some(needsAlignmentApply);
+  const alignmentScopeBusy = (sectionIndex?: number) =>
+    alignmentJobs.some(
+      (job) =>
+        (["queued", "running"].includes(job.status) ||
+          needsAlignmentApply(job)) &&
+        (sectionIndex === undefined ||
+          job.sectionIndex === undefined ||
+          job.sectionIndex === sectionIndex),
+    );
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(busy);
   busyRef.current = busy;
@@ -128,6 +158,24 @@ export function VideoProjectEditor({
   const [queuingVoices, setQueuingVoices] = useState(false);
   const [voiceRevision, setVoiceRevision] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const collapseAnchor = useRef<{ id: string; top: number } | null>(null);
+  const collapseSpace = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const anchor = collapseAnchor.current;
+    collapseAnchor.current = null;
+    if (!anchor) return;
+    const heading = document.getElementById(`heading-${anchor.id}`);
+    const space = collapseSpace.current;
+    if (!heading || !space) return;
+    // Keep room to retain the heading's position when collapsing near the page end.
+    space.style.height = "0px";
+    const target =
+      window.scrollY + heading.getBoundingClientRect().top - anchor.top;
+    const missing =
+      target + window.innerHeight - document.documentElement.scrollHeight;
+    space.style.height = `${Math.max(0, missing)}px`;
+    window.scrollTo({ top: target, behavior: "instant" });
+  }, [expanded]);
   const [readingResetRevisions, setReadingResetRevisions] = useState<
     Record<string, number>
   >({});
@@ -164,12 +212,14 @@ export function VideoProjectEditor({
   );
   useEffect(() => {
     setMediaAccess(null);
+    collapseAnchor.current = null;
+    if (collapseSpace.current) collapseSpace.current.style.height = "0px";
     setAnalysis(null);
     analysisRequest.current++;
-    setAlignmentJob(null);
+    setAlignmentJobs([]);
     setAlignmentLoaded(false);
-    setApplyingAlignment(false);
-    handledAlignment.current = null;
+    setApplyingAlignment(null);
+    applyingAlignmentRef.current = false;
     setExpanded(new Set());
     setReadingResetRevisions({});
     setPreviewOpen(false);
@@ -209,7 +259,7 @@ export function VideoProjectEditor({
     const refresh = async () => {
       try {
         const data = await api<{
-          video: VideoRow;
+          video: EditorProject;
           defaults: Settings;
           mediaAccess: NonNullable<typeof mediaAccess>;
         }>(base);
@@ -284,23 +334,40 @@ export function VideoProjectEditor({
     let live = true;
     const refresh = async () => {
       try {
-        const { job } = await api<{ job: AlignmentJob | null }>(
-          endpoint("alignment"),
-        );
+        const data = await api<{
+          jobs?: AlignmentJob[];
+          job: AlignmentJob | null;
+        }>(endpoint("alignment"));
         if (!live) return;
-        setAlignmentJob(job);
+        const jobs = data.jobs ?? (data.job ? [data.job] : []);
+        setAlignmentJobs((current) => [
+          ...jobs,
+          ...current.filter((item) => !jobs.some((job) => job.id === item.id)),
+        ]);
         setAlignmentLoaded(true);
-        if (
-          job?.status === "done" &&
-          !busyRef.current &&
-          job.result &&
-          settingsRef.current.alignmentJobId !== job.id &&
-          handledAlignment.current !== job.id
-        ) {
-          handledAlignment.current = job.id;
-          setApplyingAlignment(true);
-          try {
-            const data = await api<{ settings: Settings }>(
+        if (busyRef.current || applyingAlignmentRef.current) return;
+        let changed = false;
+        applyingAlignmentRef.current = true;
+        try {
+          for (const job of jobs) {
+            if (!live || busyRef.current) break;
+            if (
+              job.status !== "done" ||
+              !job.result ||
+              alignmentWasApplied(settingsRef.current, job.id) ||
+              !alignmentSignatureMatches(job.result.signature, {
+                kind,
+                version: {
+                  id: projectState.current!.version_code,
+                  locale: projectState.current!.locale,
+                },
+                passage: JSON.parse(projectState.current!.passage),
+                settings: settingsRef.current,
+              })
+            )
+              continue;
+            setApplyingAlignment(job);
+            const applied = await api<{ settings: Settings }>(
               endpoint("alignment/apply"),
               {
                 method: "POST",
@@ -312,23 +379,31 @@ export function VideoProjectEditor({
               },
             );
             if (!live) return;
-            setSettings(data.settings);
-            setProject((current) =>
-              current
-                ? { ...current, settings: JSON.stringify(data.settings) }
-                : current,
-            );
-            await inspect(data.settings);
+            // The next result must merge into these settings, even before React renders.
+            settingsRef.current = applied.settings;
+            if (projectState.current)
+              projectState.current = {
+                ...projectState.current,
+                settings: JSON.stringify(applied.settings),
+              };
+            setSettings(applied.settings);
+            setProject(projectState.current);
+            changed = true;
+          }
+        } finally {
+          if (live) {
+            applyingAlignmentRef.current = false;
+            setApplyingAlignment(null);
+          }
+          if (live && changed) {
+            await inspect(settingsRef.current);
             window.dispatchEvent(new Event(queueChangedEvent));
-          } catch (cause) {
-            if (live) console.warn("Could not apply AI timing analysis", cause);
-          } finally {
-            if (live) setApplyingAlignment(false);
           }
         }
       } catch (cause) {
         if (live) {
           setAlignmentLoaded(true);
+          setError(userMessage(cause));
         }
         throw cause;
       }
@@ -370,23 +445,29 @@ export function VideoProjectEditor({
     busy ||
     active ||
     alignmentPending ||
-    applyingAlignment ||
+    alignmentAwaitingApply ||
+    Boolean(applyingAlignment) ||
     Boolean(analysis && !alignmentLoaded);
   const locked = editingLocked;
+  const alignmentQueueLocked =
+    busy || active || Boolean(applyingAlignment) || !alignmentLoaded;
   const timeline = readingTimeline(analysis?.sections ?? []);
   const cues = adjustedCues(analysis?.cues ?? [], settings.verseOffsets);
   const result = project?.result ? JSON.parse(project.result) : null;
   const perform = async (action: () => Promise<void>) => {
+    busyRef.current = true;
     setBusy(true);
     setError("");
     setNotice("");
     try {
       await action();
-      const data = await api<{ video: VideoRow }>(base);
+      const data = await api<{ video: EditorProject }>(base);
+      projectState.current = data.video;
       setProject(data.video);
     } catch (cause) {
       setError(userMessage(cause));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -417,15 +498,25 @@ export function VideoProjectEditor({
     setSaved(true);
   };
   const queueAlignment = async (sectionIndex?: number) => {
-    if (!analysis || analyzing || editingLocked) return;
+    if (
+      !analysis ||
+      analyzing ||
+      alignmentQueueLocked ||
+      busyRef.current ||
+      alignmentScopeBusy(sectionIndex) ||
+      applyingAlignmentRef.current
+    )
+      return;
     await perform(async () => {
       await save();
       const { job } = await api<{ job: AlignmentJob }>(endpoint("alignment"), {
         method: "POST",
         body: JSON.stringify({ ...checkedSettings(), sectionIndex }),
       });
-      setAlignmentJob(job);
-      handledAlignment.current = null;
+      setAlignmentJobs((current) => [
+        ...current.filter((item) => item.id !== job.id),
+        job,
+      ]);
       window.dispatchEvent(new Event(queueChangedEvent));
     });
   };
@@ -596,13 +687,17 @@ export function VideoProjectEditor({
         setVoiceError("Could not play the narration. Try again.");
     }
   };
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    const heading = document.getElementById(`heading-${id}`);
+    if (expanded.has(id) && heading)
+      collapseAnchor.current = { id, top: heading.getBoundingClientRect().top };
     setExpanded((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
   const toggleFromHeading = (id: string, event: MouseEvent<HTMLElement>) => {
     if (!(event.target as Element).closest("button")) toggle(id);
   };
@@ -657,6 +752,7 @@ export function VideoProjectEditor({
       );
     return (
       <div
+        id={`heading-${id}`}
         className="reading-section-heading"
         onClick={(event) => toggleFromHeading(id, event)}
       >
@@ -700,7 +796,12 @@ export function VideoProjectEditor({
           data-tooltip={t(
             "Analyze this reading with AI. Manual verse adjustments are preserved.",
           )}
-          disabled={locked || analyzing || !readingReferences.length}
+          disabled={
+            alignmentQueueLocked ||
+            analyzing ||
+            !readingReferences.length ||
+            alignmentScopeBusy(Number(id.replace("reading-", "")))
+          }
           onClick={() =>
             void queueAlignment(Number(id.replace("reading-", "")))
           }
@@ -795,9 +896,23 @@ export function VideoProjectEditor({
         : t("Generate narration");
     const playLabel =
       playingVoice === part ? t("Pause narration") : t("Listen to narration");
+    const generateAction = (
+      <button
+        type="button"
+        className="primary"
+        disabled={
+          editingLocked || pending || !analysis || !narrationText.trim()
+        }
+        onClick={() => void generateVoice(part)}
+      >
+        <WandSparkles size={16} />
+        {generateLabel}
+      </button>
+    );
     return (
       <section className="section-card" key={part}>
         <div
+          id={`heading-${part}`}
           className="voice-section-heading"
           onClick={(event) => toggleFromHeading(part, event)}
         >
@@ -919,6 +1034,7 @@ export function VideoProjectEditor({
             <h3>{t("Narration preview")}</h3>
             {voice.available && !pending ? (
               <VoiceWaveform
+                generateAction={generateAction}
                 audioRef={(player) => {
                   if (player) voicePlayers.current[part] = player;
                   else delete voicePlayers.current[part];
@@ -972,21 +1088,7 @@ export function VideoProjectEditor({
                 {t(voiceFailureMessage(voice.failureReason))}
               </p>
             )}
-            <button
-              type="button"
-              className="primary"
-              disabled={
-                editingLocked || pending || !analysis || !narrationText.trim()
-              }
-              onClick={() => void generateVoice(part)}
-            >
-              <WandSparkles size={16} />
-              {pending
-                ? t("Preparing narration…")
-                : voice.available
-                  ? t("Regenerate narration")
-                  : t("Generate narration")}
-            </button>
+            {(!voice.available || pending) && generateAction}
           </div>
         </div>
       </section>
@@ -1228,7 +1330,12 @@ export function VideoProjectEditor({
                 data-tooltip={t(
                   "Analyze all readings with AI. Manual verse adjustments are preserved.",
                 )}
-                disabled={locked || analyzing || !analysis}
+                disabled={
+                  alignmentQueueLocked ||
+                  analyzing ||
+                  !analysis ||
+                  alignmentScopeBusy()
+                }
                 onClick={() => void queueAlignment()}
               >
                 <ScanText size={17} />
@@ -1261,6 +1368,16 @@ export function VideoProjectEditor({
                   baseline.start < section.timelineEnd - 0.0001
                 );
               });
+              const sectionJob = alignmentJobs.find(
+                (job) =>
+                  ["queued", "running"].includes(job.status) &&
+                  (job.sectionIndex === undefined ||
+                    job.sectionIndex === section.index),
+              );
+              const sectionApplying =
+                applyingAlignment &&
+                (applyingAlignment.sectionIndex === undefined ||
+                  applyingAlignment.sectionIndex === section.index);
               return (
                 <div key={id} style={{ display: "contents" }}>
                   {kind === "long" &&
@@ -1280,20 +1397,18 @@ export function VideoProjectEditor({
                       false,
                       verses.map((cue) => cue.reference),
                     )}
-                    {(alignmentPending || applyingAlignment) &&
-                      (alignmentJob?.sectionIndex === undefined ||
-                        alignmentJob.sectionIndex === section.index) && (
-                        <GenerationProgress
-                          value={alignmentJob?.progress ?? 0}
-                          label={t(
-                            applyingAlignment
-                              ? "Applying analyzed timings…"
-                              : alignmentJob?.status === "queued"
-                                ? "Timing analysis is queued"
-                                : "Analyzing reading timings…",
-                          )}
-                        />
-                      )}
+                    {(sectionJob || sectionApplying) && (
+                      <GenerationProgress
+                        value={sectionJob?.progress ?? 100}
+                        label={t(
+                          sectionApplying
+                            ? "Applying analyzed timings…"
+                            : sectionJob?.status === "queued"
+                              ? "Timing analysis is queued"
+                              : "Analyzing reading timings…",
+                        )}
+                      />
+                    )}
                     <div
                       id={`section-${id}`}
                       hidden={!expanded.has(id)}
@@ -1497,6 +1612,7 @@ export function VideoProjectEditor({
           )}
         </VideoProjectPreviewModal>
       )}
+      <div ref={collapseSpace} aria-hidden="true" />
     </>
   );
 }

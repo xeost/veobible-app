@@ -6,6 +6,7 @@ const point = z.object({
 });
 export const settingsSchema = z.object({
   alignmentJobId: z.string().uuid().optional(),
+  alignmentAppliedJobIds: z.array(z.string().uuid()).optional(),
   alignmentReviewReferences: z.array(z.string().min(1)).max(1000).optional(),
   voiceTrims: z
     .record(

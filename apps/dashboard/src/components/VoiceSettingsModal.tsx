@@ -78,7 +78,7 @@ export function VoiceSettingsModal({
           locale: string;
           label: string;
         }[];
-      }>("versions"),
+      }>("versions/options"),
     ])
       .then(([publication, voice, projects, catalog]) => {
         if (live) {

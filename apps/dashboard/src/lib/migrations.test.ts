@@ -4,8 +4,11 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
 import { verifyPassword } from "./security";
 const directory = new URL("../../migrations/", import.meta.url);
-test("one migration creates numeric project tables and only the requested admin", async () => {
-  assert.deepEqual(readdirSync(directory), ["0001_dashboard.sql"]);
+test("migrations preserve numeric project tables and only the requested admin", async () => {
+  const migrations = readdirSync(directory)
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+  assert.equal(migrations[0], "0001_dashboard.sql");
   const sql = readFileSync(new URL("0001_dashboard.sql", directory), "utf8");
   assert.equal((sql.match(/INSERT INTO/gi) ?? []).length, 1);
   const db = new DatabaseSync(":memory:");
@@ -68,6 +71,13 @@ test("one migration creates numeric project tables and only the requested admin"
     assert.throws(
       () => db.exec("UPDATE video_projects SET bible_version_id=99 WHERE id=1"),
       /FOREIGN KEY/,
+    );
+    const before = db.prepare("SELECT * FROM video_projects ORDER BY id").all();
+    for (const name of migrations.slice(1))
+      db.exec(readFileSync(new URL(name, directory), "utf8"));
+    assert.deepEqual(
+      db.prepare("SELECT * FROM video_projects ORDER BY id").all(),
+      before,
     );
     const columns = db
       .prepare("PRAGMA table_info(video_projects)")

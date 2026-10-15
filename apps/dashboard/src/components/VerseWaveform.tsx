@@ -88,12 +88,18 @@ export function VerseWaveform({
   } | null>(null);
   const volume = useRef(volumeMultiplier);
   volume.current = volumeMultiplier;
+  const applyVolume = () => {
+    const player = audio.current;
+    if (!player) return;
+    const graph = audioGraph.current;
+    // Use native volume until the audio graph is ready, then apply the full
+    // multiplier through gain so amplified and muted readings behave alike.
+    player.volume = graph ? 1 : Math.min(1, volume.current);
+    if (graph)
+      graph.gain.gain.setValueAtTime(volume.current, graph.context.currentTime);
+  };
   useEffect(() => {
-    if (audioGraph.current)
-      audioGraph.current.gain.gain.setValueAtTime(
-        volumeMultiplier,
-        audioGraph.current.context.currentTime,
-      );
+    applyVolume();
   }, [volumeMultiplier]);
   useEffect(
     () => () => {
@@ -263,8 +269,7 @@ export function VerseWaveform({
         audioGraph.current = { context, source, gain };
       }
       const graph = audioGraph.current;
-      graph.gain.gain.setValueAtTime(volume.current, graph.context.currentTime);
-      player.volume = 1;
+      applyVolume();
       await Promise.all([graph.context.resume(), player.play()]);
       if (request === playbackRequest.current)
         applyReadingPlaybackSpeed(player, playbackSpeedRef.current, true);
@@ -665,13 +670,15 @@ export function VerseWaveform({
           crossOrigin="anonymous"
           src={src}
           preload="metadata"
-          onLoadedMetadata={(event) =>
+          onLoadedMetadata={(event) => {
+            applyVolume();
             applyReadingPlaybackSpeed(
               event.currentTarget,
               playbackSpeedRef.current,
-            )
-          }
+            );
+          }}
           onPlay={(event) => {
+            applyVolume();
             applyReadingPlaybackSpeed(
               event.currentTarget,
               playbackSpeedRef.current,

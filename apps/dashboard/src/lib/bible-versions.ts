@@ -10,8 +10,10 @@ export const bibleVersionSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   label: z.string().trim().min(1).max(120),
 });
-export type BibleVersion = z.infer<typeof bibleVersionSchema> & {
+export type BibleVersionOption = z.infer<typeof bibleVersionSchema> & {
   id: number;
+};
+export type BibleVersion = BibleVersionOption & {
   project_count: number;
 };
 export class BibleVersionError extends Error {
@@ -23,17 +25,17 @@ export class BibleVersionError extends Error {
   }
 }
 const select =
-  "SELECT v.*,count(p.id) project_count FROM bible_versions v LEFT JOIN video_projects p ON p.bible_version_id=v.id";
+  "SELECT v.id,v.locale,v.code,v.label,(SELECT count(*) FROM video_projects p WHERE p.bible_version_id=v.id) project_count FROM bible_versions v";
 export async function listBibleVersions(database: D1Database) {
   return (
     await database
-      .prepare(`${select} GROUP BY v.id ORDER BY v.locale,v.label,v.id`)
+      .prepare(`${select} ORDER BY v.locale,v.label,v.id`)
       .all<BibleVersion>()
   ).results;
 }
 async function findVersion(database: D1Database, id: number) {
   const version = await database
-    .prepare(`${select} WHERE v.id=? GROUP BY v.id`)
+    .prepare(`${select} WHERE v.id=?`)
     .bind(id)
     .first<BibleVersion>();
   if (!version) throw new BibleVersionError("Version not found", 404);
@@ -122,4 +124,15 @@ export async function syncBibleVersions(database: D1Database, values: unknown) {
     added += results.reduce((total, result) => total + result.meta.changes, 0);
   }
   return { added };
+}
+
+/** Dropdowns need identities, not project counts or management payloads. */
+export async function bibleVersionOptions(database: D1Database) {
+  return (
+    await database
+      .prepare(
+        "SELECT id,locale,code,label FROM bible_versions ORDER BY locale,label,id",
+      )
+      .all()
+  ).results;
 }

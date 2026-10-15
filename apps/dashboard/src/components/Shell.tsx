@@ -25,6 +25,7 @@ import {
   ProjectBreadcrumbContext,
   type ProjectBreadcrumb,
 } from "./ProjectBreadcrumb";
+import { GenerationQueueContext } from "./GenerationQueueContext";
 import { GenerationProgress } from "./GenerationProgress";
 import { GenerationQueueModal } from "./GenerationQueueModal";
 import {
@@ -112,11 +113,13 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
     };
     void refresh();
     window.addEventListener(queueChangedEvent, refresh);
+    window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       live = false;
       clearTimeout(timer);
       window.removeEventListener(queueChangedEvent, refresh);
+      window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
@@ -297,7 +300,9 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
                 : undefined
             }
           >
-            {children}
+            <GenerationQueueContext.Provider value={queue}>
+              {children}
+            </GenerationQueueContext.Provider>
           </main>
         </div>
         {profile && (

@@ -7,6 +7,7 @@ import {
   bibleVersionSchema,
   syncBibleVersions,
   listBibleVersions,
+  bibleVersionOptions,
   saveBibleVersion,
   deleteBibleVersion,
   BibleVersionError,
@@ -115,6 +116,8 @@ async function handle(req: Request, lang: Language) {
     if (user.role !== "admin") throw new Error("Administrator required");
   };
   if (parts[0] === "versions") {
+    if (parts.length === 2 && parts[1] === "options" && method === "GET")
+      return json({ versions: await bibleVersionOptions(database) });
     if (parts.length === 1 && method === "GET")
       return json({ versions: await listBibleVersions(database) });
     if (parts.length === 3 && parts[2] === "books" && method === "GET") {
@@ -420,7 +423,7 @@ async function handle(req: Request, lang: Language) {
               "SELECT id,external_id FROM deployments WHERE target='site' AND external_id IS NOT NULL AND status IN ('requested','queued','building','deploying') ORDER BY created_at DESC LIMIT 5",
             )
             .all<{ id: string; external_id: string }>();
-          await Promise.all(
+          const updates = await Promise.all(
             pending.results.map(async (record) => {
               try {
                 const response = await fetch(
@@ -448,7 +451,7 @@ async function handle(req: Request, lang: Language) {
                         Date.parse(build.stopped_on) - Date.parse(started),
                       )
                     : null;
-                await database
+                return database
                   .prepare(
                     "UPDATE deployments SET status=?,completed_at=?,duration_ms=? WHERE id=?",
                   )
@@ -457,14 +460,17 @@ async function handle(req: Request, lang: Language) {
                     build.stopped_on ?? null,
                     Number.isFinite(duration) ? duration : null,
                     record.id,
-                  )
-                  .run();
+                  );
               } catch (error) {
                 console.error("Deployment synchronization failed", error);
                 syncError = true;
               }
             }),
           );
+          const statements = updates.filter(
+            (statement): statement is D1PreparedStatement => Boolean(statement),
+          );
+          if (statements.length) await database.batch(statements);
         }
         return json({
           configured: Boolean(hookUrl),
@@ -475,7 +481,7 @@ async function handle(req: Request, lang: Language) {
           deployments: (
             await database
               .prepare(
-                "SELECT d.id,d.status,d.message,d.created_at,d.completed_at,d.duration_ms,(d.external_id IS NOT NULL) AS trackable,u.name AS created_by_name FROM deployments d LEFT JOIN dashboard_users u ON u.id=d.created_by WHERE d.target='site' ORDER BY d.created_at DESC LIMIT 50",
+                "SELECT d.id,d.status,d.message,d.created_at,d.completed_at,d.duration_ms,(d.external_id IS NOT NULL) AS trackable,u.name AS created_by_name FROM deployments d LEFT JOIN dashboard_users u ON u.id=d.created_by WHERE d.target='site' ORDER BY d.created_at DESC,d.id DESC LIMIT 50",
               )
               .all()
           ).results,

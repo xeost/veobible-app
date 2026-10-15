@@ -1,15 +1,13 @@
-import {
-  alignmentSignatureMatches,
-  mergeAlignment,
-  type AlignmentJob,
-} from "../../../../tools/video-project-api/src/forced-alignment-result";
+import { loadDashboardSummary } from "./dashboard-summary";
+import type { AlignmentJob } from "../../../../tools/video-project-api/src/forced-alignment-result";
+import { applyStoredAlignment } from "./alignment-application";
 import {
   publishedCleanupSchema,
   publishedCleanupProjects,
 } from "./project-cleanup";
 import {
-  listingSelect,
   listVideoProjects,
+  pageVideoProjects,
   nextVideoProject,
 } from "./video-listing";
 import { loadPublicationSettings } from "./publication-settings";
@@ -87,26 +85,7 @@ export async function videoApi(
     parts = url.pathname.slice(5).split("/"),
     method = req.method;
   if (parts[0] === "summary" && method === "GET")
-    return json({
-      projects: (
-        await database
-          .prepare(
-            "SELECT kind,count(*) total FROM video_projects GROUP BY kind",
-          )
-          .all()
-      ).results,
-      published: await database
-        .prepare("SELECT count(*) total FROM video_projects WHERE published=1")
-        .first(),
-      unpublished: await database
-        .prepare("SELECT count(*) total FROM video_projects WHERE published=0")
-        .first(),
-      recent: (
-        await database
-          .prepare(`${listingSelect} ORDER BY p.updated_at DESC LIMIT 8`)
-          .all()
-      ).results,
-    });
+    return json(await loadDashboardSummary(database));
   if (parts[0] === "generation-queue" && method === "GET") {
     try {
       const response = await videoFetch(
@@ -221,6 +200,8 @@ export async function videoApi(
   }
   if (!parts[1] && method === "GET") {
     const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    if (!url.searchParams.has("ids"))
+      return json(await pageVideoProjects(database, url.searchParams));
     return json({
       videos: await listVideoProjects(
         database,
@@ -234,7 +215,7 @@ export async function videoApi(
     const raw = await req.json();
     const input = manualVideoProjectSchema.parse(raw);
     const version = await database
-      .prepare("SELECT * FROM bible_versions WHERE id=?")
+      .prepare("SELECT id,locale,code,label FROM bible_versions WHERE id=?")
       .bind(input.versionId)
       .first<BibleVersion>();
     if (!version) return json({ error: "Version not found" }, 404);
@@ -312,7 +293,7 @@ export async function videoApi(
       .object({ versionId: z.number().int().positive() })
       .parse(await req.json());
     const version = await database
-      .prepare("SELECT * FROM bible_versions WHERE id=?")
+      .prepare("SELECT id,locale,code,label FROM bible_versions WHERE id=?")
       .bind(input.versionId)
       .first<BibleVersion>();
     if (!version) return json({ error: "Version not found" }, 404);
@@ -543,56 +524,21 @@ export async function videoApi(
         { error: "Could not load the timing analysis. Try again." },
         502,
       );
-    const { job } = (await response.json()) as { job: AlignmentJob | null };
-    const stored = settingsSchema.parse(JSON.parse(project.settings));
-    if (project.settings !== expectedSettings)
-      return json(
-        {
-          error:
-            "The project changed in another window. Reload it before applying the analysis.",
-        },
-        409,
-      );
-    if (stored.alignmentJobId === jobId)
-      return json({ settings: currentSettings });
-    if (!job || job.id !== jobId || job.status !== "done" || !job.result)
-      return json(
-        { error: "The timing analysis is not ready. Try again in a moment." },
-        409,
-      );
-    if (
-      !alignmentSignatureMatches(job.result.signature, {
-        kind: project.kind,
-        version,
-        passage: JSON.parse(project.passage),
-        settings: currentSettings,
-      })
-    )
-      return json(
-        {
-          error:
-            "The passage changed after analysis. Analyze its timing again.",
-        },
-        409,
-      );
-    const settings = settingsSchema.parse(
-      mergeAlignment(currentSettings, job.result, jobId),
-    );
-    const updated = await database
-      .prepare(
-        "UPDATE video_projects SET settings=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND settings=?",
-      )
-      .bind(JSON.stringify(settings), id, project.settings)
-      .run();
-    if (updated.meta.changes !== 1)
-      return json(
-        {
-          error:
-            "The project changed in another window. Reload it before applying the analysis.",
-        },
-        409,
-      );
-    return json({ settings });
+    const data = (await response.json()) as {
+      job: AlignmentJob | null;
+      jobs?: AlignmentJob[];
+    };
+    const applied = await applyStoredAlignment({
+      jobId,
+      currentSettings,
+      expectedSettings,
+      project,
+      jobs: data.jobs ?? (data.job ? [data.job] : []),
+      database,
+    });
+    if ("error" in applied)
+      return json({ error: applied.error }, applied.status);
+    return json(applied);
   }
   if (parts[2] === "voices" && method === "GET") {
     const response = await videoFetch(`/v1/projects/${id}/voices?${query}`);

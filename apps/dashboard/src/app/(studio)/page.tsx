@@ -4,7 +4,7 @@ import { useI18n } from "../../i18n/context";
 import { useHomeScrollPosition } from "../../components/useHomeScrollPosition";
 import { CurrentVideoProjects } from "../../components/CurrentVideoProjects";
 import { userMessage, publicationLabel } from "../../lib/presentation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Clapperboard,
@@ -14,6 +14,7 @@ import {
   ArrowUpRight,
   BookOpen,
 } from "lucide-react";
+import { useHomeUpdates } from "../../components/useHomeUpdates";
 import { api } from "../../components/api";
 export default function Dashboard() {
   const { t, language } = useI18n();
@@ -22,12 +23,19 @@ export default function Dashboard() {
   const [summaryLoaded, setSummaryLoaded] = useState(false);
   const [projectsLoading, setProjectsLoading] = useState(true);
   useHomeScrollPosition(summaryLoaded && !projectsLoading);
-  useEffect(() => {
-    api("summary")
-      .then(setData)
-      .catch((e) => setError(userMessage(e)))
-      .finally(() => setSummaryLoaded(true));
-  }, []);
+  useHomeUpdates(async (signal) => {
+    try {
+      const summary = await api("summary", { signal });
+      if (!signal.aborted) {
+        setData(summary);
+        setError("");
+      }
+    } catch (cause) {
+      if (!signal.aborted) setError(userMessage(cause));
+    } finally {
+      if (!signal.aborted) setSummaryLoaded(true);
+    }
+  });
   const count = (kind: string) =>
     data?.projects.find((v: any) => v.kind === kind)?.total ?? 0;
   return (

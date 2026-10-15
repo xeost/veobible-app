@@ -6,6 +6,27 @@ import { existingOutputMedia } from "./existing-projects.js";
 
 const execFileAsync = promisify(execFile);
 
+const finderScript = `on run argv
+  set folderPath to item 1 of argv
+  tell application "Finder"
+    set projectFolder to folder (POSIX file folderPath as alias)
+    open projectFolder
+    set projectWindow to container window of projectFolder
+    set current view of projectWindow to list view
+    tell list view options of projectWindow
+      set sort column to name column
+      set sort direction of column id name column to normal
+    end tell
+    activate
+  end tell
+end run`;
+
+type RunCommand = (
+  command: string,
+  args: string[],
+  options: { timeout: number },
+) => Promise<unknown>;
+
 /** Only open rendered project directories inside the configured output root. */
 export async function openProjectFolder(
   directory: string,
@@ -14,6 +35,7 @@ export async function openProjectFolder(
   options: {
     platform?: string;
     open?: (directory: string) => Promise<void>;
+    run?: RunCommand;
   } = {},
 ) {
   if ((options.platform ?? process.platform) !== "darwin")
@@ -35,9 +57,12 @@ export async function openProjectFolder(
   await (
     options.open ??
     (async (folder: string) => {
-      await execFileAsync("/usr/bin/open", ["-a", "Finder", folder], {
-        timeout: 5000,
-      });
+      // Pass the path as an argument so quotes and other characters remain data.
+      await (options.run ?? execFileAsync)(
+        "/usr/bin/osascript",
+        ["-e", finderScript, "--", folder],
+        { timeout: 30000 },
+      );
     })
   )(resolvedDirectory);
 }

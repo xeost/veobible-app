@@ -63,3 +63,65 @@ test("Finder opens only rendered projects inside their environment output root",
     await fs.rm(temporary, { recursive: true, force: true });
   }
 });
+
+test("Finder targets the project folder in list view sorted by name ascending and passes paths as data", async () => {
+  const temporary = await fs.mkdtemp(
+    path.join(os.tmpdir(), "project-folder-sort-"),
+  );
+  const folder = path.join(temporary, 'Project "quoted" \\ ñ $(example)');
+  try {
+    await fs.mkdir(folder);
+    await fs.writeFile(path.join(folder, "0-short.mp4"), "video");
+    let script = "";
+    await openProjectFolder(folder, temporary, "short", {
+      platform: "darwin",
+      run: async (command, args, options) => {
+        assert.equal(command, "/usr/bin/osascript");
+        assert.equal(args[0], "-e");
+        script = args[1];
+        assert.deepEqual(args.slice(2), ["--", await fs.realpath(folder)]);
+        assert.equal(options.timeout, 30000);
+        assert.ok(!script.includes(folder));
+        assert.match(script, /set folderPath to item 1 of argv/);
+        assert.match(
+          script,
+          /set projectWindow to container window of projectFolder/,
+        );
+        assert.match(script, /set current view of projectWindow to list view/);
+        assert.match(script, /set sort column to name column/);
+        assert.match(
+          script,
+          /set sort direction of column id name column to normal/,
+        );
+        assert.doesNotMatch(
+          script,
+          /front window|window 1|default list view options/,
+        );
+      },
+    });
+    assert.ok(script);
+    if (process.platform === "darwin") {
+      // Compile against the installed Finder dictionary without executing automation.
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const source = path.join(temporary, "finder.applescript");
+      await fs.writeFile(source, script);
+      await promisify(execFile)("/usr/bin/osacompile", [
+        "-o",
+        path.join(temporary, "finder.scpt"),
+        source,
+      ]);
+    }
+    await assert.rejects(
+      openProjectFolder(folder, temporary, "short", {
+        platform: "darwin",
+        run: async () => {
+          throw new Error("Finder automation denied");
+        },
+      }),
+      /Finder automation denied/,
+    );
+  } finally {
+    await fs.rm(temporary, { recursive: true, force: true });
+  }
+});

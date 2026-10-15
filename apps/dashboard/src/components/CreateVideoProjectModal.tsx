@@ -10,7 +10,7 @@ import {
   validateManualVideoProject,
   type BibleBook,
 } from "../lib/manual-video-project";
-import type { BibleVersion } from "../lib/bible-versions";
+import type { BibleVersionOption as BibleVersion } from "../lib/bible-versions";
 type Point = { book: string; chapter: number; verse: number };
 export function CreateVideoProjectModal({
   kind,
@@ -40,7 +40,7 @@ export function CreateVideoProjectModal({
     dialog.current?.showModal();
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    api<{ versions: BibleVersion[] }>("versions")
+    api<{ versions: BibleVersion[] }>("versions/options")
       .then((data) => {
         if (live) {
           setVersions(data.versions);

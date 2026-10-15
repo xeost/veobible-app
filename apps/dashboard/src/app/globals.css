@@ -1604,7 +1604,13 @@ audio {
   color: var(--accent);
 }
 .project-studio-heading {
+  position: sticky;
+  top: 73px;
+  z-index: 9;
   align-items: flex-end;
+  padding: 16px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
 }
 .project-top-actions {
   display: flex;
@@ -2701,4 +2707,54 @@ audio {
   width: 2px;
   background: #f6b676;
   pointer-events: none;
+}
+
+.voice-playback-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+.voice-playback-actions button {
+  height: 36px;
+  padding: 7px 10px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.voice-playback-actions .icon-button {
+  width: 36px;
+  flex-shrink: 0;
+  padding: 7px;
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 800px) {
+  .project-studio-heading {
+    top: 65px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .project-studio-heading h1 {
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+  .project-studio-heading .editor-back {
+    margin-bottom: 8px;
+  }
+}
+@media (max-width: 400px) {
+  .voice-playback-actions {
+    gap: 4px;
+  }
+  .voice-playback-actions button {
+    min-width: 0;
+    height: 40px;
+    padding: 6px;
+    white-space: normal;
+  }
+  .voice-playback-actions .icon-button {
+    width: 32px;
+  }
 }

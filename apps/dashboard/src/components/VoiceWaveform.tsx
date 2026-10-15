@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { GripVertical, Pause, Play, RotateCcw } from "lucide-react";
 import { useI18n } from "../i18n/context";
 
@@ -13,6 +13,7 @@ export function VoiceWaveform({
   audioRef,
   onPlaybackChange,
   onError,
+  generateAction,
 }: {
   src: string;
   trim?: VoiceTrim;
@@ -22,6 +23,7 @@ export function VoiceWaveform({
   audioRef: (audio: HTMLAudioElement | null) => void;
   onPlaybackChange: (playing: boolean) => void;
   onError: () => void;
+  generateAction: ReactNode;
 }) {
   const { t } = useI18n();
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -290,6 +292,30 @@ export function VoiceWaveform({
           )}
         </p>
       )}
+      <div className="voice-playback-actions">
+        <button
+          type="button"
+          disabled={!duration}
+          onClick={() => (playing ? audio.current?.pause() : play())}
+        >
+          {playing ? <Pause size={16} /> : <Play size={16} />}
+          {t(playing ? "Pause" : "Listen to narration")}
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={t("Use full recording")}
+          data-tooltip={t("Use full recording")}
+          disabled={disabled || !trim}
+          onClick={() => {
+            audio.current?.pause();
+            onTrim(undefined);
+          }}
+        >
+          <RotateCcw size={16} />
+        </button>
+        {generateAction}
+      </div>
       <div className="trim-fields">
         {(["start", "end"] as const).map((edge) => (
           <label key={edge}>
@@ -305,27 +331,6 @@ export function VoiceWaveform({
             />
           </label>
         ))}
-      </div>
-      <div className="verse-playback">
-        <button
-          type="button"
-          disabled={!duration}
-          onClick={() => (playing ? audio.current?.pause() : play())}
-        >
-          {playing ? <Pause size={16} /> : <Play size={16} />}
-          {t(playing ? "Pause" : "Listen to narration")}
-        </button>
-        <button
-          type="button"
-          disabled={disabled || !trim}
-          onClick={() => {
-            audio.current?.pause();
-            onTrim(undefined);
-          }}
-        >
-          <RotateCcw size={16} />
-          {t("Use full recording")}
-        </button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 "use client";
+import { pollWhileVisible } from "../../../lib/visible-polling";
 import { useModalDismiss } from "../../../components/useModalDismiss";
 import { useI18n } from "../../../i18n/context";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -34,23 +35,32 @@ export default function Deployments() {
   const [modalError, setModalError] = useState("");
   const dismiss = useModalDismiss(() => setModal(null));
   const dialog = useRef<HTMLDialogElement>(null);
+  const request = useRef<AbortController | null>(null);
   const load = useCallback(async () => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     setLoading(true);
     try {
-      setData(await api<Data>("deployments"));
-      setError("");
-    } catch (e) {
-      setError(userMessage(e));
+      const result = await api<Data>("deployments", {
+        signal: controller.signal,
+      });
+      if (!controller.signal.aborted) {
+        setData(result);
+        setError("");
+      }
+    } catch (cause) {
+      if (!controller.signal.aborted) setError(userMessage(cause));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, []);
   useEffect(() => {
-    void load();
-    const timer = setInterval(() => {
-      if (!document.hidden) void load();
-    }, 15000);
-    return () => clearInterval(timer);
+    const stop = pollWhileVisible(load, () => true, 15000);
+    return () => {
+      stop();
+      request.current?.abort();
+    };
   }, [load]);
   useEffect(() => {
     if (modal) dialog.current?.showModal();

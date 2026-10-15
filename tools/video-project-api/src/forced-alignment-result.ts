@@ -23,6 +23,7 @@ export type AlignmentJob = {
   stage: string;
   progress: number;
   sectionIndex?: number;
+  createdAt?: string;
   result?: AlignmentResult;
 };
 export function alignmentSignature(input: {
@@ -79,17 +80,56 @@ export function alignmentSignatureMatches(
     return false;
   }
 }
+export function alignmentWasApplied(
+  settings: { alignmentJobId?: string; alignmentAppliedJobIds?: string[] },
+  jobId: string,
+) {
+  return (
+    settings.alignmentJobId === jobId ||
+    Boolean(settings.alignmentAppliedJobIds?.includes(jobId))
+  );
+}
+
 export function mergeAlignment<
   T extends {
     verseOffsets: AlignmentOffset[];
     readingSectionPadding: AlignmentPadding[];
     alignmentReviewReferences?: string[];
+    alignmentJobId?: string;
+    alignmentAppliedJobIds?: string[];
   },
 >(
   settings: T,
   result: AlignmentResult,
   jobId: string,
-): T & { alignmentJobId: string; alignmentReviewReferences: string[] } {
+): Omit<
+  T,
+  | "verseOffsets"
+  | "readingSectionPadding"
+  | "alignmentJobId"
+  | "alignmentAppliedJobIds"
+  | "alignmentReviewReferences"
+> & {
+  verseOffsets: AlignmentOffset[];
+  readingSectionPadding: AlignmentPadding[];
+  alignmentJobId: string;
+  alignmentAppliedJobIds: string[];
+  alignmentReviewReferences: string[];
+} {
+  const applied = [
+    ...new Set([
+      ...(settings.alignmentAppliedJobIds ?? []),
+      ...(settings.alignmentJobId ? [settings.alignmentJobId] : []),
+      jobId,
+    ]),
+  ];
+  if (alignmentWasApplied(settings, jobId))
+    return {
+      ...settings,
+      alignmentJobId: settings.alignmentJobId ?? jobId,
+      alignmentAppliedJobIds: applied,
+      alignmentReviewReferences: settings.alignmentReviewReferences ?? [],
+    };
   const offsets = new Map(
     settings.verseOffsets.map((item) => [item.reference, item]),
   );
@@ -115,6 +155,7 @@ export function mergeAlignment<
     verseOffsets: [...offsets.values()],
     readingSectionPadding: [...padding.values()],
     alignmentJobId: jobId,
+    alignmentAppliedJobIds: applied,
     alignmentReviewReferences: [
       ...(settings.alignmentReviewReferences ?? []).filter(
         (reference) =>
