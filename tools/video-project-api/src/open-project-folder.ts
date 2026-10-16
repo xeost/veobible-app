@@ -11,13 +11,25 @@ const finderScript = `on run argv
   tell application "Finder"
     set projectFolder to folder (POSIX file folderPath as alias)
     open projectFolder
-    set projectWindow to container window of projectFolder
-    set current view of projectWindow to list view
-    tell list view options of projectWindow
-      set sort column to name column
-      set sort direction of column id name column to normal
-    end tell
     activate
+    set projectWindow to container window of projectFolder
+    -- Finder can restore saved view settings while opening the folder.
+    delay 0.2
+    repeat 20 times
+      try
+        set current view of projectWindow to list view
+        tell list view options of projectWindow
+          set sort column to column id name column
+          set sort direction of column id name column to normal
+        end tell
+        delay 0.1
+        tell list view options of projectWindow
+          if (name of sort column is name column) and (sort direction of column id name column is normal) then return
+        end tell
+      end try
+      delay 0.1
+    end repeat
+    error "Could not sort the project folder by name."
   end tell
 end run`;
 

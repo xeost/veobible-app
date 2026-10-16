@@ -187,6 +187,16 @@ export function VideoProjectEditor({
   const voiceState = useRef(voices);
   voiceState.current = voices;
   const base = `videos/${encodeURIComponent(projectId)}?kind=${kind}`;
+  const [preparedWaveforms, setPreparedWaveforms] = useState<
+    Record<string, boolean>
+  >({});
+  const [preparedEditor, setPreparedEditor] = useState<string | null>(null);
+  const onWaveformPrepared = useCallback((key: string, success: boolean) => {
+    setPreparedWaveforms((current) =>
+      current[key] === success ? current : { ...current, [key]: success },
+    );
+  }, []);
+
   const endpoint = useCallback(
     (action = "") =>
       `videos/${encodeURIComponent(projectId)}${action ? `/${action}` : ""}?kind=${kind}`,
@@ -213,6 +223,8 @@ export function VideoProjectEditor({
   );
   useEffect(() => {
     setMediaAccess(null);
+    setPreparedWaveforms({});
+    setPreparedEditor(null);
     collapseAnchor.current = null;
     if (collapseSpace.current) collapseSpace.current.style.height = "0px";
     setAnalysis(null);
@@ -454,6 +466,64 @@ export function VideoProjectEditor({
     busy || active || Boolean(applyingAlignment) || !alignmentLoaded;
   const timeline = readingTimeline(analysis?.sections ?? []);
   const cues = adjustedCues(analysis?.cues ?? [], settings.verseOffsets);
+  const waveformKeys = [
+    ...timeline.map((section) => `${base}:reading-${section.index}`),
+    ...narrationParts
+      .filter(
+        (part) =>
+          voices[part]?.available &&
+          !["queued", "running"].includes(voices[part]?.status ?? ""),
+      )
+      .map((part) => `${base}:${part}:${voiceRevision}`),
+  ];
+  const preparedCount = waveformKeys.filter(
+    (key) => key in preparedWaveforms,
+  ).length;
+  const preparationFailed = waveformKeys.some(
+    (key) => preparedWaveforms[key] === false,
+  );
+  const initialDataLoaded = Boolean(
+    project &&
+    (analysis || analysisError) &&
+    !analyzing &&
+    (voicesLoaded || voiceError),
+  );
+  const preparationComplete =
+    initialDataLoaded && preparedCount === waveformKeys.length;
+  useEffect(() => {
+    if (preparationComplete) setPreparedEditor(base);
+  }, [base, preparationComplete]);
+  const preparing = preparedEditor !== base && !error;
+  const preparationOverlay = preparing ? (
+    <div
+      className="editor-preparation-overlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="editor-preparation-message">
+        <LoaderCircle size={32} className="voice-spinner" aria-hidden="true" />
+        <h2>{t("Preparing the editor…")}</h2>
+        <p className="muted">
+          {t("Loading audio so every section is ready to edit.")}
+        </p>
+        {waveformKeys.length > 0 && (
+          <>
+            <progress
+              max={waveformKeys.length}
+              value={preparedCount}
+              aria-label={t("Preparing audio")}
+            />
+            <p className="muted">
+              {t("{completed} of {total} audio tracks prepared")
+                .replace("{completed}", String(preparedCount))
+                .replace("{total}", String(waveformKeys.length))}
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  ) : null;
+
   const result = project?.result ? JSON.parse(project.result) : null;
   const perform = async (action: () => Promise<void>) => {
     busyRef.current = true;
@@ -1035,6 +1105,8 @@ export function VideoProjectEditor({
             <h3>{t("Narration preview")}</h3>
             {voice.available && !pending ? (
               <VoiceWaveform
+                resourceKey={`${base}:${part}:${voiceRevision}`}
+                onPrepared={onWaveformPrepared}
                 generateAction={generateAction}
                 audioRef={(player) => {
                   if (player) voicePlayers.current[part] = player;
@@ -1145,301 +1217,319 @@ export function VideoProjectEditor({
   );
   if (!project)
     return (
-      <section className="panel">
-        <Link className="button" href={backHref}>
-          <ChevronLeft size={16} />
-          {t("Back to projects")}
-        </Link>
-        <p
-          className={error ? "error" : "empty"}
-          role={error ? "alert" : "status"}
-        >
-          {t(error || "Loading project…")}
-        </p>
-      </section>
+      <>
+        {preparationOverlay}
+        <section className="panel" inert={preparing} aria-busy={preparing}>
+          <Link className="button" href={backHref}>
+            <ChevronLeft size={16} />
+            {t("Back to projects")}
+          </Link>
+          <p
+            className={error ? "error" : "empty"}
+            role={error ? "alert" : "status"}
+          >
+            {t(error || "Loading project…")}
+          </p>
+        </section>
+      </>
     );
   return (
     <>
-      <ProjectEditorHeader
-        title={project.title}
-        version={project.version_code ?? ""}
-        backHref={backHref}
+      {preparationOverlay}
+      <div
+        style={{ display: "contents" }}
+        inert={preparing}
+        aria-busy={preparing}
       >
-        <button
-          className={saved ? "save-confirmed" : undefined}
-          aria-label={saved ? t("Changes saved") : t("Save changes")}
-          data-tooltip={saved ? t("Changes saved") : t("Save changes")}
-          disabled={editingLocked}
-          onClick={() => {
-            setSaved(false);
-            void perform(save);
-          }}
+        {preparationFailed && !preparing && (
+          <p className="notice" role="status">
+            {t(
+              "Some audio could not be prepared. Open its section to retry loading it.",
+            )}
+          </p>
+        )}
+        <ProjectEditorHeader
+          title={project.title}
+          version={project.version_code ?? ""}
+          backHref={backHref}
         >
-          {saved ? <Check size={16} /> : <Save size={16} />}
-          {saved ? t("Changes saved") : t("Save changes")}
-        </button>
-        <button
-          type="button"
-          aria-label={t("Preview")}
-          data-tooltip={t("Preview")}
-          onClick={() => {
-            setPreviewView("composition");
-            setPreviewReading(null);
-            setPreviewVoice(null);
-            Object.values(voicePlayers.current).forEach((player) =>
-              player?.pause(),
-            );
-            setPreviewOpen(true);
-          }}
-          aria-haspopup="dialog"
-        >
-          <Clapperboard size={16} />
-          {t("Preview")}
-        </button>
-        <button
-          className="primary"
-          disabled={locked || !analysis || analyzing || !voicesReady}
-          aria-label={
-            active
-              ? t("Generating")
-              : result
-                ? t("Generate video again")
-                : t("Generate video")
-          }
-          data-tooltip={
-            !voicesReady
-              ? t(narrationRequirement)
-              : active
+          <button
+            className={saved ? "save-confirmed" : undefined}
+            aria-label={saved ? t("Changes saved") : t("Save changes")}
+            data-tooltip={saved ? t("Changes saved") : t("Save changes")}
+            disabled={editingLocked}
+            onClick={() => {
+              setSaved(false);
+              void perform(save);
+            }}
+          >
+            {saved ? <Check size={16} /> : <Save size={16} />}
+            {saved ? t("Changes saved") : t("Save changes")}
+          </button>
+          <button
+            type="button"
+            aria-label={t("Preview")}
+            data-tooltip={t("Preview")}
+            onClick={() => {
+              setPreviewView("composition");
+              setPreviewReading(null);
+              setPreviewVoice(null);
+              Object.values(voicePlayers.current).forEach((player) =>
+                player?.pause(),
+              );
+              setPreviewOpen(true);
+            }}
+            aria-haspopup="dialog"
+          >
+            <Clapperboard size={16} />
+            {t("Preview")}
+          </button>
+          <button
+            className="primary"
+            disabled={locked || !analysis || analyzing || !voicesReady}
+            aria-label={
+              active
                 ? t("Generating")
                 : result
                   ? t("Generate video again")
                   : t("Generate video")
-          }
-          onClick={() =>
-            void perform(async () => {
-              await api(endpoint("render"), {
-                method: "POST",
-                body: JSON.stringify({
-                  ...checkedSettings(),
-                  readingCuts: adjustedCues(
-                    analysis!.cues,
-                    settingsRef.current.verseOffsets,
-                  ).map(({ reference, start, end }) => ({
-                    reference,
-                    start,
-                    end,
-                  })),
-                }),
-              });
-              window.dispatchEvent(new Event(queueChangedEvent));
-            })
-          }
-        >
-          <Play size={16} />
-          {active
-            ? t("Generating")
-            : result
-              ? t("Generate video again")
-              : t("Generate video")}
-        </button>
-      </ProjectEditorHeader>
-      {error && (
-        <p className="error" role="alert">
-          {t(error)}
-        </p>
-      )}
-      {voiceError && (
-        <p className="error" role="alert">
-          {t(voiceError)}
-        </p>
-      )}
-      {notice && (
-        <p className="success" role="status">
-          {t(notice)}
-        </p>
-      )}
-      {active && (
-        <div className="project-render-progress">
-          <GenerationProgress
-            value={project.progress ?? 0}
-            label={t("Video generation")}
-          />
-        </div>
-      )}
-      <div className="project-studio-layout">
-        <div className="section-stack">
-          <div className="sections-toolbar">
-            <div>
-              <h2>{t("Video sections")}</h2>
-              <p className="muted">
-                {sectionIds.length} {t("sections")} ·{" "}
-                {t("Introduction, reading and closing")}
-              </p>
-            </div>
-            <div>
-              <button
-                type="button"
-                className={`icon-button section-toolbar-button${project.published ? " project-published-button" : ""}`}
-                aria-label={t(
-                  project.published
-                    ? "Mark as unpublished"
-                    : "Mark as published",
-                )}
-                data-tooltip={t(
-                  project.published
-                    ? "Mark as unpublished"
-                    : "Mark as published",
-                )}
-                aria-pressed={Boolean(project.published)}
-                disabled={locked}
-                onClick={() =>
-                  void perform(async () => {
-                    await api(endpoint(), {
-                      method: "PATCH",
-                      body: JSON.stringify({ published: !project.published }),
-                    });
-                  })
-                }
-              >
-                <CircleCheck size={17} />
-              </button>
-              <button
-                type="button"
-                className="icon-button section-toolbar-button"
-                aria-label={t("Generate all missing narrations")}
-                data-tooltip={t(
-                  queuingVoices
-                    ? "Adding narrations to the queue…"
-                    : voicesLoaded && analysis && !missingNarrations.length
-                      ? "All narrations are ready or queued"
-                      : "Generate all missing narrations",
-                )}
-                disabled={
-                  editingLocked ||
-                  analyzing ||
-                  !analysis ||
-                  !voicesLoaded ||
-                  !missingNarrations.length
-                }
-                onClick={() => void generateMissingVoices()}
-              >
-                {queuingVoices ? (
-                  <LoaderCircle size={17} className="voice-spinner" />
-                ) : (
-                  <WandSparkles size={17} />
-                )}
-              </button>
-              <button
-                type="button"
-                className="icon-button section-toolbar-button"
-                aria-label={t("Analyze all readings with AI")}
-                data-tooltip={t(
-                  "Analyze all readings with AI. Manual verse adjustments are preserved.",
-                )}
-                disabled={
-                  alignmentQueueLocked ||
-                  analyzing ||
-                  !analysis ||
-                  alignmentScopeBusy()
-                }
-                onClick={() => void queueAlignment()}
-              >
-                <ScanText size={17} />
-              </button>
-              <span className="section-action-separator" aria-hidden="true" />
-              <button
-                type="button"
-                aria-label={t("Expand all")}
-                onClick={() => setExpanded(new Set(sectionIds))}
-              >
-                <ChevronsDown size={16} />
-              </button>
-              <button
-                type="button"
-                aria-label={t("Collapse all")}
-                onClick={() => setExpanded(new Set())}
-              >
-                <ChevronsUp size={16} />
-              </button>
-            </div>
+            }
+            data-tooltip={
+              !voicesReady
+                ? t(narrationRequirement)
+                : active
+                  ? t("Generating")
+                  : result
+                    ? t("Generate video again")
+                    : t("Generate video")
+            }
+            onClick={() =>
+              void perform(async () => {
+                await api(endpoint("render"), {
+                  method: "POST",
+                  body: JSON.stringify({
+                    ...checkedSettings(),
+                    readingCuts: adjustedCues(
+                      analysis!.cues,
+                      settingsRef.current.verseOffsets,
+                    ).map(({ reference, start, end }) => ({
+                      reference,
+                      start,
+                      end,
+                    })),
+                  }),
+                });
+                window.dispatchEvent(new Event(queueChangedEvent));
+              })
+            }
+          >
+            <Play size={16} />
+            {active
+              ? t("Generating")
+              : result
+                ? t("Generate video again")
+                : t("Generate video")}
+          </button>
+        </ProjectEditorHeader>
+        {error && (
+          <p className="error" role="alert">
+            {t(error)}
+          </p>
+        )}
+        {voiceError && (
+          <p className="error" role="alert">
+            {t(voiceError)}
+          </p>
+        )}
+        {notice && (
+          <p className="success" role="status">
+            {t(notice)}
+          </p>
+        )}
+        {active && (
+          <div className="project-render-progress">
+            <GenerationProgress
+              value={project.progress ?? 0}
+              label={t("Video generation")}
+            />
           </div>
-          {voiceSection("intro", 1)}
-          {timeline.length ? (
-            timeline.map((section) => {
-              const id = `reading-${section.index}`;
-              const verses = cues.filter((cue, index) => {
-                const baseline = analysis!.cues[index];
-                return (
-                  baseline.start >= section.timelineStart - 0.0001 &&
-                  baseline.start < section.timelineEnd - 0.0001
+        )}
+        <div className="project-studio-layout">
+          <div className="section-stack">
+            <div className="sections-toolbar">
+              <div>
+                <h2>{t("Video sections")}</h2>
+                <p className="muted">
+                  {sectionIds.length} {t("sections")} ·{" "}
+                  {t("Introduction, reading and closing")}
+                </p>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  className={`icon-button section-toolbar-button${project.published ? " project-published-button" : ""}`}
+                  aria-label={t(
+                    project.published
+                      ? "Mark as unpublished"
+                      : "Mark as published",
+                  )}
+                  data-tooltip={t(
+                    project.published
+                      ? "Mark as unpublished"
+                      : "Mark as published",
+                  )}
+                  aria-pressed={Boolean(project.published)}
+                  disabled={locked}
+                  onClick={() =>
+                    void perform(async () => {
+                      await api(endpoint(), {
+                        method: "PATCH",
+                        body: JSON.stringify({ published: !project.published }),
+                      });
+                    })
+                  }
+                >
+                  <CircleCheck size={17} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button section-toolbar-button"
+                  aria-label={t("Generate all missing narrations")}
+                  data-tooltip={t(
+                    queuingVoices
+                      ? "Adding narrations to the queue…"
+                      : voicesLoaded && analysis && !missingNarrations.length
+                        ? "All narrations are ready or queued"
+                        : "Generate all missing narrations",
+                  )}
+                  disabled={
+                    editingLocked ||
+                    analyzing ||
+                    !analysis ||
+                    !voicesLoaded ||
+                    !missingNarrations.length
+                  }
+                  onClick={() => void generateMissingVoices()}
+                >
+                  {queuingVoices ? (
+                    <LoaderCircle size={17} className="voice-spinner" />
+                  ) : (
+                    <WandSparkles size={17} />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="icon-button section-toolbar-button"
+                  aria-label={t("Analyze all readings with AI")}
+                  data-tooltip={t(
+                    "Analyze all readings with AI. Manual verse adjustments are preserved.",
+                  )}
+                  disabled={
+                    alignmentQueueLocked ||
+                    analyzing ||
+                    !analysis ||
+                    alignmentScopeBusy()
+                  }
+                  onClick={() => void queueAlignment()}
+                >
+                  <ScanText size={17} />
+                </button>
+                <span className="section-action-separator" aria-hidden="true" />
+                <button
+                  type="button"
+                  aria-label={t("Expand all")}
+                  onClick={() => setExpanded(new Set(sectionIds))}
+                >
+                  <ChevronsDown size={16} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={t("Collapse all")}
+                  onClick={() => setExpanded(new Set())}
+                >
+                  <ChevronsUp size={16} />
+                </button>
+              </div>
+            </div>
+            {voiceSection("intro", 1)}
+            {timeline.length ? (
+              timeline.map((section) => {
+                const id = `reading-${section.index}`;
+                const verses = cues.filter((cue, index) => {
+                  const baseline = analysis!.cues[index];
+                  return (
+                    baseline.start >= section.timelineStart - 0.0001 &&
+                    baseline.start < section.timelineEnd - 0.0001
+                  );
+                });
+                const sectionJob = alignmentJobs.find(
+                  (job) =>
+                    ["queued", "running"].includes(job.status) &&
+                    (job.sectionIndex === undefined ||
+                      job.sectionIndex === section.index),
                 );
-              });
-              const sectionJob = alignmentJobs.find(
-                (job) =>
-                  ["queued", "running"].includes(job.status) &&
-                  (job.sectionIndex === undefined ||
-                    job.sectionIndex === section.index),
-              );
-              const sectionApplying =
-                applyingAlignment &&
-                (applyingAlignment.sectionIndex === undefined ||
-                  applyingAlignment.sectionIndex === section.index);
-              return (
-                <div key={id} style={{ display: "contents" }}>
-                  {kind === "long" &&
-                    analysis?.chapterIntroductions?.[section.index] &&
-                    voiceSection(
-                      analysis.chapterIntroductions[section.index].part,
-                      section.index * 2 + 2,
-                    )}
-                  <section className="section-card">
-                    {sectionHeading(
-                      id,
-                      kind === "long"
-                        ? section.index * 2 + 3
-                        : section.index + 2,
-                      `${t("Passage reading")} ${timeline.length > 1 ? section.index + 1 : ""}`,
-                      `${verses.length} ${t("verses")} · ${(section.end - section.start).toFixed(1)} s`,
-                      false,
-                      verses.map((cue) => cue.reference),
-                    )}
-                    {(sectionJob || sectionApplying) && (
-                      <GenerationProgress
-                        value={sectionJob?.progress ?? 100}
-                        label={t(
-                          sectionApplying
-                            ? "Applying analyzed timings…"
-                            : sectionJob?.status === "queued"
-                              ? "Timing analysis is queued"
-                              : "Analyzing reading timings…",
-                        )}
-                      />
-                    )}
-                    <div
-                      id={`section-${id}`}
-                      hidden={!expanded.has(id)}
-                      className="section-body"
-                    >
-                      {settings.alignmentReviewReferences?.some((reference) =>
-                        verses.some((cue) => cue.reference === reference),
-                      ) && (
-                        <p className="notice">
-                          {t(
-                            "Listen carefully to these verse cuts: {references}",
-                          ).replace(
-                            "{references}",
-                            settings.alignmentReviewReferences
-                              .filter((reference) =>
-                                verses.some(
-                                  (cue) => cue.reference === reference,
-                                ),
-                              )
-                              .join(", "),
-                          )}
-                        </p>
+                const sectionApplying =
+                  applyingAlignment &&
+                  (applyingAlignment.sectionIndex === undefined ||
+                    applyingAlignment.sectionIndex === section.index);
+                return (
+                  <div key={id} style={{ display: "contents" }}>
+                    {kind === "long" &&
+                      analysis?.chapterIntroductions?.[section.index] &&
+                      voiceSection(
+                        analysis.chapterIntroductions[section.index].part,
+                        section.index * 2 + 2,
                       )}
-                      {expanded.has(id) && (
+                    <section className="section-card">
+                      {sectionHeading(
+                        id,
+                        kind === "long"
+                          ? section.index * 2 + 3
+                          : section.index + 2,
+                        `${t("Passage reading")} ${timeline.length > 1 ? section.index + 1 : ""}`,
+                        `${verses.length} ${t("verses")} · ${(section.end - section.start).toFixed(1)} s`,
+                        false,
+                        verses.map((cue) => cue.reference),
+                      )}
+                      {(sectionJob || sectionApplying) && (
+                        <GenerationProgress
+                          value={sectionJob?.progress ?? 100}
+                          label={t(
+                            sectionApplying
+                              ? "Applying analyzed timings…"
+                              : sectionJob?.status === "queued"
+                                ? "Timing analysis is queued"
+                                : "Analyzing reading timings…",
+                          )}
+                        />
+                      )}
+                      <div
+                        id={`section-${id}`}
+                        hidden={!expanded.has(id)}
+                        className="section-body"
+                      >
+                        {settings.alignmentReviewReferences?.some((reference) =>
+                          verses.some((cue) => cue.reference === reference),
+                        ) && (
+                          <p className="notice">
+                            {t(
+                              "Listen carefully to these verse cuts: {references}",
+                            ).replace(
+                              "{references}",
+                              settings.alignmentReviewReferences
+                                .filter((reference) =>
+                                  verses.some(
+                                    (cue) => cue.reference === reference,
+                                  ),
+                                )
+                                .join(", "),
+                            )}
+                          </p>
+                        )}
                         <VerseWaveform
+                          resourceKey={`${base}:${id}`}
+                          onPrepared={onWaveformPrepared}
+                          expanded={expanded.has(id)}
                           resetRevision={readingResetRevisions[id] ?? 0}
                           locale={project.locale}
                           src={media(id)}
@@ -1466,159 +1556,161 @@ export function VideoProjectEditor({
                             shiftVerse(section.index, cue, manuallyAdjusted)
                           }
                         />
+                        {readingVolume}
+                      </div>
+                    </section>
+                  </div>
+                );
+              })
+            ) : (
+              <section className="section-card">
+                {sectionHeading(
+                  "reading-0",
+                  2,
+                  t("Passage reading"),
+                  analyzing
+                    ? t("Loading audio and verses…")
+                    : t("Prepare the audio to adjust timing"),
+                )}
+                <div
+                  id="section-reading-0"
+                  hidden={!expanded.has("reading-0")}
+                  className="section-body"
+                >
+                  <div className="reading-loading">
+                    <AudioLines size={36} />
+                    <h3>
+                      {analyzing
+                        ? t("Loading audio and verses…")
+                        : t("Passage synchronization")}
+                    </h3>
+                    <p className="muted">
+                      {t(
+                        "Listen to the passage and adjust timing on its waveform here.",
                       )}
-                      {readingVolume}
-                    </div>
-                  </section>
+                    </p>
+                  </div>
+                  {readingVolume}
                 </div>
-              );
-            })
-          ) : (
-            <section className="section-card">
-              {sectionHeading(
-                "reading-0",
-                2,
-                t("Passage reading"),
-                analyzing
-                  ? t("Loading audio and verses…")
-                  : t("Prepare the audio to adjust timing"),
-              )}
-              <div
-                id="section-reading-0"
-                hidden={!expanded.has("reading-0")}
-                className="section-body"
-              >
-                <div className="reading-loading">
-                  <AudioLines size={36} />
-                  <h3>
-                    {analyzing
-                      ? t("Loading audio and verses…")
-                      : t("Passage synchronization")}
-                  </h3>
-                  <p className="muted">
-                    {t(
-                      "Listen to the passage and adjust timing on its waveform here.",
-                    )}
-                  </p>
-                </div>
-                {readingVolume}
-              </div>
-            </section>
-          )}
-          {analysisError && (
-            <p className="error" role="alert">
-              {t(analysisError)}
-            </p>
-          )}
-          {voiceSection("outro", sectionIds.length)}
-        </div>
-        {result?.descriptions && (
-          <div className="project-studio-details">
-            <details className="panel studio-history">
-              <summary>{t("Publication texts")}</summary>
-              {Object.entries(result.descriptions)
-                .sort(([left], [right]) => {
-                  const order = [
-                    "instagram",
-                    "facebook",
-                    "youtube",
-                    "tiktok",
-                    "x",
-                  ];
-                  return (
-                    order.indexOf(
-                      left.replace(/^\d+-/, "").replace(/\.txt$/, ""),
-                    ) -
-                    order.indexOf(
-                      right.replace(/^\d+-/, "").replace(/\.txt$/, ""),
-                    )
-                  );
-                })
-                .map(([name, text]) => (
-                  <label key={name}>
-                    {(
-                      {
-                        "youtube.txt": "YouTube",
-                        "instagram.txt": "Instagram",
-                        "tiktok.txt": "TikTok",
-                        "x.txt": "X",
-                        "facebook.txt": "Facebook",
-                      } as Record<string, string>
-                    )[name.replace(/^\d+-/, "")] || t("social media")}
-                    <textarea readOnly rows={5} value={String(text)} />
-                  </label>
-                ))}
-            </details>
-          </div>
-        )}
-      </div>
-      {previewOpen && (
-        <VideoProjectPreviewModal
-          kind={kind}
-          readingTitle={
-            previewReading?.title ??
-            (previewVoice
-              ? previewVoice.startsWith("chapter-")
-                ? analysis?.chapterIntroductions?.find(
-                    (chapter) => chapter.part === previewVoice,
-                  )?.title
-                : t(previewVoice === "intro" ? "Introduction" : "Closing")
-              : undefined)
-          }
-          view={previewView}
-          onViewChange={(view) => {
-            if (view === previewView) return;
-            previewPlayback.current?.stop();
-            setPreviewView(view);
-          }}
-          close={() => {
-            previewPlayback.current?.dispose();
-            setPreviewOpen(false);
-          }}
-        >
-          <VideoProjectPreview
-            key={projectId + ":" + voiceRevision}
-            kind={kind}
-            endpoint={endpoint}
-            media={media}
-            settings={settings}
-            readingReferences={previewReading?.references}
-            readingSources={analysis?.sections}
-            readingCues={cues}
-            voicePart={previewVoice ?? undefined}
-            readingVolume={readingVolumeValue}
-            ready={Boolean(
-              analysis &&
-              !analyzing &&
-              (previewReading ||
-                (previewVoice ? voices[previewVoice]?.available : voicesReady)),
+              </section>
             )}
-            playbackRef={previewPlayback}
-            view={previewView}
-            rendered={Boolean(result)}
-            onBackground={(background) =>
-              setSettings((current) =>
-                current.background === background
-                  ? current
-                  : { ...current, background },
-              )
-            }
-          />
-          {result && !previewReading && !previewVoice && (
-            <div className="preview-actions">
-              <a className="button" href={`${media("video")}&download=1`}>
-                <Download size={15} />
-                {t("Video")}
-              </a>
-              <a className="button" href={`${media("thumbnail")}&download=1`}>
-                <Download size={15} />
-                {t("Thumbnail")}
-              </a>
+            {analysisError && (
+              <p className="error" role="alert">
+                {t(analysisError)}
+              </p>
+            )}
+            {voiceSection("outro", sectionIds.length)}
+          </div>
+          {result?.descriptions && (
+            <div className="project-studio-details">
+              <details className="panel studio-history">
+                <summary>{t("Publication texts")}</summary>
+                {Object.entries(result.descriptions)
+                  .sort(([left], [right]) => {
+                    const order = [
+                      "instagram",
+                      "facebook",
+                      "youtube",
+                      "tiktok",
+                      "x",
+                    ];
+                    return (
+                      order.indexOf(
+                        left.replace(/^\d+-/, "").replace(/\.txt$/, ""),
+                      ) -
+                      order.indexOf(
+                        right.replace(/^\d+-/, "").replace(/\.txt$/, ""),
+                      )
+                    );
+                  })
+                  .map(([name, text]) => (
+                    <label key={name}>
+                      {(
+                        {
+                          "youtube.txt": "YouTube",
+                          "instagram.txt": "Instagram",
+                          "tiktok.txt": "TikTok",
+                          "x.txt": "X",
+                          "facebook.txt": "Facebook",
+                        } as Record<string, string>
+                      )[name.replace(/^\d+-/, "")] || t("social media")}
+                      <textarea readOnly rows={5} value={String(text)} />
+                    </label>
+                  ))}
+              </details>
             </div>
           )}
-        </VideoProjectPreviewModal>
-      )}
-      <div ref={collapseSpace} aria-hidden="true" />
+        </div>
+        {previewOpen && (
+          <VideoProjectPreviewModal
+            kind={kind}
+            readingTitle={
+              previewReading?.title ??
+              (previewVoice
+                ? previewVoice.startsWith("chapter-")
+                  ? analysis?.chapterIntroductions?.find(
+                      (chapter) => chapter.part === previewVoice,
+                    )?.title
+                  : t(previewVoice === "intro" ? "Introduction" : "Closing")
+                : undefined)
+            }
+            view={previewView}
+            onViewChange={(view) => {
+              if (view === previewView) return;
+              previewPlayback.current?.stop();
+              setPreviewView(view);
+            }}
+            close={() => {
+              previewPlayback.current?.dispose();
+              setPreviewOpen(false);
+            }}
+          >
+            <VideoProjectPreview
+              key={projectId + ":" + voiceRevision}
+              kind={kind}
+              endpoint={endpoint}
+              media={media}
+              settings={settings}
+              readingReferences={previewReading?.references}
+              readingSources={analysis?.sections}
+              readingCues={cues}
+              voicePart={previewVoice ?? undefined}
+              readingVolume={readingVolumeValue}
+              ready={Boolean(
+                analysis &&
+                !analyzing &&
+                (previewReading ||
+                  (previewVoice
+                    ? voices[previewVoice]?.available
+                    : voicesReady)),
+              )}
+              playbackRef={previewPlayback}
+              view={previewView}
+              rendered={Boolean(result)}
+              onBackground={(background) =>
+                setSettings((current) =>
+                  current.background === background
+                    ? current
+                    : { ...current, background },
+                )
+              }
+            />
+            {result && !previewReading && !previewVoice && (
+              <div className="preview-actions">
+                <a className="button" href={`${media("video")}&download=1`}>
+                  <Download size={15} />
+                  {t("Video")}
+                </a>
+                <a className="button" href={`${media("thumbnail")}&download=1`}>
+                  <Download size={15} />
+                  {t("Thumbnail")}
+                </a>
+              </div>
+            )}
+          </VideoProjectPreviewModal>
+        )}
+        <div ref={collapseSpace} aria-hidden="true" />
+      </div>
     </>
   );
 }

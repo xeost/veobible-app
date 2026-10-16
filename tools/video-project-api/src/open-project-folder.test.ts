@@ -88,10 +88,20 @@ test("Finder targets the project folder in list view sorted by name ascending an
           /set projectWindow to container window of projectFolder/,
         );
         assert.match(script, /set current view of projectWindow to list view/);
-        assert.match(script, /set sort column to name column/);
+        assert.match(script, /set sort column to column id name column/);
         assert.match(
           script,
           /set sort direction of column id name column to normal/,
+        );
+        assert.match(script, /repeat 20 times/);
+        assert.match(script, /name of sort column is name column/);
+        assert.match(
+          script,
+          /sort direction of column id name column is normal/,
+        );
+        assert.match(
+          script,
+          /error "Could not sort the project folder by name\."/,
         );
         assert.doesNotMatch(
           script,

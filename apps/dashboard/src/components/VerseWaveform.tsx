@@ -27,8 +27,13 @@ import {
   waveformSeekRange,
   waveformWindow,
 } from "../lib/video-timing";
+import { useAudioWaveform, type WaveformPreparation } from "./useAudioWaveform";
+import { waveformPeaks } from "../lib/audio-waveform";
 export function VerseWaveform({
   src,
+  expanded,
+  resourceKey,
+  onPrepared,
   locale,
   sourceStart,
   sourceEnd,
@@ -42,7 +47,8 @@ export function VerseWaveform({
   onShift,
   preservedReferences,
   resetRevision = 0,
-}: {
+}: WaveformPreparation & {
+  expanded: boolean;
   src: string;
   locale: string;
   sourceStart: number;
@@ -61,20 +67,23 @@ export function VerseWaveform({
   const { t } = useI18n();
   const { playbackSpeed, setPlaybackSpeed } = useReadingPlaybackSpeed(locale);
   const [selected, setSelected] = useState(0);
-  const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
+  const {
+    data,
+    error: waveError,
+    setError: setWaveError,
+    retry,
+  } = useAudioWaveform(src, { resourceKey, onPrepared });
   const [focus, setFocus] = useState(
     cues[0] ?? {
       start: timelineStart,
       end: timelineStart + sourceEnd - sourceStart,
     },
   );
-  const [waveError, setWaveError] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const [hasPlayhead, setHasPlayhead] = useState(false);
   const [extraContext, setExtraContext] = useState({ before: 0, after: 0 });
   const [zoom, setZoom] = useState(1);
-  const [revision, setRevision] = useState(0);
   const audio = useRef<HTMLAudioElement>(null);
   const playbackSpeedRef = useRef(playbackSpeed);
   playbackSpeedRef.current = playbackSpeed;
@@ -140,33 +149,18 @@ export function VerseWaveform({
       list.scrollLeft += item.right - viewport.right + 4;
   }, [index, cue?.reference]);
   useEffect(() => {
-    let live = true;
-    const controller = new AbortController();
-    let context: AudioContext | undefined;
-    setBuffer(null);
-    setWaveError(false);
-    const decode = async () => {
-      try {
-        const response = await fetch(src, { signal: controller.signal });
-        if (!response.ok) throw new Error("Audio unavailable");
-        context = new AudioContext();
-        const buffer = await context.decodeAudioData(
-          await response.arrayBuffer(),
-        );
-        if (live) setBuffer(buffer);
-      } catch {
-        if (live) setWaveError(true);
-      } finally {
-        if (context) await context.close();
-      }
-    };
-    void decode();
-    return () => {
-      live = false;
-      controller.abort();
+    if (!expanded) {
       audio.current?.pause();
+      playbackRequest.current++;
+      playOnSelection.current = null;
+    }
+  }, [expanded]);
+  useEffect(() => {
+    const player = audio.current;
+    return () => {
+      player?.pause();
     };
-  }, [src, revision]);
+  }, []);
   const window = waveformWindow(
     {
       start: focus.start - extraContext.before,
@@ -199,35 +193,18 @@ export function VerseWaveform({
     () => setExtraContext({ before: 0, after: 0 }),
     [cue?.reference, src, resetRevision],
   );
-  const peaks = useMemo(() => {
-    if (!buffer || visibleDuration <= 0) return [];
-    const channels = Array.from(
-      { length: buffer.numberOfChannels },
-      (_, channel) => buffer.getChannelData(channel),
-    );
-    const start = Math.max(
-      0,
-      Math.floor(
-        (sourceStart + window.start - timelineStart) * buffer.sampleRate,
-      ),
-    );
-    const length = Math.ceil(visibleDuration * buffer.sampleRate);
-    const bars = 1000;
-    const values = Array.from({ length: bars }, (_, bar) => {
-      const from = start + Math.floor((bar * length) / bars);
-      const to = Math.min(
-        buffer.length,
-        start + Math.floor(((bar + 1) * length) / bars),
-      );
-      let peak = 0;
-      for (const channel of channels)
-        for (let i = from; i < to; i++)
-          peak = Math.max(peak, Math.abs(channel[i] ?? 0));
-      return peak;
-    });
-    const max = Math.max(...values, 0.01);
-    return values.map((value) => value / max);
-  }, [buffer, sourceStart, timelineStart, window.start, visibleDuration]);
+  const peaks = useMemo(
+    () =>
+      data && visibleDuration > 0
+        ? waveformPeaks(
+            data,
+            Math.max(0, sourceStart + window.start - timelineStart),
+            visibleDuration,
+            1000,
+          )
+        : [],
+    [data, sourceStart, timelineStart, window.start, visibleDuration],
+  );
   useEffect(() => {
     if (!playing) return;
     let frame: number;
@@ -575,11 +552,7 @@ export function VerseWaveform({
           </div>
         </div>
         {waveError && (
-          <button
-            type="button"
-            className="analysis-retry"
-            onClick={() => setRevision((current) => current + 1)}
-          >
+          <button type="button" className="analysis-retry" onClick={retry}>
             {t("Retry loading audio")}
           </button>
         )}

@@ -1,11 +1,16 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { GripVertical, Pause, Play, RotateCcw } from "lucide-react";
 import { useI18n } from "../i18n/context";
+
+import { useAudioWaveform, type WaveformPreparation } from "./useAudioWaveform";
+import { waveformPeaks } from "../lib/audio-waveform";
 
 export type VoiceTrim = { startSeconds: number; endSeconds: number };
 export function VoiceWaveform({
   src,
+  resourceKey,
+  onPrepared,
   trim,
   disabled,
   expanded,
@@ -14,7 +19,7 @@ export function VoiceWaveform({
   onPlaybackChange,
   onError,
   generateAction,
-}: {
+}: WaveformPreparation & {
   src: string;
   trim?: VoiceTrim;
   disabled: boolean;
@@ -29,57 +34,28 @@ export function VoiceWaveform({
   const audio = useRef<HTMLAudioElement | null>(null);
   const track = useRef<HTMLDivElement>(null);
   const [duration, setDuration] = useState(0);
-  const [peaks, setPeaks] = useState<number[]>([]);
+  const {
+    data,
+    error: waveError,
+    retry,
+  } = useAudioWaveform(src, { resourceKey, onPrepared });
+  const peaks = useMemo(
+    () => (data ? waveformPeaks(data, 0, data.duration, 160) : []),
+    [data],
+  );
   const [playing, setPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
-  const [waveError, setWaveError] = useState(false);
   const stopAt = useRef<number | null>(null);
   const end = Math.min(duration, trim?.endSeconds ?? duration);
   const start = Math.max(0, Math.min(trim?.startSeconds ?? 0, end - 0.02));
   const bounds = useRef({ start, end });
   bounds.current = { start, end };
   useEffect(() => {
-    if (!expanded) return;
-    let live = true;
-    const controller = new AbortController();
-    setWaveError(false);
-    const decode = async () => {
-      let context: AudioContext | undefined;
-      try {
-        const response = await fetch(src, { signal: controller.signal });
-        if (!response.ok) throw new Error("Audio unavailable");
-        context = new AudioContext();
-        const buffer = await context.decodeAudioData(
-          await response.arrayBuffer(),
-        );
-        const values = Array.from({ length: 160 }, (_, bar) => {
-          let peak = 0;
-          const from = Math.floor((bar * buffer.length) / 160);
-          const to = Math.floor(((bar + 1) * buffer.length) / 160);
-          for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-            const samples = buffer.getChannelData(channel);
-            for (let i = from; i < to; i++)
-              peak = Math.max(peak, Math.abs(samples[i]));
-          }
-          return peak;
-        });
-        const maximum = Math.max(...values, 0.01);
-        if (live) {
-          setDuration(buffer.duration);
-          setPeaks(values.map((value) => value / maximum));
-        }
-      } catch {
-        if (live) setWaveError(true);
-      } finally {
-        if (context) await context.close();
-      }
-    };
-    void decode();
-    return () => {
-      live = false;
-      controller.abort();
-    };
-  }, [src, expanded]);
+    if (data) setDuration(data.duration);
+  }, [data]);
+  useEffect(() => {
+    if (!expanded) audio.current?.pause();
+  }, [expanded]);
   useEffect(() => {
     const player = audio.current;
     return () => player?.pause();
@@ -286,11 +262,16 @@ export function VoiceWaveform({
         />
       </div>
       {waveError && (
-        <p className="muted">
-          {t(
-            "Could not load the waveform. You can still adjust the start and end times.",
-          )}
-        </p>
+        <div>
+          <p className="muted">
+            {t(
+              "Could not load the waveform. You can still adjust the start and end times.",
+            )}
+          </p>
+          <button type="button" className="analysis-retry" onClick={retry}>
+            {t("Retry loading audio")}
+          </button>
+        </div>
       )}
       <div className="voice-playback-actions">
         <button

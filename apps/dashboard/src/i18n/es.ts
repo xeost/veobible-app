@@ -1,4 +1,13 @@
 export const spanish: Record<string, string> = {
+  "Preparing the editor…": "Preparando el editor…",
+  "Loading audio so every section is ready to edit.":
+    "Cargando los audios para que todas las secciones estén listas para editar.",
+  "Preparing audio": "Preparando los audios",
+  "{completed} of {total} audio tracks prepared":
+    "{completed} de {total} audios preparados",
+  "Some audio could not be prepared. Open its section to retry loading it.":
+    "No se pudieron preparar algunos audios. Abre su sección para reintentar la carga.",
+
   "Wait for cleanup to finish before starting generation.":
     "Espera a que termine la limpieza antes de iniciar la generación.",
   "Clean up published short video files":

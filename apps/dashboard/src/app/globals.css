@@ -2793,3 +2793,41 @@ audio {
     gap: 0;
   }
 }
+
+.editor-preparation-overlay {
+  position: fixed;
+  inset: 73px 0 0 245px;
+  z-index: 11;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #111115ed;
+  backdrop-filter: blur(6px);
+  cursor: progress;
+}
+.editor-preparation-message {
+  max-width: 440px;
+  text-align: center;
+}
+.editor-preparation-message > svg {
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.editor-preparation-message h2 {
+  margin: 0 0 12px;
+}
+.editor-preparation-message progress {
+  width: 100%;
+  margin-top: 16px;
+  accent-color: var(--accent);
+}
+@media (max-width: 1100px) {
+  .editor-preparation-overlay {
+    left: 210px;
+  }
+}
+@media (max-width: 800px) {
+  .editor-preparation-overlay {
+    inset: 65px 0 0;
+  }
+}
