@@ -1740,7 +1740,8 @@ audio {
   height: 34px;
   padding: 0;
 }
-.voice-spinner {
+.voice-spinner,
+.project-final-video-spinner {
   animation: voice-spin 1s linear infinite;
 }
 @keyframes voice-spin {
@@ -2830,4 +2831,38 @@ audio {
   .editor-preparation-overlay {
     inset: 65px 0 0;
   }
+}
+
+.catalog .project-selection-cell {
+  width: 52px;
+  padding-right: 12px;
+}
+.project-selection-cell input[type="checkbox"] {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--purple);
+  cursor: pointer;
+}
+.project-bulk-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--raised);
+}
+.project-bulk-actions > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.project-bulk-actions > span:first-child {
+  margin-right: auto;
+}
+.project-bulk-notice {
+  margin: 14px 20px;
 }

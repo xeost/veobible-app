@@ -65,7 +65,11 @@ function FinalVideoIndicator({
       data-tooltip={t(label)}
     >
       {renderStatus || loading ? (
-        <LoaderCircle size={17} className="voice-spinner" aria-hidden="true" />
+        <LoaderCircle
+          size={17}
+          className="project-final-video-spinner"
+          aria-hidden="true"
+        />
       ) : rendered === undefined ? (
         <CircleHelp size={17} aria-hidden="true" />
       ) : rendered ? (

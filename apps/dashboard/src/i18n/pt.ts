@@ -1,4 +1,14 @@
 export const portuguese: Record<string, string> = {
+  "Selected project actions": "Ações para os projetos selecionados",
+  "{count} projects selected": "{count} projetos selecionados",
+  "Clear selection": "Limpar seleção",
+  "Updating publication…": "Atualizando publicação…",
+  "Publication updated for {count} projects.":
+    "Publicação atualizada em {count} projetos.",
+  "Select all projects on this page":
+    "Selecionar todos os projetos desta página",
+  "Select project: {title}": "Selecionar projeto: {title}",
+
   "Preparing the editor…": "Preparando o editor…",
   "Loading audio so every section is ready to edit.":
     "Carregando os áudios para que todas as seções estejam prontas para editar.",

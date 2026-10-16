@@ -15,6 +15,7 @@ const finderScript = `on run argv
     set projectWindow to container window of projectFolder
     -- Finder can restore saved view settings while opening the folder.
     delay 0.2
+    set sortConfigured to false
     repeat 20 times
       try
         set current view of projectWindow to list view
@@ -24,8 +25,30 @@ const finderScript = `on run argv
         end tell
         delay 0.1
         tell list view options of projectWindow
-          if (name of sort column is name column) and (sort direction of column id name column is normal) then return
+          if (name of sort column is name column) and (sort direction of column id name column is normal) then
+            set sortConfigured to true
+            exit repeat
+          end if
         end tell
+      end try
+      delay 0.1
+    end repeat
+    if not sortConfigured then error "Could not sort the project folder by name."
+    -- Finder can report the new sort while still displaying the previous order.
+    -- Reopen only this project's window so its saved list settings take effect.
+    if (target of projectWindow as alias) is not (projectFolder as alias) then error "Project folder window changed."
+    close projectWindow
+    delay 0.25
+    open projectFolder
+    activate
+    set projectWindow to container window of projectFolder
+    repeat 20 times
+      try
+        if current view of projectWindow is list view then
+          tell list view options of projectWindow
+            if (name of sort column is name column) and (sort direction of column id name column is normal) then return
+          end tell
+        end if
       end try
       delay 0.1
     end repeat

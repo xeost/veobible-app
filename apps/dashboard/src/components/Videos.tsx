@@ -21,6 +21,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Bookmark,
+  LoaderCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -111,6 +112,36 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     published: 0,
     unpublished: 0,
   });
+  const selectionScope = JSON.stringify([
+    kind,
+    version,
+    query,
+    filter,
+    page,
+    pageSize,
+  ]);
+  const [selection, setSelection] = useState<{
+    scope: string;
+    ids: Set<number>;
+  }>({ scope: "", ids: new Set() });
+  const [updatingSelection, setUpdatingSelection] = useState(false);
+  const updatingSelectionRef = useRef(false);
+  const [publicationNotice, setPublicationNotice] = useState("");
+  const selectedRows =
+    selection.scope === selectionScope
+      ? rows.filter((row) => selection.ids.has(row.id))
+      : [];
+  const selectedIds = new Set(selectedRows.map((row) => row.id));
+  const allSelected = rows.length > 0 && selectedRows.length === rows.length;
+  useEffect(() => {
+    setSelection({ scope: selectionScope, ids: new Set() });
+  }, [selectionScope]);
+  const selectProject = (id: number, checked: boolean) => {
+    const ids = new Set(selectedIds);
+    if (checked) ids.add(id);
+    else ids.delete(id);
+    setSelection({ scope: selectionScope, ids });
+  };
   const debouncedQuery = useDebouncedValue(query);
   const request = useRef<AbortController | null>(null);
   const load = useCallback(async () => {
@@ -242,6 +273,36 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       setSyncingExisting(false);
     }
   };
+  const updateSelectedPublication = async (published: boolean) => {
+    if (loading || updatingSelectionRef.current || !selectedRows.length) return;
+    updatingSelectionRef.current = true;
+    setUpdatingSelection(true);
+    setError("");
+    setPublicationNotice("");
+    try {
+      const result = await api<{ updated: number }>("videos/publication", {
+        method: "PATCH",
+        body: JSON.stringify({
+          kind,
+          ids: selectedRows.map((row) => row.id),
+          published,
+        }),
+      });
+      setPublicationNotice(
+        t("Publication updated for {count} projects.").replace(
+          "{count}",
+          String(result.updated),
+        ),
+      );
+      setSelection({ scope: selectionScope, ids: new Set() });
+      await load();
+    } catch (cause) {
+      setError(userMessage(cause));
+    } finally {
+      updatingSelectionRef.current = false;
+      setUpdatingSelection(false);
+    }
+  };
   const projectHref = (row: VideoRow) =>
     `/${kind === "short" ? "short-videos" : "long-videos"}/${String(row.id)}`;
   return (
@@ -320,6 +381,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               aria-label={t("Find a passage")}
               placeholder={t("Find a passage or episode…")}
               value={query}
+              disabled={updatingSelection}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setPage(1);
@@ -329,7 +391,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           <select
             aria-label={t("Bible version")}
             value={version ?? "all"}
-            disabled={version === null}
+            disabled={version === null || updatingSelection}
             onChange={(e) => selectVersion(e.target.value)}
           >
             <option value="all">{t("All versions")}</option>
@@ -344,6 +406,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           <select
             aria-label={t("Filter publication")}
             value={filter}
+            disabled={updatingSelection}
             onChange={(e) => {
               setFilter(e.target.value);
               setPage(1);
@@ -354,10 +417,83 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             <option value="unpublished">{t("Unpublished")}</option>
           </select>
         </div>
+        {publicationNotice && (
+          <p className="success project-bulk-notice" role="status">
+            {publicationNotice}
+          </p>
+        )}
+        {selectedRows.length > 0 && (
+          <div
+            className="project-bulk-actions"
+            role="group"
+            aria-label={t("Selected project actions")}
+          >
+            <span role="status">
+              {t("{count} projects selected").replace(
+                "{count}",
+                String(selectedRows.length),
+              )}
+            </span>
+            <button
+              type="button"
+              disabled={loading || updatingSelection}
+              onClick={() => void updateSelectedPublication(true)}
+            >
+              {t("Mark as published")}
+            </button>
+            <button
+              type="button"
+              disabled={loading || updatingSelection}
+              onClick={() => void updateSelectedPublication(false)}
+            >
+              {t("Mark as unpublished")}
+            </button>
+            <button
+              type="button"
+              disabled={updatingSelection}
+              onClick={() =>
+                setSelection({ scope: selectionScope, ids: new Set() })
+              }
+            >
+              {t("Clear selection")}
+            </button>
+            {updatingSelection && (
+              <span role="status">
+                <LoaderCircle
+                  size={15}
+                  className="voice-spinner"
+                  aria-hidden="true"
+                />
+                {t("Updating publication…")}
+              </span>
+            )}
+          </div>
+        )}
         <div className="table-wrap">
           <table className="catalog">
             <thead>
               <tr>
+                <th className="project-selection-cell" scope="col">
+                  <input
+                    type="checkbox"
+                    aria-label={t("Select all projects on this page")}
+                    checked={allSelected}
+                    ref={(input) => {
+                      if (input)
+                        input.indeterminate =
+                          selectedRows.length > 0 && !allSelected;
+                    }}
+                    disabled={loading || updatingSelection || !rows.length}
+                    onChange={(event) =>
+                      setSelection({
+                        scope: selectionScope,
+                        ids: new Set(
+                          event.target.checked ? rows.map((row) => row.id) : [],
+                        ),
+                      })
+                    }
+                  />
+                </th>
                 <th>ID</th>
                 <th>{t("Video project")}</th>
                 <th>{t("Bible version")}</th>
@@ -374,7 +510,12 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                   tabIndex={0}
                   aria-label={`${t("Open project")}: ${row.title}`}
                   onClick={(event) => {
-                    if ((event.target as Element).closest("a, button")) return;
+                    if (
+                      (event.target as Element).closest(
+                        "a, button, input, label",
+                      )
+                    )
+                      return;
                     router.push(projectHref(row));
                   }}
                   onKeyDown={(event) => {
@@ -385,6 +526,23 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                     }
                   }}
                 >
+                  <td
+                    className="project-selection-cell"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={t("Select project: {title}").replace(
+                        "{title}",
+                        row.title,
+                      )}
+                      checked={selectedIds.has(row.id)}
+                      disabled={loading || updatingSelection}
+                      onChange={(event) =>
+                        selectProject(row.id, event.target.checked)
+                      }
+                    />
+                  </td>
                   <td className="muted">{row.id}</td>
                   <td>
                     <Link
@@ -411,6 +569,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                         className={
                           row.published ? "project-published-button" : undefined
                         }
+                        disabled={updatingSelection || loading}
                         onClick={async () => {
                           try {
                             await api(`videos/${row.id}`, {
@@ -492,6 +651,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               {t("Items per page")}
               <select
                 value={pageSize}
+                disabled={updatingSelection}
                 onChange={(event) => {
                   setPageSize(Number(event.target.value));
                   setPage(1);
@@ -509,7 +669,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               className="icon-button"
               aria-label={t("First page")}
               data-tooltip={t("First page")}
-              disabled={pagination.page === 1}
+              disabled={loading || updatingSelection || pagination.page === 1}
               onClick={() => setPage(1)}
             >
               <ChevronsLeft size={17} aria-hidden="true" />
@@ -517,7 +677,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             <button
               className="icon-button"
               aria-label={t("Previous page")}
-              disabled={pagination.page === 1}
+              disabled={loading || updatingSelection || pagination.page === 1}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
             >
               <ChevronLeft size={17} />
@@ -525,7 +685,11 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             <button
               className="icon-button"
               aria-label={t("Next page")}
-              disabled={pagination.page >= pagination.pages}
+              disabled={
+                loading ||
+                updatingSelection ||
+                pagination.page >= pagination.pages
+              }
               onClick={() =>
                 setPage((current) => Math.min(pagination.pages, current + 1))
               }
@@ -537,7 +701,11 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
               className="icon-button"
               aria-label={t("Last page")}
               data-tooltip={t("Last page")}
-              disabled={pagination.page >= pagination.pages}
+              disabled={
+                loading ||
+                updatingSelection ||
+                pagination.page >= pagination.pages
+              }
               onClick={() => setPage(pagination.pages)}
             >
               <ChevronsRight size={17} aria-hidden="true" />

@@ -103,6 +103,28 @@ test("Finder targets the project folder in list view sorted by name ascending an
           script,
           /error "Could not sort the project folder by name\."/,
         );
+        // A property readback alone doesn't refresh Finder's visible rows.
+        // Keep the close/reopen scoped to the project rather than whichever
+        // Finder window happens to be in front when automation runs.
+        const configure = script.indexOf(
+          "set sort column to column id name column",
+        );
+        const close = script.indexOf("close projectWindow");
+        const reopen = script.indexOf("open projectFolder", close);
+        assert.ok(configure >= 0 && close > configure && reopen > close);
+        assert.match(
+          script.slice(close, reopen),
+          /close projectWindow\s+delay 0\.25/,
+        );
+        assert.match(
+          script.slice(configure, close),
+          /target of projectWindow as alias.*projectFolder as alias/,
+        );
+        assert.match(
+          script.slice(reopen),
+          /name of sort column is name column/,
+        );
+        assert.doesNotMatch(script.slice(reopen), /set sort column/);
         assert.doesNotMatch(
           script,
           /front window|window 1|default list view options/,

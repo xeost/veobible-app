@@ -1,4 +1,10 @@
 import { loadDashboardSummary } from "./dashboard-summary";
+import {
+  projectPublicationSchema,
+  publicationQueueSchema,
+  ProjectPublicationError,
+  updateProjectPublication,
+} from "./project-publication";
 import type { AlignmentJob } from "../../../../tools/video-project-api/src/forced-alignment-result";
 import { applyStoredAlignment } from "./alignment-application";
 import {
@@ -112,6 +118,27 @@ export async function videoApi(
     }
   }
   if (parts[0] !== "videos") return null;
+  if (parts[1] === "publication" && parts.length === 2 && method === "PATCH") {
+    const input = projectPublicationSchema.parse(await req.json());
+    let items: z.infer<typeof publicationQueueSchema>["items"] = [];
+    try {
+      const response = await videoFetch(
+        `/v1/queue?outputEnvironment=${outputEnvironment}`,
+      );
+      if (!response.ok) throw new Error("Queue unavailable");
+      items = publicationQueueSchema.parse(await response.json()).items;
+    } catch {
+      // Match individual publication edits: saved publication remains editable
+      // when the local generation service is unavailable.
+    }
+    try {
+      return json(await updateProjectPublication(database, input, items));
+    } catch (cause) {
+      if (cause instanceof ProjectPublicationError)
+        return json({ error: cause.message }, cause.status);
+      throw cause;
+    }
+  }
   if (
     parts[1] === "cleanup-published" &&
     parts.length === 2 &&
