@@ -1,4 +1,6 @@
 import { openProjectFolder } from "./open-project-folder.js";
+import { loadLocalModels } from "./local-models.js";
+import { checkLocalModelUpdates } from "./local-model-updates.js";
 import {
   cleanupProjectFolders,
   cleanupRequestSchema,
@@ -109,6 +111,33 @@ const readingSources = new Map<
 const jobs = new Map<string, Job>();
 const voiceJobs = new Map<string, Partial<Record<VoicePart, Job>>>();
 const generationQueue = new GenerationQueue();
+let localModelsInventory: ReturnType<typeof loadLocalModels> | null = null;
+let localModelsExpiresAt = 0;
+const modelUpdateChecks = new Map<
+  string,
+  Promise<Awaited<ReturnType<typeof checkLocalModelUpdates>> | null>
+>();
+function readLocalModels(force = false) {
+  if (
+    !localModelsInventory ||
+    Date.now() >= localModelsExpiresAt ||
+    (force && localModelsExpiresAt !== Infinity)
+  ) {
+    localModelsExpiresAt = Infinity;
+    localModelsInventory = loadLocalModels()
+      .then((result) => {
+        localModelsExpiresAt = Date.now() + 30_000;
+        return result;
+      })
+      .catch((cause) => {
+        localModelsInventory = null;
+        localModelsExpiresAt = 0;
+        throw cause;
+      });
+  }
+  return localModelsInventory;
+}
+
 const cleaningOutputs = new Set<string>();
 const cleanupKey = (kind: string, environment: string) =>
   `${environment}:${kind}`;
@@ -167,6 +196,40 @@ const server = http.createServer(async (req, res) => {
       return json(res, 401, { error: "Unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
     const parts = url.pathname.split("/").filter(Boolean);
+    if (url.pathname === "/v1/local-models" && req.method === "GET") {
+      return json(
+        res,
+        200,
+        await readLocalModels(url.searchParams.get("refresh") === "1"),
+      );
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "v1" &&
+      parts[1] === "local-models" &&
+      parts[3] === "updates" &&
+      req.method === "GET"
+    ) {
+      const modelId = z
+        .string()
+        .regex(/^local-model-[1-9]\d*$/)
+        .parse(parts[2]);
+      if (!modelUpdateChecks.has(modelId)) {
+        const check = (async () => {
+          const inventory = await readLocalModels(true);
+          const model = inventory.models.find((item) => item.id === modelId);
+          return model ? checkLocalModelUpdates(model) : null;
+        })();
+        modelUpdateChecks.set(modelId, check);
+        void check
+          .finally(() => modelUpdateChecks.delete(modelId))
+          .catch(() => {});
+      }
+      const result = await modelUpdateChecks.get(modelId)!;
+      return result
+        ? json(res, 200, result)
+        : json(res, 404, { error: "Local model not found" });
+    }
     if (url.pathname === "/health")
       return json(res, 200, {
         ok: true,

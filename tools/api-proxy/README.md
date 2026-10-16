@@ -6,6 +6,6 @@ Copy `.env.example` to `.env`, set a random 32+ character token and `DASHBOARD_O
 
 In production, install `cloudflared`, configure a named tunnel pointing to `http://127.0.0.1:8420`, set `CLOUDFLARE_TUNNEL_TOKEN`, and run `pnpm tunnel:api-proxy`. No tunnels are created or published automatically.
 
-Registered namespaces: `/v1/jobs`, `/v1/projects`, `/v1/analyze`, `/v1/queue`, `/v1/bible-versions`, and `/v1/video-project-proposals`. `/health` aggregates video availability. To add another API, register its process in `index.mjs` and its routes in `proxy.mjs`; the same tunnel serves both.
+Registered namespaces: `/v1/jobs`, `/v1/projects`, `/v1/analyze`, `/v1/queue`, `/v1/bible-versions`, `/v1/video-project-proposals`, and `/v1/local-models`. `/health` aggregates video availability. To add another API, register its process in `index.mjs` and its routes in `proxy.mjs`; the same tunnel serves both.
 
 See [the dashboard README](../../apps/dashboard/README.md). `pnpm --dir tools/api-proxy test` verifies authentication, routing, forwarding, and upstream disconnection handling.

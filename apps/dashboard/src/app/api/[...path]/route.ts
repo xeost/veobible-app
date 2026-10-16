@@ -32,6 +32,10 @@ import {
 } from "../../../lib/security";
 import { videoFetch } from "../../../lib/video-client";
 import { videoApi } from "../../../lib/video-api";
+import {
+  localModelsSchema,
+  localModelUpdateSchema,
+} from "../../../lib/local-models";
 import { z } from "zod";
 import {
   loadVoiceSettings,
@@ -115,6 +119,50 @@ async function handle(req: Request, lang: Language) {
   const admin = () => {
     if (user.role !== "admin") throw new Error("Administrator required");
   };
+  if (
+    parts.length === 4 &&
+    parts[0] === "admin-tools" &&
+    parts[1] === "local-models" &&
+    parts[3] === "updates" &&
+    method === "GET"
+  ) {
+    const id = z
+      .string()
+      .regex(/^local-model-[1-9]\d*$/)
+      .parse(parts[2]);
+    try {
+      const response = await videoFetch(`/v1/local-models/${id}/updates`);
+      if (!response.ok) throw new Error("Local model update check failed");
+      return json(localModelUpdateSchema.parse(await response.json()));
+    } catch (cause) {
+      console.error("Local model update check failed", cause);
+      return json(
+        {
+          error:
+            "Could not check model updates. Check that generation is available and try again.",
+        },
+        502,
+      );
+    }
+  }
+  if (parts.join("/") === "admin-tools/local-models" && method === "GET") {
+    try {
+      const response = await videoFetch(
+        `/v1/local-models${url.searchParams.get("refresh") === "1" ? "?refresh=1" : ""}`,
+      );
+      if (!response.ok) throw new Error("Local model inventory unavailable");
+      return json(localModelsSchema.parse(await response.json()));
+    } catch (cause) {
+      console.error("Local model inventory unavailable", cause);
+      return json(
+        {
+          error:
+            "Could not read local model versions. Check that generation is available and try again.",
+        },
+        502,
+      );
+    }
+  }
   if (parts[0] === "versions") {
     if (parts.length === 2 && parts[1] === "options" && method === "GET")
       return json({ versions: await bibleVersionOptions(database) });

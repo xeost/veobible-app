@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
+import { alignmentWorkerConfig } from "./alignment-config.js";
 import { z } from "zod";
 import { analyze } from "./pipeline.js";
 import {
@@ -23,9 +23,6 @@ export function stopAlignmentWorkers() {
     } catch {}
   }
 }
-const workerRoot = fileURLToPath(
-  new URL("../../forced-aligner/", import.meta.url),
-);
 const word = z.object({
   text: z.string(),
   start: z.number().finite().nonnegative(),
@@ -53,12 +50,12 @@ export function runAlignmentWorker(
   ffmpeg: string,
   onProgress: (value: number) => void,
 ) {
+  const worker = alignmentWorkerConfig();
   return new Promise<void>((resolve, reject) => {
     const child = spawn(
-      process.env.VIDEO_ALIGNER_PYTHON ||
-        path.join(workerRoot, ".venv/bin/python"),
+      worker.python,
       [
-        process.env.VIDEO_ALIGNER_SCRIPT || path.join(workerRoot, "cli.py"),
+        worker.script,
         "--request",
         request,
         "--output",
@@ -66,8 +63,7 @@ export function runAlignmentWorker(
         "--ffmpeg",
         ffmpeg,
         "--model",
-        process.env.VIDEO_ALIGNER_MODEL ||
-          "mlx-community/Qwen3-ForcedAligner-0.6B-8bit",
+        worker.model,
       ],
       { stdio: ["ignore", "pipe", "pipe"], detached: true },
     );

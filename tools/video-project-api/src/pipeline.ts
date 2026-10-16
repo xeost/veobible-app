@@ -17,6 +17,7 @@ import {
 } from "./chapter-introductions.js";
 import { applyReadingCuts, expandReadingContext } from "./reading-timeline.js";
 import fs from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { outputRoot, type OutputEnvironment } from "./working-directories.js";
 import * as short from "./engines/short/shorts.js";
@@ -34,6 +35,36 @@ import { outroTitle as longOutro } from "./engines/long/social.js";
 import { publicationDescriptions as shortDescriptions } from "./engines/short/publication.js";
 import { publicationDescriptions as longDescriptions } from "./engines/long/publication.js";
 import type { RenderRequest } from "./protocol.js";
+/** Cache chapter announcements by synthesis configuration, independently of project/version. */
+function chapterSynthesis(locale: "es" | "en" | "pt") {
+  const model = longConfig.ttsModels[locale];
+  // Keep existing cache behavior for providers/variants unaffected by this migration.
+  if (
+    longConfig.ttsProvider !== "chatterbox" ||
+    !["multilingual", "multilingual-v3"].includes(model)
+  )
+    return undefined;
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        provider: longConfig.ttsProvider,
+        model:
+          longConfig.ttsProvider === "chatterbox"
+            ? ["multilingual", "multilingual-v3"].includes(model)
+              ? "multilingual-v3"
+              : model
+            : longConfig.elevenLabsModel,
+        voice:
+          longConfig.ttsProvider === "chatterbox"
+            ? longConfig.ttsTrackVoicePrompts[locale].intro ||
+              longConfig.ttsVoicePrompts[locale]
+            : longConfig.elevenLabsVoices[locale],
+        script: longConfig.ttsScript,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 24);
+}
 export const projectDir = (
   kind: string,
   version: string,
@@ -328,6 +359,7 @@ export async function generateProjectVoice(
           path.join(staging, "intro.txt"),
           {
             chapter: chapter.chapter,
+            synthesis: chapterSynthesis(input.version.locale),
             complete: true,
             locale: input.version.locale,
           },
@@ -385,6 +417,7 @@ export async function projectChapterVoiceFiles(
         const part = `chapter-${chapterIndex}` as const;
         const identity = {
           chapter: range.chapter,
+          synthesis: chapterSynthesis(version.locale),
           locale: version.locale,
           complete:
             range.first === 1 &&

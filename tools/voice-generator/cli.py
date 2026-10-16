@@ -55,8 +55,12 @@ def voice_prompt_for_track(track: str, voice_prompts: dict[str, Path], default: 
     return voice_prompts.get(track, default)
 
 
-def load_latam_model(device: str):
-    """Load the es-MX checkpoint using the same components as the local Chatterbox experiment."""
+def load_checkpoint_model(kind: str, device: str):
+    """Explicit T3 selection, compatible with chatterbox-tts 0.1.7.
+
+    V2 and V3 use the upstream multilingual architecture and shared decoder.
+    Do not call 0.1.7's from_pretrained: it silently selects V2.
+    """
     import torch
     from huggingface_hub import hf_hub_download, snapshot_download
     from safetensors.torch import load_file
@@ -67,16 +71,20 @@ def load_latam_model(device: str):
     from chatterbox.models.voice_encoder import VoiceEncoder
     from chatterbox.mtl_tts import ChatterboxMultilingualTTS, Conditionals
 
+    filename = "t3_mtl23ls_v2.safetensors" if kind == "multilingual-v2" else "t3_mtl23ls_v3.safetensors"
+    patterns = ["ve.pt", "s3gen.pt", "conds.pt", "grapheme_mtl_merged_expanded_v1.json", "Cangjie5_TC.json"]
+    if kind != "latam":
+        patterns.append(filename)
     base = Path(snapshot_download(
         repo_id="ResembleAI/chatterbox",
-        allow_patterns=["ve.pt", "s3gen.pt", "conds.pt", "grapheme_mtl_merged_expanded_v1.json"],
+        allow_patterns=patterns,
         token=os.getenv("HF_TOKEN"),
     ))
     checkpoint = hf_hub_download(
         repo_id="ResembleAI/Chatterbox-Multilingual-es-mx-latam",
         filename="t3_es_mx_latam.safetensors",
         token=os.getenv("HF_TOKEN"),
-    )
+    ) if kind == "latam" else str(base / filename)
     location = torch.device("cpu") if device in ("cpu", "mps") else None
     voice_encoder = VoiceEncoder()
     voice_encoder.load_state_dict(torch.load(base / "ve.pt", map_location=location, weights_only=True))
@@ -98,13 +106,11 @@ def load_latam_model(device: str):
 
 def load_model(kind: str, device: str):
     import torch
-    from chatterbox.mtl_tts import ChatterboxMultilingualTTS
-
+    if kind not in ("multilingual", "multilingual-v3", "multilingual-v2", "latam"):
+        raise ValueError(f"Unknown narration model: {kind}")
     if device == "auto":
         device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    if kind == "latam":
-        return load_latam_model(device)
-    return ChatterboxMultilingualTTS.from_pretrained(device=device)
+    return load_checkpoint_model(kind, device)
 
 
 def convert_audio(source: Path, target: Path, codec: str) -> None:
@@ -167,7 +173,7 @@ def main() -> int:
     parser.add_argument("--scripts", required=True, type=Path, help="JSON mapping track names to text")
     parser.add_argument("--language", required=True, help="Language code supported by Chatterbox, such as es, en, or pt")
     parser.add_argument("--output-dir", required=True, type=Path, help="Output directory")
-    parser.add_argument("--model", choices=("multilingual", "latam"), default="multilingual")
+    parser.add_argument("--model", choices=("multilingual", "multilingual-v3", "multilingual-v2", "latam"), default="multilingual")
     parser.add_argument("--device", choices=("auto", "cpu", "mps", "cuda"), default="auto")
     parser.add_argument("--voice-prompt", type=Path, help="Optional WAV/MP3 voice reference")
     parser.add_argument("--voice-prompts", type=Path, help="JSON mapping track names to voice reference files")

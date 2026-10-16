@@ -134,3 +134,11 @@ pnpm --dir tools/video-project-api check
 pnpm --dir tools/video-project-api test:render
 pnpm --dir tools/api-proxy test
 ```
+
+## Local model inventory
+
+`/admin-tools` is available to every signed-in user, including editors. Its Local AI models tab reads the local service's current configuration and downloaded Hugging Face `main` revisions, with package versions shown separately. Page loading does not load models, download weights, or check remote updates. Each model has an explicit manual update-check action. Missing interpreters, incomplete downloads and custom model workers are reported explicitly. Local paths, credentials and raw diagnostics are not sent to the browser.
+
+The dashboard forwards `GET /api/admin-tools/local-models` to the authenticated `GET /v1/local-models` route through `api-proxy`. Restart the local proxy when deploying this feature so both it and its child service register the new route. Inventory reads share a 30-second cache and concurrent requests share the same inspection. The Refresh button explicitly rechecks local files.
+
+Manual checks use `GET /api/admin-tools/local-models/:id/updates`, forwarded to `GET /v1/local-models/:id/updates`. They compare the files actually used by the configured variant, detect known newer variants (including Multilingual V3 when V2 is selected), and search the same trusted publisher for newer family releases. Different quantizations, larger parameter counts and unrelated language packs are not treated as upgrades. Unknown architectures, software or sizes require review; RAM suitability is an estimate for an M2 with 16 GB, not a measured guarantee. Results are not an instruction to install automatically, and checks neither install nor change models. No scheduled checks run.

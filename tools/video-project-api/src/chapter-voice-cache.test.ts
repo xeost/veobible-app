@@ -112,3 +112,37 @@ test("older complete voices are adopted once and partial voices remain specific 
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+
+test("new synthesis namespaces never adopt or reuse legacy or other-model shared voices", async () => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), "chapter-cache-model-"),
+  );
+  try {
+    const cache = new ChapterVoiceCache(directory);
+    const legacy = { chapter: 1, locale: "es" as const, complete: true };
+    const v2 = { ...legacy, synthesis: "2".repeat(24) };
+    const v3 = { ...legacy, synthesis: "3".repeat(24) };
+    const audio = path.join(directory, "existing.wav");
+    const script = path.join(directory, "existing.txt");
+    const missing = path.join(directory, "new-project.wav");
+    await fs.writeFile(audio, "V2 audio");
+    await fs.writeFile(script, "Capítulo uno.");
+    await cache.publish(audio, script, legacy);
+    await cache.publish(audio, script, v2);
+    assert.equal((await cache.resolve(missing, v3)).available, false);
+    const retained = await cache.resolve(audio, v3);
+    assert.equal(retained.file, audio);
+    assert.equal(retained.cached, false);
+    await assert.rejects(fs.stat(cache.file(v3)), { code: "ENOENT" });
+    await fs.writeFile(audio, "V3 audio");
+    await cache.publish(audio, script, v3);
+    assert.equal(
+      await fs.readFile((await cache.resolve(missing, v3)).file, "utf8"),
+      "V3 audio",
+    );
+    assert.equal(await fs.readFile(cache.file(legacy), "utf8"), "V2 audio");
+    assert.equal(await fs.readFile(cache.file(v2), "utf8"), "V2 audio");
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});

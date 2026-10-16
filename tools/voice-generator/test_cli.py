@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from cli import generate, main, read_voice_prompts, voice_prompt_for_track
+from cli import generate, main, read_voice_prompts, voice_prompt_for_track, load_model, load_checkpoint_model
 
 
 class VoicePromptTests(unittest.TestCase):
@@ -84,6 +84,46 @@ class VoicePromptTests(unittest.TestCase):
             with patch.object(sys, "argv", argv), patch("resources.configure_worker") as configure, patch("cli.generate"):
                 self.assertEqual(main(), 0)
                 self.assertEqual(configure.call_args.args[1], "cpu")
+
+
+class ModelSelectionTests(unittest.TestCase):
+    def test_alias_and_explicit_versions_reach_checkpoint_loader(self):
+        fake_torch = types.SimpleNamespace()
+        with patch.dict(sys.modules, {"torch": fake_torch}), patch("cli.load_checkpoint_model", return_value="model") as loader:
+            for kind in ("multilingual", "multilingual-v3", "multilingual-v2", "latam"):
+                self.assertEqual(load_model(kind, "cpu"), "model")
+                loader.assert_called_with(kind, "cpu")
+            with self.assertRaisesRegex(ValueError, "Unknown narration model"):
+                load_model("unknown", "cpu")
+
+    def test_loads_selected_weights_strictly_without_downloading_other_variants(self):
+        from unittest.mock import MagicMock
+        for kind, filename in (("multilingual", "t3_mtl23ls_v3.safetensors"), ("multilingual-v3", "t3_mtl23ls_v3.safetensors"), ("multilingual-v2", "t3_mtl23ls_v2.safetensors"), ("latam", "t3_es_mx_latam.safetensors")):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                snapshot = MagicMock(return_value=directory)
+                download = MagicMock(return_value=str(root / filename))
+                load_weights = MagicMock(return_value={"weights": "selected"})
+                t3 = MagicMock()
+                modules = {
+                    "torch": types.SimpleNamespace(device=lambda value: value, load=lambda *a, **k: {}),
+                    "huggingface_hub": types.SimpleNamespace(snapshot_download=snapshot, hf_hub_download=download),
+                    "safetensors.torch": types.SimpleNamespace(load_file=load_weights),
+                    "chatterbox.models.s3gen": types.SimpleNamespace(S3Gen=MagicMock()),
+                    "chatterbox.models.t3": types.SimpleNamespace(T3=t3),
+                    "chatterbox.models.t3.modules.t3_config": types.SimpleNamespace(T3Config=types.SimpleNamespace(multilingual=lambda: "multilingual-config")),
+                    "chatterbox.models.tokenizers": types.SimpleNamespace(MTLTokenizer=MagicMock()),
+                    "chatterbox.models.voice_encoder": types.SimpleNamespace(VoiceEncoder=MagicMock()),
+                    "chatterbox.mtl_tts": types.SimpleNamespace(ChatterboxMultilingualTTS=MagicMock(), Conditionals=MagicMock()),
+                }
+                with patch.dict(sys.modules, modules):
+                    load_checkpoint_model(kind, "cpu")
+                load_weights.assert_called_once_with(str(root / filename))
+                t3.return_value.load_state_dict.assert_called_once_with({"weights": "selected"})
+                patterns = snapshot.call_args.kwargs["allow_patterns"]
+                selected = [name for name in patterns if name.endswith(".safetensors")]
+                self.assertEqual(selected, [] if kind == "latam" else [filename])
+                self.assertEqual(download.call_count, 1 if kind == "latam" else 0)
 
 
 if __name__ == "__main__":

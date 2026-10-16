@@ -14,7 +14,7 @@ python3.12 -m venv .venv
 
 `video-project-api` uses this interpreter by default to generate introduction and closing narrations requested from the dashboard. Configure narration templates in the dashboard's Short Videos and Long Videos settings.
 
-The initial model load may download weights from Hugging Face. Multilingual Chatterbox supports Spanish, English, and Portuguese, among other languages. The `latam` model uses the `ResembleAI/Chatterbox-Multilingual-es-mx-latam` checkpoint and only supports Spanish. If you use Hugging Face with authentication, export `HF_TOKEN`.
+The initial model load may download weights from Hugging Face. Multilingual Chatterbox **V3 is the default** and supports Spanish, English, and Portuguese, among other languages. The `latam` model uses the `ResembleAI/Chatterbox-Multilingual-es-mx-latam` checkpoint and only supports Spanish. If you use Hugging Face with authentication, export `HF_TOKEN`.
 
 ## Worker interface
 
@@ -36,7 +36,7 @@ Then run:
 .venv/bin/python cli.py --scripts /path/to/scripts.json --language en --output-dir /path/to/output
 ```
 
-`--dry-run` validates and displays texts without loading the model or writing files. `--force` overwrites existing tracks. `--model latam` selects the Latin American model; default is `multilingual`. `--device` supports `auto`, `mps`, `cuda`, or `cpu`. `--voice-prompt` accepts a shared WAV/MP3 audio sample for all tracks. `--voice-prompts` accepts a JSON mapping track names to specific sample paths; each path takes precedence over the shared sample. `--exaggeration` and `--cfg-weight` control generation; both default to `0.5`.
+`--dry-run` validates and displays texts without loading the model or writing files. `--force` overwrites existing tracks. `--model multilingual` (the default) and `--model multilingual-v3` explicitly load `t3_mtl23ls_v3.safetensors`. `--model multilingual-v2` retains the previous checkpoint as a manual fallback; errors never silently downgrade to V2. `--model latam` selects the Latin American model. The explicit checkpoint loader supports the installed `chatterbox-tts` 0.1.7 and reuses the upstream multilingual architecture, decoder, tokenizer and voice encoder; no library upgrade is needed. `--device` supports `auto`, `mps`, `cuda`, or `cpu`. `--voice-prompt` accepts a shared WAV/MP3 audio sample for all tracks. `--voice-prompts` accepts a JSON mapping track names to specific sample paths; each path takes precedence over the shared sample. `--exaggeration` and `--cfg-weight` control generation; both default to `0.5`.
 
 ## Resource supervision
 

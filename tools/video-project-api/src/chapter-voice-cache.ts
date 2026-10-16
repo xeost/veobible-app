@@ -7,6 +7,8 @@ export interface ChapterVoiceIdentity {
   chapter: number;
   locale: "en" | "es" | "pt";
   complete: boolean;
+  /** Absent only for legacy recordings; new synthesis uses a model-specific namespace. */
+  synthesis?: string;
 }
 
 async function available(file: string) {
@@ -25,13 +27,16 @@ export class ChapterVoiceCache {
       !["en", "es", "pt"].includes(identity.locale) ||
       !Number.isInteger(identity.chapter) ||
       identity.chapter < 1 ||
-      identity.chapter > 999
+      identity.chapter > 999 ||
+      (identity.synthesis !== undefined &&
+        !/^[a-f0-9]{24}$/.test(identity.synthesis))
     )
       throw new Error("Invalid chapter voice cache key");
     return path.join(
       this.workingDir,
       "cache",
       "chapter-voices",
+      ...(identity.synthesis ? [identity.synthesis] : []),
       identity.locale,
       `chapter-${identity.chapter}.wav`,
     );
@@ -46,7 +51,10 @@ export class ChapterVoiceCache {
       };
     const cachedFile = this.file(identity);
     if (!(await available(cachedFile)) && (await available(projectFile))) {
-      // Adopt older project recordings once without overwriting an existing shared voice.
+      // Preserve existing project recordings without labelling them as the new model.
+      if (identity.synthesis)
+        return { file: projectFile, cached: false, available: true };
+      // Adopt older project recordings only into the legacy namespace.
       await this.publish(
         projectFile,
         projectFile.replace(/\.wav$/, ".txt"),

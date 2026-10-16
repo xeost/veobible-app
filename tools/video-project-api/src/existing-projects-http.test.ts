@@ -39,6 +39,15 @@ test(
           PROXY_API_TOKEN: token,
           SHORTS_WORKING_DIR: directory,
           LONGS_WORKING_DIR: path.join(directory, "long"),
+          VIDEO_SHORT_TTS_PROVIDER: "elevenlabs",
+          VIDEO_LONG_TTS_PROVIDER: "elevenlabs",
+          VIDEO_ALIGNER_SCRIPT: new URL(
+            "../../forced-aligner/cli.py",
+            import.meta.url,
+          ).pathname,
+          VIDEO_ALIGNER_PYTHON: path.join(directory, "missing-python"),
+          VIDEO_ALIGNER_MODEL: "test/aligner",
+          VIDEO_ALIGNER_ASR_MODEL: "test/recognizer",
         },
         stdio: ["ignore", "pipe", "pipe"],
       });
@@ -51,6 +60,34 @@ test(
       });
       const headers = { Authorization: `Bearer ${token}` };
       const base = `http://127.0.0.1:${port}`;
+      assert.equal((await fetch(`${base}/v1/local-models`)).status, 401);
+      const modelResponse = await fetch(`${base}/v1/local-models`, { headers });
+      assert.equal(modelResponse.status, 200);
+      const inventory = (await modelResponse.json()) as {
+        models: Array<{ repository: string; status: string }>;
+      };
+      assert.deepEqual(
+        inventory.models.map((model) => model.repository),
+        ["test/aligner", "test/recognizer"],
+      );
+      assert.ok(
+        inventory.models.every((model) => model.status === "unavailable"),
+      );
+      assert.ok(!JSON.stringify(inventory).includes(directory));
+      const modelUpdatesUrl = `${base}/v1/local-models/local-model-1/updates`;
+      assert.equal((await fetch(modelUpdatesUrl)).status, 401);
+      const modelCheck = await fetch(modelUpdatesUrl, { headers });
+      assert.equal(modelCheck.status, 200);
+      assert.equal((await modelCheck.json()).status, "unsupported");
+      assert.equal(
+        (
+          await fetch(`${base}/v1/local-models/local-model-999/updates`, {
+            headers,
+          })
+        ).status,
+        404,
+      );
+
       const openUrl = `${base}/v1/projects/1/open-folder`;
       assert.equal((await fetch(openUrl, { method: "POST" })).status, 401);
       const openRequest = {

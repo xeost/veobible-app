@@ -13,6 +13,8 @@ test("routes only registered video namespaces", () => {
     "/v1/queue",
     "/v1/bible-versions",
     "/v1/video-project-proposals",
+    "/v1/local-models",
+    "/v1/local-models/local-model-1/updates",
   ])
     assert.equal(routeFor(p), "video");
   for (const p of [
@@ -21,6 +23,7 @@ test("routes only registered video namespaces", () => {
     "/v1/jobs-extra",
     "/v1/preview-extra",
     "/v1/bible-versions-extra",
+    "/v1/local-models-extra",
     "/anything",
   ])
     assert.equal(routeFor(p), null);
@@ -85,6 +88,30 @@ test("auth, aggregate health, forwarding and unavailable upstream", async () => 
     assert.equal(
       (await proposals.json()).path,
       "/v1/video-project-proposals?kind=long&locale=es&version=rv1909",
+    );
+    assert.equal((await fetch(`${base}/v1/local-models`)).status, 401);
+    assert.equal(
+      (await fetch(`${base}/v1/local-models/local-model-1/updates`)).status,
+      401,
+    );
+    const updateCheck = await fetch(
+      `${base}/v1/local-models/local-model-1/updates`,
+      options,
+    );
+    assert.equal(
+      (await updateCheck.json()).path,
+      "/v1/local-models/local-model-1/updates",
+    );
+    const models = await fetch(`${base}/v1/local-models`, options);
+    assert.equal(models.status, 202);
+    assert.equal((await models.json()).path, "/v1/local-models");
+    const refreshedModels = await fetch(
+      `${base}/v1/local-models?refresh=1`,
+      options,
+    );
+    assert.equal(
+      (await refreshedModels.json()).path,
+      "/v1/local-models?refresh=1",
     );
     assert.equal((await fetch(`${base}/v1/batches`, options)).status, 404);
     await new Promise((r) => upstream.close(r));

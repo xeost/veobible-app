@@ -16,6 +16,7 @@ import {
   Settings,
   BookOpen,
   House,
+  Wrench,
 } from "lucide-react";
 import type { User } from "../lib/auth";
 import { api } from "./api";
@@ -39,6 +40,7 @@ const items = [
   ["/long-videos", "Long Videos", Film],
   ["/deployments", "Publications", Rocket],
   ["/settings", "Settings", Settings],
+  ["/admin-tools", "Admin tools", Wrench],
 ] as const;
 export function Shell({ children, user }: { children: ReactNode; user: User }) {
   const { t } = useI18n();

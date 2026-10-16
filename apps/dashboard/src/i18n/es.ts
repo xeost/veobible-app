@@ -1,4 +1,102 @@
 export const spanish: Record<string, string> = {
+  "Model files are up to date": "Los archivos del modelo están actualizados",
+  "Model update available": "Actualización del modelo disponible",
+  "New model variant available": "Nueva variante del modelo disponible",
+  "Model download needed": "Se necesita descargar el modelo",
+  "Review before updating": "Revisar antes de actualizar",
+  "Could not check updates": "No se pudieron comprobar las actualizaciones",
+  "Manual review needed": "Requiere revisión manual",
+  "The downloaded revision matches the latest published revision.":
+    "La revisión descargada coincide con la última revisión publicada.",
+  "Only documentation or files unused by this system changed.":
+    "Solo cambiaron la documentación o archivos que este sistema no utiliza.",
+  "Files used by this system have changed. Test the new revision before replacing the current one.":
+    "Cambiaron archivos utilizados por este sistema. Prueba la nueva revisión antes de reemplazar la actual.",
+  "Download or complete this model before using it. This check has not downloaded model weights.":
+    "Descarga o completa este modelo antes de utilizarlo. Esta comprobación no descargó los pesos del modelo.",
+  "The downloaded revision could not be compared reliably. Review the publisher's changes before updating.":
+    "No se pudo comparar la revisión descargada con suficiente certeza. Revisa los cambios del publicador antes de actualizar.",
+  "Compatibility with the installed software could not be established. Review the software requirements before updating.":
+    "No se pudo establecer la compatibilidad con el software instalado. Revisa sus requisitos antes de actualizar.",
+  "The model's files or configuration changed. Software compatibility needs review.":
+    "Cambiaron los archivos o la configuración del modelo. Es necesario revisar la compatibilidad con el software.",
+  "The published files are larger or their size is unknown. They are not recommended automatically for this Mac.":
+    "Los archivos publicados son más grandes o su tamaño es desconocido. No se recomiendan automáticamente para esta Mac.",
+  "This custom configuration has no supported public source to check.":
+    "Esta configuración personalizada no tiene una fuente pública compatible para comprobar actualizaciones.",
+  "The publisher could not be reached. Try the check again.":
+    "No se pudo contactar con el publicador. Vuelve a comprobarlo.",
+  "The publisher is receiving too many requests. Try again later.":
+    "El publicador está recibiendo demasiadas consultas. Vuelve a intentarlo más tarde.",
+  "Expected to fit the M2 with 16 GB":
+    "Se estima adecuado para el M2 con 16 GB",
+  "Compatibility needs review": "Es necesario revisar la compatibilidad",
+  "Compatibility not assessed": "Compatibilidad sin evaluar",
+  "Model files: {size}": "Archivos del modelo: {size}",
+  "Estimated from the current model family, configuration and file size. A short generation test is still needed to verify memory use and quality.":
+    "Estimación basada en la familia del modelo actual, su configuración y el tamaño de los archivos. Una prueba breve de generación sigue siendo necesaria para verificar el consumo de memoria y la calidad.",
+  "Review the published changes": "Revisar los cambios publicados",
+  "Supported by the local tool. Select this variant in the narration configuration to use it.":
+    "Compatible con la herramienta local. Selecciona esta variante en la configuración de narración para utilizarla.",
+  "Newer model variants": "Nuevas variantes del modelo",
+  "Requires adapting the local tool before use. It is not a direct replacement for the selected variant.":
+    "Requiere adaptar la herramienta local antes de utilizarlo. No reemplaza directamente la variante seleccionada.",
+  "The configured model was checked, but the search for newer family releases could not be completed. Try again.":
+    "Se comprobó el modelo configurado, pero no se pudo completar la búsqueda de nuevas versiones de su familia. Vuelve a intentarlo.",
+  "Updates checked:": "Actualizaciones comprobadas:",
+  "Target computer: MacBook Air M2 · 16 GB RAM. Checks run manually and do not install updates.":
+    "Equipo: MacBook Air M2 · 16 GB de RAM. Las comprobaciones son manuales y no instalan actualizaciones.",
+  "Model updates": "Actualizaciones del modelo",
+  "Selected variant: Multilingual V3": "Variante seleccionada: Multilingual V3",
+  "Selected variant: Multilingual V2": "Variante seleccionada: Multilingual V2",
+  "Check updates": "Comprobar actualizaciones",
+  "Checking updates…": "Comprobando actualizaciones…",
+  "Model files and software versions are listed separately. Update checks run only when you click Check updates.":
+    "Los archivos del modelo y las versiones del software se muestran por separado. Las actualizaciones se comprueban solo al pulsar Comprobar actualizaciones.",
+  "Could not check model updates. Check that generation is available and try again.":
+    "No se pudieron comprobar las actualizaciones del modelo. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+  "The local model configuration changed. Refresh the list before checking again.":
+    "La configuración local del modelo cambió. Actualiza la lista antes de volver a comprobarlo.",
+
+  Narration: "Voz",
+  "Admin tools": "Herramientas de administración",
+  "Review the tools used to prepare and create videos.":
+    "Consulta las herramientas utilizadas para preparar y crear videos.",
+  "Local AI models": "Modelos de IA locales",
+  "Current model versions": "Versiones actuales de los modelos",
+  "Versions found on the Mac used to create videos. Reading this information does not load or download models.":
+    "Versiones encontradas en la Mac utilizada para crear videos. Consultar esta información no carga ni descarga los modelos.",
+  "Could not read local model versions. Check that generation is available and try again.":
+    "No se pudieron consultar las versiones de los modelos locales. Comprueba que la generación esté disponible y vuelve a intentarlo.",
+  "Reading local model versions…":
+    "Consultando las versiones de los modelos locales…",
+  Model: "Modelo",
+  "Used for": "Utilizado para",
+  "Local revision": "Revisión local",
+  "Installed software": "Software instalado",
+  "Version not identified": "Versión no identificada",
+  "Not available": "No disponible",
+  Downloaded: "Descargado",
+  "Not downloaded": "Sin descargar",
+  "Incomplete download": "Descarga incompleta",
+  "Could not check": "No se pudo consultar",
+  "Custom configuration": "Configuración personalizada",
+  "Local model": "Modelo local",
+  "Reading timing": "Sincronización de la lectura",
+  "Chapter heading recognition": "Reconocimiento del encabezado del capítulo",
+  "No local models are configured.": "No hay modelos locales configurados.",
+  "The local revision identifies the downloaded model files. The software version is listed separately. This view does not check for updates.":
+    "La revisión local identifica los archivos descargados del modelo. La versión del software se muestra por separado. Esta vista no busca actualizaciones.",
+  "Custom models may not provide a version that can be read automatically.":
+    "Los modelos personalizados pueden no incluir una versión que se pueda consultar automáticamente.",
+  "Last checked:": "Última consulta:",
+  "Opens in a new tab": "Se abre en una nueva pestaña",
+  "Custom narration model": "Modelo de narración personalizado",
+  "Custom alignment model": "Modelo de sincronización personalizado",
+  "Custom recognition model": "Modelo de reconocimiento personalizado",
+  "Local alignment model": "Modelo local de sincronización",
+  "Local recognition model": "Modelo local de reconocimiento",
+
   "Selected project actions": "Acciones para los proyectos seleccionados",
   "{count} projects selected": "{count} proyectos seleccionados",
   "Clear selection": "Limpiar selección",
