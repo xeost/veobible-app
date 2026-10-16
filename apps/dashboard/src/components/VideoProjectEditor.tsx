@@ -62,6 +62,7 @@ import {
   type VideoPreviewView,
   type PreviewPlaybackHandle,
 } from "./VideoProjectPreview";
+import { ProjectEditorHeader } from "./ProjectEditorHeader";
 import { GenerationProgress } from "./GenerationProgress";
 import { expandReadingContext } from "../../../../tools/video-project-api/src/reading-timeline";
 import { VoiceWaveform } from "./VoiceWaveform";
@@ -1159,84 +1160,89 @@ export function VideoProjectEditor({
     );
   return (
     <>
-      <div className="page-heading project-studio-heading">
-        <div>
-          <Link className="editor-back" href={backHref}>
-            <ChevronLeft size={14} />
-            {t("Back to projects")}
-          </Link>
-          <p className="eyebrow">
-            {t("PROJECT EDITOR")} ·{" "}
-            {(project?.version_code ?? "").toUpperCase()}
-          </p>
-          <h1>{project.title}</h1>
-          <p className="muted">
-            {t(
-              "Prepare the narration and synchronize each verse with its audio.",
-            )}
-          </p>
-        </div>
-        <div className="project-top-actions">
-          <button
-            className={saved ? "save-confirmed" : undefined}
-            disabled={editingLocked}
-            onClick={() => {
-              setSaved(false);
-              void perform(save);
-            }}
-          >
-            {saved ? <Check size={16} /> : <Save size={16} />}
-            {saved ? t("Changes saved") : t("Save changes")}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setPreviewView("composition");
-              setPreviewReading(null);
-              setPreviewVoice(null);
-              Object.values(voicePlayers.current).forEach((player) =>
-                player?.pause(),
-              );
-              setPreviewOpen(true);
-            }}
-            aria-haspopup="dialog"
-          >
-            <Clapperboard size={16} />
-            {t("Preview")}
-          </button>
-          <button
-            className="primary"
-            disabled={locked || !analysis || analyzing || !voicesReady}
-            data-tooltip={!voicesReady ? t(narrationRequirement) : undefined}
-            onClick={() =>
-              void perform(async () => {
-                await api(endpoint("render"), {
-                  method: "POST",
-                  body: JSON.stringify({
-                    ...checkedSettings(),
-                    readingCuts: adjustedCues(
-                      analysis!.cues,
-                      settingsRef.current.verseOffsets,
-                    ).map(({ reference, start, end }) => ({
-                      reference,
-                      start,
-                      end,
-                    })),
-                  }),
-                });
-                window.dispatchEvent(new Event(queueChangedEvent));
-              })
-            }
-          >
-            <Play size={16} />
-            {active
+      <ProjectEditorHeader
+        title={project.title}
+        version={project.version_code ?? ""}
+        backHref={backHref}
+      >
+        <button
+          className={saved ? "save-confirmed" : undefined}
+          aria-label={saved ? t("Changes saved") : t("Save changes")}
+          data-tooltip={saved ? t("Changes saved") : t("Save changes")}
+          disabled={editingLocked}
+          onClick={() => {
+            setSaved(false);
+            void perform(save);
+          }}
+        >
+          {saved ? <Check size={16} /> : <Save size={16} />}
+          {saved ? t("Changes saved") : t("Save changes")}
+        </button>
+        <button
+          type="button"
+          aria-label={t("Preview")}
+          data-tooltip={t("Preview")}
+          onClick={() => {
+            setPreviewView("composition");
+            setPreviewReading(null);
+            setPreviewVoice(null);
+            Object.values(voicePlayers.current).forEach((player) =>
+              player?.pause(),
+            );
+            setPreviewOpen(true);
+          }}
+          aria-haspopup="dialog"
+        >
+          <Clapperboard size={16} />
+          {t("Preview")}
+        </button>
+        <button
+          className="primary"
+          disabled={locked || !analysis || analyzing || !voicesReady}
+          aria-label={
+            active
               ? t("Generating")
               : result
                 ? t("Generate video again")
-                : t("Generate video")}
-          </button>
-        </div>
-      </div>
+                : t("Generate video")
+          }
+          data-tooltip={
+            !voicesReady
+              ? t(narrationRequirement)
+              : active
+                ? t("Generating")
+                : result
+                  ? t("Generate video again")
+                  : t("Generate video")
+          }
+          onClick={() =>
+            void perform(async () => {
+              await api(endpoint("render"), {
+                method: "POST",
+                body: JSON.stringify({
+                  ...checkedSettings(),
+                  readingCuts: adjustedCues(
+                    analysis!.cues,
+                    settingsRef.current.verseOffsets,
+                  ).map(({ reference, start, end }) => ({
+                    reference,
+                    start,
+                    end,
+                  })),
+                }),
+              });
+              window.dispatchEvent(new Event(queueChangedEvent));
+            })
+          }
+        >
+          <Play size={16} />
+          {active
+            ? t("Generating")
+            : result
+              ? t("Generate video again")
+              : t("Generate video")}
+        </button>
+      </ProjectEditorHeader>
       {error && (
         <p className="error" role="alert">
           {t(error)}
