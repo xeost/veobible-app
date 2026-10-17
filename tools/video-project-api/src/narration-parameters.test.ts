@@ -34,7 +34,7 @@ test("voice parameters cross the request and CLI boundaries with all six explici
     temperature: [0, 5.01],
     min_p: [0.1],
     top_p: [0.9],
-    repetition_penalty: [2],
+    repetition_penalty: [0.99, 2.01],
   }))
     for (const value of values)
       assert.equal(
@@ -44,4 +44,33 @@ test("voice parameters cross the request and CLI boundaries with all six explici
         }).success,
         false,
       );
+});
+
+test("custom repetition penalty reaches generation and legacy custom settings retain 1.2", async () => {
+  const { narrationStyleSchema, resolveNarrationStyle } =
+    await import("./narration-parameters.js");
+  const legacy = {
+    preset: "custom",
+    exaggeration: 0.5,
+    cfg_weight: 0.5,
+    temperature: 0.8,
+  };
+  assert.equal(
+    resolveNarrationStyle(narrationStyleSchema.parse(legacy))
+      .repetition_penalty,
+    1.2,
+  );
+  const parameters = resolveNarrationStyle(
+    narrationStyleSchema.parse({ ...legacy, repetition_penalty: 2 }),
+  );
+  assert.equal(
+    renderSchema.shape.voiceParameters.parse(parameters)?.repetition_penalty,
+    2,
+  );
+  assert.equal(narrationParameterArgs(parameters).at(-1), "2");
+  for (const repetition_penalty of [0.99, 2.01, NaN, Infinity])
+    assert.equal(
+      narrationStyleSchema.safeParse({ ...legacy, repetition_penalty }).success,
+      false,
+    );
 });

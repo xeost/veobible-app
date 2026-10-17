@@ -1,4 +1,6 @@
 export const spanish: Record<string, string> = {
+  "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Previous multilingual settings used 2.0; the narration presets use 1.2. This does not guarantee that every sentence will be spoken.":
+    "Desincentiva los sonidos repetidos. 1–2: 1 no aplica penalización; los valores más altos desincentivan más la repetición. La configuración multilingüe anterior usaba 2.0; los presets de narración usan 1.2. Esto no garantiza que se pronuncien todas las frases.",
   "Narration style": "Estilo de narración",
   "Natural narration": "Narración natural",
   "Expressive narration": "Narración expresiva",

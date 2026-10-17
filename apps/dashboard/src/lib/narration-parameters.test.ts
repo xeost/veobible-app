@@ -55,6 +55,7 @@ test("voice styles default without changing saved model choices and persist by l
         exaggeration: 0.65,
         cfg_weight: 0,
         temperature: 1.1,
+        repetition_penalty: 2,
       },
     });
     await saveNarrationGenerationSettings(db, { models, styles });
@@ -69,6 +70,11 @@ test("voice styles default without changing saved model choices and persist by l
     });
     assert.equal(resolveNarrationStyle(styles.es).temperature, 0.7);
     assert.equal(resolveNarrationStyle(styles.pt).exaggeration, 0.65);
+    assert.equal(
+      resolveNarrationStyle((await loadNarrationStyles(db)).pt)
+        .repetition_penalty,
+      2,
+    );
     for (const invalid of [NaN, Infinity, -0.01, 2.01]) {
       await assert.rejects(
         saveNarrationGenerationSettings(db, {

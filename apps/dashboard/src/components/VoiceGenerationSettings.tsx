@@ -22,6 +22,8 @@ const presets = {
   custom: "Custom",
 } as const;
 const help = {
+  repetition_penalty:
+    "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Previous multilingual settings used 2.0; the narration presets use 1.2. This does not guarantee that every sentence will be spoken.",
   exaggeration:
     "Controls emotional intensity. 0–2: 0.5 is neutral; higher values add expression and may speed up speech. Extreme values can be unstable.",
   cfg_weight:
@@ -148,14 +150,24 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
                   value={styles[locale].preset}
                   onChange={(event) => {
                     const preset = event.target.value;
-                    const { exaggeration, cfg_weight, temperature } =
-                      resolveNarrationStyle(styles[locale]);
+                    const {
+                      exaggeration,
+                      cfg_weight,
+                      temperature,
+                      repetition_penalty,
+                    } = resolveNarrationStyle(styles[locale]);
                     setStyles(
                       narrationStylesSchema.parse({
                         ...styles,
                         [locale]:
                           preset === "custom"
-                            ? { preset, exaggeration, cfg_weight, temperature }
+                            ? {
+                                preset,
+                                exaggeration,
+                                cfg_weight,
+                                temperature,
+                                repetition_penalty,
+                              }
                             : { preset },
                       }),
                     );
@@ -226,7 +238,9 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
                   </p>
                 )}
                 <p className="muted narration-fixed-values">
-                  min_p=0.05 · top_p=1 · repetition_penalty=1.2
+                  min_p=0.05 · top_p=1
+                  {styles[locale].preset !== "custom" &&
+                    " · repetition_penalty=1.2"}
                 </p>
               </fieldset>
             ))}

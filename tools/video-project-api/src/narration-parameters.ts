@@ -4,6 +4,7 @@ export const narrationControls = {
   exaggeration: { min: 0, max: 2, step: 0.05 },
   cfg_weight: { min: 0, max: 1, step: 0.05 },
   temperature: { min: 0.05, max: 5, step: 0.05 },
+  repetition_penalty: { min: 1, max: 2, step: 0.05 },
 } as const;
 const customFields = {
   exaggeration: z.number().finite().min(0).max(2),
@@ -15,7 +16,7 @@ export const narrationParametersSchema = z
     ...customFields,
     min_p: z.literal(0.05),
     top_p: z.literal(1),
-    repetition_penalty: z.literal(1.2),
+    repetition_penalty: z.number().finite().min(1).max(2),
   })
   .strict();
 export type NarrationParameters = z.infer<typeof narrationParametersSchema>;
@@ -32,7 +33,13 @@ export const narrationPresets = {
 } satisfies Record<string, NarrationParameters>;
 export const narrationStyleSchema = z.discriminatedUnion("preset", [
   z.object({ preset: z.enum(["natural", "expressive", "relaxed"]) }).strict(),
-  z.object({ preset: z.literal("custom"), ...customFields }).strict(),
+  z
+    .object({
+      preset: z.literal("custom"),
+      ...customFields,
+      repetition_penalty: z.number().finite().min(1).max(2).default(1.2),
+    })
+    .strict(),
 ]);
 export type NarrationStyle = z.infer<typeof narrationStyleSchema>;
 export const narrationStylesSchema = z
@@ -53,7 +60,7 @@ export function resolveNarrationStyle(
 ): NarrationParameters {
   if (style.preset !== "custom") return { ...narrationPresets[style.preset] };
   const { preset, ...controls } = style;
-  return { ...controls, ...fixed };
+  return { ...fixed, ...controls };
 }
 export function narrationParameterArgs(
   parameters?: NarrationParameters,
