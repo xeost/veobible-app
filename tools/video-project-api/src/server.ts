@@ -1,3 +1,4 @@
+import { narrationParametersSchema } from "./narration-parameters.js";
 import { narrationModelForLocale } from "./narration-models.js";
 import { openProjectFolder } from "./open-project-folder.js";
 import { loadLocalModels } from "./local-models.js";
@@ -89,6 +90,11 @@ async function chapterFilesFromQuery(url: URL) {
     throw new Error("Project passage mismatch");
   return projectChapterVoiceFiles({
     kind: "long",
+    voiceParameters: url.searchParams.has("voiceParameters")
+      ? narrationParametersSchema.parse(
+          JSON.parse(url.searchParams.get("voiceParameters")!),
+        )
+      : undefined,
     voiceModel: url.searchParams.has("voiceModel")
       ? narrationModelForLocale(
           url.searchParams.get("voiceModel"),
@@ -192,6 +198,7 @@ const analysisSchema = renderSchema
     settings: true,
     voiceTemplates: true,
     voiceModel: true,
+    voiceParameters: true,
   })
   .extend({ projectId: z.number().int().positive() });
 const idSchema = z.string().uuid();

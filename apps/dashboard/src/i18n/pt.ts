@@ -1,4 +1,16 @@
 export const portuguese: Record<string, string> = {
+  "Narration style": "Estilo de narração",
+  "Natural narration": "Narração natural",
+  "Expressive narration": "Narração expressiva",
+  "Slower voice": "Voz mais pausada",
+  Custom: "Personalizado",
+  Help: "Ajuda",
+  "Controls emotional intensity. 0–2: 0.5 is neutral; higher values add expression and may speed up speech. Extreme values can be unstable.":
+    "Controla a intensidade emocional. 0–2: 0.5 é neutro; valores mais altos adicionam expressão e podem acelerar a fala. Valores extremos podem ser instáveis.",
+  "Controls guidance and pacing. 0–1: lower values allow freer, more deliberate speech; higher values strengthen guidance. It is not an exact speed control.":
+    "Controla a orientação e o ritmo. 0–1: valores baixos permitem uma fala mais livre e pausada; valores altos reforçam a orientação. Não é um controle exato de velocidade.",
+  "Controls variation between generations. 0.05–5: lower values are more predictable; higher values add variation and may reduce clarity. The usual starting value is 0.8.":
+    "Controla a variação entre gerações. 0.05–5: valores baixos são mais previsíveis; valores altos adicionam variação e podem reduzir a clareza. O valor inicial habitual é 0.8.",
   Notifications: "Notificações",
   "Dismiss notification": "Fechar notificação",
   "Changes saved.": "Alterações salvas.",

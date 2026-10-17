@@ -171,6 +171,7 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
                 "audio_prompt_path": str(voice_prompt) if voice_prompt else None,
                 "exaggeration": args.exaggeration,
                 "cfg_weight": args.cfg_weight,
+                **{key: getattr(args, key) for key in ("temperature", "min_p", "top_p", "repetition_penalty") if getattr(args, key, None) is not None},
             }
             if args.model != "chatterbox":
                 kwargs["language_id"] = args.language
@@ -200,6 +201,10 @@ def main() -> int:
     parser.add_argument("--voice-prompts", type=Path, help="JSON mapping track names to voice reference files")
     parser.add_argument("--exaggeration", type=float, default=0.5)
     parser.add_argument("--cfg-weight", type=float, default=0.5)
+    parser.add_argument("--temperature", type=float)
+    parser.add_argument("--min-p", type=float)
+    parser.add_argument("--top-p", type=float)
+    parser.add_argument("--repetition-penalty", type=float)
     parser.add_argument("--dry-run", action="store_true", help="Validate and show scripts without loading the model")
     parser.add_argument("--force", action="store_true", help="Replace existing tracks")
     parser.add_argument("--resource-profile", choices=("low", "standard"), default=os.getenv("VOICE_GENERATOR_PROFILE", "low"), help="low uses CPU and reduced process priority (default)")
@@ -213,8 +218,12 @@ def main() -> int:
     parser.add_argument("--staging-dir", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     try:
-        if not 0 <= args.exaggeration <= 1 or not 0 <= args.cfg_weight <= 1:
-            raise ValueError("exaggeration and cfg-weight must be between 0 and 1")
+        if not 0 <= args.exaggeration <= 2 or not 0 <= args.cfg_weight <= 1:
+            raise ValueError("exaggeration must be between 0 and 2; cfg-weight between 0 and 1")
+        for key, lower, upper in (("temperature", 0.05, 5), ("min_p", 0, 1), ("top_p", 0.01, 1), ("repetition_penalty", 1, 2)):
+            value = getattr(args, key)
+            if value is not None and not lower <= value <= upper:
+                raise ValueError(f"{key} must be between {lower} and {upper}")
         scripts = read_scripts(args.scripts)
         voice_prompts = read_voice_prompts(args.voice_prompts, scripts)
         if args.dry_run:

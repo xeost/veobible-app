@@ -33,10 +33,12 @@ test("both video engines pass the selected per-language model to the worker with
       import assert from 'node:assert/strict'; import fs from 'node:fs/promises'; import path from 'node:path';
       import * as short from './src/engines/short/voice.ts'; import * as long from './src/engines/long/voice.ts';
       import { narrationModelOptions } from './src/narration-models.ts';
+      import { narrationPresets } from './src/narration-parameters.ts';
       for(const [kind, engine] of Object.entries({short,long})) for(const locale of ['en','es','pt']) for(const {value} of narrationModelOptions[locale]) {
         const out=path.join(process.env.MODEL_TEST_DIR,kind+'-'+locale+'-'+value);
-        await engine.generateVoice(out,{locale,voiceModel:value,reference:'John',version:'Bible',book:'John',start:'1:1',end:'1:2',passage_id:'john-1-1',templates:{intro:'Hello',outro:'Goodbye'}},true,'intro');
+        await engine.generateVoice(out,{locale,voiceModel:value,voiceParameters:narrationPresets.expressive,reference:'John',version:'Bible',book:'John',start:'1:1',end:'1:2',passage_id:'john-1-1',templates:{intro:'Hello',outro:'Goodbye'}},true,'intro');
         const args=JSON.parse(await fs.readFile(path.join(out,'args.json'),'utf8'));
+        for(const [key, parameter] of Object.entries(narrationPresets.expressive)) assert.equal(args[args.indexOf('--'+key.replaceAll('_','-'))+1],String(parameter));
         assert.equal(args[args.indexOf('--model')+1],value); assert.equal(args[args.indexOf('--language')+1],locale);
       }
     `;

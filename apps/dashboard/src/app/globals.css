@@ -3088,3 +3088,44 @@ audio {
     animation: none;
   }
 }
+
+.voice-generation-languages .narration-style-label {
+  margin-top: 18px;
+}
+.narration-controls {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+.narration-control-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.narration-control-label label {
+  margin: 0;
+}
+.narration-control-label output {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.narration-controls input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.narration-help {
+  position: relative;
+  display: inline-flex;
+  padding: 3px;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.narration-preset-values,
+.narration-fixed-values {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}

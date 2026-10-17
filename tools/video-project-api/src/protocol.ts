@@ -1,3 +1,4 @@
+import { narrationParametersSchema } from "./narration-parameters.js";
 import { narrationModelSchema } from "./narration-models.js";
 import { publicationTemplatesSchema } from "./publication-templates.js";
 import type { VoicePart } from "./chapter-introductions.js";
@@ -99,6 +100,7 @@ export const renderSchema = z.object({
   }),
   settings: settingsSchema,
   voiceModel: narrationModelSchema.optional(),
+  voiceParameters: narrationParametersSchema.optional(),
   voiceTemplates: z
     .object({
       intro: z.string().trim().max(10000),

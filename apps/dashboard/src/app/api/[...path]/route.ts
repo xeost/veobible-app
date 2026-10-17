@@ -1,6 +1,9 @@
 import {
+  loadNarrationStyles,
+  saveNarrationGenerationSettings,
+} from "../../../lib/narration-parameters";
+import {
   loadNarrationModels,
-  saveNarrationModels,
   applyNarrationSelection,
 } from "../../../lib/narration-models";
 import {
@@ -157,11 +160,14 @@ async function handle(req: Request, lang: Language) {
   }
   if (parts.join("/") === "admin-tools/voice-generation") {
     if (method === "GET")
-      return json({ models: await loadNarrationModels(database) });
-    if (method === "PUT")
       return json({
-        models: await saveNarrationModels(database, await body()),
+        models: await loadNarrationModels(database),
+        styles: await loadNarrationStyles(database),
       });
+    if (method === "PUT")
+      return json(
+        await saveNarrationGenerationSettings(database, await body()),
+      );
   }
   if (parts.join("/") === "admin-tools/local-models" && method === "GET") {
     try {

@@ -1,3 +1,7 @@
+import {
+  loadNarrationStyles,
+  resolveNarrationStyle,
+} from "./narration-parameters";
 import { loadNarrationModels } from "./narration-models";
 import { loadDashboardSummary } from "./dashboard-summary";
 import {
@@ -423,7 +427,12 @@ export async function videoApi(
     locale: project.locale,
     label: project.label,
   };
-  const voiceModel = (await loadNarrationModels(database))[project.locale];
+  const [models, styles] = await Promise.all([
+    loadNarrationModels(database),
+    loadNarrationStyles(database),
+  ]);
+  const voiceModel = models[project.locale];
+  const voiceParameters = resolveNarrationStyle(styles[project.locale]);
   const query = new URLSearchParams({
     kind: project.kind,
     version: project.version_code,
@@ -431,6 +440,7 @@ export async function videoApi(
     locale: project.locale,
     passageRange: project.passage,
     voiceModel,
+    voiceParameters: JSON.stringify(voiceParameters),
     outputEnvironment,
   });
   const mediaAccess = async () => {
@@ -617,6 +627,7 @@ export async function videoApi(
       settings: generationSettings,
       voiceTemplates,
       voiceModel,
+      voiceParameters,
     };
     if (parts[2] === "voices") {
       const part = z

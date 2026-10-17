@@ -1,4 +1,8 @@
 import {
+  narrationParameterArgs,
+  type NarrationParameters,
+} from "../../narration-parameters.js";
+import {
   narrationModelForLocale,
   type NarrationModel,
 } from "../../narration-models.js";
@@ -200,6 +204,7 @@ function spokenBookName(locale: Version["locale"], book: string): string {
 
 export interface VoiceContext {
   voiceModel?: NarrationModel;
+  voiceParameters?: NarrationParameters;
   scriptOverrides?: Partial<Record<"intro" | "outro", string>>;
   templates: { intro: string; outro: string };
   locale: Version["locale"];
@@ -535,6 +540,7 @@ export async function generateVoice(
       ) + "\n",
       "utf8",
     );
+    args.push(...narrationParameterArgs(context.voiceParameters));
     args.push("--voice-prompts", promptsPath);
     if (force) args.push("--force");
     await new Promise<void>((resolve, reject) => {

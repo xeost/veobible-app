@@ -1,3 +1,4 @@
+import { type NarrationParameters } from "./narration-parameters.js";
 import {
   type NarrationModel,
   narrationModelForLocale,
@@ -43,6 +44,7 @@ import type { RenderRequest } from "./protocol.js";
 function chapterSynthesis(
   locale: "es" | "en" | "pt",
   selected?: NarrationModel,
+  parameters?: NarrationParameters,
 ) {
   const model = selected ?? longConfig.ttsModels[locale];
   // Keep existing cache behavior for providers/variants unaffected by this migration.
@@ -68,6 +70,7 @@ function chapterSynthesis(
               longConfig.ttsVoicePrompts[locale]
             : longConfig.elevenLabsVoices[locale],
         script: longConfig.ttsScript,
+        ...(parameters ? { parameters } : {}),
       }),
     )
     .digest("hex")
@@ -97,7 +100,12 @@ export const voiceFilename = (part: VoicePart, extension = "wav") =>
 async function prepareProjectDirectories(
   input: Pick<
     RenderRequest,
-    "kind" | "version" | "passage" | "outputEnvironment" | "voiceModel"
+    | "kind"
+    | "version"
+    | "passage"
+    | "outputEnvironment"
+    | "voiceModel"
+    | "voiceParameters"
   >,
 ) {
   const output = projectDir(
@@ -183,6 +191,7 @@ export async function analyze(
     | "settings"
     | "voiceTemplates"
     | "voiceModel"
+    | "voiceParameters"
     | "readingCuts"
   >,
 ) {
@@ -228,6 +237,7 @@ export async function analyze(
     data.index.metadata.name,
     input.voiceTemplates,
   );
+  context.voiceParameters = input.voiceParameters;
   context.scriptOverrides = input.settings.voiceScriptOverrides;
   context.voiceModel =
     input.voiceModel === undefined
@@ -290,6 +300,7 @@ export async function inspection(
     | "settings"
     | "voiceTemplates"
     | "voiceModel"
+    | "voiceParameters"
   >,
 ) {
   const {
@@ -335,6 +346,7 @@ export async function generateProjectVoice(
     | "settings"
     | "voiceTemplates"
     | "voiceModel"
+    | "voiceParameters"
     | "projectId"
     | "outputEnvironment"
   >,
@@ -378,7 +390,11 @@ export async function generateProjectVoice(
           path.join(staging, "intro.txt"),
           {
             chapter: chapter.chapter,
-            synthesis: chapterSynthesis(input.version.locale, input.voiceModel),
+            synthesis: chapterSynthesis(
+              input.version.locale,
+              input.voiceModel,
+              input.voiceParameters,
+            ),
             complete: true,
             locale: input.version.locale,
           },
@@ -413,7 +429,12 @@ export async function generateProjectVoice(
 export async function projectChapterVoiceFiles(
   input: Pick<
     RenderRequest,
-    "kind" | "version" | "passage" | "outputEnvironment" | "voiceModel"
+    | "kind"
+    | "version"
+    | "passage"
+    | "outputEnvironment"
+    | "voiceModel"
+    | "voiceParameters"
   >,
 ) {
   if (input.kind !== "long") return [];
@@ -436,7 +457,11 @@ export async function projectChapterVoiceFiles(
         const part = `chapter-${chapterIndex}` as const;
         const identity = {
           chapter: range.chapter,
-          synthesis: chapterSynthesis(version.locale, input.voiceModel),
+          synthesis: chapterSynthesis(
+            version.locale,
+            input.voiceModel,
+            input.voiceParameters,
+          ),
           locale: version.locale,
           complete:
             range.first === 1 &&
@@ -476,7 +501,12 @@ export async function projectChapterVoiceFiles(
 export async function chapterVoicesAvailable(
   input: Pick<
     RenderRequest,
-    "kind" | "version" | "passage" | "outputEnvironment" | "voiceModel"
+    | "kind"
+    | "version"
+    | "passage"
+    | "outputEnvironment"
+    | "voiceModel"
+    | "voiceParameters"
   >,
 ) {
   return (await projectChapterVoiceFiles(input)).every(
@@ -488,7 +518,12 @@ export async function chapterVoicesAvailable(
 export async function existingProjectVoices(
   input: Pick<
     RenderRequest,
-    "kind" | "version" | "passage" | "outputEnvironment" | "voiceModel"
+    | "kind"
+    | "version"
+    | "passage"
+    | "outputEnvironment"
+    | "voiceModel"
+    | "voiceParameters"
   >,
 ) {
   const sources = sourceDir(

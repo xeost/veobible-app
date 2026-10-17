@@ -145,11 +145,13 @@ class NarrationDispatchTests(unittest.TestCase):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 model = MagicMock(sr=24000)
-                args = argparse.Namespace(output_dir=root, voice_prompt=None, model=kind, language=locale, force=True, device="cpu", exaggeration=0.5, cfg_weight=0.5)
+                args = argparse.Namespace(output_dir=root, voice_prompt=None, model=kind, language=locale, force=True, device="cpu", exaggeration=0.7, cfg_weight=0.3, temperature=0.7, min_p=0.05, top_p=1.0, repetition_penalty=1.2)
                 audio = types.SimpleNamespace(save=lambda filename, *a: Path(filename).write_bytes(b"native"))
                 with patch.dict(sys.modules, {"torchaudio": audio}), patch("cli.load_model", return_value=model), patch("cli.convert_audio", side_effect=lambda source, target, codec: target.write_bytes(b"converted")):
                     generate(args, {"intro": "Hello"}, {})
                 kwargs = model.generate.call_args.kwargs
+                for key, value in {"exaggeration": 0.7, "cfg_weight": 0.3, "temperature": 0.7, "min_p": 0.05, "top_p": 1.0, "repetition_penalty": 1.2}.items():
+                    self.assertEqual(kwargs[key], value)
                 if kind == "chatterbox": self.assertNotIn("language_id", kwargs)
                 else: self.assertEqual(kwargs["language_id"], locale)
 
