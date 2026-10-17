@@ -29,6 +29,8 @@ export const localModelSchema = z.object({
   status: localModelStatusSchema,
   variant: z
     .enum([
+      "chatterbox-original",
+      "chatterbox-pt-br",
       "chatterbox-v2",
       "chatterbox-v3",
       "chatterbox-shared",

@@ -35,6 +35,26 @@ const commonVoice = [
   "grapheme_mtl_merged_expanded_v1.json",
 ];
 const profiles = {
+  "chatterbox-original": {
+    repo: "ResembleAI/chatterbox",
+    required: [
+      "ve.safetensors",
+      "t3_cfg.safetensors",
+      "s3gen.safetensors",
+      "tokenizer.json",
+      "conds.pt",
+    ],
+    maxBytes: 4 * GiB,
+  },
+  "chatterbox-pt-br": {
+    repo: "ResembleAI/Chatterbox-Multilingual-pt-br",
+    required: [
+      "t3_pt_br.safetensors",
+      "s3gen_v3.pt",
+      "grapheme_mtl_merged_expanded_v1.json",
+    ],
+    maxBytes: 4 * GiB,
+  },
   "chatterbox-v3": {
     repo: "ResembleAI/chatterbox",
     required: [...commonVoice, "t3_mtl23ls_v3.safetensors"],
@@ -52,7 +72,11 @@ const profiles = {
   },
   "chatterbox-latam": {
     repo: "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
-    required: ["t3_es_mx_latam.safetensors"],
+    required: [
+      "t3_es_mx_latam.safetensors",
+      "s3gen_v3.pt",
+      "grapheme_mtl_merged_expanded_v1.json",
+    ],
     maxBytes: 4 * GiB,
   },
   "qwen3-aligner-0.6b-8bit": {
@@ -414,6 +438,13 @@ function discoveryProfile(model: Model) {
           Number(match[1]) > (model.variant === "chatterbox-v3" ? 3 : 2),
         );
       },
+    };
+  if (model.variant === "chatterbox-pt-br")
+    return {
+      author: "ResembleAI",
+      search: "Chatterbox-Multilingual-pt-br",
+      isNewer: (id: string) =>
+        /^ResembleAI\/Chatterbox-Multilingual-pt-br-[Vv][2-9]\d*$/.test(id),
     };
   if (model.variant === "chatterbox-latam")
     return {

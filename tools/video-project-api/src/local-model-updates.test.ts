@@ -365,3 +365,57 @@ test("V3 update comparisons ignore V2-only changes and detect changed V3 inferen
   assert.equal(changed.changedFiles, 1);
   assert.equal(changed.compatibility, "expected_fit");
 });
+
+test("original English Chatterbox checks English files independently from multilingual weights", async () => {
+  const before = [
+    file("ve.safetensors"),
+    file("t3_cfg.safetensors", "2", 1000),
+    file("s3gen.safetensors", "3", 500),
+    file("tokenizer.json"),
+    file("conds.pt"),
+  ];
+  const model = voice({
+    name: "Chatterbox",
+    variant: "chatterbox-original",
+    uses: [],
+  });
+  const after = [...before, file("t3_mtl23ls_v3.safetensors", "5", 1000)];
+  const same = await checkLocalModelUpdates(model, {
+    fetch: source({ before, after }).network,
+  });
+  assert.equal(same.status, "up_to_date");
+  assert.equal(same.changedFiles, 0);
+  after[1] = file("t3_cfg.safetensors", "6", 1000);
+  const changed = await checkLocalModelUpdates(model, {
+    fetch: source({ before, after }).network,
+  });
+  assert.equal(changed.status, "update_available");
+  assert.equal(changed.changedFiles, 1);
+});
+
+test("Brazilian Portuguese checks its own T3 and decoder without counting duplicate decoder formats", async () => {
+  const before = [
+    file("t3_pt_br.safetensors", "2", 1000),
+    file("s3gen_v3.pt", "3", 500),
+    file("grapheme_mtl_merged_expanded_v1.json"),
+    file("s3gen_v3.safetensors", "4", 500),
+  ];
+  const model = voice({
+    name: "Chatterbox Multilingual pt-BR",
+    variant: "chatterbox-pt-br",
+    repository: "ResembleAI/Chatterbox-Multilingual-pt-br",
+    uses: [],
+  });
+  const same = await checkLocalModelUpdates(model, {
+    fetch: source({ before, after: before }).network,
+  });
+  assert.equal(same.status, "up_to_date");
+  assert.equal(same.downloadBytes, 1500);
+  const after = [...before];
+  after[1] = file("s3gen_v3.pt", "6", 500);
+  const changed = await checkLocalModelUpdates(model, {
+    fetch: source({ before, after }).network,
+  });
+  assert.equal(changed.status, "update_available");
+  assert.equal(changed.changedFiles, 1);
+});

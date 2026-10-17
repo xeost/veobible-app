@@ -1,3 +1,4 @@
+import { narrationModelForLocale } from "./narration-models.js";
 import { openProjectFolder } from "./open-project-folder.js";
 import { loadLocalModels } from "./local-models.js";
 import { checkLocalModelUpdates } from "./local-model-updates.js";
@@ -88,6 +89,14 @@ async function chapterFilesFromQuery(url: URL) {
     throw new Error("Project passage mismatch");
   return projectChapterVoiceFiles({
     kind: "long",
+    voiceModel: url.searchParams.has("voiceModel")
+      ? narrationModelForLocale(
+          url.searchParams.get("voiceModel"),
+          renderSchema.shape.version.shape.locale.parse(
+            url.searchParams.get("locale"),
+          ),
+        )
+      : undefined,
     passage,
     version: {
       id: renderSchema.shape.version.shape.id.parse(
@@ -182,6 +191,7 @@ const analysisSchema = renderSchema
     passage: true,
     settings: true,
     voiceTemplates: true,
+    voiceModel: true,
   })
   .extend({ projectId: z.number().int().positive() });
 const idSchema = z.string().uuid();
@@ -433,6 +443,8 @@ const server = http.createServer(async (req, res) => {
             sectionIndex: z.number().int().nonnegative().max(999).optional(),
           })
           .parse(await body(req));
+        if (input.voiceModel)
+          narrationModelForLocale(input.voiceModel, input.version.locale);
         if (input.projectId !== projectId)
           return json(res, 400, { error: "Project mismatch" });
         if (
@@ -641,6 +653,8 @@ const server = http.createServer(async (req, res) => {
             ]),
           })
           .parse(await body(req));
+        if (input.voiceModel)
+          narrationModelForLocale(input.voiceModel, input.version.locale);
         if (input.projectId !== projectId)
           return json(res, 400, { error: "Project mismatch" });
         if (
@@ -703,6 +717,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/v1/jobs" && req.method === "POST") {
       const input = renderSchema.parse(await body(req));
+      if (input.voiceModel)
+        narrationModelForLocale(input.voiceModel, input.version.locale);
       if (cleaningOutputs.has(cleanupKey(input.kind, input.outputEnvironment)))
         return json(res, 409, { error: "Wait for project cleanup to finish" });
       if (input.callback && !origins.has(new URL(input.callback.url).origin))

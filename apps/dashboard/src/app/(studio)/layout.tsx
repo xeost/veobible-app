@@ -1,3 +1,4 @@
+import { ToastProvider } from "../../components/ToastProvider";
 import { redirect } from "next/navigation";
 import { currentUser } from "../../lib/auth";
 import { Shell } from "../../components/Shell";
@@ -9,5 +10,9 @@ export default async function StudioLayout({
 }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  return <Shell user={user}>{children}</Shell>;
+  return (
+    <ToastProvider>
+      <Shell user={user}>{children}</Shell>
+    </ToastProvider>
+  );
 }

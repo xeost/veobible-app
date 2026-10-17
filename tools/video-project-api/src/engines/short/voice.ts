@@ -1,4 +1,8 @@
 import {
+  narrationModelForLocale,
+  type NarrationModel,
+} from "../../narration-models.js";
+import {
   voiceStageProgress,
   samplingProgress,
 } from "../../generation-progress.js";
@@ -195,6 +199,7 @@ function spokenBookName(locale: Version["locale"], book: string): string {
 }
 
 export interface VoiceContext {
+  voiceModel?: NarrationModel;
   scriptOverrides?: Partial<Record<"intro" | "outro", string>>;
   templates: { intro: string; outro: string };
   locale: Version["locale"];
@@ -477,7 +482,8 @@ export async function generateVoice(
   const scripts = Object.fromEntries(
     parts.map((name) => [name, rendered[name]]),
   );
-  if (config.ttsProvider === "elevenlabs") {
+  const provider = context.voiceModel ? "chatterbox" : config.ttsProvider;
+  if (provider === "elevenlabs") {
     onProgress?.(20);
     await generateElevenLabsVoice(
       outputDir,
@@ -489,7 +495,7 @@ export async function generateVoice(
     onProgress?.(100);
     return;
   }
-  if (config.ttsProvider !== "chatterbox")
+  if (provider !== "chatterbox")
     throw new Error(
       `Unknown voice provider: ${config.ttsProvider}. Use chatterbox or elevenlabs`,
     );
@@ -510,7 +516,9 @@ export async function generateVoice(
       "--output-dir",
       outputDir,
       "--model",
-      config.ttsModels[context.locale],
+      context.voiceModel
+        ? narrationModelForLocale(context.voiceModel, context.locale)
+        : config.ttsModels[context.locale],
       "--device",
       config.ttsDevice,
     ];

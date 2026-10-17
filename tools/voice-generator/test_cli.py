@@ -90,7 +90,7 @@ class ModelSelectionTests(unittest.TestCase):
     def test_alias_and_explicit_versions_reach_checkpoint_loader(self):
         fake_torch = types.SimpleNamespace()
         with patch.dict(sys.modules, {"torch": fake_torch}), patch("cli.load_checkpoint_model", return_value="model") as loader:
-            for kind in ("multilingual", "multilingual-v3", "multilingual-v2", "latam"):
+            for kind in ("multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br"):
                 self.assertEqual(load_model(kind, "cpu"), "model")
                 loader.assert_called_with(kind, "cpu")
             with self.assertRaisesRegex(ValueError, "Unknown narration model"):
@@ -98,18 +98,20 @@ class ModelSelectionTests(unittest.TestCase):
 
     def test_loads_selected_weights_strictly_without_downloading_other_variants(self):
         from unittest.mock import MagicMock
-        for kind, filename in (("multilingual", "t3_mtl23ls_v3.safetensors"), ("multilingual-v3", "t3_mtl23ls_v3.safetensors"), ("multilingual-v2", "t3_mtl23ls_v2.safetensors"), ("latam", "t3_es_mx_latam.safetensors")):
+        for kind, filename in (("multilingual", "t3_mtl23ls_v3.safetensors"), ("multilingual-v3", "t3_mtl23ls_v3.safetensors"), ("multilingual-v2", "t3_mtl23ls_v2.safetensors"), ("latam", "t3_es_mx_latam.safetensors"), ("pt-br", "t3_pt_br.safetensors")):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 snapshot = MagicMock(return_value=directory)
                 download = MagicMock(return_value=str(root / filename))
                 load_weights = MagicMock(return_value={"weights": "selected"})
                 t3 = MagicMock()
+                decoder = MagicMock()
+                decoder.return_value.load_state_dict.return_value = types.SimpleNamespace(missing_keys=[], unexpected_keys=[])
                 modules = {
                     "torch": types.SimpleNamespace(device=lambda value: value, load=lambda *a, **k: {}),
                     "huggingface_hub": types.SimpleNamespace(snapshot_download=snapshot, hf_hub_download=download),
                     "safetensors.torch": types.SimpleNamespace(load_file=load_weights),
-                    "chatterbox.models.s3gen": types.SimpleNamespace(S3Gen=MagicMock()),
+                    "chatterbox.models.s3gen": types.SimpleNamespace(S3Gen=decoder),
                     "chatterbox.models.t3": types.SimpleNamespace(T3=t3),
                     "chatterbox.models.t3.modules.t3_config": types.SimpleNamespace(T3Config=types.SimpleNamespace(multilingual=lambda: "multilingual-config")),
                     "chatterbox.models.tokenizers": types.SimpleNamespace(MTLTokenizer=MagicMock()),
@@ -122,8 +124,54 @@ class ModelSelectionTests(unittest.TestCase):
                 t3.return_value.load_state_dict.assert_called_once_with({"weights": "selected"})
                 patterns = snapshot.call_args.kwargs["allow_patterns"]
                 selected = [name for name in patterns if name.endswith(".safetensors")]
-                self.assertEqual(selected, [] if kind == "latam" else [filename])
-                self.assertEqual(download.call_count, 1 if kind == "latam" else 0)
+                self.assertEqual(selected, [filename])
+                self.assertEqual(snapshot.call_count, 2 if kind in ("latam", "pt-br") else 1)
+                if kind in ("latam", "pt-br"):
+                    self.assertIn("s3gen_v3.pt", patterns)
+
+
+class NarrationDispatchTests(unittest.TestCase):
+    def test_original_english_uses_its_own_loader(self):
+        from unittest.mock import MagicMock
+        english = MagicMock()
+        with patch.dict(sys.modules, {"torch": types.SimpleNamespace(), "chatterbox.tts": types.SimpleNamespace(ChatterboxTTS=english)}), patch("cli.load_checkpoint_model") as multilingual:
+            load_model("chatterbox", "cpu")
+        english.from_pretrained.assert_called_once_with(device="cpu")
+        multilingual.assert_not_called()
+
+    def test_english_omits_language_id_while_regional_models_receive_it(self):
+        from unittest.mock import MagicMock
+        for kind, locale in (("chatterbox", "en"), ("latam", "es"), ("pt-br", "pt")):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                model = MagicMock(sr=24000)
+                args = argparse.Namespace(output_dir=root, voice_prompt=None, model=kind, language=locale, force=True, device="cpu", exaggeration=0.5, cfg_weight=0.5)
+                audio = types.SimpleNamespace(save=lambda filename, *a: Path(filename).write_bytes(b"native"))
+                with patch.dict(sys.modules, {"torchaudio": audio}), patch("cli.load_model", return_value=model), patch("cli.convert_audio", side_effect=lambda source, target, codec: target.write_bytes(b"converted")):
+                    generate(args, {"intro": "Hello"}, {})
+                kwargs = model.generate.call_args.kwargs
+                if kind == "chatterbox": self.assertNotIn("language_id", kwargs)
+                else: self.assertEqual(kwargs["language_id"], locale)
+
+    def test_rejects_models_in_the_wrong_language_before_loading(self):
+        from cli import validate_generation
+        for kind, locale in (("chatterbox", "es"), ("latam", "en"), ("pt-br", "es")):
+            args = argparse.Namespace(output_dir=Path(tempfile.gettempdir()), voice_prompt=None, model=kind, language=locale, force=True)
+            with self.subTest(kind=kind), patch("cli.shutil.which", return_value="ffmpeg"), self.assertRaises(ValueError):
+                validate_generation(args, {"intro": "Hello"})
+
+
+class DecoderCompatibilityTests(unittest.TestCase):
+    def test_only_computed_spectrogram_buffers_may_be_missing(self):
+        from cli import load_decoder_state
+        from unittest.mock import MagicMock
+        decoder = MagicMock()
+        decoder.load_state_dict.return_value = types.SimpleNamespace(missing_keys=["tokenizer.window", "tokenizer._mel_filters"], unexpected_keys=[])
+        load_decoder_state(decoder, {}, True)
+        for missing, unexpected in ((["decoder.learned_weight"], []), ([], ["unknown.weight"])):
+            decoder.load_state_dict.return_value = types.SimpleNamespace(missing_keys=missing, unexpected_keys=unexpected)
+            with self.assertRaisesRegex(RuntimeError, "Incompatible regional speech decoder"):
+                load_decoder_state(decoder, {}, True)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import { narrationModelSchema } from "./narration-models.js";
 import { publicationTemplatesSchema } from "./publication-templates.js";
 import type { VoicePart } from "./chapter-introductions.js";
 import { z } from "zod";
@@ -97,6 +98,7 @@ export const renderSchema = z.object({
     end: point,
   }),
   settings: settingsSchema,
+  voiceModel: narrationModelSchema.optional(),
   voiceTemplates: z
     .object({
       intro: z.string().trim().max(10000),

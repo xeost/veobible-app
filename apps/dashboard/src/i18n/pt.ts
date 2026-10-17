@@ -1,4 +1,27 @@
 export const portuguese: Record<string, string> = {
+  Notifications: "Notificações",
+  "Dismiss notification": "Fechar notificação",
+  "Changes saved.": "Alterações salvas.",
+  "Profile updated.": "Perfil atualizado.",
+  "Password updated.": "Senha atualizada.",
+  "Project created.": "Projeto criado.",
+  "Variant: Multilingual V3": "Variante: Multilingual V3",
+  "Variant: Multilingual V2": "Variante: Multilingual V2",
+  "Voice generation settings": "Configurações de geração de vozes",
+  "Voice model": "Modelo de voz",
+  "Choose the narration model for each Bible language. Applies to new voice generations in Short Videos and Long Videos. Multilingual options use V3.":
+    "Escolha o modelo de narração para cada idioma bíblico. Aplica-se às novas gerações de voz em vídeos curtos e longos. As opções multilíngues usam V3.",
+  "Loading voice generation settings…": "Carregando as configurações de vozes…",
+  "Could not load voice generation settings. Reload the page to try again.":
+    "Não foi possível carregar as configurações de vozes. Recarregue a página para tentar novamente.",
+  "Could not save voice generation settings. Try again.":
+    "Não foi possível salvar as configurações de vozes. Tente novamente.",
+  "Voice generation settings saved.": "Configurações de vozes salvas.",
+  "Chatterbox Multilingual (English)": "Chatterbox Multilingual (inglês)",
+  "Chatterbox Multilingual (Latin American Spanish)":
+    "Chatterbox Multilingual (espanhol latino-americano)",
+  "Chatterbox Multilingual (Brazilian Portuguese)":
+    "Chatterbox Multilingual (português do Brasil)",
   "Model files are up to date": "Os arquivos do modelo estão atualizados",
   "Model update available": "Atualização do modelo disponível",
   "New model variant available": "Nova variante do modelo disponível",
@@ -58,6 +81,12 @@ export const portuguese: Record<string, string> = {
   "The local model configuration changed. Refresh the list before checking again.":
     "A configuração local do modelo mudou. Atualize a lista antes de verificar novamente.",
 
+  "English only": "Somente inglês",
+  "Brazilian Portuguese": "Português do Brasil",
+  "Latin American Spanish": "Espanhol latino-americano",
+  "Not currently selected": "Não selecionado no momento",
+  "Models in use and available alternatives. Reading local versions does not load or download models.":
+    "Modelos em uso e alternativas disponíveis. Consultar as versões locais não carrega nem baixa modelos.",
   Narration: "Narração",
   "Admin tools": "Ferramentas de administração",
   "Review the tools used to prepare and create videos.":

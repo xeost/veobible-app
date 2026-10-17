@@ -64,17 +64,46 @@ test(
       const modelResponse = await fetch(`${base}/v1/local-models`, { headers });
       assert.equal(modelResponse.status, 200);
       const inventory = (await modelResponse.json()) as {
-        models: Array<{ repository: string; status: string }>;
+        models: Array<{
+          id: string;
+          role: string;
+          repository: string;
+          status: string;
+          uses: unknown[];
+        }>;
       };
       assert.deepEqual(
-        inventory.models.map((model) => model.repository),
+        inventory.models
+          .filter((model) => model.role !== "voice")
+          .map((model) => model.repository),
         ["test/aligner", "test/recognizer"],
       );
       assert.ok(
-        inventory.models.every((model) => model.status === "unavailable"),
+        inventory.models
+          .filter((model) => model.role !== "voice")
+          .every((model) => model.status === "unavailable"),
       );
       assert.ok(!JSON.stringify(inventory).includes(directory));
-      const modelUpdatesUrl = `${base}/v1/local-models/local-model-1/updates`;
+      assert.deepEqual(
+        inventory.models
+          .filter((model) => model.role === "voice")
+          .map((model) => model.repository),
+        [
+          "ResembleAI/chatterbox",
+          "ResembleAI/chatterbox",
+          "ResembleAI/Chatterbox-Multilingual-pt-br",
+          "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
+        ],
+      );
+      assert.ok(
+        inventory.models
+          .filter((model) => model.role === "voice")
+          .every((model) => model.uses.length === 0),
+      );
+      const alignmentModel = inventory.models.find(
+        (model) => model.repository === "test/aligner",
+      )!;
+      const modelUpdatesUrl = `${base}/v1/local-models/${alignmentModel.id}/updates`;
       assert.equal((await fetch(modelUpdatesUrl)).status, 401);
       const modelCheck = await fetch(modelUpdatesUrl, { headers });
       assert.equal(modelCheck.status, 200);

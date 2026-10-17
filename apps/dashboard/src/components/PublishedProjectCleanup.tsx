@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Trash2 } from "lucide-react";
 import { useI18n } from "../i18n/context";
@@ -20,12 +21,12 @@ export function PublishedProjectCleanup({
   kind: "short" | "long";
   onDeleted: () => void;
 }) {
+  const notify = useToast();
   const { t } = useI18n();
   const countText = (text: string, count: number) =>
     t(text).replace("{count}", String(count));
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<CleanupResult | null>(null);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const close = () => {
@@ -44,7 +45,6 @@ export function PublishedProjectCleanup({
   const prepare = async () => {
     setBusy(true);
     setError("");
-    setMessage("");
     try {
       setPreview(
         await api<CleanupResult>("videos/cleanup-published", {
@@ -73,7 +73,7 @@ export function PublishedProjectCleanup({
           ids: preview.eligibleIds,
         }),
       });
-      setMessage(
+      notify(
         countText(
           "Deleted {count} published project folders.",
           result.deletedIds.length,
@@ -121,11 +121,6 @@ export function PublishedProjectCleanup({
         )}
         {t("Clean up published files")}
       </button>
-      {message && (
-        <p role="status" className="muted">
-          {message}
-        </p>
-      )}
       {error && !preview && (
         <p className="error" role="alert">
           {t(error)}

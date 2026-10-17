@@ -1,3 +1,4 @@
+import { loadNarrationModels } from "./narration-models";
 import { loadDashboardSummary } from "./dashboard-summary";
 import {
   projectPublicationSchema,
@@ -422,12 +423,14 @@ export async function videoApi(
     locale: project.locale,
     label: project.label,
   };
+  const voiceModel = (await loadNarrationModels(database))[project.locale];
   const query = new URLSearchParams({
     kind: project.kind,
     version: project.version_code,
     passage: project.slug,
     locale: project.locale,
     passageRange: project.passage,
+    voiceModel,
     outputEnvironment,
   });
   const mediaAccess = async () => {
@@ -613,6 +616,7 @@ export async function videoApi(
       passage: JSON.parse(project.passage),
       settings: generationSettings,
       voiceTemplates,
+      voiceModel,
     };
     if (parts[2] === "voices") {
       const part = z
@@ -649,6 +653,14 @@ export async function videoApi(
             .run();
         }
       }
+      if (response.ok)
+        return json(
+          {
+            ...((await response.json()) as Record<string, unknown>),
+            mediaAccess: await mediaAccess(),
+          },
+          response.status,
+        );
       return new Response(response.body, {
         status: response.status,
         headers: { "Content-Type": "application/json" },

@@ -3,6 +3,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { BrainCircuit, RefreshCw, ExternalLink } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
+import { VoiceGenerationSettings } from "./VoiceGenerationSettings";
 import {
   localModelsSchema,
   localModelUpdateSchema,
@@ -165,7 +166,7 @@ export function AdminTools() {
             <h2>{t("Current model versions")}</h2>
             <p className="muted">
               {t(
-                "Versions found on the Mac used to create videos. Reading this information does not load or download models.",
+                "Models in use and available alternatives. Reading local versions does not load or download models.",
               )}
             </p>
           </div>
@@ -222,10 +223,19 @@ export function AdminTools() {
                             <small>
                               {t(
                                 model.variant === "chatterbox-v3"
-                                  ? "Selected variant: Multilingual V3"
-                                  : "Selected variant: Multilingual V2",
+                                  ? "Variant: Multilingual V3"
+                                  : "Variant: Multilingual V2",
                               )}
                             </small>
+                          )}
+                          {model.variant === "chatterbox-original" && (
+                            <small>{t("English only")}</small>
+                          )}
+                          {model.variant === "chatterbox-pt-br" && (
+                            <small>{t("Brazilian Portuguese")}</small>
+                          )}
+                          {model.variant === "chatterbox-latam" && (
+                            <small>{t("Latin American Spanish")}</small>
                           )}
                           {model.repository && (
                             <a
@@ -244,6 +254,9 @@ export function AdminTools() {
                         </td>
                         <td>
                           <strong>{t(roles[model.role])}</strong>
+                          {model.uses.length === 0 && (
+                            <small>{t("Not currently selected")}</small>
+                          )}
                           {model.uses.map((use) => (
                             <small key={use.kind}>
                               {t(
@@ -367,6 +380,7 @@ export function AdminTools() {
           </>
         )}
       </section>
+      <VoiceGenerationSettings onSaved={() => void refresh(true)} />
     </>
   );
 }

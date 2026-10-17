@@ -1,3 +1,4 @@
+import { narrationModelSchema } from "../../../../tools/video-project-api/src/narration-models";
 import { publicationTemplatesSchema } from "../../../../tools/video-project-api/src/publication-templates";
 import { z } from "zod";
 const point = z.object({
@@ -86,6 +87,7 @@ export const renderSchema = z.object({
     end: point,
   }),
   settings: settingsSchema,
+  voiceModel: narrationModelSchema.optional(),
   voiceTemplates: z
     .object({
       intro: z.string().trim().max(10000),

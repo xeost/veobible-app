@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, RefreshCw, X } from "lucide-react";
@@ -17,6 +18,7 @@ export function SyncVideoProjectsModal({
   close: () => void;
   onSynced: (versionId: number) => void;
 }) {
+  const notify = useToast();
   const { t } = useI18n();
   const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -26,9 +28,6 @@ export function SyncVideoProjectsModal({
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const [result, setResult] = useState<{ added: number; total: number } | null>(
-    null,
-  );
   useEffect(() => {
     let live = true;
     dialog.current?.showModal();
@@ -73,7 +72,6 @@ export function SyncVideoProjectsModal({
           if (!version || busy) return;
           setBusy(true);
           setError("");
-          setResult(null);
           try {
             const data = await api<{ added: number; total: number }>(
               `videos/sync?kind=${kind}`,
@@ -82,7 +80,11 @@ export function SyncVideoProjectsModal({
                 body: JSON.stringify({ versionId: Number(version) }),
               },
             );
-            setResult(data);
+            notify(
+              data.added
+                ? `${t("New projects added:")} ${data.added}.`
+                : t("There are no new projects to add."),
+            );
             onSynced(Number(version));
           } catch (cause) {
             setError(userMessage(cause));
@@ -127,7 +129,6 @@ export function SyncVideoProjectsModal({
                 value={version}
                 onChange={(event) => {
                   setVersion(event.target.value);
-                  setResult(null);
                   setError("");
                 }}
               >
@@ -144,13 +145,6 @@ export function SyncVideoProjectsModal({
             {t(
               "Add a Bible version before creating a project. If you do not have access, ask the administrator for help.",
             )}
-          </p>
-        )}
-        {result && (
-          <p className="success" role="status">
-            {result.added
-              ? `${t("New projects added:")} ${result.added}.`
-              : t("There are no new projects to add.")}
           </p>
         )}
         <div className="modal-footer">

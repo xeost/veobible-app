@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "../../../components/ToastProvider";
 import { pollWhileVisible } from "../../../lib/visible-polling";
 import { useModalDismiss } from "../../../components/useModalDismiss";
 import { useI18n } from "../../../i18n/context";
@@ -23,10 +24,10 @@ interface Data {
   deployments: Deployment[];
 }
 export default function Deployments() {
+  const notify = useToast();
   const { t, language } = useI18n();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<"config" | "publish" | null>(null);
@@ -89,7 +90,7 @@ export default function Deployments() {
         body: JSON.stringify({ hookUrl: value.trim() }),
       });
       setModal(null);
-      setNotice("Settings saved.");
+      notify("Settings saved.");
       await load();
     } catch (e) {
       setModalError(userMessage(e));
@@ -100,7 +101,6 @@ export default function Deployments() {
   const publish = async () => {
     setBusy(true);
     setModalError("");
-    setNotice("");
     try {
       const result = await api<{ status: string }>("deployments", {
         method: "POST",
@@ -108,12 +108,14 @@ export default function Deployments() {
       });
       setModal(null);
       if (result.status === "failed")
-        setNotice("Could not request the update. Please try again.");
+        notify("Could not request the update. Please try again.", "error");
       else if (result.status === "unknown")
-        setNotice(
+        notify(
           "Could not confirm the request. Check published updates before trying again.",
+          "info",
         );
-      else setNotice("Request sent. Publication is awaiting confirmation.");
+      else
+        notify("Request sent. Publication is awaiting confirmation.", "info");
       await load();
     } catch (e) {
       setModalError(userMessage(e));
@@ -173,11 +175,6 @@ export default function Deployments() {
       {error && (
         <p className="error" role="alert">
           {t(error)}
-        </p>
-      )}
-      {notice && (
-        <p className="notice" role="status">
-          {t(notice)}
         </p>
       )}
       <section className="panel">

@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -25,6 +26,7 @@ export function UserProfileModal({
   close: () => void;
   onUpdated: (user: User) => void;
 }) {
+  const notify = useToast();
   const { language, setLanguage, t } = useI18n();
   const [tab, setTab] = useState<"profile" | "password">("profile");
   const [username, setUsername] = useState(user.username),
@@ -118,6 +120,7 @@ export function UserProfileModal({
           ...(tab === "password" ? { currentPassword, password } : {}),
         }),
       });
+      notify(tab === "password" ? "Password updated." : "Profile updated.");
       onUpdated(data.user);
       close();
     } catch (error) {

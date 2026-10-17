@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import { useEffect, useState } from "react";
 import { Save, Globe, AtSign } from "lucide-react";
 import { useI18n } from "../i18n/context";
@@ -21,12 +22,12 @@ const platforms = [
   ["facebook", "Facebook"],
 ] as const;
 export function SocialSettings() {
+  const notify = useToast();
   const { t } = useI18n();
   const [accounts, setAccounts] = useState<Accounts>(emptySocialSettings);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   useEffect(() => {
     let live = true;
     api<{ accounts: Accounts }>("settings/social-accounts")
@@ -46,7 +47,6 @@ export function SocialSettings() {
   }, []);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setNotice("");
     const parsed = socialSettingsSchema.safeParse(accounts);
     if (!parsed.success) {
       setError(
@@ -62,9 +62,9 @@ export function SocialSettings() {
         { method: "PUT", body: JSON.stringify(parsed.data) },
       );
       setAccounts(data.accounts);
-      setNotice("Settings saved.");
+      notify("Settings saved.");
     } catch {
-      setError("Could not save accounts. Try again.");
+      notify("Could not save accounts. Try again.", "error");
     } finally {
       setBusy(false);
     }
@@ -87,11 +87,6 @@ export function SocialSettings() {
           {error && (
             <p className="error" role="alert">
               {t(error)}
-            </p>
-          )}
-          {notice && (
-            <p className="success" role="status">
-              {t(notice)}
             </p>
           )}
           <div className="social-settings-intro">
@@ -144,7 +139,6 @@ export function SocialSettings() {
                             [platform]: event.target.value,
                           },
                         }));
-                        setNotice("");
                       }}
                     />
                   </label>

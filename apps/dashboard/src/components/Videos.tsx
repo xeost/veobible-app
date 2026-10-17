@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import { useDebouncedValue } from "./useDebouncedValue";
 import type { PageInfo } from "../lib/pagination";
 import { UpdatedAt } from "./UpdatedAt";
@@ -45,6 +46,7 @@ function versionFilter(value: string | null): string {
     : "all";
 }
 export function Videos({ kind }: { kind: "short" | "long" }) {
+  const notify = useToast();
   const { t, language } = useI18n();
   const { orderVersions } = usePinnedBibleVersions();
   const router = useRouter();
@@ -90,7 +92,6 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
   const [syncOpen, setSyncOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [syncingExisting, setSyncingExisting] = useState(false);
-  const [syncNotice, setSyncNotice] = useState("");
   const [canEditSettings, setCanEditSettings] = useState(false);
   const [rows, setRows] = useState<VideoRow[]>([]),
     [versions, setVersions] = useState<BibleVersion[]>([]),
@@ -126,7 +127,6 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
   }>({ scope: "", ids: new Set() });
   const [updatingSelection, setUpdatingSelection] = useState(false);
   const updatingSelectionRef = useRef(false);
-  const [publicationNotice, setPublicationNotice] = useState("");
   const selectedRows =
     selection.scope === selectionScope
       ? rows.filter((row) => selection.ids.has(row.id))
@@ -252,7 +252,6 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
   const syncExisting = async () => {
     if (syncingExisting) return;
     setSyncingExisting(true);
-    setSyncNotice("");
     setError("");
     try {
       const result = await api<{
@@ -261,14 +260,14 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
         skipped: number;
         total: number;
       }>(`videos/sync-existing?kind=${kind}`, { method: "POST" });
-      setSyncNotice(
+      notify(
         result.total === 0
           ? t("No existing projects were found to sync.")
           : `${t("Updated:")} ${result.updated} · ${t("Unchanged:")} ${result.unchanged}${result.skipped ? ` · ${t("Skipped:")} ${result.skipped}. ${t("Check that their Bible versions are registered and their data is complete. Projects being generated are skipped until they finish.")}` : ""}`,
       );
       await load();
     } catch (cause) {
-      setError(userMessage(cause));
+      notify(userMessage(cause), "error");
     } finally {
       setSyncingExisting(false);
     }
@@ -278,7 +277,6 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     updatingSelectionRef.current = true;
     setUpdatingSelection(true);
     setError("");
-    setPublicationNotice("");
     try {
       const result = await api<{ updated: number }>("videos/publication", {
         method: "PATCH",
@@ -288,7 +286,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           published,
         }),
       });
-      setPublicationNotice(
+      notify(
         t("Publication updated for {count} projects.").replace(
           "{count}",
           String(result.updated),
@@ -297,7 +295,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
       setSelection({ scope: selectionScope, ids: new Set() });
       await load();
     } catch (cause) {
-      setError(userMessage(cause));
+      notify(userMessage(cause), "error");
     } finally {
       updatingSelectionRef.current = false;
       setUpdatingSelection(false);
@@ -368,11 +366,6 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           {t("Syncing existing projects…")}
         </p>
       )}
-      {syncNotice && (
-        <p className="success" role="status">
-          {syncNotice}
-        </p>
-      )}
       <section className="panel catalog-panel">
         <div className="catalog-toolbar">
           <div className="search">
@@ -417,11 +410,6 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             <option value="unpublished">{t("Unpublished")}</option>
           </select>
         </div>
-        {publicationNotice && (
-          <p className="success project-bulk-notice" role="status">
-            {publicationNotice}
-          </p>
-        )}
         {selectedRows.length > 0 && (
           <div
             className="project-bulk-actions"
@@ -580,7 +568,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                             });
                             await load();
                           } catch (cause) {
-                            setError(userMessage(cause));
+                            notify(userMessage(cause), "error");
                           }
                         }}
                       >

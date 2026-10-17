@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import { useModalDismiss } from "./useModalDismiss";
 import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,6 +24,7 @@ import { bibleVersionSchema, type BibleVersion } from "../lib/bible-versions";
 
 const languages = { es: "Spanish", en: "English", pt: "Portuguese" } as const;
 export function BibleVersions() {
+  const notify = useToast();
   const { t } = useI18n();
   const [versions, setVersions] = useState<BibleVersion[]>([]);
   const { isPinned, orderVersions, togglePin } = usePinnedBibleVersions();
@@ -34,7 +36,6 @@ export function BibleVersions() {
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const syncItem = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [editing, setEditing] = useState<BibleVersion | "new" | null>(null);
   const [deleting, setDeleting] = useState<BibleVersion | null>(null);
   const load = useCallback(async () => {
@@ -75,19 +76,18 @@ export function BibleVersions() {
     setMenuOpen(false);
     setSyncing(true);
     setError("");
-    setNotice("");
     try {
       const result = await api<{ added: number }>("versions/sync", {
         method: "POST",
       });
       await load();
-      setNotice(
+      notify(
         result.added
           ? `${t("New versions added:")} ${result.added}.`
           : t("There are no new versions to add."),
       );
     } catch (cause) {
-      setError(userMessage(cause));
+      notify(userMessage(cause), "error");
     } finally {
       setSyncing(false);
       menuTrigger.current?.focus();
@@ -108,7 +108,6 @@ export function BibleVersions() {
             type="button"
             className="primary"
             onClick={() => {
-              setNotice("");
               setEditing("new");
             }}
           >
@@ -173,11 +172,6 @@ export function BibleVersions() {
           {t(error)}
         </p>
       )}
-      {notice && (
-        <p className="success" role="status">
-          {t(notice)}
-        </p>
-      )}
       <section className="panel">
         <div className="table-wrap">
           <table className="bible-versions-table">
@@ -206,14 +200,12 @@ export function BibleVersions() {
                   tabIndex={0}
                   aria-label={`${t("Edit version")}: ${version.label}`}
                   onClick={() => {
-                    setNotice("");
                     setEditing(version);
                   }}
                   onKeyDown={(event) => {
                     if (event.target !== event.currentTarget) return;
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      setNotice("");
                       setEditing(version);
                     }
                   }}
@@ -269,7 +261,6 @@ export function BibleVersions() {
                         aria-label={`${t("Edit version")}: ${version.label}`}
                         onClick={(event) => {
                           event.stopPropagation();
-                          setNotice("");
                           setEditing(version);
                         }}
                       >
@@ -317,7 +308,7 @@ export function BibleVersions() {
           close={() => setEditing(null)}
           saved={() => {
             setEditing(null);
-            setNotice("Version saved.");
+            notify("Version saved.");
             void load();
           }}
         />
@@ -329,7 +320,7 @@ export function BibleVersions() {
           close={() => setDeleting(null)}
           saved={() => {
             setDeleting(null);
-            setNotice("Version deleted.");
+            notify("Version deleted.");
             void load();
           }}
         />

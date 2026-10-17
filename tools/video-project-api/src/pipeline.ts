@@ -1,3 +1,7 @@
+import {
+  type NarrationModel,
+  narrationModelForLocale,
+} from "./narration-models.js";
 import { prepareTrimmedVoice } from "./voice-trim.js";
 import {
   videoFilename,
@@ -36,26 +40,30 @@ import { publicationDescriptions as shortDescriptions } from "./engines/short/pu
 import { publicationDescriptions as longDescriptions } from "./engines/long/publication.js";
 import type { RenderRequest } from "./protocol.js";
 /** Cache chapter announcements by synthesis configuration, independently of project/version. */
-function chapterSynthesis(locale: "es" | "en" | "pt") {
-  const model = longConfig.ttsModels[locale];
+function chapterSynthesis(
+  locale: "es" | "en" | "pt",
+  selected?: NarrationModel,
+) {
+  const model = selected ?? longConfig.ttsModels[locale];
   // Keep existing cache behavior for providers/variants unaffected by this migration.
   if (
-    longConfig.ttsProvider !== "chatterbox" ||
-    !["multilingual", "multilingual-v3"].includes(model)
+    !selected &&
+    (longConfig.ttsProvider !== "chatterbox" ||
+      !["multilingual", "multilingual-v3"].includes(model))
   )
     return undefined;
   return createHash("sha256")
     .update(
       JSON.stringify({
-        provider: longConfig.ttsProvider,
+        provider: selected ? "chatterbox" : longConfig.ttsProvider,
         model:
-          longConfig.ttsProvider === "chatterbox"
+          selected || longConfig.ttsProvider === "chatterbox"
             ? ["multilingual", "multilingual-v3"].includes(model)
               ? "multilingual-v3"
               : model
             : longConfig.elevenLabsModel,
         voice:
-          longConfig.ttsProvider === "chatterbox"
+          selected || longConfig.ttsProvider === "chatterbox"
             ? longConfig.ttsTrackVoicePrompts[locale].intro ||
               longConfig.ttsVoicePrompts[locale]
             : longConfig.elevenLabsVoices[locale],
@@ -89,7 +97,7 @@ export const voiceFilename = (part: VoicePart, extension = "wav") =>
 async function prepareProjectDirectories(
   input: Pick<
     RenderRequest,
-    "kind" | "version" | "passage" | "outputEnvironment"
+    "kind" | "version" | "passage" | "outputEnvironment" | "voiceModel"
   >,
 ) {
   const output = projectDir(
@@ -174,6 +182,7 @@ export async function analyze(
     | "version"
     | "settings"
     | "voiceTemplates"
+    | "voiceModel"
     | "readingCuts"
   >,
 ) {
@@ -220,6 +229,10 @@ export async function analyze(
     input.voiceTemplates,
   );
   context.scriptOverrides = input.settings.voiceScriptOverrides;
+  context.voiceModel =
+    input.voiceModel === undefined
+      ? undefined
+      : narrationModelForLocale(input.voiceModel, input.version.locale);
   const episodeContent =
     input.kind === "long"
       ? episodeReference(
@@ -271,7 +284,12 @@ export async function analyze(
 export async function inspection(
   input: Pick<
     RenderRequest,
-    "kind" | "passage" | "version" | "settings" | "voiceTemplates"
+    | "kind"
+    | "passage"
+    | "version"
+    | "settings"
+    | "voiceTemplates"
+    | "voiceModel"
   >,
 ) {
   const {
@@ -316,6 +334,7 @@ export async function generateProjectVoice(
     | "version"
     | "settings"
     | "voiceTemplates"
+    | "voiceModel"
     | "projectId"
     | "outputEnvironment"
   >,
@@ -359,7 +378,7 @@ export async function generateProjectVoice(
           path.join(staging, "intro.txt"),
           {
             chapter: chapter.chapter,
-            synthesis: chapterSynthesis(input.version.locale),
+            synthesis: chapterSynthesis(input.version.locale, input.voiceModel),
             complete: true,
             locale: input.version.locale,
           },
@@ -394,7 +413,7 @@ export async function generateProjectVoice(
 export async function projectChapterVoiceFiles(
   input: Pick<
     RenderRequest,
-    "kind" | "version" | "passage" | "outputEnvironment"
+    "kind" | "version" | "passage" | "outputEnvironment" | "voiceModel"
   >,
 ) {
   if (input.kind !== "long") return [];
@@ -417,7 +436,7 @@ export async function projectChapterVoiceFiles(
         const part = `chapter-${chapterIndex}` as const;
         const identity = {
           chapter: range.chapter,
-          synthesis: chapterSynthesis(version.locale),
+          synthesis: chapterSynthesis(version.locale, input.voiceModel),
           locale: version.locale,
           complete:
             range.first === 1 &&
@@ -457,7 +476,7 @@ export async function projectChapterVoiceFiles(
 export async function chapterVoicesAvailable(
   input: Pick<
     RenderRequest,
-    "kind" | "version" | "passage" | "outputEnvironment"
+    "kind" | "version" | "passage" | "outputEnvironment" | "voiceModel"
   >,
 ) {
   return (await projectChapterVoiceFiles(input)).every(
@@ -469,7 +488,7 @@ export async function chapterVoicesAvailable(
 export async function existingProjectVoices(
   input: Pick<
     RenderRequest,
-    "kind" | "version" | "passage" | "outputEnvironment"
+    "kind" | "version" | "passage" | "outputEnvironment" | "voiceModel"
   >,
 ) {
   const sources = sourceDir(

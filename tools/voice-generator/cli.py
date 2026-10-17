@@ -55,6 +55,18 @@ def voice_prompt_for_track(track: str, voice_prompts: dict[str, Path], default: 
     return voice_prompts.get(track, default)
 
 
+def load_decoder_state(decoder, state, regional: bool):
+    if not regional:
+        decoder.load_state_dict(state)
+        return
+    # These deterministic spectrogram buffers are constructed by S3Tokenizer.
+    # Official V3 language-pack decoders omit them; learned weights remain required.
+    result = decoder.load_state_dict(state, strict=False)
+    allowed = {"tokenizer._mel_filters", "tokenizer.window"}
+    if set(result.missing_keys) - allowed or result.unexpected_keys:
+        raise RuntimeError(f"Incompatible regional speech decoder: missing={result.missing_keys}, unexpected={result.unexpected_keys}")
+
+
 def load_checkpoint_model(kind: str, device: str):
     """Explicit T3 selection, compatible with chatterbox-tts 0.1.7.
 
@@ -62,7 +74,7 @@ def load_checkpoint_model(kind: str, device: str):
     Do not call 0.1.7's from_pretrained: it silently selects V2.
     """
     import torch
-    from huggingface_hub import hf_hub_download, snapshot_download
+    from huggingface_hub import snapshot_download
     from safetensors.torch import load_file
     from chatterbox.models.s3gen import S3Gen
     from chatterbox.models.t3 import T3
@@ -71,20 +83,21 @@ def load_checkpoint_model(kind: str, device: str):
     from chatterbox.models.voice_encoder import VoiceEncoder
     from chatterbox.mtl_tts import ChatterboxMultilingualTTS, Conditionals
 
-    filename = "t3_mtl23ls_v2.safetensors" if kind == "multilingual-v2" else "t3_mtl23ls_v3.safetensors"
-    patterns = ["ve.pt", "s3gen.pt", "conds.pt", "grapheme_mtl_merged_expanded_v1.json", "Cangjie5_TC.json"]
-    if kind != "latam":
-        patterns.append(filename)
-    base = Path(snapshot_download(
-        repo_id="ResembleAI/chatterbox",
-        allow_patterns=patterns,
+    regional = {
+        "latam": ("ResembleAI/Chatterbox-Multilingual-es-mx-latam", "t3_es_mx_latam.safetensors"),
+        "pt-br": ("ResembleAI/Chatterbox-Multilingual-pt-br", "t3_pt_br.safetensors"),
+    }.get(kind)
+    filename = regional[1] if regional else ("t3_mtl23ls_v2.safetensors" if kind == "multilingual-v2" else "t3_mtl23ls_v3.safetensors")
+    patterns = ["ve.pt", "conds.pt"]
+    if not regional:
+        patterns += [filename, "s3gen.pt", "grapheme_mtl_merged_expanded_v1.json", "Cangjie5_TC.json"]
+    base = Path(snapshot_download(repo_id="ResembleAI/chatterbox", allow_patterns=patterns, token=os.getenv("HF_TOKEN")))
+    assets = Path(snapshot_download(
+        repo_id=regional[0],
+        allow_patterns=[filename, "s3gen_v3.pt", "grapheme_mtl_merged_expanded_v1.json"],
         token=os.getenv("HF_TOKEN"),
-    ))
-    checkpoint = hf_hub_download(
-        repo_id="ResembleAI/Chatterbox-Multilingual-es-mx-latam",
-        filename="t3_es_mx_latam.safetensors",
-        token=os.getenv("HF_TOKEN"),
-    ) if kind == "latam" else str(base / filename)
+    )) if regional else base
+    checkpoint = str(assets / filename)
     location = torch.device("cpu") if device in ("cpu", "mps") else None
     voice_encoder = VoiceEncoder()
     voice_encoder.load_state_dict(torch.load(base / "ve.pt", map_location=location, weights_only=True))
@@ -97,19 +110,22 @@ def load_checkpoint_model(kind: str, device: str):
     del state
     t3.to(device).eval()
     s3gen = S3Gen()
-    s3gen.load_state_dict(torch.load(base / "s3gen.pt", map_location=location, weights_only=True))
+    load_decoder_state(s3gen, torch.load(assets / ("s3gen_v3.pt" if regional else "s3gen.pt"), map_location=location, weights_only=True), bool(regional))
     s3gen.to(device).eval()
-    tokenizer = MTLTokenizer(str(base / "grapheme_mtl_merged_expanded_v1.json"))
+    tokenizer = MTLTokenizer(str(assets / "grapheme_mtl_merged_expanded_v1.json"))
     conds = Conditionals.load(base / "conds.pt", map_location=location).to(device) if (base / "conds.pt").exists() else None
     return ChatterboxMultilingualTTS(t3, s3gen, voice_encoder, tokenizer, device, conds=conds)
 
 
 def load_model(kind: str, device: str):
     import torch
-    if kind not in ("multilingual", "multilingual-v3", "multilingual-v2", "latam"):
+    if kind not in ("multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"):
         raise ValueError(f"Unknown narration model: {kind}")
     if device == "auto":
         device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    if kind == "chatterbox":
+        from chatterbox.tts import ChatterboxTTS
+        return ChatterboxTTS.from_pretrained(device=device)
     return load_checkpoint_model(kind, device)
 
 
@@ -125,6 +141,10 @@ def validate_generation(args: argparse.Namespace, scripts: dict[str, str]) -> No
         raise RuntimeError("ffmpeg must be available on PATH")
     if args.voice_prompt and not args.voice_prompt.is_file():
         raise ValueError(f"Voice prompt does not exist: {args.voice_prompt}")
+    if args.model == "chatterbox" and args.language != "en":
+        raise ValueError("The original Chatterbox model only supports English")
+    if args.model == "pt-br" and args.language != "pt":
+        raise ValueError("The pt-br model only supports Portuguese")
     if args.model == "latam" and args.language != "es":
         raise ValueError("The latam model only supports Spanish; use multilingual for English or Portuguese")
     output_names = [f"{name}.{extension}" for name in scripts for extension in ("txt", "wav")]
@@ -148,11 +168,12 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
             voice_prompt = voice_prompt_for_track(track, voice_prompts, args.voice_prompt)
             kwargs = {
                 "text": script,
-                "language_id": args.language,
                 "audio_prompt_path": str(voice_prompt) if voice_prompt else None,
                 "exaggeration": args.exaggeration,
                 "cfg_weight": args.cfg_weight,
             }
+            if args.model != "chatterbox":
+                kwargs["language_id"] = args.language
             waveform = model.generate(**kwargs)
             print(f"Stage: Converting {track}", flush=True)
             native = staging / f"{track}-native.wav"
@@ -173,7 +194,7 @@ def main() -> int:
     parser.add_argument("--scripts", required=True, type=Path, help="JSON mapping track names to text")
     parser.add_argument("--language", required=True, help="Language code supported by Chatterbox, such as es, en, or pt")
     parser.add_argument("--output-dir", required=True, type=Path, help="Output directory")
-    parser.add_argument("--model", choices=("multilingual", "multilingual-v3", "multilingual-v2", "latam"), default="multilingual")
+    parser.add_argument("--model", choices=("multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"), default="multilingual")
     parser.add_argument("--device", choices=("auto", "cpu", "mps", "cuda"), default="auto")
     parser.add_argument("--voice-prompt", type=Path, help="Optional WAV/MP3 voice reference")
     parser.add_argument("--voice-prompts", type=Path, help="JSON mapping track names to voice reference files")

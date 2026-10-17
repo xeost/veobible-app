@@ -44,7 +44,7 @@ test("inventory groups shared models and probes each interpreter/cache/software 
     },
   });
   assert.equal(calls.length, 2);
-  assert.equal(result.models.length, 3);
+  assert.equal(result.models.length, 6);
   const narration = result.models.find((model) => model.role === "voice")!;
   assert.deepEqual(narration.uses, [
     { kind: "short", languages: ["es", "en", "pt"] },
@@ -89,7 +89,7 @@ test("Latam includes its base components, preserves language overrides and uses 
   assert.equal(requests.length, 2);
   assert.equal(
     result.models.filter((model) => model.role === "voice").length,
-    2,
+    4,
   );
   const base = requests
     .find((request) => request.package === "chatterbox-tts")
@@ -234,7 +234,9 @@ test("inventory keeps explicitly configured V2 and default V3 separate", async (
       };
     },
   });
-  const models = result.models.filter((model) => model.role === "voice");
+  const models = result.models.filter(
+    (model) => model.role === "voice" && model.uses.length > 0,
+  );
   assert.deepEqual(
     models.map((model) => model.variant),
     ["chatterbox-v3", "chatterbox-v2"],
@@ -249,4 +251,60 @@ test("inventory keeps explicitly configured V2 and default V3 separate", async (
   assert.ok(probeModels[0].required.includes("t3_mtl23ls_v3.safetensors"));
   assert.ok(!probeModels[0].required.includes("t3_mtl23ls_v2.safetensors"));
   assert.ok(probeModels[1].required.includes("t3_mtl23ls_v2.safetensors"));
+});
+
+test("catalogue includes all requested alternatives without selecting or loading them, even with another provider active", async () => {
+  const calls: any[] = [];
+  const result = await loadLocalModels({
+    voices: {
+      short: voice({ ttsProvider: "elevenlabs" }),
+      long: voice({ ttsProvider: "elevenlabs" }),
+    },
+    alignment,
+    env: {},
+    probe: async (_python, request) => {
+      calls.push(request);
+      return {
+        version: "0.1.7",
+        models: request.models.map(() => ({
+          status: "not_downloaded",
+          revision: null,
+        })),
+      };
+    },
+  });
+  const alternatives = result.models.filter((model) => model.role === "voice");
+  assert.deepEqual(
+    alternatives.map((model) => [model.name, model.variant, model.repository]),
+    [
+      ["Chatterbox Multilingual", "chatterbox-v3", "ResembleAI/chatterbox"],
+      ["Chatterbox", "chatterbox-original", "ResembleAI/chatterbox"],
+      [
+        "Chatterbox Multilingual pt-BR",
+        "chatterbox-pt-br",
+        "ResembleAI/Chatterbox-Multilingual-pt-br",
+      ],
+      [
+        "Chatterbox es-MX Latam",
+        "chatterbox-latam",
+        "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
+      ],
+    ],
+  );
+  assert.ok(
+    alternatives.every(
+      (model) => model.uses.length === 0 && model.status === "not_downloaded",
+    ),
+  );
+  assert.equal(calls.length, 2);
+  const probes = calls.find(
+    (request) => request.package === "chatterbox-tts",
+  ).models;
+  assert.ok(probes[1].required.includes("t3_cfg.safetensors"));
+  assert.ok(
+    !probes[1].required.some((name: string) => name.includes("mtl23ls")),
+  );
+  assert.ok(probes[2].required.includes("t3_pt_br.safetensors"));
+  assert.ok(probes[2].required.includes("s3gen_v3.pt"));
+  assert.ok(localModelsSchema.safeParse(result).success);
 });

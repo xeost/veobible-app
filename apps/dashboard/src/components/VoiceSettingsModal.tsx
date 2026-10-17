@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
 import { X, Save, Settings } from "lucide-react";
@@ -36,6 +37,7 @@ export function VoiceSettingsModal({
   close: () => void;
   canEdit: boolean;
 }) {
+  const notify = useToast();
   const { t } = useI18n();
   const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -119,6 +121,7 @@ export function VoiceSettingsModal({
           method: "PUT",
           body: JSON.stringify(parsed.data),
         });
+        notify("Settings saved.");
         close();
       } catch {
         setError("Could not save publication templates. Try again.");
@@ -140,6 +143,7 @@ export function VoiceSettingsModal({
           method: "PUT",
           body: JSON.stringify(parsed.data),
         });
+        notify("Settings saved.");
         close();
       } catch {
         setError("Could not save settings. Try again.");
@@ -162,6 +166,7 @@ export function VoiceSettingsModal({
         method: "PUT",
         body: JSON.stringify(parsed.data),
       });
+      notify("Settings saved.");
       close();
     } catch {
       setError("Could not save narration scripts. Try again.");

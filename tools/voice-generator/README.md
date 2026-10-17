@@ -69,3 +69,9 @@ Run the lightweight tests without synthesizing audio:
 ```
 
 Track names support lowercase letters, numbers, hyphens, and underscores, and must start with a letter. A single invocation generates all tracks with the model loaded only once. Narration templates are stored in dashboard settings and passed by `video-project-api`; this worker does not read local template files.
+
+## Model selection by language
+
+The dashboard's Admin tools → Local AI Models settings select the model independently for English, Spanish and Portuguese, shared by both video formats. The worker accepts `--model chatterbox` for original English-only Chatterbox, `--model pt-br` for Brazilian Portuguese and `--model latam` for Latin American Spanish. General multilingual choices use `multilingual-v3` with the appropriate language ID and existing language-specific voice samples.
+
+Original Chatterbox uses its English loader and does not receive `language_id`. Regional language packs load their own T3 weights, `s3gen_v3.pt` decoder and tokenizer, with shared voice-encoder/reference components. Regional decoder loading permits only the two deterministic S3Tokenizer spectrogram buffers omitted by the official checkpoints (`tokenizer._mel_filters`, `tokenizer.window`); all learned weights and unexpected keys are still checked. Resource supervision and atomic WAV output remain unchanged. Missing assets may download on first use; choosing or saving a setting does not itself load a model or synthesize speech.

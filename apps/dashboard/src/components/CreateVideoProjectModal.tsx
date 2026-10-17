@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -20,6 +21,7 @@ export function CreateVideoProjectModal({
   close: () => void;
 }) {
   const dismiss = useModalDismiss(close);
+  const notify = useToast();
   const { t } = useI18n(),
     router = useRouter(),
     dialog = useRef<HTMLDialogElement>(null);
@@ -179,6 +181,7 @@ export function CreateVideoProjectModal({
               method: "POST",
               body: JSON.stringify(input),
             });
+            notify("Project created.");
             router.push(
               `/${kind === "short" ? "short-videos" : "long-videos"}/${project.id}`,
             );

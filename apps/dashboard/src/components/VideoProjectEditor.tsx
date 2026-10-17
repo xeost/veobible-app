@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "./ToastProvider";
 import {
   alignmentWasApplied,
   alignmentSignatureMatches,
@@ -88,6 +89,7 @@ export function VideoProjectEditor({
   kind: VideoKind;
   projectId: string;
 }) {
+  const notify = useToast();
   const { t } = useI18n();
   const [project, setProject] = useState<EditorProject | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
@@ -135,7 +137,6 @@ export function VideoProjectEditor({
   const [error, setError] = useState("");
   const [analysisError, setAnalysisError] = useState("");
   const [voiceError, setVoiceError] = useState("");
-  const [notice, setNotice] = useState("");
   const [saved, setSaved] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewVoice, setPreviewVoice] = useState<VoicePart | null>(null);
@@ -529,7 +530,6 @@ export function VideoProjectEditor({
     busyRef.current = true;
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       await action();
       const data = await api<{ video: EditorProject }>(base);
@@ -567,6 +567,7 @@ export function VideoProjectEditor({
       }),
     });
     setSaved(true);
+    notify("Changes saved.");
   };
   const queueAlignment = async (sectionIndex?: number) => {
     if (
@@ -624,7 +625,6 @@ export function VideoProjectEditor({
         ],
       };
     });
-    setNotice("");
   };
   const expandSection = (
     sectionIndex: number,
@@ -695,7 +695,9 @@ export function VideoProjectEditor({
     const generationSettings = checkedSettings();
     const trims = { ...generationSettings.voiceTrims };
     delete trims[part];
-    await api(endpoint("voices"), {
+    const generation = await api<{
+      mediaAccess?: NonNullable<typeof mediaAccess>;
+    }>(endpoint("voices"), {
       method: "POST",
       body: JSON.stringify({
         part,
@@ -707,6 +709,17 @@ export function VideoProjectEditor({
       delete currentTrims[part];
       return { ...current, voiceTrims: currentTrims };
     });
+    if (generation.mediaAccess) {
+      const access = generation.mediaAccess;
+      setMediaAccess((current) =>
+        current &&
+        current.expiresAt > Date.now() + 15 * 60 * 1000 &&
+        new URLSearchParams(current.query).get("voiceModel") ===
+          new URLSearchParams(access.query).get("voiceModel")
+          ? current
+          : access,
+      );
+    }
     setVoices((current) => ({
       ...current,
       [part]: { ...current[part], status: "queued", progress: 0 },
@@ -905,7 +918,6 @@ export function VideoProjectEditor({
               ...current,
               [id]: (current[id] ?? 0) + 1,
             }));
-            setNotice("");
           }}
         >
           <RotateCcw size={17} />
@@ -1339,11 +1351,6 @@ export function VideoProjectEditor({
         {voiceError && (
           <p className="error" role="alert">
             {t(voiceError)}
-          </p>
-        )}
-        {notice && (
-          <p className="success" role="status">
-            {t(notice)}
           </p>
         )}
         {active && (

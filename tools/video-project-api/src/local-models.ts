@@ -97,20 +97,24 @@ export async function loadLocalModels(
     const variant: Model["variant"] = custom
       ? "custom"
       : repository === "ResembleAI/chatterbox"
-        ? required.includes("t3_mtl23ls_v3.safetensors")
-          ? "chatterbox-v3"
-          : required.includes("t3_mtl23ls_v2.safetensors")
-            ? "chatterbox-v2"
-            : "chatterbox-shared"
+        ? required.includes("t3_cfg.safetensors")
+          ? "chatterbox-original"
+          : required.includes("t3_mtl23ls_v3.safetensors")
+            ? "chatterbox-v3"
+            : required.includes("t3_mtl23ls_v2.safetensors")
+              ? "chatterbox-v2"
+              : "chatterbox-shared"
         : repository === "ResembleAI/Chatterbox-Multilingual-es-mx-latam"
           ? "chatterbox-latam"
-          : role === "alignment" &&
-              repository === "mlx-community/Qwen3-ForcedAligner-0.6B-8bit"
-            ? "qwen3-aligner-0.6b-8bit"
-            : role === "recognition" &&
-                repository === "mlx-community/Qwen3-ASR-0.6B-8bit"
-              ? "qwen3-asr-0.6b-8bit"
-              : "custom";
+          : repository === "ResembleAI/Chatterbox-Multilingual-pt-br"
+            ? "chatterbox-pt-br"
+            : role === "alignment" &&
+                repository === "mlx-community/Qwen3-ForcedAligner-0.6B-8bit"
+              ? "qwen3-aligner-0.6b-8bit"
+              : role === "recognition" &&
+                  repository === "mlx-community/Qwen3-ASR-0.6B-8bit"
+                ? "qwen3-asr-0.6b-8bit"
+                : "custom";
     const previous = entries.find(
       (entry) =>
         entry.model.name === name &&
@@ -221,12 +225,79 @@ export async function loadLocalModels(
           "Chatterbox es-MX Latam",
           "voice",
           "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
-          ["t3_es_mx_latam.safetensors"],
+          [
+            "t3_es_mx_latam.safetensors",
+            "s3gen_v3.pt",
+            "grapheme_mtl_merged_expanded_v1.json",
+          ],
           config.ttsPython,
           env,
           uses,
         );
     }
+  }
+  // Alternatives are listed once. Active entries retain their actual interpreter/uses.
+  const cataloguePython = (
+    Object.values(voices).find(
+      (config) =>
+        config.ttsProvider === "chatterbox" &&
+        path.resolve(config.ttsScript) === path.join(voiceRoot, "cli.py"),
+    ) ?? voices.short
+  ).ttsPython;
+  const catalogue: Array<[string, string, string[]]> = [
+    [
+      "Chatterbox Multilingual",
+      "ResembleAI/chatterbox",
+      [
+        "ve.pt",
+        "s3gen.pt",
+        "t3_mtl23ls_v3.safetensors",
+        "grapheme_mtl_merged_expanded_v1.json",
+      ],
+    ],
+    [
+      "Chatterbox",
+      "ResembleAI/chatterbox",
+      [
+        "ve.safetensors",
+        "t3_cfg.safetensors",
+        "s3gen.safetensors",
+        "tokenizer.json",
+        "conds.pt",
+      ],
+    ],
+    [
+      "Chatterbox Multilingual pt-BR",
+      "ResembleAI/Chatterbox-Multilingual-pt-br",
+      [
+        "t3_pt_br.safetensors",
+        "s3gen_v3.pt",
+        "grapheme_mtl_merged_expanded_v1.json",
+      ],
+    ],
+    [
+      "Chatterbox es-MX Latam",
+      "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
+      [
+        "t3_es_mx_latam.safetensors",
+        "s3gen_v3.pt",
+        "grapheme_mtl_merged_expanded_v1.json",
+      ],
+    ],
+  ];
+  for (const [name, repository, required] of catalogue) {
+    if (
+      entries.some(
+        (entry) =>
+          entry.model.name === name &&
+          (name !== "Chatterbox Multilingual" ||
+            entry.model.variant === "chatterbox-v3") &&
+          entry.model.repository === repository &&
+          !entry.custom,
+      )
+    )
+      continue;
+    add(name, "voice", repository, required, cataloguePython, env, []);
   }
   const alignmentEnv = {
     ...env,

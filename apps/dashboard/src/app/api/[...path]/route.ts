@@ -1,4 +1,9 @@
 import {
+  loadNarrationModels,
+  saveNarrationModels,
+  applyNarrationSelection,
+} from "../../../lib/narration-models";
+import {
   loadPublicationSettings,
   savePublicationSettings,
 } from "../../../lib/publication-settings";
@@ -133,7 +138,12 @@ async function handle(req: Request, lang: Language) {
     try {
       const response = await videoFetch(`/v1/local-models/${id}/updates`);
       if (!response.ok) throw new Error("Local model update check failed");
-      return json(localModelUpdateSchema.parse(await response.json()));
+      const result = localModelUpdateSchema.parse(await response.json());
+      const inventory = applyNarrationSelection(
+        { checkedAt: result.checkedAt, models: [result.model] },
+        await loadNarrationModels(database),
+      );
+      return json({ ...result, model: inventory.models[0] });
     } catch (cause) {
       console.error("Local model update check failed", cause);
       return json(
@@ -145,13 +155,26 @@ async function handle(req: Request, lang: Language) {
       );
     }
   }
+  if (parts.join("/") === "admin-tools/voice-generation") {
+    if (method === "GET")
+      return json({ models: await loadNarrationModels(database) });
+    if (method === "PUT")
+      return json({
+        models: await saveNarrationModels(database, await body()),
+      });
+  }
   if (parts.join("/") === "admin-tools/local-models" && method === "GET") {
     try {
       const response = await videoFetch(
         `/v1/local-models${url.searchParams.get("refresh") === "1" ? "?refresh=1" : ""}`,
       );
       if (!response.ok) throw new Error("Local model inventory unavailable");
-      return json(localModelsSchema.parse(await response.json()));
+      return json(
+        applyNarrationSelection(
+          localModelsSchema.parse(await response.json()),
+          await loadNarrationModels(database),
+        ),
+      );
     } catch (cause) {
       console.error("Local model inventory unavailable", cause);
       return json(
