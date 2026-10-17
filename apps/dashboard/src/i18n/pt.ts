@@ -89,6 +89,7 @@ export const portuguese: Record<string, string> = {
     "Modelos em uso e alternativas disponíveis. Consultar as versões locais não carrega nem baixa modelos.",
   Narration: "Narração",
   "Admin tools": "Ferramentas de administração",
+  "Admin Tools": "Admin Tools",
   "Review the tools used to prepare and create videos.":
     "Consulte as ferramentas usadas para preparar e criar vídeos.",
   "Local AI models": "Modelos de IA locais",

@@ -40,7 +40,7 @@ const items = [
   ["/long-videos", "Long Videos", Film],
   ["/deployments", "Publications", Rocket],
   ["/settings", "Settings", Settings],
-  ["/admin-tools", "Admin tools", Wrench],
+  ["/admin-tools", "Admin Tools", Wrench],
 ] as const;
 export function Shell({ children, user }: { children: ReactNode; user: User }) {
   const { t } = useI18n();

@@ -89,6 +89,7 @@ export const spanish: Record<string, string> = {
     "Modelos en uso y alternativas disponibles. Consultar las versiones locales no carga ni descarga modelos.",
   Narration: "Voz",
   "Admin tools": "Herramientas de administración",
+  "Admin Tools": "Admin Tools",
   "Review the tools used to prepare and create videos.":
     "Consulta las herramientas utilizadas para preparar y crear videos.",
   "Local AI models": "Modelos de IA locales",
