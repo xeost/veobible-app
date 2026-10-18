@@ -83,66 +83,62 @@ test("Finder targets the project folder in list view sorted by name ascending an
         assert.equal(options.timeout, 30000);
         assert.ok(!script.includes(folder));
         assert.match(script, /set folderPath to item 1 of argv/);
-        assert.match(
-          script,
-          /set projectWindow to container window of projectFolder/,
-        );
+        // Pin the window by ID; "container window" can resolve to a different
+        // window after navigation, especially when requests overlap.
+        assert.match(script, /set projectWindow to Finder window id/);
         assert.match(script, /set current view of projectWindow to list view/);
         assert.match(script, /set sort column to column id name column/);
         assert.match(
           script,
           /set sort direction of column id name column to normal/,
         );
-        assert.match(script, /repeat 20 times/);
-        assert.match(script, /name of sort column is name column/);
+        // Script property readbacks can be stale. Sorting must also use the
+        // native command, with all three modifiers (without Option it groups).
+        const nativeSort = script.indexOf('keystroke "1"');
+        assert.ok(nativeSort > script.indexOf("set sort direction"));
+        assert.match(
+          script.slice(nativeSort),
+          /^keystroke "1" using \{control down, option down, command down\}/,
+        );
+        assert.match(script, /tell application "System Events"/);
+        assert.match(script, /if not frontmost then error/);
         assert.match(
           script,
-          /sort direction of column id name column is normal/,
+          /id of front Finder window is not id of projectWindow then error/,
         );
+        assert.match(
+          script,
+          /target of projectWindow as alias.*projectFolder as alias/,
+        );
+        const guard = script.lastIndexOf(
+          "my assertProjectWindow(projectWindow, projectFolder)",
+          nativeSort,
+        );
+        assert.ok(guard > script.indexOf("set sort direction"));
+        const observe = script.indexOf("repeat 20 times", nativeSort);
+        const success = script.indexOf("if sortRestored then return", observe);
+        assert.ok(observe > nativeSort && success > observe);
+        assert.match(script.slice(observe, success), /delay 0\.1/);
+        assert.match(script.slice(observe, success), /set sortRestored to false/);
+        assert.match(
+          script.slice(observe, success),
+          /name of sort column is not name column/,
+        );
+        assert.doesNotMatch(
+          script.slice(observe, success),
+          /then return|set sort column|keystroke/,
+        );
+        assert.match(script, /repeat 3 times/);
         assert.match(
           script,
           /error "Could not sort the project folder by name\."/,
         );
-        // A property readback alone doesn't refresh Finder's visible rows.
-        // Keep the close/reopen scoped to the project rather than whichever
-        // Finder window happens to be in front when automation runs.
-        const configure = script.indexOf(
-          "set sort column to column id name column",
-        );
-        const close = script.indexOf("close projectWindow");
-        const reopen = script.indexOf("open projectFolder", close);
-        assert.ok(configure >= 0 && close > configure && reopen > close);
-        assert.match(
-          script.slice(close, reopen),
-          /close projectWindow\s+delay 0\.25/,
-        );
-        assert.match(
-          script.slice(configure, close),
-          /target of projectWindow as alias.*projectFolder as alias/,
-        );
-        assert.match(
-          script.slice(reopen),
-          /name of sort column is not name column/,
-        );
-        // Do not return on the first successful read after reopening. A late
-        // restoration must trigger configuration and another visible refresh.
-        const observe = script.indexOf("repeat 20 times", reopen);
-        const success = script.indexOf("if sortRestored then return", observe);
-        const repair = script.indexOf(
-          "my configureProjectWindow(projectWindow, projectFolder)",
-          success,
-        );
-        assert.ok(observe > reopen && success > observe && repair > success);
-        assert.match(script.slice(observe, success), /delay 0\.1/);
-        assert.match(script.slice(observe, success), /set sortRestored to false/);
-        assert.doesNotMatch(script.slice(observe, success), /then return/);
-        assert.match(script, /repeat 3 times/);
-        assert.match(script, /stableSamples >= 10/);
-        assert.doesNotMatch(script.slice(reopen), /set sort column/);
+        // Reopening reapplies Finder's saved order and undoes the native sort.
         assert.doesNotMatch(
           script,
-          /front window|window 1|default list view options/,
+          /close projectWindow|default list view options/,
         );
+        assert.equal((script.match(/open projectFolder/g) ?? []).length, 1);
       },
     });
     assert.ok(script);
