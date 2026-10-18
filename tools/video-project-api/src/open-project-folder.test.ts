@@ -122,8 +122,22 @@ test("Finder targets the project folder in list view sorted by name ascending an
         );
         assert.match(
           script.slice(reopen),
-          /name of sort column is name column/,
+          /name of sort column is not name column/,
         );
+        // Do not return on the first successful read after reopening. A late
+        // restoration must trigger configuration and another visible refresh.
+        const observe = script.indexOf("repeat 20 times", reopen);
+        const success = script.indexOf("if sortRestored then return", observe);
+        const repair = script.indexOf(
+          "my configureProjectWindow(projectWindow, projectFolder)",
+          success,
+        );
+        assert.ok(observe > reopen && success > observe && repair > success);
+        assert.match(script.slice(observe, success), /delay 0\.1/);
+        assert.match(script.slice(observe, success), /set sortRestored to false/);
+        assert.doesNotMatch(script.slice(observe, success), /then return/);
+        assert.match(script, /repeat 3 times/);
+        assert.match(script, /stableSamples >= 10/);
         assert.doesNotMatch(script.slice(reopen), /set sort column/);
         assert.doesNotMatch(
           script,

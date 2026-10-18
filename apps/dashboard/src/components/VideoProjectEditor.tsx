@@ -69,6 +69,7 @@ import { expandReadingContext } from "../../../../tools/video-project-api/src/re
 import { VoiceWaveform } from "./VoiceWaveform";
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
+import { editorActivityLocks } from "../lib/editor-activity";
 type Settings = RenderRequest["settings"];
 type EditorProject = VideoRow & { passage: string };
 type VoiceState = {
@@ -455,16 +456,16 @@ export function VideoProjectEditor({
     kind === "long"
       ? "Generate all section narrations before generating the video."
       : "Generate the introduction and closing voices before generating the video.";
-  const editingLocked =
-    busy ||
-    active ||
-    alignmentPending ||
-    alignmentAwaitingApply ||
-    Boolean(applyingAlignment) ||
-    Boolean(analysis && !alignmentLoaded);
+  const { editingLocked, taskQueueLocked } = editorActivityLocks({
+    busy,
+    active,
+    alignmentPending,
+    alignmentAwaitingApply,
+    applyingAlignment: Boolean(applyingAlignment),
+    hasAnalysis: Boolean(analysis),
+    alignmentLoaded,
+  });
   const locked = editingLocked;
-  const alignmentQueueLocked =
-    busy || active || Boolean(applyingAlignment) || !alignmentLoaded;
   const timeline = readingTimeline(analysis?.sections ?? []);
   const cues = adjustedCues(analysis?.cues ?? [], settings.verseOffsets);
   const waveformKeys = [
@@ -573,7 +574,7 @@ export function VideoProjectEditor({
     if (
       !analysis ||
       analyzing ||
-      alignmentQueueLocked ||
+      taskQueueLocked ||
       busyRef.current ||
       alignmentScopeBusy(sectionIndex) ||
       applyingAlignmentRef.current
@@ -731,13 +732,23 @@ export function VideoProjectEditor({
     for (const player of Object.values(voicePlayers.current)) player?.pause();
     setPlayingVoice(null);
   };
-  const generateVoice = (part: VoicePart) =>
-    perform(async () => {
+  const generateVoice = (part: VoicePart) => {
+    if (
+      taskQueueLocked ||
+      busyRef.current ||
+      applyingAlignmentRef.current ||
+      ["queued", "running"].includes(voiceState.current[part]?.status ?? "")
+    )
+      return;
+    return perform(async () => {
       stopVoicePlayback();
       await queueVoice(part);
     });
-  const generateMissingVoices = () =>
-    perform(async () => {
+  };
+  const generateMissingVoices = () => {
+    if (taskQueueLocked || busyRef.current || applyingAlignmentRef.current)
+      return;
+    return perform(async () => {
       setQueuingVoices(true);
       stopVoicePlayback();
       try {
@@ -756,6 +767,7 @@ export function VideoProjectEditor({
         setQueuingVoices(false);
       }
     });
+  };
   const toggleVoicePlayback = async (part: VoicePart) => {
     const player = voicePlayers.current[part];
     if (!player) return;
@@ -881,7 +893,7 @@ export function VideoProjectEditor({
             "Analyze this reading with AI. Manual verse adjustments are preserved.",
           )}
           disabled={
-            alignmentQueueLocked ||
+            taskQueueLocked ||
             analyzing ||
             !readingReferences.length ||
             alignmentScopeBusy(Number(id.replace("reading-", "")))
@@ -984,7 +996,7 @@ export function VideoProjectEditor({
         type="button"
         className="primary"
         disabled={
-          editingLocked || pending || !analysis || !narrationText.trim()
+          taskQueueLocked || pending || !analysis || !narrationText.trim()
         }
         onClick={() => void generateVoice(part)}
       >
@@ -1016,7 +1028,7 @@ export function VideoProjectEditor({
               aria-label={`${generateLabel} · ${title}`}
               data-tooltip={generateLabel}
               disabled={
-                editingLocked || pending || !analysis || !narrationText.trim()
+                taskQueueLocked || pending || !analysis || !narrationText.trim()
               }
               onClick={() => void generateVoice(part)}
             >
@@ -1091,7 +1103,7 @@ export function VideoProjectEditor({
               aria-label={`${t("Narration script")} · ${title}`}
               rows={5}
               maxLength={10000}
-              disabled={editingLocked || pending || !analysis}
+              disabled={taskQueueLocked || pending || !analysis}
               placeholder={t("The script will appear once the passage loads.")}
               value={narrationText}
               onChange={(event) => {
@@ -1127,7 +1139,7 @@ export function VideoProjectEditor({
                 key={`${part}-${voice.status}-${voiceRevision}`}
                 src={`${media(part)}&revision=${voiceRevision}`}
                 expanded={expanded.has(part)}
-                disabled={editingLocked || pending}
+                disabled={taskQueueLocked || pending}
                 trim={settings.voiceTrims?.[part]}
                 onTrim={(trim) =>
                   setSettings((current) => {
@@ -1410,7 +1422,7 @@ export function VideoProjectEditor({
                         : "Generate all missing narrations",
                   )}
                   disabled={
-                    editingLocked ||
+                    taskQueueLocked ||
                     analyzing ||
                     !analysis ||
                     !voicesLoaded ||
@@ -1432,7 +1444,7 @@ export function VideoProjectEditor({
                     "Analyze all readings with AI. Manual verse adjustments are preserved.",
                   )}
                   disabled={
-                    alignmentQueueLocked ||
+                    taskQueueLocked ||
                     analyzing ||
                     !analysis ||
                     alignmentScopeBusy()

@@ -88,7 +88,13 @@ function fixture() {
 test("completed jobs apply by ID, persist together, preserve manual edits and remain idempotent after reload", async () => {
   const f = fixture();
   try {
-    let currentSettings = f.initial;
+    // Narration work remains available while reading analysis is queued/running.
+    // Applying its result must preserve the narration edits made in that interval.
+    let currentSettings = settingsSchema.parse({
+      ...f.initial,
+      voiceScriptOverrides: { intro: "Updated introduction" },
+      voiceTrims: { outro: { startSeconds: 0.5, endSeconds: 2 } },
+    });
     for (const job of f.jobs) {
       const project = f.project();
       const result = await applyStoredAlignment({
@@ -104,6 +110,11 @@ test("completed jobs apply by ID, persist together, preserve manual edits and re
     }
     const saved = settingsSchema.parse(JSON.parse(f.project().settings));
     assert.deepEqual(saved, currentSettings);
+    assert.equal(saved.voiceScriptOverrides?.intro, "Updated introduction");
+    assert.deepEqual(saved.voiceTrims?.outro, {
+      startSeconds: 0.5,
+      endSeconds: 2,
+    });
     assert.deepEqual(
       saved.alignmentAppliedJobIds,
       f.jobs.map((job) => job.id),
