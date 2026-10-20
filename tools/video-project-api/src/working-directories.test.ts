@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import os from "node:os";
-test("configured format roots independently locate assets, generated voices and final outputs", async () => {
+test("format roots keep clips and outputs separate while base voices share the working root", async () => {
   const root = path.join(os.tmpdir(), "veobible-path-test");
   const short = path.join(root, "custom-shorts"),
     long = path.join(root, "custom-longs");
@@ -43,14 +43,14 @@ test("configured format roots independently locate assets, generated voices and 
   );
   assert.deepEqual(
     JSON.parse(stdout),
-    [short, long].map((root) => ({
-      root,
-      videos: path.join(root, "material", "videos"),
+    [short, long].map((formatRoot) => ({
+      root: formatRoot,
+      videos: path.join(formatRoot, "material", "videos"),
       voices: path.join(root, "material", "voices"),
-      output: path.join(root, "outputs", "rv1909", "project"),
-      source: path.join(root, "outputs", "rv1909", "project", "_internal"),
-      development: path.join(root, "outputs-dev", "rv1909", "project"),
-      developmentSource: path.join(root, "outputs-dev", "rv1909", "project", "_internal"),
+      output: path.join(formatRoot, "outputs", "rv1909", "project"),
+      source: path.join(formatRoot, "outputs", "rv1909", "project", "_internal"),
+      development: path.join(formatRoot, "outputs-dev", "rv1909", "project"),
+      developmentSource: path.join(formatRoot, "outputs-dev", "rv1909", "project", "_internal"),
     })),
   );
 });

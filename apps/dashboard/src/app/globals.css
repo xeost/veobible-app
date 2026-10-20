@@ -3129,3 +3129,28 @@ audio {
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
+
+.base-voice-picker {
+  display: grid;
+  gap: 0.75rem;
+}
+.base-voice-picker select,
+.base-voice-picker textarea,
+.base-voice-picker audio {
+  width: 100%;
+  max-width: 100%;
+}
+.base-voice-picker button {
+  justify-self: start;
+}
+.project-voice-settings {
+  margin-bottom: 1rem;
+}
+.project-voice-settings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.project-voice-settings .base-voice-picker {
+  max-width: 36rem;
+  margin-top: 1rem;
+}

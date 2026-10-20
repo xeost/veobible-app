@@ -24,6 +24,10 @@ test("both video engines pass the selected per-language model to the worker with
   const { promisify } = await import("node:util");
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "narration-models-"));
   try {
+    const voices = path.join(root, "material", "voices");
+    await fs.mkdir(voices, { recursive: true });
+    for (const locale of ["es", "en", "pt"])
+      await fs.writeFile(path.join(voices, `${locale}-1.mp3`), "sample");
     const worker = path.join(root, "worker.mjs");
     await fs.writeFile(
       worker,
@@ -46,12 +50,11 @@ test("both video engines pass the selected per-language model to the worker with
       ...process.env,
       VIDEO_TTS_SCRIPT: worker,
       MODEL_TEST_DIR: root,
+      WORKING_DIR: root,
     };
     for (const kind of ["SHORT", "LONG"]) {
       env[`VIDEO_${kind}_TTS_PROVIDER`] = "elevenlabs";
       env[`VIDEO_${kind}_TTS_PYTHON`] = process.execPath;
-      for (const locale of ["ES", "EN", "PT"])
-        env[`VIDEO_${kind}_TTS_VOICE_PROMPT_${locale}_INTRO`] = "";
     }
     await promisify(execFile)(
       process.execPath,

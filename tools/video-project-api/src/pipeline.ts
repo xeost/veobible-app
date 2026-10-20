@@ -1,3 +1,4 @@
+import { baseVoiceSample } from "./base-voice.js";
 import { type NarrationParameters } from "./narration-parameters.js";
 import {
   type NarrationModel,
@@ -45,15 +46,12 @@ function chapterSynthesis(
   locale: "es" | "en" | "pt",
   selected?: NarrationModel,
   parameters?: NarrationParameters,
+  baseVoice?: string,
 ) {
   const model = selected ?? longConfig.ttsModels[locale];
-  // Keep existing cache behavior for providers/variants unaffected by this migration.
-  if (
-    !selected &&
-    (longConfig.ttsProvider !== "chatterbox" ||
-      !["multilingual", "multilingual-v3"].includes(model))
-  )
-    return undefined;
+  // Every local model must isolate recordings made with the shared base sample.
+  // External providers keep their existing cache behavior.
+  if (!selected && longConfig.ttsProvider !== "chatterbox") return undefined;
   return createHash("sha256")
     .update(
       JSON.stringify({
@@ -66,8 +64,7 @@ function chapterSynthesis(
             : longConfig.elevenLabsModel,
         voice:
           selected || longConfig.ttsProvider === "chatterbox"
-            ? longConfig.ttsTrackVoicePrompts[locale].intro ||
-              longConfig.ttsVoicePrompts[locale]
+            ? baseVoiceSample(locale, baseVoice)
             : longConfig.elevenLabsVoices[locale],
         script: longConfig.ttsScript,
         ...(parameters ? { parameters } : {}),
@@ -238,6 +235,7 @@ export async function analyze(
     input.voiceTemplates,
   );
   context.voiceParameters = input.voiceParameters;
+  context.baseVoice = input.settings.baseVoice;
   context.scriptOverrides = input.settings.voiceScriptOverrides;
   context.voiceModel =
     input.voiceModel === undefined
@@ -394,6 +392,7 @@ export async function generateProjectVoice(
               input.version.locale,
               input.voiceModel,
               input.voiceParameters,
+              input.settings?.baseVoice,
             ),
             complete: true,
             locale: input.version.locale,
@@ -435,7 +434,7 @@ export async function projectChapterVoiceFiles(
     | "outputEnvironment"
     | "voiceModel"
     | "voiceParameters"
-  >,
+  > & { settings?: { baseVoice?: string } },
 ) {
   if (input.kind !== "long") return [];
   const version = longConfig.versions.find(
@@ -461,6 +460,7 @@ export async function projectChapterVoiceFiles(
             version.locale,
             input.voiceModel,
             input.voiceParameters,
+            input.settings?.baseVoice,
           ),
           locale: version.locale,
           complete:

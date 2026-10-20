@@ -79,6 +79,12 @@ export class GenerationQueue {
       }
     });
   }
+  /** Serialize auxiliary synthesis with project work without adding a fake project. */
+  enqueueBackground(run: () => Promise<void>) {
+    this.tail = this.tail.then(run).catch((error) => {
+      console.error("Background generation failed", error);
+    });
+  }
   snapshot() {
     let position = 0;
     return this.entries.map(({ job, ...entry }) => ({

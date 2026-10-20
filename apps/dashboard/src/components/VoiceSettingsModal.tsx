@@ -1,4 +1,6 @@
 "use client";
+import { BaseVoiceSelector } from "./BaseVoiceSelector";
+import { defaultBaseVoices, type BaseVoiceDefaults } from "../lib/base-voices";
 import { useToast } from "./ToastProvider";
 import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
@@ -42,7 +44,11 @@ export function VoiceSettingsModal({
   const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
   const [templates, setTemplates] = useState<VoiceSettings>(emptyVoiceSettings);
-  const [tab, setTab] = useState<"voice" | "projects" | "publication">("voice");
+  const [tab, setTab] = useState<
+    "voice" | "projects" | "publication" | "baseVoices"
+  >("voice");
+  const [baseVoices, setBaseVoices] =
+    useState<BaseVoiceDefaults>(defaultBaseVoices);
   const [publication, setPublication] = useState<PublicationSettings>(() =>
     emptyPublicationSettings(kind),
   );
@@ -64,6 +70,7 @@ export function VoiceSettingsModal({
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     Promise.all([
+      api<{ defaults: BaseVoiceDefaults }>(`settings/base-voices?kind=${kind}`),
       api<{ templates: PublicationSettings }>(
         `settings/publication-templates?kind=${kind}`,
       ),
@@ -82,8 +89,9 @@ export function VoiceSettingsModal({
         }[];
       }>("versions/options"),
     ])
-      .then(([publication, voice, projects, catalog]) => {
+      .then(([voices, publication, voice, projects, catalog]) => {
         if (live) {
+          setBaseVoices(voices.defaults);
           setPublication(publication.templates);
           setTemplates(voice.templates);
           setProjectSettings(projects.settings);
@@ -106,6 +114,23 @@ export function VoiceSettingsModal({
   }, [kind]);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (tab === "baseVoices") {
+      setBusy(true);
+      setError("");
+      try {
+        await api(`settings/base-voices?kind=${kind}`, {
+          method: "PUT",
+          body: JSON.stringify(baseVoices),
+        });
+        notify("Settings saved.");
+        close();
+      } catch {
+        setError("Could not save settings. Try again.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (tab === "publication") {
       const parsed = publicationSettingsSchema(kind).safeParse(publication);
       if (!parsed.success) {
@@ -205,6 +230,18 @@ export function VoiceSettingsModal({
         <div className="tabs profile-tabs" aria-label={t("Settings")}>
           <button
             type="button"
+            className={tab === "baseVoices" ? "active" : ""}
+            aria-pressed={tab === "baseVoices"}
+            disabled={busy}
+            onClick={() => {
+              setTab("baseVoices");
+              setError("");
+            }}
+          >
+            {t("Voices")}
+          </button>
+          <button
+            type="button"
             className={tab === "voice" ? "active" : ""}
             aria-pressed={tab === "voice"}
             disabled={busy}
@@ -240,7 +277,13 @@ export function VoiceSettingsModal({
             {t("Publication templates")}
           </button>
         </div>
-        {tab === "voice" ? (
+        {tab === "baseVoices" ? (
+          <p className="muted">
+            {t(
+              "Choose a default voice for new projects in each language. Existing projects keep their voice.",
+            )}
+          </p>
+        ) : tab === "voice" ? (
           <>
             <p className="muted">
               {t(
@@ -327,6 +370,29 @@ export function VoiceSettingsModal({
         )}
         {loading ? (
           <p className="empty">{t("Loading settings…")}</p>
+        ) : tab === "baseVoices" ? (
+          <div className="voice-settings-fields">
+            {(
+              [
+                ["es", "Spanish"],
+                ["en", "English"],
+                ["pt", "Portuguese"],
+              ] as const
+            ).map(([locale, label]) => (
+              <section className="voice-settings-language" key={locale}>
+                <h3>{t(label)}</h3>
+                <BaseVoiceSelector
+                  locale={locale}
+                  value={baseVoices[locale]}
+                  onChange={(id) =>
+                    setBaseVoices((current) => ({ ...current, [locale]: id }))
+                  }
+                  canGenerate={canEdit}
+                  disabled={busy || loadFailed || !canEdit}
+                />
+              </section>
+            ))}
+          </div>
         ) : (
           <fieldset
             disabled={busy || loadFailed || !canEdit}

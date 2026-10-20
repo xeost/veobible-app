@@ -1,4 +1,34 @@
 export const portuguese: Record<string, string> = {
+  Voices: "Vozes",
+  "Default voice": "Voz padrão",
+  "Narration voice": "Voz da narração",
+  "Voice {number}": "Voz {number}",
+  "Loading voices…": "Carregando vozes…",
+  "Example text": "Texto de exemplo",
+  "Generate example": "Gerar exemplo",
+  "Regenerate example": "Gerar exemplo novamente",
+  "Generating example…": "Gerando exemplo…",
+  "Example waiting to be generated…": "Exemplo aguardando geração…",
+  "Generated voice example": "Exemplo de voz gerado",
+  "Listen to the generated example": "Ouvir o exemplo gerado",
+  "No example has been generated for this voice yet.":
+    "Ainda não foi gerado um exemplo para esta voz.",
+  "Could not load voices. Try again.":
+    "Não foi possível carregar as vozes. Tente novamente.",
+  "Could not generate the example. Try again.":
+    "Não foi possível gerar o exemplo. Tente novamente.",
+  "This voice is currently unavailable. Choose another voice or contact your administrator.":
+    "Esta voz está indisponível. Escolha outra voz ou entre em contato com o administrador.",
+  "Choose an available voice for each language.":
+    "Escolha uma voz disponível para cada idioma.",
+  "Choose a default voice for new projects in each language. Existing projects keep their voice.":
+    "Escolha a voz padrão para novos projetos em cada idioma. Os projetos existentes mantêm sua voz.",
+  "Examples use the current narration settings from Administration tools. Regenerate an example after changing those settings.":
+    "Os exemplos usam os ajustes atuais de narração de Ferramentas de administração. Gere o exemplo novamente após alterar esses ajustes.",
+  "This voice is saved with this project. Changing the default voice does not change this selection.":
+    "Esta voz é salva neste projeto. Alterar a voz padrão não muda esta seleção.",
+  "Save changes to keep this voice. Existing narrations change only when you regenerate them.":
+    "Salve as alterações para manter esta voz. As narrações existentes só mudam ao gerá-las novamente.",
   "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Previous multilingual settings used 2.0; the narration presets use 1.2. This does not guarantee that every sentence will be spoken.":
     "Desestimula sons repetidos. 1–2: 1 não aplica penalidade; valores mais altos desestimulam mais a repetição. A configuração multilíngue anterior usava 2.0; os presets de narração usam 1.2. Isso não garante que todas as frases sejam pronunciadas.",
   "Narration style": "Estilo de narração",

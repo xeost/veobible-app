@@ -1,3 +1,4 @@
+import { loadBaseVoiceDefaults } from "./base-voices";
 import { z } from "zod";
 import { settingsSchema } from "./video-schema";
 import {
@@ -43,13 +44,14 @@ export async function syncVideoProjects(
 ) {
   const proposals = projectProposalsSchema.parse(values);
   const settings = JSON.stringify(
-    settingsSchema.parse(
-      versionProjectSettings(
+    settingsSchema.parse({
+      ...versionProjectSettings(
         await loadProjectSettings(database, kind),
         version.locale,
         version.code,
       ),
-    ),
+      baseVoice: (await loadBaseVoiceDefaults(database, kind))[version.locale],
+    }),
   );
   let added = 0;
   for (let offset = 0; offset < proposals.length; offset += 1400) {

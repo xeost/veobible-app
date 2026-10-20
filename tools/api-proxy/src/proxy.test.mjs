@@ -8,6 +8,8 @@ test("routes only registered video namespaces", () => {
     "/v1/projects/x",
     "/v1/projects/existing",
     "/v1/jobs",
+    "/v1/base-voices",
+    "/v1/base-voices/es-2/sample",
     "/v1/analyze",
     "/v1/preview",
     "/v1/queue",

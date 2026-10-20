@@ -1,3 +1,4 @@
+import { baseVoiceSchema } from "./base-voice-schema.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
 import { narrationModelForLocale } from "./narration-models.js";
 import { openProjectFolder } from "./open-project-folder.js";
@@ -42,14 +43,23 @@ const toolRoot = path.resolve(
 // Credentials must arrive from the proxy before this service reads local settings.
 const token = process.env.API_TOKEN;
 if (process.env.API_PROXY_CHILD !== "1" || !token || token.length < 32)
-  throw new Error("Start this service through pnpm start:api-proxy; configure tokens in tools/api-proxy/.env");
+  throw new Error(
+    "Start this service through pnpm start:api-proxy; configure tokens in tools/api-proxy/.env",
+  );
 const envFile = path.join(toolRoot, ".env");
 const proxyOnlySettings = new Set([
-  "API_TOKEN", "CLOUDFLARE_TUNNEL_TOKEN", "TUNNEL_TOKEN", "TUNNEL_TOKEN_FILE",
-  "API_PROXY_CHILD", "PORT", "WORKING_DIR",
+  "API_TOKEN",
+  "CLOUDFLARE_TUNNEL_TOKEN",
+  "TUNNEL_TOKEN",
+  "TUNNEL_TOKEN_FILE",
+  "API_PROXY_CHILD",
+  "PORT",
+  "WORKING_DIR",
 ]);
 if (fs.existsSync(envFile))
-  for (const [key, value] of Object.entries(parseEnv(fs.readFileSync(envFile, "utf8"))))
+  for (const [key, value] of Object.entries(
+    parseEnv(fs.readFileSync(envFile, "utf8")),
+  ))
     if (!proxyOnlySettings.has(key) && process.env[key] === undefined)
       process.env[key] = value;
 const {
@@ -64,6 +74,8 @@ const {
   projectChapterVoiceFiles,
 } = await import("./pipeline.js");
 const { outputRoot } = await import("./working-directories.js");
+const { listBaseVoices, queueVoiceSample, sampleFile, sampleRequestSchema } =
+  await import("./voice-samples.js");
 const { alignProjectReading, stopAlignmentWorkers } =
   await import("./forced-alignment.js");
 const { createPreview, previewAsset } = await import("./preview.js");
@@ -99,6 +111,11 @@ async function chapterFilesFromQuery(url: URL) {
     throw new Error("Project passage mismatch");
   return projectChapterVoiceFiles({
     kind: "long",
+    settings: {
+      baseVoice: url.searchParams.has("baseVoice")
+        ? baseVoiceSchema.parse(url.searchParams.get("baseVoice"))
+        : undefined,
+    },
     voiceParameters: url.searchParams.has("voiceParameters")
       ? narrationParametersSchema.parse(
           JSON.parse(url.searchParams.get("voiceParameters")!),
@@ -222,6 +239,42 @@ const server = http.createServer(async (req, res) => {
       return json(res, 401, { error: "Unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
     const parts = url.pathname.split("/").filter(Boolean);
+    if (url.pathname === "/v1/base-voices" && req.method === "GET")
+      return json(res, 200, { voices: await listBaseVoices() });
+    if (
+      parts.length === 4 &&
+      parts[0] === "v1" &&
+      parts[1] === "base-voices" &&
+      parts[3] === "sample"
+    ) {
+      const voice = baseVoiceSchema.parse(parts[2]);
+      if (req.method === "POST") {
+        const input = sampleRequestSchema.parse({
+          ...(await body(req)),
+          voice,
+        });
+        const task = await queueVoiceSample(input, (run) =>
+          generationQueue.enqueueBackground(run),
+        );
+        return json(res, 202, task);
+      }
+      if (req.method === "GET") {
+        const file = sampleFile(voice);
+        const stat = await fsp.stat(file).catch(() => null);
+        if (!stat?.isFile() || !stat.size)
+          return json(res, 404, { error: "Sample not generated" });
+        res.writeHead(200, {
+          "Content-Type": "audio/wav",
+          "Content-Length": stat.size,
+          "Cache-Control": "no-store",
+        });
+        const stream = fs.createReadStream(file);
+        stream.on("error", () => res.destroy());
+        res.on("close", () => stream.destroy());
+        stream.pipe(res);
+        return;
+      }
+    }
     if (url.pathname === "/v1/local-models" && req.method === "GET") {
       return json(
         res,

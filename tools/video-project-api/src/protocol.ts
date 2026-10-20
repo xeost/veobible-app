@@ -1,3 +1,4 @@
+import { baseVoiceSchema } from "./base-voice-schema.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
 import { narrationModelSchema } from "./narration-models.js";
 import { publicationTemplatesSchema } from "./publication-templates.js";
@@ -8,6 +9,7 @@ const point = z.object({
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  baseVoice: baseVoiceSchema.optional(),
   alignmentJobId: z.string().uuid().optional(),
   alignmentAppliedJobIds: z.array(z.string().uuid()).optional(),
   alignmentReviewReferences: z.array(z.string().min(1)).max(1000).optional(),

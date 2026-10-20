@@ -1,3 +1,4 @@
+import { resolveBaseVoicePrompts as resolveVoicePrompts } from "../../base-voice.js";
 import {
   narrationParameterArgs,
   type NarrationParameters,
@@ -15,6 +16,8 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { config, type Version } from "./config.js";
 import type { Passage } from "./episodes.js";
+
+export { resolveVoicePrompts };
 
 const script = config.ttsScript;
 const templateFields = new Set([
@@ -206,6 +209,7 @@ export function spokenBookName(
 }
 
 export interface VoiceContext {
+  baseVoice?: string;
   voiceModel?: NarrationModel;
   voiceParameters?: NarrationParameters;
   scriptOverrides?: Partial<Record<"intro" | "outro", string>>;
@@ -298,60 +302,6 @@ export async function renderVoiceScripts(
     return result.trim();
   };
   return { intro: render("intro"), outro: render("outro") };
-}
-
-async function isFile(filename: string): Promise<boolean> {
-  return fs.stat(filename).then(
-    (stat) => stat.isFile(),
-    () => false,
-  );
-}
-
-/** Pick a dedicated sample for each track, then the language-wide sample. */
-export async function resolveVoicePrompts(
-  locale: VoiceContext["locale"],
-  parts: readonly VoicePart[] = allParts,
-): Promise<Record<"intro" | "outro", string | null>> {
-  const voiceDir = config.voiceDir;
-  const fallback = config.ttsVoicePrompts[locale];
-  const result: Record<VoicePart, string | null> = { intro: null, outro: null };
-  for (const part of parts) {
-    const explicit = config.ttsTrackVoicePrompts[locale][part];
-    if (explicit !== undefined) {
-      if (explicit && !(await isFile(explicit)))
-        throw new Error(
-          `Voice prompt for ${locale}-${part} does not exist: ${explicit}`,
-        );
-      result[part] = explicit || null;
-      continue;
-    }
-    const dedicated = ["mp3", "wav"].map((extension) =>
-      path.join(voiceDir, `${locale}-${part}.${extension}`),
-    );
-    result[part] = null;
-    for (const candidate of dedicated) {
-      if (await isFile(candidate)) {
-        result[part] = candidate;
-        break;
-      }
-    }
-    if (result[part]) continue;
-    if (!fallback) continue;
-    if (await isFile(fallback)) {
-      result[part] = fallback;
-      continue;
-    }
-    const defaultMp3 = path.join(voiceDir, `${locale}.mp3`);
-    const defaultWav = path.join(voiceDir, `${locale}.wav`);
-    if (fallback === defaultMp3 && (await isFile(defaultWav))) {
-      result[part] = defaultWav;
-      continue;
-    }
-    throw new Error(
-      `Voice prompt for ${locale}-${part} does not exist: ${fallback}`,
-    );
-  }
-  return result;
 }
 
 async function runFfmpeg(
@@ -541,7 +491,7 @@ export async function generateVoice(
       "--device",
       config.ttsDevice,
     ];
-    const voicePrompts = await resolveVoicePrompts(context.locale, parts);
+    const voicePrompts = await resolveVoicePrompts(context.locale, parts, context.baseVoice);
     const promptsPath = path.join(staging, "voice-prompts.json");
     await fs.writeFile(
       promptsPath,

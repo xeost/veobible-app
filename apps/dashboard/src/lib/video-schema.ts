@@ -1,3 +1,4 @@
+import { baseVoiceSchema } from "../../../../tools/video-project-api/src/base-voice-schema";
 import { narrationParametersSchema } from "../../../../tools/video-project-api/src/narration-parameters";
 import { narrationModelSchema } from "../../../../tools/video-project-api/src/narration-models";
 import { publicationTemplatesSchema } from "../../../../tools/video-project-api/src/publication-templates";
@@ -7,6 +8,7 @@ const point = z.object({
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  baseVoice: baseVoiceSchema.optional(),
   alignmentJobId: z.string().uuid().optional(),
   alignmentAppliedJobIds: z.array(z.string().uuid()).optional(),
   alignmentReviewReferences: z.array(z.string().min(1)).max(1000).optional(),

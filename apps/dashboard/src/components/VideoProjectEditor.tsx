@@ -1,4 +1,6 @@
 "use client";
+import { BaseVoiceSelector } from "./BaseVoiceSelector";
+import { projectBaseVoice, type VoiceLocale } from "../lib/base-voices";
 import { useToast } from "./ToastProvider";
 import {
   alignmentWasApplied,
@@ -567,6 +569,10 @@ export function VideoProjectEditor({
         settings: checkedSettings(),
       }),
     });
+    const current = await api<{ mediaAccess: NonNullable<typeof mediaAccess> }>(
+      base,
+    );
+    setMediaAccess(current.mediaAccess);
     setSaved(true);
     notify("Changes saved.");
   };
@@ -716,7 +722,9 @@ export function VideoProjectEditor({
         current &&
         current.expiresAt > Date.now() + 15 * 60 * 1000 &&
         new URLSearchParams(current.query).get("voiceModel") ===
-          new URLSearchParams(access.query).get("voiceModel")
+          new URLSearchParams(access.query).get("voiceModel") &&
+        new URLSearchParams(current.query).get("baseVoice") ===
+          new URLSearchParams(access.query).get("baseVoice")
           ? current
           : access,
       );
@@ -1373,6 +1381,27 @@ export function VideoProjectEditor({
             />
           </div>
         )}
+        <details className="panel project-voice-settings">
+          <summary>{t("Narration voice")}</summary>
+          <p className="muted">
+            {t(
+              "This voice is saved with this project. Changing the default voice does not change this selection.",
+            )}
+          </p>
+          <BaseVoiceSelector
+            locale={project.locale as VoiceLocale}
+            value={projectBaseVoice(settings, project.locale as VoiceLocale)}
+            onChange={(id) =>
+              setSettings((current) => ({ ...current, baseVoice: id }))
+            }
+            disabled={locked}
+          />
+          <p className="muted">
+            {t(
+              "Save changes to keep this voice. Existing narrations change only when you regenerate them.",
+            )}
+          </p>
+        </details>
         <div className="project-studio-layout">
           <div className="section-stack">
             <div className="sections-toolbar">

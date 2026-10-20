@@ -54,7 +54,17 @@ export function generationStage(
   return lang ? translateServer(text, lang) : text;
 }
 
+const voiceMessages = [
+  "Could not load voices. Try again.",
+  "Choose an available voice for each language.",
+  "Could not generate the example. Try again.",
+  "No example has been generated for this voice yet.",
+];
 const messages = new Set([
+  ...voiceMessages.flatMap((message) => [
+    message,
+    ...(["es", "pt"] as const).map((lang) => translateServer(message, lang)),
+  ]),
   ...(["es", "pt"] as const).map((lang) =>
     translateServer(
       "The project changed in another window. Reload it before applying the analysis.",

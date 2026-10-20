@@ -1,3 +1,4 @@
+import { saveBaseVoiceDefaults } from "./base-voices";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
@@ -77,6 +78,7 @@ test("project sync only adds missing slugs within a format and Bible version, re
     );
     const saved = sqlite.prepare("SELECT * FROM video_projects").get()!;
     assert.deepEqual(JSON.parse(String(saved.settings)), {
+      baseVoice: "es-1",
       volumeMultiplier: 1.5,
       overrideReadingVolume: false,
       passageOffsets: { startSeconds: 0, endSeconds: 0 },
@@ -88,6 +90,11 @@ test("project sync only adds missing slugs within a format and Bible version, re
       "UPDATE video_projects SET title='User title',settings='{\"volumeMultiplier\":3}',published=1",
     );
     const original = sqlite.prepare("SELECT * FROM video_projects").get();
+    await saveBaseVoiceDefaults(database, "short", {
+      es: "es-3",
+      en: "en-2",
+      pt: "pt-1",
+    });
     assert.deepEqual(
       await syncVideoProjects(database, "short", spanish, [
         {
@@ -103,6 +110,10 @@ test("project sync only adds missing slugs within a format and Bible version, re
       sqlite.prepare("SELECT * FROM video_projects WHERE id=?").get(saved.id),
       original,
     );
+    const newSettings = sqlite
+      .prepare("SELECT settings FROM video_projects WHERE slug='new-passage'")
+      .get()!;
+    assert.equal(JSON.parse(String(newSettings.settings)).baseVoice, "es-3");
     assert.deepEqual(
       await syncVideoProjects(database, "short", spanish, [first, second]),
       { added: 0, total: 2 },

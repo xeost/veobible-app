@@ -1,7 +1,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
-import { workingDirectories } from "../../working-directories.js";
+import {
+  workingDirectories,
+  sharedVoiceDirectory,
+} from "../../working-directories.js";
 
 const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -9,9 +12,8 @@ const toolRoot = path.resolve(
 );
 
 const workingDir = workingDirectories.long;
-const sharedVoicePrompt = process.env.VIDEO_LONG_TTS_VOICE_PROMPT ?? "";
 const sharedTtsModel = process.env.VIDEO_LONG_TTS_MODEL ?? "multilingual";
-const voiceDir = path.join(workingDir, "material", "voices");
+const voiceDir = sharedVoiceDirectory;
 const homebrewFull =
   process.platform === "darwin"
     ? [
@@ -61,31 +63,6 @@ const settings = {
     pt: process.env.VIDEO_LONG_TTS_MODEL_PT ?? sharedTtsModel,
   },
   ttsDevice: process.env.VIDEO_LONG_TTS_DEVICE ?? "auto",
-  ttsVoicePrompts: {
-    es:
-      process.env.VIDEO_LONG_TTS_VOICE_PROMPT_ES ??
-      (sharedVoicePrompt || path.join(voiceDir, "es.mp3")),
-    en:
-      process.env.VIDEO_LONG_TTS_VOICE_PROMPT_EN ??
-      (sharedVoicePrompt || path.join(voiceDir, "en.mp3")),
-    pt:
-      process.env.VIDEO_LONG_TTS_VOICE_PROMPT_PT ??
-      (sharedVoicePrompt || path.join(voiceDir, "pt.mp3")),
-  },
-  ttsTrackVoicePrompts: {
-    es: {
-      intro: process.env.VIDEO_LONG_TTS_VOICE_PROMPT_ES_INTRO,
-      outro: process.env.VIDEO_LONG_TTS_VOICE_PROMPT_ES_OUTRO,
-    },
-    en: {
-      intro: process.env.VIDEO_LONG_TTS_VOICE_PROMPT_EN_INTRO,
-      outro: process.env.VIDEO_LONG_TTS_VOICE_PROMPT_EN_OUTRO,
-    },
-    pt: {
-      intro: process.env.VIDEO_LONG_TTS_VOICE_PROMPT_PT_INTRO,
-      outro: process.env.VIDEO_LONG_TTS_VOICE_PROMPT_PT_OUTRO,
-    },
-  },
   versions: [
     { locale: "es", id: "rv1909", label: "Reina Valera 1909" },
     { locale: "es", id: "spabll", label: "Santa Biblia Libre Latinoamericana" },
@@ -105,22 +82,5 @@ export const config = {
   bibleDataDir: resolveInput(settings.bibleDataDir),
   ttsScript: resolveInput(settings.ttsScript),
   ttsPython: resolveInput(settings.ttsPython),
-  ttsVoicePrompts: Object.fromEntries(
-    Object.entries(settings.ttsVoicePrompts).map(([locale, value]) => [
-      locale,
-      value ? resolveInput(value) : value,
-    ]),
-  ) as typeof settings.ttsVoicePrompts,
-  ttsTrackVoicePrompts: Object.fromEntries(
-    Object.entries(settings.ttsTrackVoicePrompts).map(([locale, tracks]) => [
-      locale,
-      Object.fromEntries(
-        Object.entries(tracks).map(([part, value]) => [
-          part,
-          value ? resolveInput(value) : value,
-        ]),
-      ),
-    ]),
-  ) as typeof settings.ttsTrackVoicePrompts,
 };
 export type Version = (typeof config.versions)[number];

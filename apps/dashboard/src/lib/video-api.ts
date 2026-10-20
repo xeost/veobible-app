@@ -1,3 +1,4 @@
+import { loadBaseVoiceDefaults, projectBaseVoice } from "./base-voices";
 import {
   loadNarrationStyles,
   resolveNarrationStyle,
@@ -297,13 +298,16 @@ export async function videoApi(
         },
         409,
       );
-    const settings = settingsSchema.parse(
-      versionProjectSettings(
+    const settings = settingsSchema.parse({
+      ...versionProjectSettings(
         await loadProjectSettings(database, input.kind),
         version.locale,
         version.code,
       ),
-    );
+      baseVoice: (await loadBaseVoiceDefaults(database, input.kind))[
+        version.locale
+      ],
+    });
     const result = await database
       .prepare(
         "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage,settings) VALUES (?,?,?,?,?,?)",
@@ -441,6 +445,7 @@ export async function videoApi(
     passageRange: project.passage,
     voiceModel,
     voiceParameters: JSON.stringify(voiceParameters),
+    baseVoice: projectBaseVoice(JSON.parse(project.settings), project.locale),
     outputEnvironment,
   });
   const mediaAccess = async () => {
@@ -497,6 +502,15 @@ export async function videoApi(
       .parse(await req.json());
     if (["queued", "running"].includes((await state()).status))
       return json({ error: "Wait for generation to finish" }, 409);
+    if (input.settings) {
+      input.settings.baseVoice = projectBaseVoice(
+        {
+          baseVoice:
+            input.settings.baseVoice ?? JSON.parse(project.settings).baseVoice,
+        },
+        project.locale,
+      );
+    }
     await database
       .prepare(
         "UPDATE video_projects SET settings=COALESCE(?,settings),published=COALESCE(?,published),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
@@ -603,6 +617,13 @@ export async function videoApi(
           }
         : values,
     );
+    settings.baseVoice = projectBaseVoice(
+      {
+        baseVoice: settings.baseVoice ?? JSON.parse(project.settings).baseVoice,
+      },
+      project.locale,
+    );
+    query.set("baseVoice", settings.baseVoice);
     const defaults = versionProjectSettings(
       await loadProjectSettings(database, project.kind),
       project.locale,
@@ -654,8 +675,12 @@ export async function videoApi(
       });
       if (response.ok) {
         const stored = settingsSchema.parse(JSON.parse(project.settings));
-        if (stored.voiceTrims?.[part]) {
-          delete stored.voiceTrims[part];
+        if (
+          stored.voiceTrims?.[part] ||
+          stored.baseVoice !== settings.baseVoice
+        ) {
+          stored.baseVoice = settings.baseVoice;
+          delete stored.voiceTrims?.[part];
           await database
             .prepare(
               "UPDATE video_projects SET settings=?,updated_at=? WHERE id=?",

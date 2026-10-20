@@ -51,12 +51,28 @@ for (const [index, book] of ["genesis", "exodus"].entries()) {
     path.join(audio, `${String(index + 1).padStart(2, "0")}-${book}-1.mp3`),
   ]);
 }
+const samples = path.join(process.env.WORKING_DIR, "material", "voices");
+await fs.mkdir(samples, { recursive: true });
+await fs.copyFile(
+  path.join(audio, "01-genesis-1.mp3"),
+  path.join(samples, "es-1.mp3"),
+);
+await fs.copyFile(
+  path.join(samples, "es-1.mp3"),
+  path.join(samples, "es-2.mp3"),
+);
 const provider = path.join(working, "voice-fixture.mjs");
 await fs.writeFile(
   provider,
   `import fs from 'node:fs/promises'; import path from 'node:path'; import {execFileSync} from 'node:child_process';
 const arg = key => process.argv[process.argv.indexOf(key)+1];
 const scripts=JSON.parse(await fs.readFile(arg('--scripts'),'utf8'));
+const prompts=JSON.parse(await fs.readFile(arg('--voice-prompts'),'utf8'));
+const expected=path.join(process.env.WORKING_DIR,'material','voices',(process.env.VOICE_TEST_SAMPLE || 'es-1')+'.mp3');
+for(const part of Object.keys(scripts)){
+ if(prompts[part]!==expected) throw new Error('Unexpected base voice: '+prompts[part]);
+ await fs.access(prompts[part]);
+}
 for(const [part,text] of Object.entries(scripts)){execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-f','lavfi','-i','sine=frequency=880:duration=0.25','-y',path.join(arg('--output-dir'),part+'.wav')]);await fs.writeFile(path.join(arg('--output-dir'),part+'.txt'),text);}`,
 );
 process.env.VIDEO_TTS_SCRIPT = provider;
@@ -64,7 +80,6 @@ process.env.VIDEO_AUDIO_DIR = path.dirname(audio);
 for (const kind of ["SHORT", "LONG"]) {
   process.env[`VIDEO_${kind}_TTS_PYTHON`] = process.execPath;
   process.env[`VIDEO_${kind}_RENDER_CONCURRENCY`] = "2";
-  process.env[`VIDEO_${kind}_TTS_VOICE_PROMPT_ES`] = "";
 }
 // Modules load only after this standalone environment is configured.
 const {
@@ -677,6 +692,25 @@ for (const [kind, outputEnvironment] of [
       "README.md",
       "render-result.json",
     ]);
+  }
+  // A project-specific selection must reach every synthesis call and chapter cache key.
+  const selectedVoice = {
+    ...input,
+    settings: { ...input.settings, baseVoice: "es-2" },
+  };
+  process.env.VOICE_TEST_SAMPLE = "es-2";
+  try {
+    await generateProjectVoice(selectedVoice, "intro");
+    await generateProjectVoice(selectedVoice, "outro");
+    if (kind === "long") {
+      const defaults = await projectChapterVoiceFiles(input);
+      await generateProjectVoice(selectedVoice, "chapter-0");
+      const selected = await projectChapterVoiceFiles(selectedVoice);
+      assert.notEqual(defaults[0].file, selected[0].file);
+      await fs.access(selected[0].file);
+    }
+  } finally {
+    delete process.env.VOICE_TEST_SAMPLE;
   }
 }
 console.log("standalone pipeline passed: short, long");

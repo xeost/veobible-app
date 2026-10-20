@@ -1,4 +1,12 @@
 import {
+  baseVoiceCatalogSchema,
+  loadBaseVoiceDefaults,
+  saveBaseVoiceDefaults,
+  baseVoiceDefaultsSchema,
+} from "../../../lib/base-voices";
+import { baseVoiceSchema } from "../../../../../../tools/video-project-api/src/base-voice-schema";
+import { resolveNarrationStyle } from "../../../lib/narration-parameters";
+import {
   loadNarrationStyles,
   saveNarrationGenerationSettings,
 } from "../../../lib/narration-parameters";
@@ -266,6 +274,88 @@ async function handle(req: Request, lang: Language) {
       }
     }
     return json({ error: "Route not found" }, 404);
+  }
+  if (parts.join("/") === "settings/base-voices") {
+    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    if (method === "GET")
+      return json({ defaults: await loadBaseVoiceDefaults(database, kind) });
+    if (method === "PUT") {
+      admin();
+      const defaults = baseVoiceDefaultsSchema.parse(await body());
+      const response = await videoFetch("/v1/base-voices");
+      if (!response.ok)
+        return json({ error: "Could not load voices. Try again." }, 502);
+      const catalog = baseVoiceCatalogSchema.parse(await response.json());
+      if (
+        Object.values(defaults).some(
+          (id) => !catalog.voices.some((voice) => voice.id === id),
+        )
+      )
+        return json(
+          { error: "Choose an available voice for each language." },
+          400,
+        );
+      return json({
+        defaults: await saveBaseVoiceDefaults(database, kind, defaults),
+      });
+    }
+  }
+  if (parts[0] === "base-voices") {
+    if (parts.length === 1 && method === "GET") {
+      const response = await videoFetch("/v1/base-voices");
+      if (!response.ok)
+        return json({ error: "Could not load voices. Try again." }, 502);
+      const catalog = baseVoiceCatalogSchema.parse(await response.json());
+      const locale = z
+        .enum(["es", "en", "pt"])
+        .optional()
+        .parse(url.searchParams.get("locale") ?? undefined);
+      return json({
+        voices: catalog.voices.filter(
+          (voice) => !locale || voice.locale === locale,
+        ),
+      });
+    }
+    if (parts.length === 3 && parts[2] === "sample") {
+      const voice = baseVoiceSchema.parse(parts[1]);
+      if (method === "GET") {
+        const response = await videoFetch(`/v1/base-voices/${voice}/sample`);
+        if (!response.ok)
+          return json(
+            { error: "No example has been generated for this voice yet." },
+            404,
+          );
+        return new Response(response.body, {
+          headers: { "Content-Type": "audio/wav", "Cache-Control": "no-store" },
+        });
+      }
+      if (method === "POST") {
+        admin();
+        const { text } = z
+          .object({ text: z.string().trim().min(1).max(500) })
+          .strict()
+          .parse(await body());
+        const locale = z.enum(["es", "en", "pt"]).parse(voice.split("-")[0]);
+        const [models, styles] = await Promise.all([
+          loadNarrationModels(database),
+          loadNarrationStyles(database),
+        ]);
+        const response = await videoFetch(`/v1/base-voices/${voice}/sample`, {
+          method: "POST",
+          body: JSON.stringify({
+            text,
+            voiceModel: models[locale],
+            voiceParameters: resolveNarrationStyle(styles[locale]),
+          }),
+        });
+        if (!response.ok)
+          return json(
+            { error: "Could not generate the example. Try again." },
+            502,
+          );
+        return json(await response.json(), response.status);
+      }
+    }
   }
   if (parts.join("/") === "settings/voice-templates") {
     const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
