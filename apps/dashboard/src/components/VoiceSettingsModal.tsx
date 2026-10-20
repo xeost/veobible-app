@@ -1,6 +1,18 @@
 "use client";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
-import { defaultBaseVoices, type BaseVoiceDefaults } from "../lib/base-voices";
+import { ReadingVoiceParameters } from "./ReadingVoiceParameters";
+import {
+  defaultReadingNarrationOverrides,
+  narrationPresets,
+  type ReadingNarrationOverrides,
+  type NarrationParameters,
+} from "../lib/narration-parameters";
+import {
+  defaultBaseVoices,
+  voiceRoles,
+  roleLabels,
+  type BaseVoiceDefaults,
+} from "../lib/base-voices";
 import { useToast } from "./ToastProvider";
 import { useModalDismiss } from "./useModalDismiss";
 import { useEffect, useRef, useState } from "react";
@@ -47,8 +59,23 @@ export function VoiceSettingsModal({
   const [tab, setTab] = useState<
     "voice" | "projects" | "publication" | "baseVoices"
   >("voice");
+  const [baseVoiceLocale, setBaseVoiceLocale] = useState<"es" | "en" | "pt">(
+    "en",
+  );
+  const [baseVoiceRole, setBaseVoiceRole] = useState<
+    "intro" | "outro" | "reading"
+  >("intro");
   const [baseVoices, setBaseVoices] =
     useState<BaseVoiceDefaults>(defaultBaseVoices);
+  const [readingParameters, setReadingParameters] =
+    useState<ReadingNarrationOverrides>(defaultReadingNarrationOverrides);
+  const [generalParameters, setGeneralParameters] = useState<
+    Record<"en" | "es" | "pt", NarrationParameters>
+  >({
+    en: narrationPresets.natural,
+    es: narrationPresets.natural,
+    pt: narrationPresets.natural,
+  });
   const [publication, setPublication] = useState<PublicationSettings>(() =>
     emptyPublicationSettings(kind),
   );
@@ -70,7 +97,11 @@ export function VoiceSettingsModal({
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     Promise.all([
-      api<{ defaults: BaseVoiceDefaults }>(`settings/base-voices?kind=${kind}`),
+      api<{
+        defaults: BaseVoiceDefaults;
+        readingParameters: ReadingNarrationOverrides;
+        generalParameters: Record<"en" | "es" | "pt", NarrationParameters>;
+      }>(`settings/base-voices?kind=${kind}`),
       api<{ templates: PublicationSettings }>(
         `settings/publication-templates?kind=${kind}`,
       ),
@@ -92,6 +123,8 @@ export function VoiceSettingsModal({
       .then(([voices, publication, voice, projects, catalog]) => {
         if (live) {
           setBaseVoices(voices.defaults);
+          setReadingParameters(voices.readingParameters);
+          setGeneralParameters(voices.generalParameters);
           setPublication(publication.templates);
           setTemplates(voice.templates);
           setProjectSettings(projects.settings);
@@ -120,7 +153,7 @@ export function VoiceSettingsModal({
       try {
         await api(`settings/base-voices?kind=${kind}`, {
           method: "PUT",
-          body: JSON.stringify(baseVoices),
+          body: JSON.stringify({ defaults: baseVoices, readingParameters }),
         });
         notify("Settings saved.");
         close();
@@ -280,7 +313,7 @@ export function VoiceSettingsModal({
         {tab === "baseVoices" ? (
           <p className="muted">
             {t(
-              "Choose a default voice for new projects in each language. Existing projects keep their voice.",
+              "Choose introduction, closing and reading voices for new projects in each language. Existing projects keep their voices.",
             )}
           </p>
         ) : tab === "voice" ? (
@@ -372,26 +405,80 @@ export function VoiceSettingsModal({
           <p className="empty">{t("Loading settings…")}</p>
         ) : tab === "baseVoices" ? (
           <div className="voice-settings-fields">
-            {(
-              [
-                ["es", "Spanish"],
-                ["en", "English"],
-                ["pt", "Portuguese"],
-              ] as const
-            ).map(([locale, label]) => (
-              <section className="voice-settings-language" key={locale}>
-                <h3>{t(label)}</h3>
-                <BaseVoiceSelector
-                  locale={locale}
-                  value={baseVoices[locale]}
-                  onChange={(id) =>
-                    setBaseVoices((current) => ({ ...current, [locale]: id }))
+            <div className="tabs profile-tabs" aria-label={t("Voice language")}>
+              {(
+                [
+                  ["en", "English"],
+                  ["es", "Spanish"],
+                  ["pt", "Portuguese"],
+                ] as const
+              ).map(([locale, label]) => (
+                <button
+                  type="button"
+                  key={locale}
+                  className={baseVoiceLocale === locale ? "active" : ""}
+                  aria-pressed={baseVoiceLocale === locale}
+                  onClick={() => setBaseVoiceLocale(locale)}
+                  disabled={busy}
+                >
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+            <div className="tabs profile-tabs" aria-label={t("Voice purpose")}>
+              {voiceRoles.map((role) => (
+                <button
+                  type="button"
+                  key={role}
+                  className={baseVoiceRole === role ? "active" : ""}
+                  aria-pressed={baseVoiceRole === role}
+                  onClick={() => setBaseVoiceRole(role)}
+                  disabled={busy}
+                >
+                  {t(roleLabels[role])}
+                </button>
+              ))}
+            </div>
+            <section className="voice-settings-language">
+              {baseVoiceRole === "reading" && (
+                <ReadingVoiceParameters
+                  key={baseVoiceLocale}
+                  value={readingParameters[baseVoiceLocale]}
+                  general={generalParameters[baseVoiceLocale]}
+                  onChange={(value) =>
+                    setReadingParameters((current) => ({
+                      ...current,
+                      [baseVoiceLocale]: value,
+                    }))
                   }
-                  canGenerate={canEdit}
                   disabled={busy || loadFailed || !canEdit}
                 />
-              </section>
-            ))}
+              )}
+              <BaseVoiceSelector
+                key={`${baseVoiceLocale}:${baseVoiceRole}`}
+                label={roleLabels[baseVoiceRole]}
+                locale={baseVoiceLocale}
+                value={baseVoices[baseVoiceLocale][baseVoiceRole]}
+                onChange={(id) =>
+                  setBaseVoices((current) => ({
+                    ...current,
+                    [baseVoiceLocale]: {
+                      ...current[baseVoiceLocale],
+                      [baseVoiceRole]: id,
+                    },
+                  }))
+                }
+                canGenerate={canEdit}
+                generation={{
+                  kind,
+                  role: baseVoiceRole,
+                  ...(baseVoiceRole === "reading"
+                    ? { readingParameters: readingParameters[baseVoiceLocale] }
+                    : {}),
+                }}
+                disabled={busy || loadFailed || !canEdit}
+              />
+            </section>
           </div>
         ) : (
           <fieldset

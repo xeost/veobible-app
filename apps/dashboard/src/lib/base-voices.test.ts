@@ -35,10 +35,16 @@ test("voice defaults are separate per format and never resolve an existing proje
       en: "en-2",
       pt: "pt-1",
     });
-    assert.equal((await loadBaseVoiceDefaults(database, "short")).es, "es-3");
-    assert.equal((await loadBaseVoiceDefaults(database, "long")).es, "es-1");
+    assert.equal(
+      (await loadBaseVoiceDefaults(database, "short")).es.intro,
+      "es-3",
+    );
+    assert.equal(
+      (await loadBaseVoiceDefaults(database, "long")).es.intro,
+      "es-1",
+    );
     const newProject = settingsSchema.parse({
-      baseVoice: (await loadBaseVoiceDefaults(database, "short")).es,
+      baseVoice: (await loadBaseVoiceDefaults(database, "short")).es.intro,
     });
     await saveBaseVoiceDefaults(database, "short", {
       es: "es-4",
@@ -47,6 +53,13 @@ test("voice defaults are separate per format and never resolve an existing proje
     });
     assert.equal(projectBaseVoice(legacy, "es"), "es-1");
     assert.equal(projectBaseVoice(original, "es"), "es-2");
+    const roles = settingsSchema.parse({
+      baseVoice: "es-2",
+      baseVoices: { intro: "es-3", outro: "es-4", reading: "es-5" },
+    });
+    assert.equal(projectBaseVoice(roles, "es", "intro"), "es-3");
+    assert.equal(projectBaseVoice(roles, "es", "outro"), "es-4");
+    assert.equal(projectBaseVoice(roles, "es", "reading"), "es-5");
     assert.equal(projectBaseVoice(newProject, "es"), "es-3");
     assert.throws(() =>
       baseVoiceDefaultsSchema.parse({ es: "en-2", en: "en-1", pt: "pt-1" }),

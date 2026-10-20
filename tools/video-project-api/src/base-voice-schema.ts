@@ -15,3 +15,33 @@ export const sampleTexts = {
   es: "Bienvenidos. Hoy compartimos un mensaje de esperanza y paz.",
   pt: "Bem-vindos. Hoje compartilhamos uma mensagem de esperança e paz.",
 };
+export const voiceRolesSchema = z.object({
+  intro: baseVoiceSchema,
+  outro: baseVoiceSchema,
+  reading: baseVoiceSchema,
+});
+export type VoiceRole = "intro" | "outro" | "reading";
+export const voiceRoles = ["intro", "outro", "reading"] as const;
+export const roleLabels = {
+  intro: "Introduction voice",
+  outro: "Closing voice",
+  reading: "Passage reading voice",
+} as const;
+export function selectedRoleVoice(
+  settings: {
+    baseVoice?: string;
+    baseVoices?: Partial<Record<VoiceRole, string>>;
+  },
+  locale: VoiceLocale,
+  role: VoiceRole = "intro",
+) {
+  return voiceForLocale(
+    locale,
+    settings.baseVoices?.[role] ?? settings.baseVoice,
+  );
+}
+export const inheritedVoiceRoles = (id: string) => ({
+  intro: id,
+  outro: id,
+  reading: id,
+});

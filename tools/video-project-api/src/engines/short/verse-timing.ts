@@ -133,7 +133,9 @@ export async function estimateVerseCues(
   const cues: VerseCue[] = [];
   let elapsed = 0;
   for (const input of inputs) {
-    const pauses = await detectPauses(input.section.file);
+    const pauses = input.section.file
+      ? await detectPauses(input.section.file)
+      : [];
     for (const cue of estimateChapterCues(input, pauses)) {
       cues.push({
         ...cue,

@@ -1,7 +1,13 @@
-import { loadBaseVoiceDefaults, projectBaseVoice } from "./base-voices";
+import {
+  loadBaseVoiceDefaults,
+  projectBaseVoice,
+  voiceRoles,
+} from "./base-voices";
 import {
   loadNarrationStyles,
   resolveNarrationStyle,
+  loadReadingNarrationOverrides,
+  resolveReadingNarrationParameters,
 } from "./narration-parameters";
 import { loadNarrationModels } from "./narration-models";
 import { loadDashboardSummary } from "./dashboard-summary";
@@ -304,7 +310,7 @@ export async function videoApi(
         version.locale,
         version.code,
       ),
-      baseVoice: (await loadBaseVoiceDefaults(database, input.kind))[
+      baseVoices: (await loadBaseVoiceDefaults(database, input.kind))[
         version.locale
       ],
     });
@@ -503,8 +509,13 @@ export async function videoApi(
     if (["queued", "running"].includes((await state()).status))
       return json({ error: "Wait for generation to finish" }, 409);
     if (input.settings) {
+      if (input.settings.baseVoices)
+        for (const role of voiceRoles)
+          projectBaseVoice(input.settings, project.locale, role);
+      input.settings.baseVoices ??= JSON.parse(project.settings).baseVoices;
       input.settings.baseVoice = projectBaseVoice(
         {
+          ...input.settings,
           baseVoice:
             input.settings.baseVoice ?? JSON.parse(project.settings).baseVoice,
         },
@@ -527,8 +538,8 @@ export async function videoApi(
     const asset = z
       .union([
         z.enum(["video", "thumbnail", "intro", "outro"]),
-        z.string().regex(/^chapter-\d+$/),
-        z.string().regex(/^reading-\d+$/),
+        z.string().regex(/^(?:chapter|reading)-\d+$/),
+        z.string().regex(/^(?:generated-)?reading-\d+$/),
         z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
       ])
       .parse(url.searchParams.get("asset"));
@@ -617,8 +628,12 @@ export async function videoApi(
           }
         : values,
     );
+    settings.baseVoices ??= JSON.parse(project.settings).baseVoices;
+    for (const role of voiceRoles)
+      projectBaseVoice(settings, project.locale, role);
     settings.baseVoice = projectBaseVoice(
       {
+        ...settings,
         baseVoice: settings.baseVoice ?? JSON.parse(project.settings).baseVoice,
       },
       project.locale,
@@ -651,9 +666,31 @@ export async function videoApi(
       voiceParameters,
     };
     if (parts[2] === "voices") {
+      const verseReference = z
+        .string()
+        .trim()
+        .min(1)
+        .max(300)
+        .optional()
+        .parse(values.verseReference);
       const part = z
-        .union([z.enum(["intro", "outro"]), z.string().regex(/^chapter-\d+$/)])
+        .union([
+          z.enum(["intro", "outro"]),
+          z.string().regex(/^(?:chapter|reading)-\d+$/),
+        ])
         .parse(values.part);
+      if (verseReference && !part.startsWith("reading-"))
+        return json({ error: "Invalid reading verse" }, 400);
+      if (part.startsWith("reading-")) {
+        const overrides = await loadReadingNarrationOverrides(
+          database,
+          project.kind,
+        );
+        common.voiceParameters = resolveReadingNarrationParameters(
+          voiceParameters,
+          overrides[project.locale],
+        );
+      }
       if (
         (part === "intro" || part === "outro") &&
         !voiceTemplates[part] &&
@@ -665,21 +702,40 @@ export async function videoApi(
           },
           400,
         );
+      if (part.startsWith("reading-")) {
+        const index = part.slice(8);
+        if (!common.settings.readingVoices?.[index]?.enabled)
+          return json(
+            { error: "Enable generated reading for this block first." },
+            400,
+          );
+        common.settings.readingVoices[index].verseOffsets = verseReference
+          ? common.settings.readingVoices[index].verseOffsets.filter(
+              (cut) => cut.reference !== verseReference,
+            )
+          : [];
+      }
       const voiceTrims = { ...common.settings.voiceTrims };
       delete voiceTrims[part];
       common.settings.voiceTrims = voiceTrims;
       const response = await videoFetch(`/v1/projects/${id}/voices`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...common, part }),
+        body: JSON.stringify({ ...common, part, verseReference }),
       });
       if (response.ok) {
         const stored = settingsSchema.parse(JSON.parse(project.settings));
         if (
           stored.voiceTrims?.[part] ||
-          stored.baseVoice !== settings.baseVoice
+          stored.baseVoice !== settings.baseVoice ||
+          JSON.stringify(stored.baseVoices) !==
+            JSON.stringify(settings.baseVoices) ||
+          JSON.stringify(stored.readingVoices) !==
+            JSON.stringify(settings.readingVoices)
         ) {
           stored.baseVoice = settings.baseVoice;
+          stored.baseVoices = settings.baseVoices;
+          stored.readingVoices = settings.readingVoices;
           delete stored.voiceTrims?.[part];
           await database
             .prepare(
@@ -763,7 +819,7 @@ export async function videoApi(
                 voicePart: z
                   .union([
                     z.enum(["intro", "outro"]),
-                    z.string().regex(/^chapter-\d+$/),
+                    z.string().regex(/^(?:chapter|reading)-\d+$/),
                   ])
                   .parse(values.voicePart),
               }

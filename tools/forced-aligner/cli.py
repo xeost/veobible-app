@@ -28,6 +28,8 @@ def tokens(text):
 def validate(request):
     if request.get("language") not in LANGUAGES:
         raise ValueError("Unsupported language")
+    if not isinstance(request.get("detectHeadings", True), bool):
+        raise ValueError("Invalid heading detection option")
     chapters = request.get("chapters", [])
     if not 1 <= len(chapters) <= 1000:
         raise ValueError("Expected chapters")
@@ -254,17 +256,20 @@ def main():
     mx.set_cache_limit(256 * 1024 * 1024)
     mx.set_memory_limit(6 * 1024 * 1024 * 1024)
     print(json.dumps({"progress": 2, "stage": "loading"}), flush=True)
-    with contextlib.redirect_stdout(sys.stderr):
-        recognizer = load(args.asr_model)
-    prefixes = []
-    for index, chapter in enumerate(request["chapters"]):
-        prefixes.append(detect_heading(chapter, recognizer, request["language"], args.ffmpeg))
-        print(json.dumps({"progress": 3 + 17 * (index + 1) / len(request["chapters"]),
-                          "stage": "detecting_headings"}), flush=True)
+    # Synthesized transcripts are complete, including very short narrations.
+    # Only external chapter recordings need recognition of untranscribed headings.
+    prefixes = [[] for _ in request["chapters"]]
+    if request.get("detectHeadings", True):
+        with contextlib.redirect_stdout(sys.stderr):
+            recognizer = load(args.asr_model)
+        for index, chapter in enumerate(request["chapters"]):
+            prefixes[index] = detect_heading(chapter, recognizer, request["language"], args.ffmpeg)
+            print(json.dumps({"progress": 3 + 17 * (index + 1) / len(request["chapters"]),
+                              "stage": "detecting_headings"}), flush=True)
+            mx.clear_cache()
+        del recognizer
+        gc.collect()
         mx.clear_cache()
-    del recognizer
-    gc.collect()
-    mx.clear_cache()
     with contextlib.redirect_stdout(sys.stderr):
         model = load(args.model)
     results = []

@@ -8,6 +8,7 @@ export type WaveformPreparation = {
 export function useAudioWaveform(
   src: string,
   { resourceKey, onPrepared }: WaveformPreparation,
+  enabled = true,
 ) {
   const [data, setData] = useState<AudioWaveform | null>(null);
   const [error, setError] = useState(false);
@@ -15,6 +16,7 @@ export function useAudioWaveform(
   const latest = useRef({ src, onPrepared });
   latest.current = { src, onPrepared };
   useEffect(() => {
+    if (!enabled) return;
     let live = true;
     const controller = new AbortController();
     setData(null);
@@ -36,7 +38,7 @@ export function useAudioWaveform(
       controller.abort();
     };
     // Signed media URLs can refresh without changing the underlying recording.
-  }, [resourceKey, revision]);
+  }, [resourceKey, revision, enabled]);
   return {
     data,
     error,

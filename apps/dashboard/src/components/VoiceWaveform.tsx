@@ -290,7 +290,7 @@ export function VoiceWaveform({
           disabled={disabled || !trim}
           onClick={() => {
             audio.current?.pause();
-            onTrim(undefined);
+            onTrim({ startSeconds: 0, endSeconds: duration });
           }}
         >
           <RotateCcw size={16} />

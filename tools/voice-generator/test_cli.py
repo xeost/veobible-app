@@ -34,6 +34,7 @@ class VoicePromptTests(unittest.TestCase):
 
     def test_generation_keeps_only_wav_and_script(self):
         class Waveform:
+            shape = (1, 24000)
             def cpu(self):
                 return self
 
@@ -71,7 +72,8 @@ class VoicePromptTests(unittest.TestCase):
                 raise RuntimeError("VOICE_RESOURCE_LIMIT: memory limit")
 
             argv = ["cli.py", "--scripts", str(scripts), "--language", "en", "--output-dir", str(output), "--force", "--resource-profile", "low"]
-            with patch.object(sys, "argv", argv), patch("resources.supervise", side_effect=fail):
+            from resources import generation_lock
+            with patch.object(sys, "argv", argv), patch("resources.generation_lock", side_effect=lambda timeout: generation_lock(timeout, root / "test.lock")), patch("resources.supervise", side_effect=fail):
                 self.assertEqual(main(), 1)
             self.assertEqual((output / "intro.wav").read_bytes(), b"existing")
             self.assertEqual(sorted(path.name for path in output.iterdir()), [".voice-other-job", "intro.wav"])
@@ -145,6 +147,7 @@ class NarrationDispatchTests(unittest.TestCase):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 model = MagicMock(sr=24000)
+                model.generate.return_value.shape = (1, 24000)
                 args = argparse.Namespace(output_dir=root, voice_prompt=None, model=kind, language=locale, force=True, device="cpu", exaggeration=0.7, cfg_weight=0.3, temperature=0.7, min_p=0.05, top_p=1.0, repetition_penalty=1.2)
                 audio = types.SimpleNamespace(save=lambda filename, *a: Path(filename).write_bytes(b"native"))
                 with patch.dict(sys.modules, {"torchaudio": audio}), patch("cli.load_model", return_value=model), patch("cli.convert_audio", side_effect=lambda source, target, codec: target.write_bytes(b"converted")):

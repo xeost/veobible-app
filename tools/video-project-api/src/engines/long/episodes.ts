@@ -345,7 +345,11 @@ async function chapterAudio(
   );
 }
 
-export async function analyzePassageAudio(version: Version, passage: Passage) {
+export async function analyzePassageAudio(
+  version: Version,
+  passage: Passage,
+  allowMissing = false,
+) {
   const index = await readIndex(version);
   const { book } = getBook(index, passage);
   const label = reference(book.name, passage);
@@ -371,14 +375,28 @@ export async function analyzePassageAudio(version: Version, passage: Passage) {
     lines.push(
       ...selected.map((v) => `${book.name} ${chapter}:${v.verse} ${v.text}`),
     );
-    const source = await chapterAudio(version, book, number, chapter);
-    const sourceDuration = await audioDurationSeconds(source);
-    const estimate = estimateAudioRange(all, first, last, sourceDuration);
-    const { start, end } = await refineAudioRange(
-      source,
-      estimate,
-      sourceDuration,
+    const source = await chapterAudio(version, book, number, chapter).catch(
+      (error) => {
+        if (allowMissing && /^Missing audio for chapter/.test(error.message))
+          return "";
+        throw error;
+      },
     );
+    const sourceDuration = source
+      ? await audioDurationSeconds(source)
+      : Math.max(
+          1,
+          selected.reduce(
+            (sum, verse) => sum + verse.text.split(/\s+/).length,
+            0,
+          ) / 2.6,
+        );
+    const estimate = source
+      ? estimateAudioRange(all, first, last, sourceDuration)
+      : { start: 0, end: sourceDuration };
+    const { start, end } = source
+      ? await refineAudioRange(source, estimate, sourceDuration)
+      : estimate;
     const section = { file: source, start, end };
     sections.push(section);
     timingInputs.push({

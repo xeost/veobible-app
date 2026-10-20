@@ -46,6 +46,12 @@ test("browser media grants preserve streaming, ranges and downloads without gran
     });
     assert.equal(response.status, 206);
     assert.equal(await response.text(), "test");
+    const generated = await fetch(
+      url.replace("/media/video?", "/media/generated-reading-0?"),
+      { headers: { Origin: origin, Range: "bytes=0-3" } },
+    );
+    assert.equal(generated.status, 206);
+    assert.equal(await generated.text(), "test");
     assert.equal(response.headers.get("access-control-allow-origin"), origin);
     assert.equal(response.headers.get("content-range"), "bytes 0-3/8");
     assert.equal(forwarded[0].auth, `Bearer ${secret}`);
@@ -82,9 +88,15 @@ test("browser media grants preserve streaming, ranges and downloads without gran
       /attachment; filename="john-3-16.mp4"/,
     );
     await download.text();
-    const chapterDownload = await fetch(url.replace("/media/video?", "/media/chapter-0?") + "&download=1", { headers: { Origin: origin } });
+    const chapterDownload = await fetch(
+      url.replace("/media/video?", "/media/chapter-0?") + "&download=1",
+      { headers: { Origin: origin } },
+    );
     assert.equal(chapterDownload.status, 200);
-    assert.match(chapterDownload.headers.get("content-disposition"), /attachment; filename="john-3-16.wav"/);
+    assert.match(
+      chapterDownload.headers.get("content-disposition"),
+      /attachment; filename="john-3-16.wav"/,
+    );
     assert.equal(await chapterDownload.text(), "test");
     const head = await fetch(url, { method: "HEAD" });
     assert.equal(head.status, 200);

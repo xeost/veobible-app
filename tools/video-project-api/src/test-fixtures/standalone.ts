@@ -68,12 +68,13 @@ await fs.writeFile(
 const arg = key => process.argv[process.argv.indexOf(key)+1];
 const scripts=JSON.parse(await fs.readFile(arg('--scripts'),'utf8'));
 const prompts=JSON.parse(await fs.readFile(arg('--voice-prompts'),'utf8'));
+if(process.env.VOICE_TEST_REQUEST_LOG) await fs.appendFile(process.env.VOICE_TEST_REQUEST_LOG,JSON.stringify({scripts,args:process.argv})+'\\n');
 const expected=path.join(process.env.WORKING_DIR,'material','voices',(process.env.VOICE_TEST_SAMPLE || 'es-1')+'.mp3');
 for(const part of Object.keys(scripts)){
  if(prompts[part]!==expected) throw new Error('Unexpected base voice: '+prompts[part]);
  await fs.access(prompts[part]);
 }
-for(const [part,text] of Object.entries(scripts)){execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-f','lavfi','-i','sine=frequency=880:duration=0.25','-y',path.join(arg('--output-dir'),part+'.wav')]);await fs.writeFile(path.join(arg('--output-dir'),part+'.txt'),text);}`,
+for(const [part,text] of Object.entries(scripts)){execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-f','lavfi','-i','sine=frequency=880:duration='+(process.env.VOICE_TEST_DURATION || '0.25'),'-y',path.join(arg('--output-dir'),part+'.wav')]);await fs.writeFile(path.join(arg('--output-dir'),part+'.txt'),text);}`,
 );
 process.env.VIDEO_TTS_SCRIPT = provider;
 process.env.VIDEO_AUDIO_DIR = path.dirname(audio);
@@ -81,6 +82,21 @@ for (const kind of ["SHORT", "LONG"]) {
   process.env[`VIDEO_${kind}_TTS_PYTHON`] = process.execPath;
   process.env[`VIDEO_${kind}_RENDER_CONCURRENCY`] = "2";
 }
+// Exercise the actual Python-process contract with a deterministic local provider.
+const aligner = path.join(working, "aligner-fixture.mjs");
+await fs.writeFile(
+  aligner,
+  `import fs from 'node:fs/promises';
+const arg = key => process.argv[process.argv.indexOf(key)+1];
+const request = JSON.parse(await fs.readFile(arg('--request'),'utf8'));
+if (process.env.ALIGNMENT_TEST_FAILURE === '1') process.exit(1);
+if (request.detectHeadings === false && request.chapters.some(c => c.segments.some(s => !s.text.trim()))) throw new Error('Missing synthesis transcript');
+console.log(JSON.stringify({progress: 55}));
+await fs.writeFile(arg('--output'),JSON.stringify({model:'fixture',chapters:request.chapters.map(chapter=>({index:chapter.index,segments:chapter.segments.map(segment=>({id:segment.id,words:[{text:segment.text,start:segment.start+0.1,end:segment.end-0.1}]}))}))}));`,
+);
+process.env.VIDEO_ALIGNER_PYTHON = process.execPath;
+process.env.VIDEO_ALIGNER_SCRIPT = aligner;
+
 // Modules load only after this standalone environment is configured.
 const {
   analyze,
@@ -299,8 +315,15 @@ for (const [kind, outputEnvironment] of [
         passage: fresh.passage.id,
       };
       assert.equal(
-        previewAsset(scene.props.voices![part], scope),
-        path.join(sources, voiceFilename(part)),
+        path.basename(previewAsset(scene.props.voices![part], scope)!),
+        `${part}-trimmed.wav`,
+      );
+      assert.ok(
+        Math.abs(
+          (await audioDurationSeconds(
+            previewAsset(scene.props.voices![part], scope)!,
+          )) - 0.13,
+        ) < 0.001,
       );
       assert.equal(
         scene.durationInFrames,
@@ -326,6 +349,7 @@ for (const [kind, outputEnvironment] of [
       (await fs.readdir(sources)).sort(),
       [
         voiceFilename(part, "txt"),
+        voiceFilename(part, "wav.json"),
         voiceFilename(part),
         "2-versiculos.txt",
         "README.md",
@@ -334,11 +358,26 @@ for (const [kind, outputEnvironment] of [
     assert.ok(
       (await fs.stat(path.join(sources, voiceFilename(part)))).size > 44,
     );
+    const published = path.join(sources, voiceFilename(part));
+    const previousAudio = await fs.readFile(published);
+    const previousTiming = await fs.readFile(published + ".json");
+    process.env.ALIGNMENT_TEST_FAILURE = "1";
+    try {
+      await assert.rejects(
+        generateProjectVoice(fresh, part),
+        /Alignment failed/,
+      );
+      assert.deepEqual(await fs.readFile(published), previousAudio);
+      assert.deepEqual(await fs.readFile(published + ".json"), previousTiming);
+    } finally {
+      delete process.env.ALIGNMENT_TEST_FAILURE;
+    }
     await generateProjectVoice(fresh, part);
     assert.deepEqual(
       (await fs.readdir(sources)).sort(),
       [
         voiceFilename(part, "txt"),
+        voiceFilename(part, "wav.json"),
         voiceFilename(part),
         "2-versiculos.txt",
         "README.md",
@@ -702,6 +741,151 @@ for (const [kind, outputEnvironment] of [
   try {
     await generateProjectVoice(selectedVoice, "intro");
     await generateProjectVoice(selectedVoice, "outro");
+    const generatedInput = {
+      ...input,
+      // Synthesis and inspection requests do not carry preview-only source cuts.
+      readingCuts: undefined,
+      settings: {
+        ...input.settings,
+        baseVoices: { intro: "es-1", outro: "es-2", reading: "es-2" },
+        readingVoices: { "0": { enabled: true, verseOffsets: [] } },
+      },
+    };
+    await generateProjectVoice(generatedInput, "reading-0");
+    const readingInspection = await inspection(generatedInput);
+    assert.equal(readingInspection.generatedReadings[0].available, true);
+    assert.deepEqual(readingInspection.generatedReadings[0].alignment, {
+      method: "forced",
+      model: "fixture",
+      version: 1,
+    });
+    const alignedCue = readingInspection.generatedReadings[0].cues[0];
+    assert.ok(Math.abs(alignedCue.start - 0.07) < 1e-6);
+    assert.ok(Math.abs(alignedCue.end - 0.2) < 1e-6);
+    assert.ok(alignedCue.end < readingInspection.generatedReadings[0].duration);
+    const generatedPath = path.join(
+      sourceDir(kind, input.version.id, input.passage.id, outputEnvironment),
+      voiceFilename("reading-0"),
+    );
+    const metadataTime = new Date(Date.now() + 1000);
+    await fs.utimes(generatedPath + ".json", metadataTime, metadataTime);
+    assert.ok(
+      (await inspection(generatedInput)).generatedReadings[0].revision >
+        readingInspection.generatedReadings[0].revision,
+    );
+    const effective = await analyze(generatedInput);
+    assert.equal(effective.sections[0].file, generatedPath);
+    const original = await analyze({
+      ...generatedInput,
+      settings: {
+        ...generatedInput.settings,
+        readingVoices: { "0": { enabled: false, verseOffsets: [] } },
+      },
+    });
+    assert.equal(original.sections[0].file, readingInspection.sections[0].file);
+    assert.notEqual(effective.sections[0].file, original.sections[0].file);
+    // Generated edits use their own coordinate system and leave the original adjustments untouched.
+    const reference = readingInspection.generatedReadings[0].cues[0].reference;
+    const adjustedReading = await analyze({
+      ...generatedInput,
+      settings: {
+        ...generatedInput.settings,
+        readingVoices: {
+          "0": {
+            enabled: true,
+            verseOffsets: [
+              { reference, startOffsetSeconds: 0.02, endOffsetSeconds: -0.02 },
+            ],
+          },
+        },
+      },
+    });
+    assert.ok(
+      Math.abs(adjustedReading.cues[0].start - effective.cues[0].start - 0.02) <
+        1e-6,
+    );
+    // Preview composition references the generated track selected for rendering.
+    const { createPreview, previewAsset } = await import("../preview.js");
+    const readingPreview = await createPreview({
+      ...generatedInput,
+      readingReferences: readingInspection.generatedReadings[0].cues.map(
+        (cue) => cue.reference,
+      ),
+    });
+    const previewScope = {
+      projectId: input.projectId,
+      kind,
+      outputEnvironment,
+      version: input.version.id,
+      passage: input.passage.id,
+    };
+    assert.ok(
+      readingPreview.props.sections.every(
+        (section) => previewAsset(section.file, previewScope) === generatedPath,
+      ),
+    );
+    // Text analysis and generation remain available without an external recording.
+    const external = original.sections[0].file;
+    await fs.rename(external, external + ".saved");
+    try {
+      const absent = await inspection(generatedInput);
+      assert.equal(absent.sections[0].originalAvailable, false);
+      const staleOriginalCuts = await analyze({
+        ...generatedInput,
+        readingCuts: undefined,
+        settings: {
+          ...generatedInput.settings,
+          passageOffsets: { startSeconds: 999, endSeconds: 0 },
+          verseOffsets: [
+            { reference, startOffsetSeconds: 999, endOffsetSeconds: 999 },
+          ],
+        },
+      });
+      assert.equal(staleOriginalCuts.sections[0].file, generatedPath);
+      const ignoredOriginalCuts = await analyze({
+        ...generatedInput,
+        readingCuts: absent.cues.map((cue) =>
+          cue.reference === reference
+            ? { reference: cue.reference, start: 999, end: 1000 }
+            : { reference: cue.reference, start: cue.start, end: cue.end },
+        ),
+      });
+      assert.ok(
+        ignoredOriginalCuts.cues.every(
+          (cue) => cue.start >= 0 && cue.end > cue.start,
+        ),
+      );
+      assert.ok(absent.cues.every((cue) => cue.text.length > 0));
+      assert.equal(
+        (
+          await analyze({
+            ...generatedInput,
+            settings: { ...generatedInput.settings, readingVoices: undefined },
+          })
+        ).sections[0].file,
+        generatedPath,
+      );
+      await fs.rename(generatedPath, generatedPath + ".saved");
+      try {
+        assert.equal(
+          (await inspection(generatedInput)).generatedReadings[0].available,
+          false,
+        );
+        await assert.rejects(
+          analyze(generatedInput),
+          /Generate the selected passage reading/,
+        );
+        await generateProjectVoice(generatedInput, "reading-0");
+        assert.equal(
+          (await inspection(generatedInput)).generatedReadings[0].available,
+          true,
+        );
+      } finally {
+        await fs.rm(generatedPath + ".saved", { force: true });
+      }
+    } finally {
+      await fs.rename(external + ".saved", external);
+    }
     if (kind === "long") {
       const defaults = await projectChapterVoiceFiles(input);
       await generateProjectVoice(selectedVoice, "chapter-0");
@@ -713,22 +897,106 @@ for (const [kind, outputEnvironment] of [
     delete process.env.VOICE_TEST_SAMPLE;
   }
 }
+// A reading block dispatches one independent synthesis per verse; selective regeneration leaves its neighbors intact.
+const originalIndex = await fs.readFile(path.join(data, "index.json"), "utf8");
+const originalVerses = await fs.readFile(
+  path.join(data, "genesis/1.json"),
+  "utf8",
+);
+const requestLog = path.join(working, "verse-requests.jsonl");
+try {
+  const index = JSON.parse(originalIndex);
+  index.books[0].versesPerChapter[0] = 2;
+  await fs.writeFile(path.join(data, "index.json"), JSON.stringify(index));
+  await fs.writeFile(
+    path.join(data, "genesis/1.json"),
+    JSON.stringify([
+      { verse: 1, text: "Primer versículo." },
+      { verse: 2, text: "Segundo versículo." },
+    ]),
+  );
+  const twoVerses = renderSchema.parse({
+    id: randomUUID(),
+    projectId: 998877,
+    kind: "short",
+    outputEnvironment: "development",
+    version: { id: "rv1909", locale: "es", label: "Test" },
+    passage: {
+      id: "independent-verses",
+      book: "genesis",
+      start: { chapter: 1, verse: 1 },
+      end: { chapter: 1, verse: 2 },
+    },
+    settings: { readingVoices: { "0": { enabled: true, verseOffsets: [] } } },
+    voiceTemplates: { intro: "Intro", outro: "Outro" },
+    callback: { url: "http://127.0.0.1:3003/callback", token: "x".repeat(32) },
+  });
+  process.env.VOICE_TEST_REQUEST_LOG = requestLog;
+  await generateProjectVoice(twoVerses, "reading-0");
+  const sources = sourceDir(
+    "short",
+    "rv1909",
+    "independent-verses",
+    "development",
+  );
+  const first = path.join(sources, "reading-0/verse-1.wav");
+  const firstAudio = await fs.readFile(first),
+    firstTime = (await fs.stat(first)).mtimeMs;
+  const readRequests = async () =>
+    (await fs.readFile(requestLog, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+  let requests = await readRequests();
+  assert.deepEqual(
+    requests.map((request) => request.scripts),
+    [{ intro: "Primer versículo." }, { intro: "Segundo versículo." }],
+  );
+  assert.ok(
+    requests.every((request) => request.args.includes("--single-utterance")),
+  );
+  process.env.VOICE_TEST_DURATION = "0.35";
+  await generateProjectVoice(
+    { ...twoVerses, verseReference: "Génesis 1:2" },
+    "reading-0",
+  );
+  requests = await readRequests();
+  assert.equal(requests.length, 3);
+  assert.deepEqual(requests[2].scripts, { intro: "Segundo versículo." });
+  assert.deepEqual(await fs.readFile(first), firstAudio);
+  assert.equal((await fs.stat(first)).mtimeMs, firstTime);
+  let inspected = await inspection(twoVerses);
+  assert.ok(Math.abs(inspected.generatedReadings[0].duration - 0.6) < 1e-6);
+  assert.equal(inspected.generatedReadings[0].cues.length, 2);
+  // Older combined recordings can be split without regenerating the other verse.
+  await fs.rm(path.join(sources, "reading-0"), {
+    recursive: true,
+    force: true,
+  });
+  await generateProjectVoice(
+    { ...twoVerses, verseReference: "Génesis 1:2" },
+    "reading-0",
+  );
+  assert.equal((await readRequests()).length, 4);
+  await fs.access(first);
+  await assert.rejects(
+    generateProjectVoice(
+      { ...twoVerses, verseReference: "Génesis 1:99" },
+      "reading-0",
+    ),
+    /Invalid reading verse/,
+  );
+  assert.equal((await readRequests()).length, 4);
+} finally {
+  delete process.env.VOICE_TEST_REQUEST_LOG;
+  delete process.env.VOICE_TEST_DURATION;
+  await fs.writeFile(path.join(data, "index.json"), originalIndex);
+  await fs.writeFile(path.join(data, "genesis/1.json"), originalVerses);
+}
 console.log("standalone pipeline passed: short, long");
 if (process.env.VIDEO_SMOKE_RENDER === "1")
   console.log("standalone renders passed: short, long");
 
-// Exercise the actual Python-process contract with a deterministic local provider.
-const aligner = path.join(working, "aligner-fixture.mjs");
-await fs.writeFile(
-  aligner,
-  `import fs from 'node:fs/promises';
-const arg = key => process.argv[process.argv.indexOf(key)+1];
-const request = JSON.parse(await fs.readFile(arg('--request'),'utf8'));
-console.log(JSON.stringify({progress: 55}));
-await fs.writeFile(arg('--output'),JSON.stringify({model:'fixture',chapters:request.chapters.map(chapter=>({index:chapter.index,segments:chapter.segments.map(segment=>({id:segment.id,words:[{text:segment.text,start:segment.start+0.1,end:segment.end-0.1}]}))}))}));`,
-);
-process.env.VIDEO_ALIGNER_PYTHON = process.execPath;
-process.env.VIDEO_ALIGNER_SCRIPT = aligner;
 const { alignProjectReading } = await import("../forced-alignment.js");
 const { mergeAlignment } = await import("../forced-alignment-result.js");
 const alignmentInput = renderSchema.parse({

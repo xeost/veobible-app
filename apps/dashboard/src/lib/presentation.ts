@@ -55,6 +55,10 @@ export function generationStage(
 }
 
 const voiceMessages = [
+  "Could not generate the reading. Try again.",
+  "Enable generated reading for this block first.",
+  "Generate the selected passage reading before previewing or rendering.",
+
   "Could not load voices. Try again.",
   "Choose an available voice for each language.",
   "Could not generate the example. Try again.",
@@ -243,6 +247,9 @@ export function voiceFailureMessage(reason?: string, lang?: Language): string {
   else if (reason === "voice_busy")
     text =
       "Another narration is still being generated. Wait for it to finish and try again.";
+  else if (reason === "alignment_failed")
+    text =
+      "The audio was generated, but its timing could not be synchronized. Try again; if the problem persists, contact the administrator.";
 
   return lang ? translateServer(text, lang) : text;
 }

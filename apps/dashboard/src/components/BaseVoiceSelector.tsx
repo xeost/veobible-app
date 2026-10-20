@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { api } from "./api";
 import { useI18n } from "../i18n/context";
 import { pollWhileVisible } from "../lib/visible-polling";
+import type { ReadingNarrationParameters } from "../lib/narration-parameters";
 import {
   sampleTexts,
   type BaseVoice,
@@ -15,12 +16,20 @@ export function BaseVoiceSelector({
   onChange,
   canGenerate = false,
   disabled = false,
+  label,
+  generation,
 }: {
   locale: VoiceLocale;
   value: string;
   onChange: (id: string) => void;
   canGenerate?: boolean;
   disabled?: boolean;
+  label?: string;
+  generation?: {
+    kind: "short" | "long";
+    role: "intro" | "outro" | "reading";
+    readingParameters?: ReadingNarrationParameters | null;
+  };
 }) {
   const { t } = useI18n();
   const id = useId();
@@ -76,7 +85,7 @@ export function BaseVoiceSelector({
     try {
       await api(`base-voices/${value}/sample`, {
         method: "POST",
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, ...generation }),
       });
       pending.current = true;
       setVoices((current) =>
@@ -95,7 +104,7 @@ export function BaseVoiceSelector({
   return (
     <div className="base-voice-picker">
       <label htmlFor={`${id}-voice`}>
-        {t(canGenerate ? "Default voice" : "Narration voice")}
+        {t(label ?? (canGenerate ? "Default voice" : "Narration voice"))}
       </label>
       <select
         id={`${id}-voice`}
@@ -152,7 +161,9 @@ export function BaseVoiceSelector({
           </button>
           <p className="muted">
             {t(
-              "Examples use the current narration settings from Administration tools. Regenerate an example after changing those settings.",
+              generation?.role === "reading"
+                ? "Examples use the reading settings shown above. Regenerate an example after changing them."
+                : "Examples use the current narration settings from Administration tools. Regenerate an example after changing those settings.",
             )}
           </p>
         </>

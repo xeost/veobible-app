@@ -11,6 +11,7 @@ import tempfile
 import signal
 from contextlib import nullcontext
 from pathlib import Path
+from speech_chunks import speech_chunks
 
 
 # Keep Numba's cache in a writable location independent of the active venv.
@@ -136,6 +137,16 @@ def convert_audio(source: Path, target: Path, codec: str) -> None:
     ], check=True)
 
 
+def concatenate_audio(sources: list[Path], target: Path) -> None:
+    listing = target.with_suffix(".concat.txt")
+    listing.write_text("".join(f"file '{source.name}'\n" for source in sources))
+    subprocess.run([
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-n",
+        "-f", "concat", "-safe", "1", "-i", str(listing),
+        "-map", "0:a:0", "-vn", "-c:a", "pcm_s24le", "-threads", "1", "-ar", "48000", str(target),
+    ], check=True)
+
+
 def validate_generation(args: argparse.Namespace, scripts: dict[str, str]) -> None:
     if shutil.which("ffmpeg") is None:
         raise RuntimeError("ffmpeg must be available on PATH")
@@ -167,7 +178,6 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
             print(f"Stage: Generating {track}", flush=True)
             voice_prompt = voice_prompt_for_track(track, voice_prompts, args.voice_prompt)
             kwargs = {
-                "text": script,
                 "audio_prompt_path": str(voice_prompt) if voice_prompt else None,
                 "exaggeration": args.exaggeration,
                 "cfg_weight": args.cfg_weight,
@@ -175,12 +185,23 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
             }
             if args.model != "chatterbox":
                 kwargs["language_id"] = args.language
-            waveform = model.generate(**kwargs)
+            chunks = [script] if getattr(args, "single_utterance", False) else speech_chunks(script)
+            native_chunks = []
+            for index, chunk in enumerate(chunks):
+                print(f"Stage: Generating {track} fragment {index + 1}/{len(chunks)}", flush=True)
+                waveform = model.generate(text=chunk, **kwargs)
+                # Never treat a capped output as a complete rendition of the transcript.
+                if waveform.shape[-1] / model.sr >= 39.96:
+                    raise RuntimeError("VOICE_TRUNCATED: a speech fragment reached the model's audio limit")
+                native = staging / f"{track}-{index}-native.wav"
+                torchaudio.save(str(native), waveform.cpu(), model.sr)
+                native_chunks.append(native)
+                del waveform
             print(f"Stage: Converting {track}", flush=True)
-            native = staging / f"{track}-native.wav"
-            torchaudio.save(str(native), waveform.cpu(), model.sr)
-            convert_audio(native, staging / f"{track}.wav", "pcm_s24le")
-            del waveform
+            if len(native_chunks) == 1:
+                convert_audio(native_chunks[0], staging / f"{track}.wav", "pcm_s24le")
+            else:
+                concatenate_audio(native_chunks, staging / f"{track}.wav")
             (staging / f"{track}.txt").write_text(script + "\n", encoding="utf-8")
         for name in output_names:
             (staging / name).replace(args.output_dir / name)
@@ -193,6 +214,7 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
 def main() -> int:
     parser = argparse.ArgumentParser(description="Synthesize audio tracks with Chatterbox from a scripts JSON file")
     parser.add_argument("--scripts", required=True, type=Path, help="JSON mapping track names to text")
+    parser.add_argument("--single-utterance", action="store_true", help="Generate each track in one model request without splitting its text")
     parser.add_argument("--language", required=True, help="Language code supported by Chatterbox, such as es, en, or pt")
     parser.add_argument("--output-dir", required=True, type=Path, help="Output directory")
     parser.add_argument("--model", choices=("multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"), default="multilingual")

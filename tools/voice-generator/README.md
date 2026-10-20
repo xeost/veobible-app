@@ -70,8 +70,12 @@ Run the lightweight tests without synthesizing audio:
 
 Track names support lowercase letters, numbers, hyphens, and underscores, and must start with a letter. A single invocation generates all tracks with the model loaded only once. Narration templates are stored in dashboard settings and passed by `video-project-api`; this worker does not read local template files.
 
+Long texts are synthesized in fragments bounded to 220 characters and 35 words, respecting verse lines and sentence/clause boundaries where possible. Every fragment uses the same voice reference and generation parameters; lossless concatenation produces one 48 kHz WAV and retains the full original script. This avoids the installed model's 1,000 speech-token limit (40 seconds per synthesis call), which can truncate slower readings before the last words. Any fragment still reaching that limit fails explicitly without replacing existing audio. Timing analysis runs on the final combined recording, so saved verse cuts refer to the playable file.
+
 ## Model selection by language
 
 The dashboard's Admin tools → Local AI Models settings select the model independently for English, Spanish and Portuguese, shared by both video formats. The worker accepts `--model chatterbox` for original English-only Chatterbox, `--model pt-br` for Brazilian Portuguese and `--model latam` for Latin American Spanish. General multilingual choices use `multilingual-v3` with the appropriate language ID and existing language-specific voice samples.
 
 Original Chatterbox uses its English loader and does not receive `language_id`. Regional language packs load their own T3 weights, `s3gen_v3.pt` decoder and tokenizer, with shared voice-encoder/reference components. Regional decoder loading permits only the two deterministic S3Tokenizer spectrogram buffers omitted by the official checkpoints (`tokenizer._mel_filters`, `tokenizer.window`); all learned weights and unexpected keys are still checked. Resource supervision and atomic WAV output remain unchanged. Missing assets may download on first use; choosing or saving a setting does not itself load a model or synthesize speech.
+
+Passage-reading requests use `--single-utterance`: each named track contains exactly one complete verse and is sent to the model once, without sentence or clause splitting. Other narrations retain bounded fragmentation. The existing audio-limit check still rejects truncated outputs instead of publishing incomplete recordings.

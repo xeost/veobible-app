@@ -9,6 +9,10 @@ import { resolveNarrationStyle } from "../../../lib/narration-parameters";
 import {
   loadNarrationStyles,
   saveNarrationGenerationSettings,
+  loadReadingNarrationOverrides,
+  readingNarrationOverridesSchema,
+  readingNarrationParametersSchema,
+  resolveReadingNarrationParameters,
 } from "../../../lib/narration-parameters";
 import {
   loadNarrationModels,
@@ -277,26 +281,57 @@ async function handle(req: Request, lang: Language) {
   }
   if (parts.join("/") === "settings/base-voices") {
     const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
-    if (method === "GET")
-      return json({ defaults: await loadBaseVoiceDefaults(database, kind) });
+    if (method === "GET") {
+      const [defaults, readingParameters, styles] = await Promise.all([
+        loadBaseVoiceDefaults(database, kind),
+        loadReadingNarrationOverrides(database, kind),
+        loadNarrationStyles(database),
+      ]);
+      return json({
+        defaults,
+        readingParameters,
+        generalParameters: {
+          en: resolveNarrationStyle(styles.en),
+          es: resolveNarrationStyle(styles.es),
+          pt: resolveNarrationStyle(styles.pt),
+        },
+      });
+    }
     if (method === "PUT") {
       admin();
-      const defaults = baseVoiceDefaultsSchema.parse(await body());
+      const input = await body();
+      const configuration = z
+        .object({
+          defaults: baseVoiceDefaultsSchema,
+          readingParameters: readingNarrationOverridesSchema,
+        })
+        .strict()
+        .safeParse(input);
+      const defaults = configuration.success
+        ? configuration.data.defaults
+        : baseVoiceDefaultsSchema.parse(input);
       const response = await videoFetch("/v1/base-voices");
       if (!response.ok)
         return json({ error: "Could not load voices. Try again." }, 502);
       const catalog = baseVoiceCatalogSchema.parse(await response.json());
       if (
-        Object.values(defaults).some(
-          (id) => !catalog.voices.some((voice) => voice.id === id),
-        )
+        Object.values(defaults)
+          .flatMap((roles) => Object.values(roles))
+          .some((id) => !catalog.voices.some((voice) => voice.id === id))
       )
         return json(
           { error: "Choose an available voice for each language." },
           400,
         );
       return json({
-        defaults: await saveBaseVoiceDefaults(database, kind, defaults),
+        defaults: await saveBaseVoiceDefaults(
+          database,
+          kind,
+          defaults,
+          configuration.success
+            ? configuration.data.readingParameters
+            : undefined,
+        ),
       });
     }
   }
@@ -331,21 +366,41 @@ async function handle(req: Request, lang: Language) {
       }
       if (method === "POST") {
         admin();
-        const { text } = z
-          .object({ text: z.string().trim().min(1).max(500) })
+        const input = z
+          .object({
+            text: z.string().trim().min(1).max(500),
+            kind: z.enum(["short", "long"]).optional(),
+            role: z.enum(["intro", "outro", "reading"]).optional(),
+            readingParameters: readingNarrationParametersSchema
+              .nullable()
+              .optional(),
+          })
           .strict()
+          .refine((value) => value.role !== "reading" || Boolean(value.kind))
           .parse(await body());
+        const { text } = input;
         const locale = z.enum(["es", "en", "pt"]).parse(voice.split("-")[0]);
         const [models, styles] = await Promise.all([
           loadNarrationModels(database),
           loadNarrationStyles(database),
         ]);
+        const readingOverride =
+          input.role === "reading" && input.kind
+            ? input.readingParameters !== undefined
+              ? input.readingParameters
+              : (await loadReadingNarrationOverrides(database, input.kind))[
+                  locale
+                ]
+            : null;
         const response = await videoFetch(`/v1/base-voices/${voice}/sample`, {
           method: "POST",
           body: JSON.stringify({
             text,
             voiceModel: models[locale],
-            voiceParameters: resolveNarrationStyle(styles[locale]),
+            voiceParameters: resolveReadingNarrationParameters(
+              resolveNarrationStyle(styles[locale]),
+              readingOverride,
+            ),
           }),
         });
         if (!response.ok)

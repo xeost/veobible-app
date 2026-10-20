@@ -167,6 +167,7 @@ export function VideoProjectPreview({
   const signature = JSON.stringify({
     passageOffsets: settings.passageOffsets,
     background: settings.background,
+    readingVoices: settings.readingVoices,
   });
   const preparedSignature = useRef("");
   const stale = preview && preparedSignature.current !== signature;
@@ -184,7 +185,17 @@ export function VideoProjectPreview({
     }
   }, [ready]);
   const reading = useMemo(() => {
-    if (voicePart || !readingCues || !readingSources) return null;
+    if (
+      voicePart ||
+      !readingCues ||
+      !readingSources ||
+      readingSources.some(
+        (section, index) =>
+          section.originalAvailable === false ||
+          settings.readingVoices?.[index]?.enabled,
+      )
+    )
+      return null;
     const selectedCues = readingReferences
       ? readingCues.filter((cue) => readingReferences.includes(cue.reference))
       : readingCues;
@@ -204,6 +215,7 @@ export function VideoProjectPreview({
     readingReferences,
     readingCues,
     readingSources,
+    settings.readingVoices,
     kind,
     voicePart,
     preview,
@@ -272,6 +284,7 @@ export function VideoProjectPreview({
       preparedSignature.current = JSON.stringify({
         passageOffsets: settings.passageOffsets,
         background: data.background,
+        readingVoices: settings.readingVoices,
       });
       onBackground(data.background);
       setPreview(data);
@@ -287,7 +300,7 @@ export function VideoProjectPreview({
     // Prepare cuts and transition timings on opening; volume changes update the player directly.
     void load();
     return () => request.current?.abort();
-  }, [ready, endpoint]);
+  }, [ready, endpoint, signature]);
   const FormatIcon = kind === "short" ? Clapperboard : Film;
   return (
     <div className="project-live-preview" ref={root}>

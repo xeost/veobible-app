@@ -1,6 +1,11 @@
 "use client";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
-import { projectBaseVoice, type VoiceLocale } from "../lib/base-voices";
+import {
+  projectBaseVoice,
+  voiceRoles,
+  roleLabels,
+  type VoiceLocale,
+} from "../lib/base-voices";
 import { useToast } from "./ToastProvider";
 import {
   alignmentWasApplied,
@@ -76,9 +81,11 @@ type Settings = RenderRequest["settings"];
 type EditorProject = VideoRow & { passage: string };
 type VoiceState = {
   available: boolean;
+  automaticTrim?: { startSeconds: number; endSeconds: number };
   status: string;
   failureReason?: string;
   progress?: number;
+  jobId?: string;
 };
 type Voices = Record<VoicePart, VoiceState>;
 const emptyVoices: Voices = {
@@ -435,7 +442,18 @@ export function VideoProjectEditor({
   const active = Boolean(
     project && ["queued", "running"].includes(project.status),
   );
+  const readingParts = (analysis?.sections ?? []).flatMap((section, index) =>
+    settings.readingVoices?.[index]?.enabled ||
+    section.originalAvailable === false
+      ? [`reading-${index}` as const]
+      : [],
+  );
   const voicesReady =
+    readingParts.every(
+      (part) =>
+        voices[part]?.available &&
+        analysis?.generatedReadings?.[Number(part.slice(8))]?.available,
+    ) &&
     voices.intro.available &&
     voices.outro.available &&
     (analysis?.chapterIntroductions ?? []).every(
@@ -448,14 +466,17 @@ export function VideoProjectEditor({
     "intro",
     ...(analysis?.chapterIntroductions ?? []).map((chapter) => chapter.part),
     "outro",
+    ...readingParts,
   ];
   const missingNarrations = narrationParts.filter(
     (part) =>
-      !voices[part]?.available &&
+      (!voices[part]?.available ||
+        (part.startsWith("reading-") &&
+          !analysis?.generatedReadings?.[Number(part.slice(8))]?.available)) &&
       !["queued", "running"].includes(voices[part]?.status ?? ""),
   );
   const narrationRequirement =
-    kind === "long"
+    kind === "long" || readingParts.length > 0
       ? "Generate all section narrations before generating the video."
       : "Generate the introduction and closing voices before generating the video.";
   const { editingLocked, taskQueueLocked } = editorActivityLocks({
@@ -471,10 +492,13 @@ export function VideoProjectEditor({
   const timeline = readingTimeline(analysis?.sections ?? []);
   const cues = adjustedCues(analysis?.cues ?? [], settings.verseOffsets);
   const waveformKeys = [
-    ...timeline.map((section) => `${base}:reading-${section.index}`),
+    ...timeline
+      .filter((section) => section.originalAvailable !== false)
+      .map((section) => `${base}:reading-${section.index}`),
     ...narrationParts
       .filter(
         (part) =>
+          !part.startsWith("reading-") &&
           voices[part]?.available &&
           !["queued", "running"].includes(voices[part]?.status ?? ""),
       )
@@ -698,8 +722,11 @@ export function VideoProjectEditor({
     trim(cue.reference, "end", cue.end, manuallyAdjusted);
     return true;
   };
-  const queueVoice = async (part: VoicePart) => {
-    const generationSettings = checkedSettings();
+  const queueVoice = async (part: VoicePart, verseReference?: string) => {
+    const requestedScope = base;
+    const generationSettings = part.startsWith("reading-")
+      ? settingsSchema.parse(settingsRef.current)
+      : checkedSettings();
     const trims = { ...generationSettings.voiceTrims };
     delete trims[part];
     const generation = await api<{
@@ -708,13 +735,34 @@ export function VideoProjectEditor({
       method: "POST",
       body: JSON.stringify({
         part,
+        verseReference,
         settings: { ...generationSettings, voiceTrims: trims },
       }),
     });
+    if (readingChangeScope.current !== requestedScope) return;
     setSettings((current) => {
       const currentTrims = { ...current.voiceTrims };
       delete currentTrims[part];
-      return { ...current, voiceTrims: currentTrims };
+      return {
+        ...current,
+        voiceTrims: currentTrims,
+        ...(part.startsWith("reading-")
+          ? {
+              readingVoices: {
+                ...current.readingVoices,
+                [part.slice(8)]: {
+                  enabled: true,
+                  verseOffsets: verseReference
+                    ? (
+                        current.readingVoices?.[part.slice(8)]?.verseOffsets ??
+                        []
+                      ).filter((cut) => cut.reference !== verseReference)
+                    : [],
+                },
+              },
+            }
+          : {}),
+      };
     });
     if (generation.mediaAccess) {
       const access = generation.mediaAccess;
@@ -790,6 +838,234 @@ export function VideoProjectEditor({
       if (!(cause instanceof DOMException && cause.name === "AbortError"))
         setVoiceError("Could not play the narration. Try again.");
     }
+  };
+  const readingChangeScope = useRef(base);
+  readingChangeScope.current = base;
+  const autoReading = useRef(new Set<string>());
+  const finishedReadings = useRef(new Set<string>());
+  const changeReadingVoice = async (index: number, enabled: boolean) => {
+    if (readingChangeScope.current !== base) return;
+    const next = settingsSchema.parse({
+      ...settingsRef.current,
+      readingVoices: {
+        ...settingsRef.current.readingVoices,
+        [index]: {
+          enabled,
+          verseOffsets:
+            settingsRef.current.readingVoices?.[index]?.verseOffsets ?? [],
+        },
+      },
+    });
+    settingsRef.current = next;
+    setSettings(next);
+    try {
+      await api(endpoint(), {
+        method: "PATCH",
+        body: JSON.stringify({ settings: next }),
+      });
+      const voice = voiceState.current[`reading-${index}`];
+      if (
+        enabled &&
+        readingChangeScope.current === base &&
+        !analysis?.generatedReadings?.[index]?.available &&
+        !voice?.available &&
+        !["queued", "running"].includes(voice?.status ?? "")
+      )
+        await queueVoice(`reading-${index}`);
+    } catch (cause) {
+      setVoiceError(userMessage(cause));
+    }
+  };
+  useEffect(() => {
+    autoReading.current.clear();
+    finishedReadings.current.clear();
+  }, [base]);
+  useEffect(() => {
+    if (!analysis || !voicesLoaded || String(project?.project_id) !== projectId)
+      return;
+    const missing = analysis.sections
+      .map((section, index) => ({ section, index }))
+      .filter(
+        ({ section, index }) =>
+          section.originalAvailable === false &&
+          settingsRef.current.readingVoices?.[index]?.enabled !== true &&
+          !autoReading.current.has(`${base}:${index}`),
+      );
+    for (const { index } of missing)
+      autoReading.current.add(`${base}:${index}`);
+    if (missing.length)
+      void (async () => {
+        for (const { index } of missing) {
+          if (readingChangeScope.current !== base) return;
+          await changeReadingVoice(index, true);
+        }
+      })();
+    for (const [part, voice] of Object.entries(voices)) {
+      const key = `${base}:${part}:${voice.jobId}`;
+      if (
+        part.startsWith("reading-") &&
+        voice.status === "done" &&
+        voice.jobId &&
+        !finishedReadings.current.has(key)
+      ) {
+        finishedReadings.current.add(key);
+        void inspect(settingsRef.current);
+      }
+    }
+  }, [analysis, voicesLoaded, voices, base, inspect]);
+  const generatedReading = (
+    index: number,
+    reference: string,
+    selectReference: (reference: string) => void,
+  ) => {
+    const original = analysis?.sections[index];
+    const track = analysis?.generatedReadings?.[index];
+    const enabled =
+      settings.readingVoices?.[index]?.enabled ||
+      original?.originalAvailable === false;
+    const state = voices[`reading-${index}`];
+    const pending = Boolean(
+      state && ["queued", "running"].includes(state.status),
+    );
+    const offsets = settings.readingVoices?.[index]?.verseOffsets ?? [];
+    const generatedCues = adjustedCues(track?.cues ?? [], offsets);
+    const trimGenerated = (
+      reference: string,
+      edge: "start" | "end",
+      value: number,
+    ) => {
+      const baseline = track?.cues.find((cue) => cue.reference === reference);
+      if (!baseline) return;
+      setSettings((current) => {
+        const previous = current.readingVoices?.[index];
+        const entry = {
+          reference,
+          startOffsetSeconds: 0,
+          endOffsetSeconds: 0,
+          ...previous?.verseOffsets.find((cut) => cut.reference === reference),
+          [edge === "start" ? "startOffsetSeconds" : "endOffsetSeconds"]:
+            value - baseline[edge],
+          manuallyAdjusted: true,
+        };
+        return {
+          ...current,
+          readingVoices: {
+            ...current.readingVoices,
+            [index]: {
+              enabled: true,
+              verseOffsets: [
+                ...(previous?.verseOffsets ?? []).filter(
+                  (cut) => cut.reference !== reference,
+                ),
+                entry,
+              ],
+            },
+          },
+        };
+      });
+    };
+    const showWaveform = Boolean(enabled && track?.available && !pending);
+    const voiceToggle = (
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          checked={Boolean(enabled)}
+          disabled={locked || pending || original?.originalAvailable === false}
+          onChange={(event) =>
+            void changeReadingVoice(index, event.target.checked)
+          }
+        />
+        {t("Use generated voice for this reading")}
+      </label>
+    );
+    return (
+      <div className="generated-reading-section">
+        {!showWaveform && voiceToggle}
+        {original?.originalAvailable === false && (
+          <p className="notice">
+            {t(
+              "No original recording is available. Generate this reading to use it in the video.",
+            )}
+          </p>
+        )}
+        {enabled && pending && (
+          <GenerationProgress
+            value={state?.progress ?? 0}
+            label={t("Generating passage reading…")}
+          />
+        )}
+        {enabled && state?.status === "failed" && (
+          <p className="error">{t(voiceFailureMessage(state.failureReason))}</p>
+        )}
+        {showWaveform && track ? (
+          <VerseWaveform
+            compact
+            toolbarLeading={voiceToggle}
+            toolbarActions={
+              <button
+                type="button"
+                className="icon-button"
+                disabled={locked || analyzing}
+                aria-label={t("Regenerate all reading verses")}
+                data-tooltip={t("Regenerate all reading verses")}
+                onClick={() =>
+                  void queueVoice(`reading-${index}`).catch((cause) =>
+                    setVoiceError(userMessage(cause)),
+                  )
+                }
+              >
+                <RotateCcw size={16} aria-hidden="true" />
+              </button>
+            }
+            regenerateLabel="Regenerate this verse"
+            selectedReference={reference}
+            onSelectReference={selectReference}
+            key={`${index}:${track.revision}`}
+            onPrepared={onWaveformPrepared}
+            resourceKey={`${base}:generated-${index}:${track.revision}`}
+            expanded={expanded.has(`reading-${index}`)}
+            locale={project?.locale ?? "en"}
+            src={`${media(`generated-reading-${index}`)}&revision=${track.revision}`}
+            sourceStart={0}
+            sourceEnd={track.duration}
+            sourceDuration={track.duration}
+            timelineStart={0}
+            onExpand={() => {}}
+            volumeMultiplier={readingVolumeValue}
+            cues={generatedCues}
+            disabled={locked || analyzing}
+            onRegenerate={() =>
+              void queueVoice(`reading-${index}`, reference).catch((cause) =>
+                setVoiceError(userMessage(cause)),
+              )
+            }
+            onTrim={trimGenerated}
+            onShift={(cue) => {
+              trimGenerated(cue.reference, "start", cue.start);
+              trimGenerated(cue.reference, "end", cue.end);
+              return true;
+            }}
+            // Alignment is stored in the generated track's baseline, even before manual edits.
+            preservedReferences={generatedCues.map((cue) => cue.reference)}
+          />
+        ) : (
+          enabled &&
+          !pending && (
+            <button
+              type="button"
+              disabled={taskQueueLocked || analyzing}
+              onClick={() =>
+                void queueVoice(`reading-${index}`).catch((cause) =>
+                  setVoiceError(userMessage(cause)),
+                )
+              }
+            >
+              {t("Generate voice")}
+            </button>
+          )
+        )}
+      </div>
+    );
   };
   const toggle = (id: string) => {
     const heading = document.getElementById(`heading-${id}`);
@@ -871,6 +1147,28 @@ export function VideoProjectEditor({
         </button>
         <button
           type="button"
+          className="icon-button section-action-button"
+          aria-label={t("Generate voice")}
+          data-tooltip={t("Generate voice")}
+          disabled={
+            taskQueueLocked ||
+            analyzing ||
+            !(
+              settings.readingVoices?.[Number(id.slice(8))]?.enabled ||
+              analysis?.sections[Number(id.slice(8))]?.originalAvailable ===
+                false
+            )
+          }
+          onClick={() =>
+            void queueVoice(id as VoicePart).catch((cause) =>
+              setVoiceError(userMessage(cause)),
+            )
+          }
+        >
+          <Mic size={17} />
+        </button>
+        <button
+          type="button"
           className="analysis-retry"
           aria-label={
             analyzing
@@ -904,7 +1202,8 @@ export function VideoProjectEditor({
             taskQueueLocked ||
             analyzing ||
             !readingReferences.length ||
-            alignmentScopeBusy(Number(id.replace("reading-", "")))
+            alignmentScopeBusy(Number(id.replace("reading-", ""))) ||
+            analysis?.sections[Number(id.slice(8))]?.originalAvailable === false
           }
           onClick={() =>
             void queueAlignment(Number(id.replace("reading-", "")))
@@ -949,7 +1248,14 @@ export function VideoProjectEditor({
           aria-label={t("Preview this passage")}
           data-tooltip={t("Preview this passage")}
           aria-haspopup="dialog"
-          disabled={analyzing || !readingReferences.length}
+          disabled={
+            analyzing ||
+            !readingReferences.length ||
+            ((settings.readingVoices?.[Number(id.slice(8))]?.enabled ||
+              analysis?.sections[Number(id.slice(8))]?.originalAvailable ===
+                false) &&
+              !voices[id as VoicePart]?.available)
+          }
           onClick={() => {
             setPreviewReading({ references: readingReferences, title });
             Object.values(voicePlayers.current).forEach((player) =>
@@ -1148,7 +1454,7 @@ export function VideoProjectEditor({
                 src={`${media(part)}&revision=${voiceRevision}`}
                 expanded={expanded.has(part)}
                 disabled={taskQueueLocked || pending}
-                trim={settings.voiceTrims?.[part]}
+                trim={settings.voiceTrims?.[part] ?? voice.automaticTrim}
                 onTrim={(trim) =>
                   setSettings((current) => {
                     const trims = { ...current.voiceTrims };
@@ -1385,20 +1691,49 @@ export function VideoProjectEditor({
           <summary>{t("Narration voice")}</summary>
           <p className="muted">
             {t(
-              "This voice is saved with this project. Changing the default voice does not change this selection.",
+              "These voices are saved with this project. Changing the defaults does not change these selections.",
             )}
           </p>
-          <BaseVoiceSelector
-            locale={project.locale as VoiceLocale}
-            value={projectBaseVoice(settings, project.locale as VoiceLocale)}
-            onChange={(id) =>
-              setSettings((current) => ({ ...current, baseVoice: id }))
-            }
-            disabled={locked}
-          />
+          {voiceRoles.map((role) => (
+            <BaseVoiceSelector
+              key={role}
+              label={roleLabels[role]}
+              locale={project.locale as VoiceLocale}
+              value={projectBaseVoice(
+                settings,
+                project.locale as VoiceLocale,
+                role,
+              )}
+              onChange={(id) =>
+                setSettings((current) => ({
+                  ...current,
+                  baseVoices: {
+                    intro: projectBaseVoice(
+                      current,
+                      project.locale as VoiceLocale,
+                      "intro",
+                    ),
+                    outro: projectBaseVoice(
+                      current,
+                      project.locale as VoiceLocale,
+                      "outro",
+                    ),
+                    reading: projectBaseVoice(
+                      current,
+                      project.locale as VoiceLocale,
+                      "reading",
+                    ),
+                    ...current.baseVoices,
+                    [role]: id,
+                  },
+                }))
+              }
+              disabled={locked}
+            />
+          ))}
           <p className="muted">
             {t(
-              "Save changes to keep this voice. Existing narrations change only when you regenerate them.",
+              "Save changes to keep these voices. Existing narrations change only when you regenerate them.",
             )}
           </p>
         </details>
@@ -1476,7 +1811,10 @@ export function VideoProjectEditor({
                     taskQueueLocked ||
                     analyzing ||
                     !analysis ||
-                    alignmentScopeBusy()
+                    alignmentScopeBusy() ||
+                    analysis?.sections.every(
+                      (section) => section.originalAvailable === false,
+                    )
                   }
                   onClick={() => void queueAlignment()}
                 >
@@ -1575,6 +1913,7 @@ export function VideoProjectEditor({
                           </p>
                         )}
                         <VerseWaveform
+                          textOnly={section.originalAvailable === false}
                           resourceKey={`${base}:${id}`}
                           onPrepared={onWaveformPrepared}
                           expanded={expanded.has(id)}
@@ -1603,7 +1942,15 @@ export function VideoProjectEditor({
                           onShift={(cue, manuallyAdjusted) =>
                             shiftVerse(section.index, cue, manuallyAdjusted)
                           }
-                        />
+                        >
+                          {(cue, selectReference) =>
+                            generatedReading(
+                              section.index,
+                              cue.reference,
+                              selectReference,
+                            )
+                          }
+                        </VerseWaveform>
                         {readingVolume}
                       </div>
                     </section>

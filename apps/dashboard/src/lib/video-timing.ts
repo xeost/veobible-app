@@ -12,6 +12,7 @@ export interface VerseOffset {
   manuallyAdjusted?: boolean;
 }
 export interface ReadingSection {
+  originalAvailable?: boolean;
   sourceDuration?: number;
   start: number;
   end: number;
@@ -25,6 +26,12 @@ export function waveformReadingSources(sections: ReadingSection[]) {
   }));
 }
 export interface Inspection {
+  generatedReadings?: {
+    available: boolean;
+    duration: number;
+    revision: number;
+    cues: VerseCue[];
+  }[];
   label: string;
   sections: ReadingSection[];
   cues: VerseCue[];

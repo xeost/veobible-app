@@ -20,6 +20,31 @@ export const narrationParametersSchema = z
   })
   .strict();
 export type NarrationParameters = z.infer<typeof narrationParametersSchema>;
+export const readingNarrationParametersSchema = narrationParametersSchema.omit({
+  min_p: true,
+  top_p: true,
+});
+export type ReadingNarrationParameters = z.infer<
+  typeof readingNarrationParametersSchema
+>;
+export const readingNarrationOverridesSchema = z
+  .object({
+    en: readingNarrationParametersSchema.nullable(),
+    es: readingNarrationParametersSchema.nullable(),
+    pt: readingNarrationParametersSchema.nullable(),
+  })
+  .strict();
+export type ReadingNarrationOverrides = z.infer<
+  typeof readingNarrationOverridesSchema
+>;
+export const defaultReadingNarrationOverrides =
+  (): ReadingNarrationOverrides => ({ en: null, es: null, pt: null });
+export function resolveReadingNarrationParameters(
+  general: NarrationParameters,
+  override: ReadingNarrationParameters | null,
+): NarrationParameters {
+  return { ...general, ...override };
+}
 const fixed = { min_p: 0.05, top_p: 1, repetition_penalty: 1.2 } as const;
 export const narrationPresets = {
   natural: { exaggeration: 0.5, cfg_weight: 0.5, temperature: 0.8, ...fixed },

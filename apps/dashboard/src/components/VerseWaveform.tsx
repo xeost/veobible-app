@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Play,
   Pause,
@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ListVideo,
   AlignStartVertical,
+  RotateCcw,
 } from "lucide-react";
 import {
   readingPlaybackSpeeds,
@@ -47,6 +48,15 @@ export function VerseWaveform({
   onShift,
   preservedReferences,
   resetRevision = 0,
+  onRegenerate,
+  compact = false,
+  textOnly = false,
+  selectedReference,
+  onSelectReference,
+  toolbarLeading,
+  toolbarActions,
+  regenerateLabel = "Regenerate reading voice",
+  children,
 }: WaveformPreparation & {
   expanded: boolean;
   src: string;
@@ -63,6 +73,20 @@ export function VerseWaveform({
   onShift: (cue: VerseCue, manuallyAdjusted: boolean) => boolean;
   preservedReferences: string[];
   resetRevision?: number;
+  onRegenerate?: () => void;
+  compact?: boolean;
+  textOnly?: boolean;
+  selectedReference?: string;
+  onSelectReference?: (reference: string) => void;
+  toolbarLeading?: ReactNode;
+  toolbarActions?: ReactNode;
+  regenerateLabel?: string;
+  children?:
+    | ReactNode
+    | ((
+        cue: VerseCue,
+        selectReference: (reference: string) => void,
+      ) => ReactNode);
 }) {
   const { t } = useI18n();
   const { playbackSpeed, setPlaybackSpeed } = useReadingPlaybackSpeed(locale);
@@ -72,7 +96,7 @@ export function VerseWaveform({
     error: waveError,
     setError: setWaveError,
     retry,
-  } = useAudioWaveform(src, { resourceKey, onPrepared });
+  } = useAudioWaveform(src, { resourceKey, onPrepared }, !textOnly);
   const [focus, setFocus] = useState(
     cues[0] ?? {
       start: timelineStart,
@@ -131,7 +155,13 @@ export function VerseWaveform({
   const latest = useRef(cues);
   latest.current = cues;
   const duration = sourceEnd - sourceStart;
-  const index = Math.min(selected, Math.max(0, cues.length - 1));
+  const controlledIndex = cues.findIndex(
+    (cue) => cue.reference === selectedReference,
+  );
+  const index =
+    controlledIndex >= 0
+      ? controlledIndex
+      : Math.min(selected, Math.max(0, cues.length - 1));
   const cue = cues[index];
   useEffect(() => {
     const list = picker.current;
@@ -295,11 +325,11 @@ export function VerseWaveform({
         style={{ left: `${percent(cue[edge])}%` }}
         disabled={disabled}
         role="slider"
-        aria-label={`${t(edge === "start" ? "Inicio" : "Fin")} · ${cue.reference}`}
+        aria-label={`${t(edge === "start" ? t("Start") : t("End"))} · ${cue.reference}`}
         aria-valuemin={bounds[`${edge}Min`]}
         aria-valuemax={bounds[`${edge}Max`]}
         aria-valuenow={cue[edge]}
-        aria-valuetext={`${(cue[edge] - timelineStart).toFixed(2)} ${t("segundos")}`}
+        aria-valuetext={`${(cue[edge] - timelineStart).toFixed(2)} ${t("seconds")}`}
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => {
           event.preventDefault();
@@ -369,8 +399,12 @@ export function VerseWaveform({
         preservedReferences.includes(latest.current[nextIndex].reference),
     );
     const moved =
-      !disabled && result.moved && onShift(result.cue, forceAlignment);
+      !textOnly &&
+      !disabled &&
+      result.moved &&
+      onShift(result.cue, forceAlignment);
     setSelected(nextIndex);
+    onSelectReference?.(latest.current[nextIndex].reference);
     setFocus(moved ? result.cue : latest.current[nextIndex]);
     setExtraContext({ before: 0, after: 0 });
     setHasPlayhead(false);
@@ -391,308 +425,347 @@ export function VerseWaveform({
       </p>
     );
   return (
-    <div className="verse-sync">
-      <div className="verse-picker" ref={picker}>
-        {cues.map((verse, i) => (
-          <button
-            type="button"
-            key={verse.reference}
-            className={index === i ? "active" : ""}
-            aria-pressed={index === i}
-            onClick={() => selectVerse(i)}
-          >
-            <span>{verse.reference}</span>
-            <small>
-              {(verse.start - timelineStart).toFixed(2)}–
-              {(verse.end - timelineStart).toFixed(2)} s
-            </small>
-          </button>
-        ))}
-      </div>
-      <div className="sync-workspace">
-        <div className="sync-heading">
-          <AudioLines size={18} />
-          <strong>{t("Synchronize text and audio")}</strong>
-          <div>
-            <select
-              className="waveform-playback-speed"
-              aria-label={t("Playback speed")}
-              data-tooltip={t(
-                "Playback speed for listening in the editor only. Saved for this Bible language; previews and the final video keep their original speed.",
+    <>
+      <div className={`verse-sync${compact ? " verse-sync-compact" : ""}`}>
+        {!compact && (
+          <div className="verse-picker" ref={picker}>
+            {cues.map((verse, i) => (
+              <button
+                type="button"
+                key={verse.reference}
+                className={index === i ? "active" : ""}
+                aria-pressed={index === i}
+                onClick={() => selectVerse(i)}
+              >
+                <span>{verse.reference}</span>
+                {!textOnly && (
+                  <small>
+                    {(verse.start - timelineStart).toFixed(2)}–
+                    {(verse.end - timelineStart).toFixed(2)} s
+                  </small>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="sync-workspace">
+          {!textOnly && (
+            <>
+              <div className="sync-heading">
+                {toolbarLeading}
+                {!compact && (
+                  <>
+                    <AudioLines size={18} />
+                    <strong>{t("Synchronize text and audio")}</strong>
+                  </>
+                )}
+                <div>
+                  {toolbarActions}
+                  <select
+                    className="waveform-playback-speed"
+                    aria-label={t("Playback speed")}
+                    data-tooltip={t(
+                      "Playback speed for listening in the editor only. Saved for this Bible language; previews and the final video keep their original speed.",
+                    )}
+                    value={playbackSpeed}
+                    onChange={(event) =>
+                      setPlaybackSpeed(Number(event.target.value))
+                    }
+                  >
+                    {readingPlaybackSpeeds.map((speed) => (
+                      <option key={speed} value={speed}>
+                        {speed}×
+                      </option>
+                    ))}
+                  </select>
+                  <span
+                    className="section-action-separator"
+                    aria-hidden="true"
+                  />
+                  {(["start", "end"] as const).map((edge) => {
+                    const label =
+                      edge === "start"
+                        ? "Add up to 10 seconds of audio on the left"
+                        : "Add up to 10 seconds of audio on the right";
+                    const unavailable =
+                      edge === "start"
+                        ? sourceStart <= 0
+                        : sourceEnd >= sourceDuration - 0.001;
+                    return (
+                      <button
+                        type="button"
+                        key={edge}
+                        className="waveform-context-button"
+                        aria-label={t(label)}
+                        data-tooltip={t(label)}
+                        disabled={disabled || unavailable}
+                        onClick={() => {
+                          onExpand(edge);
+                          setExtraContext((current) => ({
+                            ...current,
+                            [edge === "start" ? "before" : "after"]:
+                              current[edge === "start" ? "before" : "after"] +
+                              10,
+                          }));
+                        }}
+                      >
+                        {edge === "start" ? (
+                          <ArrowLeftToLine size={16} />
+                        ) : (
+                          <ArrowRightToLine size={16} />
+                        )}
+                        <span>+10 s</span>
+                      </button>
+                    );
+                  })}
+                  <span
+                    className="section-action-separator"
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    aria-label={t("Zoom out")}
+                    disabled={zoom === 1}
+                    onClick={() => setZoom(Math.max(1, zoom - 1))}
+                  >
+                    <ZoomOut size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("Zoom in")}
+                    disabled={zoom === 6}
+                    onClick={() => setZoom(Math.min(6, zoom + 1))}
+                  >
+                    <ZoomIn size={16} />
+                  </button>
+                </div>
+              </div>
+              {!compact && (
+                <p className="muted">
+                  {t(
+                    "Release an edge to hear 3 seconds from that side. Click inside the fragment to listen from that point to the end. Use the arrow keys for precise adjustments.",
+                  )}
+                </p>
               )}
-              value={playbackSpeed}
-              onChange={(event) => setPlaybackSpeed(Number(event.target.value))}
-            >
-              {readingPlaybackSpeeds.map((speed) => (
-                <option key={speed} value={speed}>
-                  {speed}×
-                </option>
-              ))}
-            </select>
-            <span className="section-action-separator" aria-hidden="true" />
-            {(["start", "end"] as const).map((edge) => {
-              const label =
-                edge === "start"
-                  ? "Add up to 10 seconds of audio on the left"
-                  : "Add up to 10 seconds of audio on the right";
-              const unavailable =
-                edge === "start"
-                  ? sourceStart <= 0
-                  : sourceEnd >= sourceDuration - 0.001;
-              return (
-                <button
-                  type="button"
-                  key={edge}
-                  className="waveform-context-button"
-                  aria-label={t(label)}
-                  data-tooltip={t(label)}
-                  disabled={disabled || unavailable}
-                  onClick={() => {
-                    onExpand(edge);
-                    setExtraContext((current) => ({
-                      ...current,
-                      [edge === "start" ? "before" : "after"]:
-                        current[edge === "start" ? "before" : "after"] + 10,
-                    }));
+              <div className="waveform-scroll" ref={scroll}>
+                <div
+                  className="waveform-track"
+                  ref={track}
+                  style={{ width: `${zoom * 100}%` }}
+                  onClick={(event) => {
+                    const box = event.currentTarget.getBoundingClientRect();
+                    const time =
+                      window.start +
+                      ((event.clientX - box.left) / box.width) *
+                        visibleDuration;
+                    const range = waveformSeekRange(
+                      latest.current[index],
+                      time,
+                    );
+                    if (range) void playRange(range);
                   }}
                 >
-                  {edge === "start" ? (
-                    <ArrowLeftToLine size={16} />
-                  ) : (
-                    <ArrowRightToLine size={16} />
+                  <svg
+                    viewBox="0 0 1000 120"
+                    preserveAspectRatio="none"
+                    className="waveform-bars"
+                    aria-label={t("Audio waveform")}
+                    role="img"
+                  >
+                    {peaks.map((peak, i) => (
+                      <rect
+                        key={i}
+                        x={i}
+                        y={60 - peak * 52}
+                        width={0.7}
+                        height={Math.max(1, peak * 104)}
+                        rx={0.3}
+                      />
+                    ))}
+                  </svg>
+                  {!peaks.length && (
+                    <span className="waveform-status">
+                      {t(
+                        waveError
+                          ? "Could not load the waveform. You can adjust timing and try again."
+                          : "Loading waveform…",
+                      )}
+                    </span>
                   )}
-                  <span>+10 s</span>
+                  <div
+                    className="waveform-region selected"
+                    style={{
+                      left: `${percent(cue.start)}%`,
+                      width: `${((cue.end - cue.start) / visibleDuration) * 100}%`,
+                    }}
+                  >
+                    <span>{cue.reference}</span>
+                  </div>
+                  {handle("start")}
+                  {handle("end")}
+                  {hasPlayhead && (
+                    <div
+                      className="waveform-playhead"
+                      style={{
+                        left: `${percent(timelineStart + playhead - sourceStart)}%`,
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+              {waveError && (
+                <button
+                  type="button"
+                  className="analysis-retry"
+                  onClick={retry}
+                >
+                  {t("Retry loading audio")}
                 </button>
-              );
-            })}
-            <span className="section-action-separator" aria-hidden="true" />
-            <button
-              type="button"
-              aria-label={t("Zoom out")}
-              disabled={zoom === 1}
-              onClick={() => setZoom(Math.max(1, zoom - 1))}
-            >
-              <ZoomOut size={16} />
-            </button>
-            <button
-              type="button"
-              aria-label={t("Zoom in")}
-              disabled={zoom === 6}
-              onClick={() => setZoom(Math.min(6, zoom + 1))}
-            >
-              <ZoomIn size={16} />
-            </button>
-          </div>
-        </div>
-        <p className="muted">
-          {t(
-            "Release an edge to hear 3 seconds from that side. Click inside the fragment to listen from that point to the end. Use the arrow keys for precise adjustments.",
+              )}
+              <div className="waveform-ruler">
+                <span>{(window.start - timelineStart).toFixed(2)} s</span>
+                <span>
+                  {((window.start + window.end) / 2 - timelineStart).toFixed(2)}{" "}
+                  s
+                </span>
+                <span>{(window.end - timelineStart).toFixed(2)} s</span>
+              </div>
+              <div className="verse-playback">
+                <button
+                  type="button"
+                  className="icon-button verse-playback-icon"
+                  aria-label={t(
+                    onRegenerate
+                      ? regenerateLabel
+                      : "Align with previous verse",
+                  )}
+                  disabled={disabled || (!onRegenerate && !alignment?.moved)}
+                  data-tooltip={t(
+                    onRegenerate
+                      ? regenerateLabel
+                      : "Move both trim edges so this verse starts at the previous verse’s end, keeping its duration. Your other verse cuts stay unchanged.",
+                  )}
+                  onClick={() =>
+                    onRegenerate ? onRegenerate() : selectVerse(index, true)
+                  }
+                >
+                  {onRegenerate ? (
+                    <RotateCcw size={16} aria-hidden="true" />
+                  ) : (
+                    <AlignStartVertical size={16} aria-hidden="true" />
+                  )}
+                </button>
+                <span className="section-action-separator" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="icon-button verse-playback-icon"
+                  aria-label={t(playing ? "Pause" : "Listen to verse")}
+                  data-tooltip={t(playing ? "Pause" : "Listen to verse")}
+                  onClick={preview}
+                >
+                  {playing ? (
+                    <Pause size={16} aria-hidden="true" />
+                  ) : (
+                    <Play size={16} aria-hidden="true" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="icon-button verse-playback-icon"
+                  aria-label={t("Next verse")}
+                  data-tooltip={t("Next verse")}
+                  disabled={index >= cues.length - 1}
+                  onClick={() => selectVerse(index + 1)}
+                >
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button verse-playback-icon"
+                  aria-label={t("Next verse and play")}
+                  data-tooltip={t("Next verse and play")}
+                  disabled={index >= cues.length - 1}
+                  onClick={() => selectVerse(index + 1, false, true)}
+                >
+                  <ListVideo size={16} aria-hidden="true" />
+                </button>
+              </div>
+            </>
           )}
-        </p>
-        <div className="waveform-scroll" ref={scroll}>
-          <div
-            className="waveform-track"
-            ref={track}
-            style={{ width: `${zoom * 100}%` }}
-            onClick={(event) => {
-              const box = event.currentTarget.getBoundingClientRect();
-              const time =
-                window.start +
-                ((event.clientX - box.left) / box.width) * visibleDuration;
-              const range = waveformSeekRange(latest.current[index], time);
-              if (range) void playRange(range);
-            }}
-          >
-            <svg
-              viewBox="0 0 1000 120"
-              preserveAspectRatio="none"
-              className="waveform-bars"
-              aria-label={t("Audio waveform")}
-              role="img"
-            >
-              {peaks.map((peak, i) => (
-                <rect
-                  key={i}
-                  x={i}
-                  y={60 - peak * 52}
-                  width={0.7}
-                  height={Math.max(1, peak * 104)}
-                  rx={0.3}
-                />
-              ))}
-            </svg>
-            {!peaks.length && (
-              <span className="waveform-status">
-                {t(
-                  waveError
-                    ? "Could not load the waveform. You can adjust timing and try again."
-                    : "Loading waveform…",
-                )}
-              </span>
-            )}
-            <div
-              className="waveform-region selected"
-              style={{
-                left: `${percent(cue.start)}%`,
-                width: `${((cue.end - cue.start) / visibleDuration) * 100}%`,
-              }}
-            >
-              <span>{cue.reference}</span>
+          {!compact && (
+            <div className="verse-preview">
+              <span className="eyebrow">{cue.reference}</span>
+              <p>{cue.text}</p>
             </div>
-            {handle("start")}
-            {handle("end")}
-            {hasPlayhead && (
-              <div
-                className="waveform-playhead"
-                style={{
-                  left: `${percent(timelineStart + playhead - sourceStart)}%`,
-                }}
-              />
-            )}
-          </div>
+          )}
+          {typeof children === "function"
+            ? children(cue, (reference) => {
+                const next = latest.current.findIndex(
+                  (verse) => verse.reference === reference,
+                );
+                if (next >= 0) setSelected(next);
+              })
+            : children}
+          {!textOnly && (
+            <audio
+              ref={audio}
+              crossOrigin="anonymous"
+              src={src}
+              preload="metadata"
+              onLoadedMetadata={(event) => {
+                applyVolume();
+                applyReadingPlaybackSpeed(
+                  event.currentTarget,
+                  playbackSpeedRef.current,
+                );
+              }}
+              onPlay={(event) => {
+                applyVolume();
+                applyReadingPlaybackSpeed(
+                  event.currentTarget,
+                  playbackSpeedRef.current,
+                );
+                setPlaying(true);
+              }}
+              onSeeked={(event) =>
+                applyReadingPlaybackSpeed(
+                  event.currentTarget,
+                  playbackSpeedRef.current,
+                  true,
+                )
+              }
+              onPlaying={(event) =>
+                applyReadingPlaybackSpeed(
+                  event.currentTarget,
+                  playbackSpeedRef.current,
+                  true,
+                )
+              }
+              onRateChange={(event) => {
+                if (
+                  event.currentTarget.playbackRate !== playbackSpeedRef.current
+                )
+                  applyReadingPlaybackSpeed(
+                    event.currentTarget,
+                    playbackSpeedRef.current,
+                  );
+              }}
+              onPause={() => setPlaying(false)}
+              onEnded={() => setPlaying(false)}
+              onError={() => setWaveError(true)}
+              onTimeUpdate={() => {
+                if (!audio.current) return;
+                if (audio.current.currentTime >= stopAt.current) {
+                  audio.current.pause();
+                  if (audio.current.currentTime > stopAt.current)
+                    audio.current.currentTime = stopAt.current;
+                }
+                setPlayhead(audio.current.currentTime);
+              }}
+            />
+          )}
         </div>
-        {waveError && (
-          <button type="button" className="analysis-retry" onClick={retry}>
-            {t("Retry loading audio")}
-          </button>
-        )}
-        <div className="waveform-ruler">
-          <span>{(window.start - timelineStart).toFixed(2)} s</span>
-          <span>
-            {((window.start + window.end) / 2 - timelineStart).toFixed(2)} s
-          </span>
-          <span>{(window.end - timelineStart).toFixed(2)} s</span>
-        </div>
-        <div className="verse-playback">
-          <button
-            type="button"
-            className="icon-button verse-playback-icon"
-            aria-label={t("Align with previous verse")}
-            disabled={disabled || !alignment?.moved}
-            data-tooltip={t(
-              "Move both trim edges so this verse starts at the previous verse’s end, keeping its duration. Your other verse cuts stay unchanged.",
-            )}
-            onClick={() => selectVerse(index, true)}
-          >
-            <AlignStartVertical size={16} aria-hidden="true" />
-          </button>
-          <span className="section-action-separator" aria-hidden="true" />
-          <button
-            type="button"
-            className="icon-button verse-playback-icon"
-            aria-label={t(playing ? "Pause" : "Listen to verse")}
-            data-tooltip={t(playing ? "Pause" : "Listen to verse")}
-            onClick={preview}
-          >
-            {playing ? (
-              <Pause size={16} aria-hidden="true" />
-            ) : (
-              <Play size={16} aria-hidden="true" />
-            )}
-          </button>
-          <button
-            type="button"
-            className="icon-button verse-playback-icon"
-            aria-label={t("Next verse")}
-            data-tooltip={t("Next verse")}
-            disabled={index >= cues.length - 1}
-            onClick={() => selectVerse(index + 1)}
-          >
-            <ChevronRight size={16} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="icon-button verse-playback-icon"
-            aria-label={t("Next verse and play")}
-            data-tooltip={t("Next verse and play")}
-            disabled={index >= cues.length - 1}
-            onClick={() => selectVerse(index + 1, false, true)}
-          >
-            <ListVideo size={16} aria-hidden="true" />
-          </button>
-        </div>
-        <div className="verse-preview">
-          <span className="eyebrow">{cue.reference}</span>
-          <p>{cue.text}</p>
-        </div>
-        <div className="trim-fields">
-          {(["start", "end"] as const).map((edge) => (
-            <label key={edge}>
-              {edge === "start" ? t("Start") : t("End")} ({t("seconds")})
-              <input
-                type="number"
-                step={0.01}
-                disabled={disabled}
-                value={Number((cue[edge] - timelineStart).toFixed(3))}
-                min={0}
-                max={duration}
-                onChange={(event) => {
-                  if (event.target.value !== "")
-                    move(
-                      edge,
-                      timelineStart + Number(event.target.value),
-                      true,
-                    );
-                }}
-              />
-            </label>
-          ))}
-        </div>
-        <audio
-          ref={audio}
-          crossOrigin="anonymous"
-          src={src}
-          preload="metadata"
-          onLoadedMetadata={(event) => {
-            applyVolume();
-            applyReadingPlaybackSpeed(
-              event.currentTarget,
-              playbackSpeedRef.current,
-            );
-          }}
-          onPlay={(event) => {
-            applyVolume();
-            applyReadingPlaybackSpeed(
-              event.currentTarget,
-              playbackSpeedRef.current,
-            );
-            setPlaying(true);
-          }}
-          onSeeked={(event) =>
-            applyReadingPlaybackSpeed(
-              event.currentTarget,
-              playbackSpeedRef.current,
-              true,
-            )
-          }
-          onPlaying={(event) =>
-            applyReadingPlaybackSpeed(
-              event.currentTarget,
-              playbackSpeedRef.current,
-              true,
-            )
-          }
-          onRateChange={(event) => {
-            if (event.currentTarget.playbackRate !== playbackSpeedRef.current)
-              applyReadingPlaybackSpeed(
-                event.currentTarget,
-                playbackSpeedRef.current,
-              );
-          }}
-          onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
-          onError={() => setWaveError(true)}
-          onTimeUpdate={() => {
-            if (!audio.current) return;
-            if (audio.current.currentTime >= stopAt.current) {
-              audio.current.pause();
-              if (audio.current.currentTime > stopAt.current)
-                audio.current.currentTime = stopAt.current;
-            }
-            setPlayhead(audio.current.currentTime);
-          }}
-        />
       </div>
-    </div>
+    </>
   );
 }

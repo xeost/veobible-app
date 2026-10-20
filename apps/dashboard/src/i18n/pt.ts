@@ -1,4 +1,28 @@
 export const portuguese: Record<string, string> = {
+  "Generate voice": "Gerar voz",
+  "These voices are saved with this project. Changing the defaults does not change these selections.":
+    "Estas vozes são salvas neste projeto. Alterar os padrões não muda estas seleções.",
+  "Save changes to keep these voices. Existing narrations change only when you regenerate them.":
+    "Salve as alterações para manter estas vozes. As narrações existentes só mudam ao gerá-las novamente.",
+  "Choose introduction, closing and reading voices for new projects in each language. Existing projects keep their voices.":
+    "Escolha as vozes de introdução, encerramento e leitura para novos projetos em cada idioma. Os projetos existentes mantêm suas vozes.",
+  "Voice language": "Idioma da voz",
+  "Voice purpose": "Uso da voz",
+  "Introduction voice": "Voz de introdução",
+  "Closing voice": "Voz de encerramento",
+  "Passage reading voice": "Voz para a leitura da passagem",
+  "Use generated voice for this reading": "Usar voz gerada para esta leitura",
+  "Generated passage reading": "Leitura da passagem gerada",
+  "Generating passage reading…": "Gerando leitura da passagem…",
+  "Regenerate reading voice": "Gerar voz de leitura novamente",
+  "Could not generate the reading. Try again.":
+    "Não foi possível gerar a leitura. Tente novamente.",
+  "No original recording is available. Generate this reading to use it in the video.":
+    "Não há gravação original disponível. Gere esta leitura para usá-la no vídeo.",
+  "Enable generated reading for this block first.":
+    "Ative primeiro a leitura gerada para este bloco.",
+  "Generate the selected passage reading before previewing or rendering.":
+    "Gere a leitura selecionada antes de visualizar ou criar o vídeo.",
   Voices: "Vozes",
   "Default voice": "Voz padrão",
   "Narration voice": "Voz da narração",
@@ -1494,4 +1518,15 @@ export const portuguese: Record<string, string> = {
     "Marque um projeto em Vídeos longos para vê-lo aqui.",
   "Two projects are already marked for this Bible version. Remove one mark to choose another.":
     "Já há dois projetos marcados para esta versão da Bíblia. Remova uma marca para escolher outro.",
+  "Use separate settings for passage reading":
+    "Usar ajustes específicos para a leitura da passagem",
+  "When disabled, readings use the current settings from Administration tools. Changes apply to future reading generations in this format and language; saved recordings stay unchanged.":
+    "Quando desativado, as leituras usam os ajustes atuais de Ferramentas de administração. As alterações se aplicam às próximas gerações de leituras deste formato e idioma; os áudios salvos são preservados.",
+  "Examples use the reading settings shown above. Regenerate an example after changing them.":
+    "Os exemplos usam os ajustes de leitura mostrados acima. Gere novamente um exemplo após alterá-los.",
+  "The audio was generated, but its timing could not be synchronized. Try again; if the problem persists, contact the administrator.":
+    "O áudio foi gerado, mas não foi possível sincronizar seus tempos. Tente novamente; se o problema persistir, entre em contato com o administrador.",
+  "Regenerate all reading verses":
+    "Gerar novamente todos os versículos do bloco",
+  "Regenerate this verse": "Gerar novamente este versículo",
 };

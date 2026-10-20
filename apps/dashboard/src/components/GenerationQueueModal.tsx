@@ -191,7 +191,9 @@ export function GenerationQueueModal({
                           ? "Introduction narration"
                           : item.type === "outro"
                             ? "Closing narration"
-                            : "Chapter introduction",
+                            : item.type.startsWith("reading-")
+                              ? "Generated passage reading"
+                              : "Chapter introduction",
                   )}{" "}
                   {item.type.startsWith("alignment-") &&
                     ` · ${t("Reading")} ${Number(item.type.split("-")[1]) + 1}`}

@@ -4,6 +4,7 @@ export type GenerationQueueItem = {
   type:
     | "intro"
     | "outro"
+    | `reading-${number}`
     | `chapter-${number}`
     | "video"
     | "alignment"

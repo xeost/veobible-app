@@ -11,7 +11,8 @@ export function previewDurationInFrames(
       transitionDuration?: number;
     };
   },
-  section?: "intro" | "outro" | "reading" | `chapter-${number}`,
+  section?:
+    "intro" | "outro" | "reading" | `reading-${number}` | `chapter-${number}`,
 ) {
   if (!section) {
     if (preview.props.transitionDuration === undefined)

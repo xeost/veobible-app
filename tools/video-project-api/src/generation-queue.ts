@@ -2,6 +2,7 @@ import { clampProgress } from "./generation-progress.js";
 export type GenerationType =
   | "intro"
   | "outro"
+  | `reading-${number}`
   | `chapter-${number}`
   | "video"
   | "alignment"

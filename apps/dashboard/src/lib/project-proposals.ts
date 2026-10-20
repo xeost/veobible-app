@@ -50,7 +50,7 @@ export async function syncVideoProjects(
         version.locale,
         version.code,
       ),
-      baseVoice: (await loadBaseVoiceDefaults(database, kind))[version.locale],
+      baseVoices: (await loadBaseVoiceDefaults(database, kind))[version.locale],
     }),
   );
   let added = 0;

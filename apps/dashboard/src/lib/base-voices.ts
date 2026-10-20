@@ -1,26 +1,46 @@
 import { z } from "zod";
 import {
+  readingNarrationOverridesSchema,
+  type ReadingNarrationOverrides,
+} from "./narration-parameters";
+import {
   baseVoiceSchema,
   voiceForLocale,
+  voiceRolesSchema,
+  inheritedVoiceRoles,
+  selectedRoleVoice,
 } from "../../../../tools/video-project-api/src/base-voice-schema";
 export {
   sampleTexts,
   voiceForLocale,
+  voiceRolesSchema,
+  inheritedVoiceRoles,
+  selectedRoleVoice,
 } from "../../../../tools/video-project-api/src/base-voice-schema";
 export type { VoiceLocale } from "../../../../tools/video-project-api/src/base-voice-schema";
+const languageVoices = (locale: string) =>
+  z
+    .union([baseVoiceSchema.transform(inheritedVoiceRoles), voiceRolesSchema])
+    .refine((roles) =>
+      Object.values(roles).every((id) => id.startsWith(`${locale}-`)),
+    );
 export const baseVoiceDefaultsSchema = z
   .object({
-    es: baseVoiceSchema.refine((id) => id.startsWith("es-")),
-    en: baseVoiceSchema.refine((id) => id.startsWith("en-")),
-    pt: baseVoiceSchema.refine((id) => id.startsWith("pt-")),
+    es: languageVoices("es"),
+    en: languageVoices("en"),
+    pt: languageVoices("pt"),
   })
   .strict();
 export type BaseVoiceDefaults = z.infer<typeof baseVoiceDefaultsSchema>;
 export const defaultBaseVoices = (): BaseVoiceDefaults => ({
-  es: "es-1",
-  en: "en-1",
-  pt: "pt-1",
+  es: inheritedVoiceRoles("es-1"),
+  en: inheritedVoiceRoles("en-1"),
+  pt: inheritedVoiceRoles("pt-1"),
 });
+export {
+  voiceRoles,
+  roleLabels,
+} from "../../../../tools/video-project-api/src/base-voice-schema";
 export const baseVoiceCatalogSchema = z.object({
   voices: z.array(
     z.object({
@@ -53,9 +73,10 @@ export async function saveBaseVoiceDefaults(
   database: D1Database,
   kind: "short" | "long",
   input: unknown,
+  readingParameters?: ReadingNarrationOverrides,
 ) {
   const defaults = baseVoiceDefaultsSchema.parse(input);
-  await database
+  const statement = database
     .prepare(
       "INSERT INTO site_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
     )
@@ -63,12 +84,28 @@ export async function saveBaseVoiceDefaults(
       `base_voice_defaults:${kind}`,
       JSON.stringify(defaults),
       new Date().toISOString(),
-    )
-    .run();
+    );
+  if (readingParameters === undefined) await statement.run();
+  else
+    await database.batch([
+      statement,
+      database
+        .prepare(
+          "INSERT INTO site_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
+        )
+        .bind(
+          `reading_voice_parameters:${kind}`,
+          JSON.stringify(
+            readingNarrationOverridesSchema.parse(readingParameters),
+          ),
+          new Date().toISOString(),
+        ),
+    ]);
   return defaults;
 }
 /** Legacy projects used voice 1. Never resolve their voice from mutable defaults. */
 export const projectBaseVoice = (
-  settings: { baseVoice?: string },
+  settings: Parameters<typeof selectedRoleVoice>[0],
   locale: "es" | "en" | "pt",
-) => voiceForLocale(locale, settings.baseVoice);
+  role: "intro" | "outro" | "reading" = "intro",
+) => selectedRoleVoice(settings, locale, role);

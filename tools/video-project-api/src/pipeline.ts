@@ -1,3 +1,4 @@
+import { selectedRoleVoice } from "./base-voice-schema.js";
 import { baseVoiceSample } from "./base-voice.js";
 import { type NarrationParameters } from "./narration-parameters.js";
 import {
@@ -5,6 +6,11 @@ import {
   narrationModelForLocale,
 } from "./narration-models.js";
 import { prepareTrimmedVoice } from "./voice-trim.js";
+import {
+  migrateReadingVerses,
+  assembleReadingVerses,
+  readingVerseFile,
+} from "./reading-voice-files.js";
 import {
   videoFilename,
   thumbnailFilename,
@@ -91,9 +97,11 @@ export const sourceDir = (
   environment: OutputEnvironment = "production",
 ) => path.join(projectDir(kind, version, passage, environment), "_internal");
 export const voiceFilename = (part: VoicePart, extension = "wav") =>
-  part.startsWith("chapter-")
-    ? `2-${part}.${extension}`
-    : `${part === "intro" ? "1" : "3"}-${part}.${extension}`;
+  part.startsWith("reading-")
+    ? `4-${part}.${extension}`
+    : part.startsWith("chapter-")
+      ? `2-${part}.${extension}`
+      : `${part === "intro" ? "1" : "3"}-${part}.${extension}`;
 async function prepareProjectDirectories(
   input: Pick<
     RenderRequest,
@@ -125,12 +133,44 @@ async function generateNamedVoice(
   voice: typeof shortVoice | typeof longVoice,
   context: shortVoice.VoiceContext,
   part: "intro" | "outro",
+  alignment: {
+    language: string;
+    ffmpeg: string;
+    duration: (file: string) => Promise<number>;
+  },
   onProgress?: (progress: number) => void,
 ) {
   const staging = await fs.mkdtemp(path.join(sources, ".voice-"));
   try {
-    await voice.generateVoice(staging, context, true, part, onProgress);
-    for (const extension of ["wav", "txt"])
+    await voice.generateVoice(staging, context, true, part, (progress) =>
+      onProgress?.(progress * 0.7),
+    );
+    const audio = path.join(staging, `${part}.wav`);
+    const duration = await alignment.duration(audio);
+    const text = (
+      await fs.readFile(path.join(staging, `${part}.txt`), "utf8")
+    ).trim();
+    const { alignGeneratedSpeech } = await import("./forced-alignment.js");
+    const {
+      cues: [cue],
+      model,
+    } = await alignGeneratedSpeech(
+      audio,
+      duration,
+      alignment.language,
+      [{ id: part, text, start: 0, end: duration }],
+      alignment.ffmpeg,
+      (progress) => onProgress?.(70 + progress * 0.3),
+    );
+    await fs.writeFile(
+      path.join(staging, `${part}.wav.json`),
+      JSON.stringify({
+        duration,
+        trim: { startSeconds: cue.start, endSeconds: cue.end },
+        alignment: { method: "forced", model, version: 1 },
+      }),
+    );
+    for (const extension of ["wav", "txt", "wav.json"])
       await fs.rename(
         path.join(staging, `${part}.${extension}`),
         path.join(sources, voiceFilename(part, extension)),
@@ -179,6 +219,84 @@ function modules(kind: "short" | "long") {
         descriptions: longDescriptions,
       };
 }
+const readingText = (text: string) =>
+  text
+    .replace(/\(H\d+-\d+\)/g, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+async function readingVoiceFiles(
+  input: {
+    kind: string;
+    version: { id: string };
+    passage: { id: string };
+    outputEnvironment?: OutputEnvironment;
+  },
+  data: Awaited<ReturnType<typeof short.analyzePassageAudio>>,
+) {
+  const directory = sourceDir(
+    input.kind,
+    input.version.id,
+    input.passage.id,
+    input.outputEnvironment,
+  );
+  return Promise.all(
+    data.timingInputs.map(async (timing, index) => {
+      const file = path.join(directory, voiceFilename(`reading-${index}`));
+      const expected = timing.verses.map(
+        (verse) => `${timing.bookName} ${timing.chapter}:${verse.verse}`,
+      );
+      try {
+        const saved = JSON.parse(await fs.readFile(file + ".json", "utf8")) as {
+          duration: number;
+          cues: shortTiming.VerseCue[];
+          alignment?: { method: "forced"; model: string; version: number };
+        };
+        const stat = await fs.stat(file);
+        if (
+          !stat.size ||
+          !Number.isFinite(saved.duration) ||
+          saved.duration <= 0 ||
+          saved.cues.length !== expected.length ||
+          saved.cues.some(
+            (cue, i) =>
+              cue.reference !== expected[i] ||
+              !Number.isFinite(cue.start) ||
+              !Number.isFinite(cue.end) ||
+              cue.start < 0 ||
+              cue.end <= cue.start ||
+              cue.end > saved.duration,
+          )
+        )
+          throw new Error("Invalid generated reading");
+        return {
+          file,
+          available: true,
+          duration: saved.duration,
+          revision: Math.max(
+            stat.mtimeMs,
+            (await fs.stat(file + ".json")).mtimeMs,
+          ),
+          alignment: saved.alignment,
+          cues: saved.cues.map((cue, i) => ({
+            ...cue,
+            text: readingText(timing.verses[i].text),
+          })),
+        };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+          console.error("Generated reading unavailable", error);
+        return {
+          file,
+          available: false,
+          duration: 0,
+          revision: 0,
+          cues: [] as shortTiming.VerseCue[],
+        };
+      }
+    }),
+  );
+}
 export async function analyze(
   input: Pick<
     RenderRequest,
@@ -190,17 +308,29 @@ export async function analyze(
     | "voiceModel"
     | "voiceParameters"
     | "readingCuts"
-  >,
+  > & { outputEnvironment?: OutputEnvironment },
+  options: { originalOnly?: boolean } = {},
 ) {
   const m = modules(input.kind);
   const version = m.config.versions.find((v) => v.id === input.version.id);
   if (!version || version.locale !== input.version.locale)
     throw new Error("Invalid Bible version");
-  const data = await m.passages.analyzePassageAudio(version, input.passage);
+  const data = await m.passages.analyzePassageAudio(
+    version,
+    input.passage,
+    true,
+  );
   const originalSections = m.passages.applyPassageAudioOffsets(
     data.sections,
     data.sourceDurations,
-    input.settings.passageOffsets,
+    {
+      startSeconds: data.sections[0]?.file
+        ? input.settings.passageOffsets.startSeconds
+        : 0,
+      endSeconds: data.sections.at(-1)?.file
+        ? input.settings.passageOffsets.endSeconds
+        : 0,
+    },
   );
   const estimates = await m.timing.estimateVerseCues(
     data.timingInputs.map((v, i) => ({ ...v, section: originalSections[i] })),
@@ -209,24 +339,110 @@ export async function analyze(
     originalSections,
     estimates,
     data.sourceDurations,
-    input.settings.readingSectionPadding,
+    input.settings.readingSectionPadding.filter(
+      (entry) => data.sections[entry.sectionIndex]?.file !== "",
+    ),
   );
-  const sections = expanded.sections;
+  let sections = expanded.sections;
   const sourceDuration = sections.reduce(
     (total, section) => total + section.end - section.start,
     0,
   );
-  const cues = applyReadingCuts(
-    input.readingCuts
+  const generatedReferences = new Set(
+    !options.originalOnly
+      ? data.timingInputs.flatMap((timing, index) =>
+          input.settings.readingVoices?.[index]?.enabled ||
+          !data.sections[index].file
+            ? timing.verses.map(
+                (verse) =>
+                  `${timing.bookName} ${timing.chapter}:${verse.verse}`,
+              )
+            : [],
+        )
+      : [],
+  );
+  const originalCuts = input.readingCuts?.map((cut) =>
+    generatedReferences.has(cut.reference)
+      ? {
+          ...cut,
+          start:
+            expanded.cues.find((cue) => cue.reference === cut.reference)
+              ?.start ?? cut.start,
+          end:
+            expanded.cues.find((cue) => cue.reference === cut.reference)?.end ??
+            cut.end,
+        }
+      : cut,
+  );
+  let cues = applyReadingCuts(
+    originalCuts
       ? expanded.cues
       : m.timing.applyVerseOffsets(
           expanded.cues,
-          input.settings.verseOffsets,
+          input.settings.verseOffsets.filter(
+            (cut) => !generatedReferences.has(cut.reference),
+          ),
           sourceDuration,
         ),
-    input.readingCuts,
+    originalCuts,
     sourceDuration,
   );
+  if (!options.originalOnly) {
+    const generated = await readingVoiceFiles(input, data);
+    const nextSections = [];
+    const nextCues = [];
+    let originalOffset = 0,
+      nextOffset = 0;
+    for (let index = 0; index < sections.length; index++) {
+      const section = sections[index];
+      const length = section.end - section.start;
+      const active =
+        input.settings.readingVoices?.[index]?.enabled ||
+        !data.sections[index].file;
+      if (active) {
+        const track = generated[index];
+        if (!track.available)
+          throw new Error(
+            "Generate the selected passage reading before previewing or rendering.",
+          );
+        const adjusted = m.timing.applyVerseOffsets(
+          track.cues,
+          input.settings.readingVoices?.[index]?.verseOffsets ?? [],
+          track.duration,
+        );
+        nextSections.push({ file: track.file, start: 0, end: track.duration });
+        nextCues.push(
+          ...adjusted.map((cue) => ({
+            ...cue,
+            start: cue.start + nextOffset,
+            end: cue.end + nextOffset,
+          })),
+        );
+        nextOffset += track.duration;
+      } else {
+        nextSections.push(section);
+        const references = new Set(
+          data.timingInputs[index].verses.map(
+            (verse) =>
+              `${data.timingInputs[index].bookName} ${data.timingInputs[index].chapter}:${verse.verse}`,
+          ),
+        );
+        nextCues.push(
+          ...cues
+            .filter((cue) => references.has(cue.reference))
+            .map((cue) => ({
+              ...cue,
+              start: cue.start - originalOffset + nextOffset,
+              end: cue.end - originalOffset + nextOffset,
+            })),
+        );
+        nextOffset += length;
+      }
+      originalOffset += length;
+    }
+    sections = nextSections;
+    cues = nextCues;
+  }
   const context = m.voice.voiceContext(
     version,
     input.passage,
@@ -299,7 +515,7 @@ export async function inspection(
     | "voiceTemplates"
     | "voiceModel"
     | "voiceParameters"
-  >,
+  > & { outputEnvironment?: OutputEnvironment },
 ) {
   const {
     data,
@@ -310,13 +526,18 @@ export async function inspection(
     m,
     chapterIntroductions,
     episodeContent,
-  } = await analyze(input);
+  } = await analyze(
+    { ...input, readingCuts: undefined },
+    { originalOnly: true },
+  );
   return {
+    generatedReadings: await readingVoiceFiles(input, data),
     label: data.label,
     lines: data.lines,
     sections: sections.map((section, index) => ({
       ...section,
       sourceDuration: data.sourceDurations[index],
+      originalAvailable: Boolean(data.sections[index].file),
     })),
     cues,
     chapterIntroductions,
@@ -347,19 +568,101 @@ export async function generateProjectVoice(
     | "voiceParameters"
     | "projectId"
     | "outputEnvironment"
-  >,
+  > & { verseReference?: string },
   part: VoicePart,
   update: (progress: number) => void = () => {},
 ) {
   update(5);
   const { sources } = await prepareProjectDirectories(input);
-  const { context, m, data, chapterIntroductions } = await analyze({
-    ...input,
-    settings: { ...input.settings, verseOffsets: [] },
-  });
+  const { context, m, data, chapterIntroductions } = await analyze(
+    {
+      ...input,
+      readingCuts: undefined,
+      settings: { ...input.settings, verseOffsets: [] },
+    },
+    { originalOnly: true },
+  );
   await writePassageFiles(sources, data);
   update(10);
-  if (part.startsWith("chapter-")) {
+  context.baseVoice = selectedRoleVoice(
+    input.settings,
+    input.version.locale,
+    part === "outro"
+      ? "outro"
+      : part.startsWith("reading-")
+        ? "reading"
+        : "intro",
+  );
+  if (part.startsWith("reading-")) {
+    const index = Number(part.slice(8));
+    const timing = data.timingInputs[index];
+    if (!timing) throw new Error("Invalid reading block");
+    const verses = timing.verses.map((verse) => ({
+      verse: verse.verse,
+      reference: `${timing.bookName} ${timing.chapter}:${verse.verse}`,
+      text: readingText(verse.text),
+    }));
+    const selected = input.verseReference
+      ? verses.filter((verse) => verse.reference === input.verseReference)
+      : verses;
+    if (!selected.length) throw new Error("Invalid reading verse");
+    await fs.mkdir(path.join(sources, part), { recursive: true });
+    await migrateReadingVerses(
+      sources,
+      part,
+      verses,
+      m.config.ffmpegBin,
+      input.settings.readingVoices?.[index]?.verseOffsets,
+    );
+    for (const [position, verse] of selected.entries()) {
+      const staging = await fs.mkdtemp(path.join(sources, part, ".voice-"));
+      const progress = (value: number) =>
+        update(10 + (88 * (position + value / 100)) / selected.length);
+      try {
+        // Each verse is its own synthesis request, including its own model lifecycle.
+        await m.voice.generateVoice(
+          staging,
+          {
+            ...context,
+            singleUtterance: true,
+            scriptOverrides: { intro: verse.text },
+          },
+          true,
+          "intro",
+          (value) => progress(value * 0.7),
+        );
+        const generated = path.join(staging, "intro.wav");
+        const duration = await m.passages.audioDurationSeconds(generated);
+        const { alignGeneratedSpeech } = await import("./forced-alignment.js");
+        const { cues, model } = await alignGeneratedSpeech(
+          generated,
+          duration,
+          input.version.locale,
+          [{ id: verse.reference, text: verse.text, start: 0, end: duration }],
+          m.config.ffmpegBin,
+          (value) => progress(70 + value * 0.3),
+        );
+        const target = readingVerseFile(sources, part, verse.verse);
+        await fs.writeFile(
+          generated + ".json",
+          JSON.stringify({
+            duration,
+            cues,
+            alignment: { method: "forced", model, version: 1 },
+          }),
+        );
+        await fs.rename(generated, target);
+        await fs.rename(generated + ".json", target + ".json");
+        await fs.rename(
+          path.join(staging, "intro.txt"),
+          target.replace(/\.wav$/, ".txt"),
+        );
+      } finally {
+        await fs.rm(staging, { recursive: true, force: true });
+      }
+    }
+    await assembleReadingVerses(sources, part, verses, m.config.ffmpegBin);
+  } else if (part.startsWith("chapter-")) {
     const chapter = chapterIntroductions.find((item) => item.part === part);
     if (!chapter) throw new Error("Invalid chapter introduction");
     const staging = await fs.mkdtemp(path.join(sources, ".chapter-voice-"));
@@ -392,7 +695,7 @@ export async function generateProjectVoice(
               input.version.locale,
               input.voiceModel,
               input.voiceParameters,
-              input.settings?.baseVoice,
+              selectedRoleVoice(input.settings, input.version.locale, "intro"),
             ),
             complete: true,
             locale: input.version.locale,
@@ -418,6 +721,11 @@ export async function generateProjectVoice(
       m.voice,
       context,
       part as "intro" | "outro",
+      {
+        language: input.version.locale,
+        ffmpeg: m.config.ffmpegBin,
+        duration: m.passages.audioDurationSeconds,
+      },
       (progress) => update(10 + progress * 0.85),
     );
   }
@@ -434,7 +742,12 @@ export async function projectChapterVoiceFiles(
     | "outputEnvironment"
     | "voiceModel"
     | "voiceParameters"
-  > & { settings?: { baseVoice?: string } },
+  > & {
+    settings?: {
+      baseVoice?: string;
+      baseVoices?: { intro: string; outro: string; reading: string };
+    };
+  },
 ) {
   if (input.kind !== "long") return [];
   const version = longConfig.versions.find(
@@ -460,7 +773,11 @@ export async function projectChapterVoiceFiles(
             version.locale,
             input.voiceModel,
             input.voiceParameters,
-            input.settings?.baseVoice,
+            selectedRoleVoice(
+              input.settings ?? {},
+              input.version.locale,
+              "intro",
+            ),
           ),
           locale: version.locale,
           complete:

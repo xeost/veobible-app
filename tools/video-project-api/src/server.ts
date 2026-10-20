@@ -1,4 +1,5 @@
 import { baseVoiceSchema } from "./base-voice-schema.js";
+import { automaticVoiceTrim } from "./voice-trim.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
 import { narrationModelForLocale } from "./narration-models.js";
 import { openProjectFolder } from "./open-project-folder.js";
@@ -670,8 +671,9 @@ const server = http.createServer(async (req, res) => {
                 .catch(() => [])
                 .then((files) =>
                   files.flatMap((file) => {
-                    const match = /^2-(chapter-\d+)\.wav$/.exec(file);
-                    return match ? [match[1] as VoicePart] : [];
+                    const match =
+                      /^(?:2-(chapter-\d+)|4-(reading-\d+))\.wav$/.exec(file);
+                    return match ? [(match[1] ?? match[2]) as VoicePart] : [];
                   }),
                 )),
             ]),
@@ -697,6 +699,16 @@ const server = http.createServer(async (req, res) => {
               part,
               {
                 available,
+                automaticTrim:
+                  available && (part === "intro" || part === "outro")
+                    ? await automaticVoiceTrim(
+                        path.join(
+                          sourceDir(kind, version, passage, environment),
+                          voiceFilename(part),
+                        ),
+                      )
+                    : undefined,
+                jobId: job?.id,
                 cached: cachedChapter?.cached ?? false,
                 status: job?.status ?? "idle",
                 progress:
@@ -717,13 +729,23 @@ const server = http.createServer(async (req, res) => {
               z.enum(["intro", "outro"]),
               z
                 .string()
-                .regex(/^chapter-\d+$/)
+                .regex(/^(?:chapter|reading)-\d+$/)
                 .transform((value) => value as VoicePart),
             ]),
+            verseReference: z.string().trim().min(1).max(300).optional(),
           })
           .parse(await body(req));
         if (input.voiceModel)
           narrationModelForLocale(input.voiceModel, input.version.locale);
+        if (input.verseReference && !input.part.startsWith("reading-"))
+          return json(res, 400, { error: "Invalid reading verse" });
+        if (
+          input.part.startsWith("reading-") &&
+          !input.settings.readingVoices?.[input.part.slice(8)]?.enabled
+        )
+          return json(res, 400, {
+            error: "Enable generated reading for this block first.",
+          });
         if (input.projectId !== projectId)
           return json(res, 400, { error: "Project mismatch" });
         if (
@@ -776,6 +798,25 @@ const server = http.createServer(async (req, res) => {
               job.status = "done";
             } catch (error) {
               console.error("Voice generation failed", error);
+              await fsp
+                .appendFile(
+                  path.join(
+                    sourceDir(
+                      input.kind,
+                      input.version.id,
+                      input.passage.id,
+                      input.outputEnvironment,
+                    ),
+                    "generation-errors.log",
+                  ),
+                  `${new Date().toISOString()} ${input.part}\n${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n\n`,
+                )
+                .catch((diagnosticError) =>
+                  console.error(
+                    "Could not save generation diagnostics",
+                    diagnosticError,
+                  ),
+                );
               job.failureReason = generationFailureReason(error);
               job.status = "failed";
             }
@@ -942,8 +983,8 @@ const server = http.createServer(async (req, res) => {
       const asset = z
         .union([
           z.enum(["video", "thumbnail", "intro", "outro"]),
-          z.string().regex(/^chapter-\d+$/),
-          z.string().regex(/^reading-\d+$/),
+          z.string().regex(/^(?:chapter|reading)-\d+$/),
+          z.string().regex(/^(?:generated-)?reading-\d+$/),
           z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
         ])
         .parse(parts[4]);
@@ -961,21 +1002,26 @@ const server = http.createServer(async (req, res) => {
             version,
             passage,
           })
-        : asset.startsWith("reading-")
-          ? reading?.sections[Number(asset.slice(8))]?.file
-          : asset === "intro" ||
-              asset === "outro" ||
-              asset.startsWith("chapter-")
-            ? (chapterFiles.find((chapter) => chapter.part === asset)?.file ??
-              path.join(
-                sourceDir(kind, version, passage, environment),
-                voiceFilename(asset as VoicePart),
-              ))
-            : await existingOutputMedia(
-                projectDir(kind, version, passage, environment),
-                kind,
-                asset as "video" | "thumbnail",
-              );
+        : asset.startsWith("generated-reading-")
+          ? path.join(
+              sourceDir(kind, version, passage, environment),
+              voiceFilename(asset.slice(10) as VoicePart),
+            )
+          : asset.startsWith("reading-")
+            ? reading?.sections[Number(asset.slice(8))]?.file
+            : asset === "intro" ||
+                asset === "outro" ||
+                asset.startsWith("chapter-")
+              ? (chapterFiles.find((chapter) => chapter.part === asset)?.file ??
+                path.join(
+                  sourceDir(kind, version, passage, environment),
+                  voiceFilename(asset as VoicePart),
+                ))
+              : await existingOutputMedia(
+                  projectDir(kind, version, passage, environment),
+                  kind,
+                  asset as "video" | "thumbnail",
+                );
       if (!file) return json(res, 404, { error: "Audio section not found" });
       let stat;
       try {

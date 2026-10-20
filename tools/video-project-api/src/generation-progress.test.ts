@@ -15,4 +15,13 @@ test("local speech progress follows model stages and the latest sampling percent
   assert.equal(samplingProgress("101%|full"), 90);
   assert.equal(clampProgress(NaN), 0);
   assert.equal(clampProgress(-10), 0);
+  assert.equal(voiceStageProgress("Generating intro fragment 3/7"), 40);
+  assert.equal(
+    samplingProgress("50%|half", "Generating intro fragment 3/7"),
+    45,
+  );
+  assert.equal(
+    samplingProgress("100%|full", "Generating intro fragment 7/7"),
+    90,
+  );
 });

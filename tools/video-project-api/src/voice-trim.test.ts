@@ -5,7 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { prepareTrimmedVoice } from "./voice-trim.js";
+import { automaticVoiceTrim, prepareTrimmedVoice } from "./voice-trim.js";
 const run = promisify(execFile);
 const binaries = { ffmpegBin: "ffmpeg", ffprobeBin: "ffprobe" };
 async function duration(file: string) {
@@ -53,6 +53,30 @@ test("voice cuts remove both audio ends without modifying original or shared rec
       binaries,
     );
     assert.ok(Math.abs((await duration(selected)) - 0.45) < 0.001);
+    const automatic = { startSeconds: 0.1, endSeconds: 0.8 };
+    await fs.writeFile(
+      source + ".json",
+      JSON.stringify({ duration: 1, trim: automatic }),
+    );
+    assert.deepEqual(await automaticVoiceTrim(source), automatic);
+    for (const part of ["intro", "outro"]) {
+      const aligned = await prepareTrimmedVoice(
+        source,
+        undefined,
+        directory,
+        part,
+        binaries,
+      );
+      assert.ok(Math.abs((await duration(aligned)) - 0.7) < 0.001);
+    }
+    const overridden = await prepareTrimmedVoice(
+      source,
+      { startSeconds: 0, endSeconds: 1 },
+      directory,
+      "intro",
+      binaries,
+    );
+    assert.ok(Math.abs((await duration(overridden)) - 1) < 0.001);
     const chapter = await prepareTrimmedVoice(
       source,
       { startSeconds: 0.3, endSeconds: 5 },

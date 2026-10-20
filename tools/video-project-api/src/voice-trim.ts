@@ -1,10 +1,40 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
+import fs from "node:fs/promises";
+import { z } from "zod";
 const run = promisify(execFile);
 export interface VoiceTrim {
   startSeconds: number;
   endSeconds: number;
+}
+
+const automaticTrimSchema = z
+  .object({
+    duration: z.number().finite().positive(),
+    trim: z.object({
+      startSeconds: z.number().finite().nonnegative(),
+      endSeconds: z.number().finite().positive(),
+    }),
+  })
+  .refine(
+    ({ duration, trim }) =>
+      trim.endSeconds <= duration &&
+      trim.endSeconds - trim.startSeconds >= 0.02,
+  );
+
+/** Legacy recordings have no sidecar; explicit project edits override these defaults. */
+export async function automaticVoiceTrim(
+  file: string,
+): Promise<VoiceTrim | undefined> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(file + ".json", "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+  return automaticTrimSchema.parse(JSON.parse(raw)).trim;
 }
 
 /** Work on a temporary copy so original and shared cached voices remain intact. */
@@ -15,6 +45,8 @@ export async function prepareTrimmedVoice(
   part: string,
   binaries: { ffmpegBin: string; ffprobeBin: string },
 ) {
+  if (!trim && (part === "intro" || part === "outro"))
+    trim = await automaticVoiceTrim(file);
   if (!trim) return file;
   const { stdout } = await run(binaries.ffprobeBin, [
     "-v",

@@ -1,6 +1,7 @@
 import { verseAnimationSpans } from "./verse-animation";
 
-export type VoicePart = "intro" | "outro" | `chapter-${number}`;
+export type VoicePart =
+  "intro" | "outro" | `reading-${number}` | `chapter-${number}`;
 export interface ChapterIntroduction {
   part: `chapter-${number}`;
   chapter: number;

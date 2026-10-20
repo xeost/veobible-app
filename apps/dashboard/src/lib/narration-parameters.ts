@@ -3,8 +3,22 @@ import { narrationModelsSchema } from "./narration-models";
 import {
   narrationStylesSchema,
   defaultNarrationStyles,
+  readingNarrationOverridesSchema,
+  defaultReadingNarrationOverrides,
 } from "../../../../tools/video-project-api/src/narration-parameters";
 export * from "../../../../tools/video-project-api/src/narration-parameters";
+export async function loadReadingNarrationOverrides(
+  database: D1Database,
+  kind: "short" | "long",
+) {
+  const row = await database
+    .prepare("SELECT value FROM site_settings WHERE key=?")
+    .bind(`reading_voice_parameters:${kind}`)
+    .first<{ value: string }>();
+  return row
+    ? readingNarrationOverridesSchema.parse(JSON.parse(row.value))
+    : defaultReadingNarrationOverrides();
+}
 export async function loadNarrationStyles(database: D1Database) {
   const row = await database
     .prepare("SELECT value FROM site_settings WHERE key=?")

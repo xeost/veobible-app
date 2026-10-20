@@ -209,6 +209,7 @@ export function spokenBookName(
 }
 
 export interface VoiceContext {
+  singleUtterance?: boolean;
   baseVoice?: string;
   voiceModel?: NarrationModel;
   voiceParameters?: NarrationParameters;
@@ -491,7 +492,11 @@ export async function generateVoice(
       "--device",
       config.ttsDevice,
     ];
-    const voicePrompts = await resolveVoicePrompts(context.locale, parts, context.baseVoice);
+    const voicePrompts = await resolveVoicePrompts(
+      context.locale,
+      parts,
+      context.baseVoice,
+    );
     const promptsPath = path.join(staging, "voice-prompts.json");
     await fs.writeFile(
       promptsPath,
@@ -505,6 +510,7 @@ export async function generateVoice(
       "utf8",
     );
     args.push(...narrationParameterArgs(context.voiceParameters));
+    if (context.singleUtterance) args.push("--single-utterance");
     args.push("--voice-prompts", promptsPath);
     if (force) args.push("--force");
     await new Promise<void>((resolve, reject) => {
@@ -551,7 +557,7 @@ export async function generateVoice(
       child.stderr.on("data", (chunk: Buffer) => {
         stderrTail = (stderrTail + chunk.toString()).slice(-6000);
         const progress = /generating/i.test(stage)
-          ? samplingProgress(stderrTail)
+          ? samplingProgress(stderrTail, stage)
           : undefined;
         if (progress !== undefined) onProgress?.(progress);
       });

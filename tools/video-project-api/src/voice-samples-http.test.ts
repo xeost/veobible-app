@@ -101,6 +101,28 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
       };
       await start();
       assert.equal((await fetch(base)).status, 401);
+      const disabledReading = await fetch(
+        `http://127.0.0.1:${port}/v1/projects/1/voices`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            projectId: 1,
+            kind: "short",
+            version: { id: "rv1909", locale: "es", label: "Bible" },
+            passage: {
+              id: "reading",
+              book: "genesis",
+              start: { chapter: 1, verse: 1 },
+              end: { chapter: 1, verse: 1 },
+            },
+            settings: {},
+            part: "reading-0",
+          }),
+        },
+      );
+      assert.equal(disabledReading.status, 400);
+
       const catalog = async () =>
         (await (await fetch(base, { headers })).json()).voices as any[];
       assert.deepEqual(

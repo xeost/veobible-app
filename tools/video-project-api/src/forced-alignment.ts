@@ -131,14 +131,83 @@ export function runAlignmentWorker(
   });
 }
 
+/** Align the exact synthesis transcript before publishing a generated recording. */
+export async function alignGeneratedSpeech(
+  audio: string,
+  duration: number,
+  language: string,
+  segments: Array<{ id: string; text: string; start: number; end: number }>,
+  ffmpeg: string,
+  onProgress: (value: number) => void,
+) {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), "veobible-voice-alignment-"),
+  );
+  try {
+    const request = path.join(directory, "request.json");
+    const output = path.join(directory, "result.json");
+    await fs.writeFile(
+      request,
+      JSON.stringify({
+        language,
+        detectHeadings: false,
+        chapters: [{ index: 0, audio, duration, segments }],
+      }),
+    );
+    await runAlignmentWorker(request, output, ffmpeg, onProgress);
+    const result = responseSchema.parse(
+      JSON.parse(await fs.readFile(output, "utf8")),
+    );
+    const chapter = result.chapters[0];
+    if (
+      result.chapters.length !== 1 ||
+      chapter.index !== 0 ||
+      chapter.segments.length !== segments.length ||
+      new Set(chapter.segments.map((s) => s.id)).size !== segments.length
+    )
+      throw new Error("Incomplete generated voice alignment");
+    let previousEnd = 0;
+    const cues = segments.map((segment) => {
+      const match = chapter.segments.find((s) => s.id === segment.id);
+      if (!match) throw new Error("Missing generated voice alignment segment");
+      for (const word of match.words) {
+        if (
+          word.end < word.start ||
+          word.start < previousEnd - 0.08 ||
+          word.end > duration + 1e-6
+        )
+          throw new Error("Invalid generated voice alignment times");
+        previousEnd = word.end;
+      }
+      // Preserve the same acoustic margins used when aligning original recordings.
+      const start = Math.max(0, match.words[0].start - 0.03);
+      const end = Math.min(duration, match.words.at(-1)!.end + 0.05);
+      if (end - start < 0.02)
+        throw new Error("Empty generated voice alignment");
+      return { reference: segment.id, text: segment.text, start, end };
+    });
+    return { cues, model: result.model };
+  } catch (error) {
+    throw new Error(
+      `Generated voice alignment failed: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+}
+
 export async function alignProjectReading(
   input: Input,
   onProgress: (value: number) => void,
 ): Promise<AlignmentResult> {
-  const baseline = await analyze({
-    ...input,
-    settings: { ...input.settings, verseOffsets: [] },
-  });
+  const baseline = await analyze(
+    {
+      ...input,
+      settings: { ...input.settings, verseOffsets: [] },
+    },
+    { originalOnly: true },
+  );
   const { data, m, sections, cues } = baseline;
   if (input.sectionIndex !== undefined && input.sectionIndex >= sections.length)
     throw new Error("Invalid reading section");
@@ -146,7 +215,12 @@ export async function alignProjectReading(
     .map((_, index) => index)
     .filter(
       (index) =>
-        input.sectionIndex === undefined || index === input.sectionIndex,
+        Boolean(data.sections[index].file) &&
+        (input.sectionIndex === undefined || index === input.sectionIndex),
+    );
+  if (!indexes.length)
+    throw new Error(
+      "No original recording is available. Generate this reading to use it in the video.",
     );
   const chapters = indexes.map((index) => {
     const timing = data.timingInputs[index];

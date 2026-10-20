@@ -214,6 +214,12 @@ class AlignmentTests(unittest.TestCase):
                 validate(request)
             request["chapters"][0]["segments"][0]["end"] = 10
             self.assertEqual(validate(request), request)
+            request["detectHeadings"] = False
+            self.assertEqual(validate(request), request)
+            request["detectHeadings"] = "false"
+            with self.assertRaises(ValueError):
+                validate(request)
+            request.pop("detectHeadings")
             request["language"] = "xx"
             with self.assertRaises(ValueError):
                 validate(request)
