@@ -15,7 +15,7 @@ export type VideoRow = {
   updated_at: string | null;
 };
 
-export type VideoKind = "short" | "long";
+export type VideoKind = "short" | "long" | "book";
 export const videoStatusLabels: Record<string, string> = {
   draft: "Pendiente",
   queued: "En cola",

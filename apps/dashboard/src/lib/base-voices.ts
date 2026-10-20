@@ -59,7 +59,7 @@ export type BaseVoice = z.infer<
 >["voices"][number];
 export async function loadBaseVoiceDefaults(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
 ) {
   const row = await database
     .prepare("SELECT value FROM site_settings WHERE key=?")
@@ -71,7 +71,7 @@ export async function loadBaseVoiceDefaults(
 }
 export async function saveBaseVoiceDefaults(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   input: unknown,
   readingParameters?: ReadingNarrationOverrides,
 ) {

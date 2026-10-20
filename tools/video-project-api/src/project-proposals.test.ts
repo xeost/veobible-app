@@ -102,3 +102,53 @@ test("proposal discovery reads the selected format file on every call and preser
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test("book proposals cover every complete book in the selected version without a preset file", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "book-project-proposals-"),
+  );
+  try {
+    for (const locale of ["es", "en", "pt"] as const) {
+      const directory = path.join(root, locale, "custom");
+      await fs.mkdir(directory, { recursive: true });
+      await fs.writeFile(
+        path.join(directory, "index.json"),
+        JSON.stringify({
+          books: [
+            {
+              id: "genesis",
+              name: "Genesis",
+              chapters: 2,
+              versesPerChapter: [31, 25],
+            },
+            { id: "jude", name: "Jude", chapters: 1, versesPerChapter: [25] },
+          ],
+        }),
+      );
+      const proposals = await loadProjectProposals(
+        "book",
+        { locale, code: "custom" },
+        undefined,
+        root,
+      );
+      assert.deepEqual(proposals, [
+        {
+          id: 1,
+          slug: "genesis",
+          title: "Genesis",
+          start: { book: "genesis", chapter: 1, verse: 1 },
+          end: { book: "genesis", chapter: 2, verse: 25 },
+        },
+        {
+          id: 2,
+          slug: "jude",
+          title: "Jude",
+          start: { book: "jude", chapter: 1, verse: 1 },
+          end: { book: "jude", chapter: 1, verse: 25 },
+        },
+      ]);
+    }
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

@@ -9,7 +9,7 @@ import {
 export * from "../../../../tools/video-project-api/src/narration-parameters";
 export async function loadReadingNarrationOverrides(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
 ) {
   const row = await database
     .prepare("SELECT value FROM site_settings WHERE key=?")

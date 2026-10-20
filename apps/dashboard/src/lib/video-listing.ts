@@ -8,7 +8,7 @@ export const listingSelect =
 
 export async function listVideoProjects(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   version: string | null,
   rawIds: string | null,
 ) {
@@ -59,7 +59,7 @@ export async function pageVideoProjects(
   database: D1Database,
   params: URLSearchParams,
 ) {
-  const kind = z.enum(["short", "long"]).parse(params.get("kind"));
+  const kind = z.enum(["short", "long", "book"]).parse(params.get("kind"));
   const version = params.get("version");
   const versionId =
     version && version !== "all"

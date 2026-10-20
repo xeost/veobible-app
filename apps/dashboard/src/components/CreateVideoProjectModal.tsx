@@ -17,7 +17,7 @@ export function CreateVideoProjectModal({
   kind,
   close,
 }: {
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   close: () => void;
 }) {
   const dismiss = useModalDismiss(close);
@@ -162,8 +162,11 @@ export function CreateVideoProjectModal({
           const raw = {
             kind,
             versionId: Number(version),
-            title,
-            slug,
+            title:
+              kind === "book"
+                ? books.find((book) => book.id === start.book)?.name
+                : title,
+            slug: kind === "book" ? start.book : slug,
             ...(kind === "long" ? { episode } : {}),
             start,
             end,
@@ -183,7 +186,7 @@ export function CreateVideoProjectModal({
             });
             notify("Project created.");
             router.push(
-              `/${kind === "short" ? "short-videos" : "long-videos"}/${project.id}`,
+              `/${kind === "short" ? "short-videos" : kind === "book" ? "book-videos" : "long-videos"}/${project.id}`,
             );
             close();
           } catch (cause) {
@@ -234,31 +237,37 @@ export function CreateVideoProjectModal({
                 ))}
               </select>
             </label>
-            <label>
-              {t("Project title")}
-              <input
-                required
-                maxLength={500}
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-            </label>
-            <label>
-              {t("Short name")}
-              <input
-                required
-                maxLength={200}
-                pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                value={slug}
-                onChange={(event) => setSlug(event.target.value)}
-                placeholder={kind === "short" ? "john-3-14-19" : "episode-001"}
-              />
-              <small className="muted">
-                {t(
-                  "It must be unique for this version. Use lowercase letters, numbers and hyphens, without spaces.",
-                )}
-              </small>
-            </label>
+            {kind !== "book" && (
+              <>
+                <label>
+                  {t("Project title")}
+                  <input
+                    required
+                    maxLength={500}
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                  />
+                </label>
+                <label>
+                  {t("Short name")}
+                  <input
+                    required
+                    maxLength={200}
+                    pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                    value={slug}
+                    onChange={(event) => setSlug(event.target.value)}
+                    placeholder={
+                      kind === "short" ? "john-3-14-19" : "episode-001"
+                    }
+                  />
+                  <small className="muted">
+                    {t(
+                      "It must be unique for this version. Use lowercase letters, numbers and hyphens, without spaces.",
+                    )}
+                  </small>
+                </label>
+              </>
+            )}
             {kind === "long" && (
               <label>
                 {t("Episode number")}
@@ -274,6 +283,23 @@ export function CreateVideoProjectModal({
             )}
             {loadingBooks ? (
               <p className="muted">{t("Loading books…")}</p>
+            ) : kind === "book" ? (
+              <label>
+                {t("Book")}
+                <select
+                  required
+                  value={start.book}
+                  onChange={(event) =>
+                    setStart({ book: event.target.value, chapter: 1, verse: 1 })
+                  }
+                >
+                  {books.map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             ) : (
               books.length > 0 && (
                 <div className="manual-passage-points">

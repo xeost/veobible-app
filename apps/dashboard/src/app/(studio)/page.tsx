@@ -128,12 +128,20 @@ export default function Dashboard() {
                 <tr key={p.id}>
                   <td>
                     <Link
-                      href={`/${p.kind === "short" ? "short-videos" : "long-videos"}/${p.id}`}
+                      href={`/${p.kind === "short" ? "short-videos" : p.kind === "book" ? "book-videos" : "long-videos"}/${p.id}`}
                     >
                       {p.title}
                     </Link>
                   </td>
-                  <td>{t(p.kind === "short" ? "Short" : "Long")}</td>
+                  <td>
+                    {t(
+                      p.kind === "short"
+                        ? "Short"
+                        : p.kind === "book"
+                          ? "Book Videos"
+                          : "Long",
+                    )}
+                  </td>
                   <td>{p.label}</td>
                   <td>
                     <span

@@ -20,10 +20,10 @@ declare global {
 }
 
 declare namespace VinextRouteTypes {
-  type PageRoute = "/" | "/admin-tools" | "/bible-versions" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/settings" | "/short-videos" | "/short-videos/[id]";
+  type PageRoute = "/" | "/admin-tools" | "/bible-versions" | "/book-videos" | "/book-videos/[id]" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/settings" | "/short-videos" | "/short-videos/[id]";
   type LayoutRoute = "/" | "/(studio)";
   type RouteHandlerRoute = "/api/[...path]";
-  type AppRoute = "/" | "/(studio)" | "/admin-tools" | "/api/[...path]" | "/bible-versions" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/settings" | "/short-videos" | "/short-videos/[id]";
+  type AppRoute = "/" | "/(studio)" | "/admin-tools" | "/api/[...path]" | "/bible-versions" | "/book-videos" | "/book-videos/[id]" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/settings" | "/short-videos" | "/short-videos/[id]";
 
   interface ParamMap {
     "/": {};
@@ -31,6 +31,8 @@ declare namespace VinextRouteTypes {
     "/admin-tools": {};
     "/api/[...path]": { path: string[]; };
     "/bible-versions": {};
+    "/book-videos": {};
+    "/book-videos/[id]": { id: string; };
     "/deployments": {};
     "/login": {};
     "/long-videos": {};

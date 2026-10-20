@@ -79,7 +79,7 @@ export const renderSchema = z.object({
   readingCuts: readingCutsSchema.optional(),
   id: z.string().uuid(),
   projectId: z.number().int().positive(),
-  kind: z.enum(["short", "long"]),
+  kind: z.enum(["short", "long", "book"]),
   outputEnvironment: z
     .enum(["production", "development"])
     .default("production"),

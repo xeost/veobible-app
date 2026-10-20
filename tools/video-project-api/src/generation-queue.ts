@@ -16,7 +16,7 @@ export type QueueJob = {
 type Entry = {
   projectId: number;
   outputEnvironment?: "production" | "development";
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   type: GenerationType;
   job: QueueJob;
   createdAt: string;

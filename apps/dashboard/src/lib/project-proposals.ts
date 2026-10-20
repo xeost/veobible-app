@@ -38,7 +38,7 @@ export const projectProposalsSchema = z
   });
 export async function syncVideoProjects(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   version: BibleVersion,
   values: unknown,
 ) {

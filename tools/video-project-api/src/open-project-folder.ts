@@ -30,7 +30,6 @@ on run argv
       set current view of projectWindow to list view
       tell list view options of projectWindow
         set sort column to column id name column
-        set sort direction of column id name column to normal
       end tell
     end tell
     -- Finder's AppleScript properties can disagree with its visible sort.
@@ -41,6 +40,15 @@ on run argv
       tell process "Finder"
         if not frontmost then error "Finder is no longer in front."
         keystroke "1" using {control down, option down, command down}
+      end tell
+    end tell
+    -- The native command can toggle an already selected Name column. Apply
+    -- ascending direction after it settles so it cannot reverse our setting.
+    delay 0.2
+    my assertProjectWindow(projectWindow, projectFolder)
+    tell application "Finder"
+      tell list view options of projectWindow
+        set sort direction of column id name column to normal
       end tell
     end tell
     -- Observe without writes so a delayed restoration triggers another native
@@ -74,7 +82,7 @@ type RunCommand = (
 export async function openProjectFolder(
   directory: string,
   root: string,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   options: {
     platform?: string;
     open?: (directory: string) => Promise<void>;

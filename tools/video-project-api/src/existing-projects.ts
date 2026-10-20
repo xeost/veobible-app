@@ -59,7 +59,7 @@ const metadataField = (text: string, label: string) =>
     .trim();
 
 export async function discoverExistingProjects(
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   options: {
     directory?: string;
     versions?: Version[];
@@ -290,19 +290,25 @@ export async function discoverExistingProjects(
 /** Prefer numbered media while keeping previously generated projects playable. */
 export async function existingOutputMedia(
   directory: string,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   asset: "video" | "thumbnail",
 ) {
   const filename = videoFilename(kind);
-  const candidates = asset === "video"
-    ? [filename, filename.slice(2)]
-    : [
-        ...(await fs.readdir(directory).catch((error) => {
-          if (error.code === "ENOENT") return [];
-          throw error;
-        })).filter(isNumberedThumbnailFilename).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
-        "0-thumbnail.jpg", "thumbnail.jpg",
-      ];
+  const candidates =
+    asset === "video"
+      ? [filename, filename.slice(2)]
+      : [
+          ...(
+            await fs.readdir(directory).catch((error) => {
+              if (error.code === "ENOENT") return [];
+              throw error;
+            })
+          )
+            .filter(isNumberedThumbnailFilename)
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+          "0-thumbnail.jpg",
+          "thumbnail.jpg",
+        ];
   for (const name of candidates) {
     const file = path.join(directory, name);
     if ((await fs.stat(file).catch(() => null))?.isFile()) return file;
@@ -313,7 +319,7 @@ export async function existingOutputMedia(
 /** Read final media directly; older outputs do not have a dashboard render manifest. */
 export async function existingRenderResult(
   directory: string,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
 ) {
   const video = await existingOutputMedia(directory, kind, "video");
   if (!video) return null;
@@ -325,8 +331,13 @@ export async function existingRenderResult(
     ]);
     if (content !== undefined) descriptions[filename] = content;
   }
-  for (const filename of (await fs.readdir(directory)).filter(isPublicationFilename)) {
-    descriptions[filename] = await fs.readFile(path.join(directory, filename), "utf8");
+  for (const filename of (await fs.readdir(directory)).filter(
+    isPublicationFilename,
+  )) {
+    descriptions[filename] = await fs.readFile(
+      path.join(directory, filename),
+      "utf8",
+    );
   }
   return {
     video,

@@ -4,7 +4,7 @@ import {
   publicationPlatforms,
 } from "../../../../tools/video-project-api/src/publication-templates";
 export { publicationPlatforms };
-export const publicationSettingsSchema = (kind: "short" | "long") => {
+export const publicationSettingsSchema = (kind: "short" | "long" | "book") => {
   const templates = publicationTemplatesSchema.refine((value) =>
     Object.keys(value).every((key) =>
       (publicationPlatforms(kind) as readonly string[]).includes(key),
@@ -16,7 +16,7 @@ export type PublicationSettings = z.infer<
   ReturnType<typeof publicationSettingsSchema>
 >;
 export function emptyPublicationSettings(
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
 ): PublicationSettings {
   const empty = () =>
     Object.fromEntries(
@@ -26,7 +26,7 @@ export function emptyPublicationSettings(
 }
 export async function loadPublicationSettings(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
 ): Promise<PublicationSettings> {
   const row = await database
     .prepare("SELECT value FROM site_settings WHERE key=?")
@@ -38,7 +38,7 @@ export async function loadPublicationSettings(
 }
 export async function savePublicationSettings(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   input: unknown,
 ) {
   const templates = publicationSettingsSchema(kind).parse(input);

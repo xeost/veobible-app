@@ -66,7 +66,7 @@ const select =
 type Project = {
   id: number;
   project_id: number;
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   passage: string;
   slug: string;
   settings: string;
@@ -238,7 +238,9 @@ export async function videoApi(
     }
   }
   if (!parts[1] && method === "GET") {
-    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    const kind = z
+      .enum(["short", "long", "book"])
+      .parse(url.searchParams.get("kind"));
     if (!url.searchParams.has("ids"))
       return json(await pageVideoProjects(database, url.searchParams));
     return json({
@@ -252,7 +254,7 @@ export async function videoApi(
   }
   if (!parts[1] && method === "POST") {
     const raw = await req.json();
-    const input = manualVideoProjectSchema.parse(raw);
+    let input = manualVideoProjectSchema.parse(raw);
     const version = await database
       .prepare("SELECT id,locale,code,label FROM bible_versions WHERE id=?")
       .bind(input.versionId)
@@ -281,7 +283,7 @@ export async function videoApi(
         502,
       );
     }
-    validateManualVideoProject(input, books);
+    input = validateManualVideoProject(input, books);
     const passage = {
       id: input.slug,
       book: input.start.book,
@@ -330,7 +332,9 @@ export async function videoApi(
     return json({ id: result.meta.last_row_id }, 201);
   }
   if (parts[1] === "sync" && !parts[2] && method === "POST") {
-    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    const kind = z
+      .enum(["short", "long", "book"])
+      .parse(url.searchParams.get("kind"));
     const input = z
       .object({ versionId: z.number().int().positive() })
       .parse(await req.json());

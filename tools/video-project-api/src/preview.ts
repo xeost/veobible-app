@@ -84,9 +84,10 @@ export async function createPreview(
             episodeContent!.display,
             data.index.metadata.name,
             input.passage.episode,
+            input.kind === "book",
           );
     const chapterFiles =
-      input.kind === "long" &&
+      input.kind !== "short" &&
       !input.readingReferences &&
       !(input.voicePart === "intro" || input.voicePart === "outro")
         ? await projectChapterVoiceFiles(input)

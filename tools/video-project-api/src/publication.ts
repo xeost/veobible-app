@@ -59,7 +59,7 @@ export function publicationDescriptions(
   title: PublicationTitle,
   verses: string[],
   templates: PublicationTemplates,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   passageUrl = "",
 ): Record<string, string> {
   const language = copy[locale];
@@ -87,7 +87,11 @@ export function publicationDescriptions(
       ...new Set([
         "VeoBible",
         ...language.tags,
-        kind === "short" ? language.verse : longSeries[locale],
+        kind === "short"
+          ? language.verse
+          : kind === "book"
+            ? "BibleBooks"
+            : longSeries[locale],
         book,
         ...themes,
         extra,
@@ -104,7 +108,9 @@ export function publicationDescriptions(
       platform === "youtube" || platform === "facebook"
         ? kind === "short"
           ? "Shorts"
-          : "BibleIn365Days"
+          : kind === "book"
+            ? "BibleBooks"
+            : "BibleIn365Days"
         : platform === "instagram"
           ? "Reels"
           : platform === "tiktok"
@@ -131,18 +137,19 @@ export function publicationDescriptions(
       const filename = headings.length
         ? publicationFilenames[platform].replace("-", `.${index + 1}-`)
         : publicationFilenames[platform];
-      result[filename] = fillPublicationTemplate(section, {
-        title: title.title,
-        episode:
-          kind === "long" && title.episode !== undefined
-            ? String(title.episode)
-            : "",
-        reference: title.reference,
-        version: title.version,
-        passage,
-        passage_url: passageUrl,
-        hashtags: hashtags(extra),
-      }).trimEnd() + "\n";
+      result[filename] =
+        fillPublicationTemplate(section, {
+          title: title.title,
+          episode:
+            kind === "long" && title.episode !== undefined
+              ? String(title.episode)
+              : "",
+          reference: title.reference,
+          version: title.version,
+          passage,
+          passage_url: passageUrl,
+          hashtags: hashtags(extra),
+        }).trimEnd() + "\n";
     }
   }
   return result;

@@ -13,7 +13,7 @@ export function SyncVideoProjectsModal({
   close,
   onSynced,
 }: {
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   selectedVersion: string;
   close: () => void;
   onSynced: (versionId: number) => void;
@@ -107,11 +107,19 @@ export function SyncVideoProjectsModal({
         </div>
         <p className="muted">
           {t(
-            "Suggested passages without a project for this version will be added. Your existing projects will keep all their changes.",
+            kind === "book"
+              ? "A project will be added for each complete book in this version. Existing book projects will keep all their changes."
+              : "Suggested passages without a project for this version will be added. Your existing projects will keep all their changes.",
           )}
         </p>
         <p className="eyebrow">
-          {t(kind === "short" ? "Short Videos" : "Long Videos")}
+          {t(
+            kind === "short"
+              ? "Short Videos"
+              : kind === "book"
+                ? "Book Videos"
+                : "Long Videos",
+          )}
         </p>
         {error && (
           <p className="error" role="alert">

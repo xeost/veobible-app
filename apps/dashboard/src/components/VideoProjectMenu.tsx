@@ -16,7 +16,7 @@ export function VideoProjectMenu({
 }: {
   onSettings: () => void;
   onSync: () => void;
-  onSyncExisting: () => void;
+  onSyncExisting?: () => void;
   syncingExisting: boolean;
 }) {
   const { t } = useI18n();
@@ -95,24 +95,26 @@ export function VideoProjectMenu({
             <RefreshCw size={16} />
             {t("Sync project presets")}
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={syncingExisting}
-            onClick={() => {
-              setOpen(false);
-              onSyncExisting();
-            }}
-          >
-            {syncingExisting ? (
-              <LoaderCircle size={16} />
-            ) : (
-              <FolderSync size={16} />
-            )}
-            {syncingExisting
-              ? t("Syncing existing projects…")
-              : t("Sync existing projects")}
-          </button>
+          {onSyncExisting && (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={syncingExisting}
+              onClick={() => {
+                setOpen(false);
+                onSyncExisting();
+              }}
+            >
+              {syncingExisting ? (
+                <LoaderCircle size={16} />
+              ) : (
+                <FolderSync size={16} />
+              )}
+              {syncingExisting
+                ? t("Syncing existing projects…")
+                : t("Sync existing projects")}
+            </button>
+          )}
         </div>
       )}
     </div>

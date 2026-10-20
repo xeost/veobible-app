@@ -101,7 +101,7 @@ type Job = {
 };
 async function chapterFilesFromQuery(url: URL) {
   if (
-    url.searchParams.get("kind") !== "long" ||
+    !["long", "book"].includes(url.searchParams.get("kind") ?? "") ||
     !url.searchParams.has("passageRange")
   )
     return [];
@@ -111,7 +111,7 @@ async function chapterFilesFromQuery(url: URL) {
   if (passage.id !== url.searchParams.get("passage"))
     throw new Error("Project passage mismatch");
   return projectChapterVoiceFiles({
-    kind: "long",
+    kind: renderSchema.shape.kind.parse(url.searchParams.get("kind")),
     settings: {
       baseVoice: url.searchParams.has("baseVoice")
         ? baseVoiceSchema.parse(url.searchParams.get("baseVoice"))
@@ -428,7 +428,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/v1/projects/existing" && req.method === "GET") {
       const kind = z
-        .enum(["short", "long"])
+        .enum(["short", "long", "book"])
         .parse(url.searchParams.get("kind"));
       return json(res, 200, {
         ...(await discoverExistingProjects(kind, {
@@ -450,7 +450,7 @@ const server = http.createServer(async (req, res) => {
       req.method === "GET"
     ) {
       const kind = z
-        .enum(["short", "long"])
+        .enum(["short", "long", "book"])
         .parse(url.searchParams.get("kind"));
       const locale = renderSchema.shape.version.shape.locale.parse(
         url.searchParams.get("locale"),
@@ -498,7 +498,7 @@ const server = http.createServer(async (req, res) => {
       const projectId = z.coerce.number().int().positive().parse(parts[2]);
       if (req.method === "GET") {
         const kind = z
-          .enum(["short", "long"])
+          .enum(["short", "long", "book"])
           .parse(url.searchParams.get("kind"));
         const environment = renderSchema.shape.outputEnvironment.parse(
           url.searchParams.get("outputEnvironment") ?? undefined,
@@ -597,7 +597,7 @@ const server = http.createServer(async (req, res) => {
     ) {
       const projectId = z.coerce.number().int().positive().parse(parts[2]);
       const kind = z
-        .enum(["short", "long"])
+        .enum(["short", "long", "book"])
         .parse(url.searchParams.get("kind"));
       const version = renderSchema.shape.version.shape.id.parse(
         url.searchParams.get("version"),
@@ -646,7 +646,7 @@ const server = http.createServer(async (req, res) => {
       const projectId = z.coerce.number().int().positive().parse(parts[2]);
       if (req.method === "GET") {
         const kind = z
-          .enum(["short", "long"])
+          .enum(["short", "long", "book"])
           .parse(url.searchParams.get("kind"));
         const version = renderSchema.shape.version.shape.id.parse(
           url.searchParams.get("version"),
@@ -969,7 +969,7 @@ const server = http.createServer(async (req, res) => {
     ) {
       const id = z.coerce.number().int().positive().parse(parts[2]);
       const kind = z
-        .enum(["short", "long"])
+        .enum(["short", "long", "book"])
         .parse(url.searchParams.get("kind"));
       const version = renderSchema.shape.version.shape.id.parse(
         url.searchParams.get("version"),

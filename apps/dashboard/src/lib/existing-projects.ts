@@ -37,7 +37,7 @@ export const existingProjectsSchema = z.object({
 
 export async function syncExistingProjects(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   values: unknown,
 ) {
   const input = existingProjectsSchema.parse(values);

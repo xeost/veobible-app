@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const projectPublicationSchema = z.object({
-  kind: z.enum(["short", "long"]),
+  kind: z.enum(["short", "long", "book"]),
   ids: z
     .array(z.number().int().positive().max(Number.MAX_SAFE_INTEGER))
     .min(1)

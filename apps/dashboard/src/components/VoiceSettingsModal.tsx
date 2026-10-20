@@ -47,7 +47,7 @@ export function VoiceSettingsModal({
   close,
   canEdit,
 }: {
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   close: () => void;
   canEdit: boolean;
 }) {
@@ -243,7 +243,13 @@ export function VoiceSettingsModal({
         <div className="generation-queue-heading">
           <div>
             <p className="eyebrow">
-              {t(kind === "short" ? "Short Videos" : "Long Videos")}
+              {t(
+                kind === "short"
+                  ? "Short Videos"
+                  : kind === "book"
+                    ? "Book Videos"
+                    : "Long Videos",
+              )}
             </p>
             <h2 id="voice-settings-title">
               <Settings size={22} />

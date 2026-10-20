@@ -182,6 +182,7 @@ export function introTitle(
   passageReference: string,
   versionName: string,
   episode?: number,
+  completeBook = false,
 ): IntroTitle {
   const titles: Record<Version["locale"], string> = {
     es: "La Biblia en 365 días",
@@ -190,7 +191,13 @@ export function introTitle(
   };
   const day = { es: "Día", en: "Day", pt: "Dia" }[locale];
   return {
-    title: titles[locale],
+    title: completeBook
+      ? {
+          es: "Libros de la Biblia",
+          en: "Books of the Bible",
+          pt: "Livros da Bíblia",
+        }[locale]
+      : titles[locale],
     reference: passageReference,
     version: versionName,
     episode,
@@ -336,9 +343,10 @@ async function chapterAudio(
   book: Book,
   number: number,
   chapter: number,
+  audioDir = config.audioDir,
 ): Promise<string> {
   return findChapterAudio(
-    path.join(config.audioDir, version.id),
+    path.join(audioDir, version.id),
     book,
     number,
     chapter,
@@ -349,6 +357,7 @@ export async function analyzePassageAudio(
   version: Version,
   passage: Passage,
   allowMissing = false,
+  audioDir = config.audioDir,
 ) {
   const index = await readIndex(version);
   const { book } = getBook(index, passage);
@@ -375,13 +384,17 @@ export async function analyzePassageAudio(
     lines.push(
       ...selected.map((v) => `${book.name} ${chapter}:${v.verse} ${v.text}`),
     );
-    const source = await chapterAudio(version, book, number, chapter).catch(
-      (error) => {
-        if (allowMissing && /^Missing audio for chapter/.test(error.message))
-          return "";
-        throw error;
-      },
-    );
+    const source = await chapterAudio(
+      version,
+      book,
+      number,
+      chapter,
+      audioDir,
+    ).catch((error) => {
+      if (allowMissing && /^Missing audio for chapter/.test(error.message))
+        return "";
+      throw error;
+    });
     const sourceDuration = source
       ? await audioDurationSeconds(source)
       : Math.max(

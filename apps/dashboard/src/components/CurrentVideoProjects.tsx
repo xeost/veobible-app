@@ -114,7 +114,7 @@ export function CurrentVideoProjects({
       !signal.aborted && requestRevision === revision.current;
     try {
       const groups = await Promise.all(
-        (["short", "long"] as const).map(async (kind) => {
+        (["short", "long", "book"] as const).map(async (kind) => {
           let marks: CurrentProjects = {};
           try {
             marks = parseCurrentProjects(
@@ -173,7 +173,7 @@ export function CurrentVideoProjects({
     }
   });
 
-  const orderedRows = (["short", "long"] as const).flatMap((kind) =>
+  const orderedRows = (["short", "long", "book"] as const).flatMap((kind) =>
     orderVersions(
       rows
         .filter((row) => row.kind === kind)
@@ -181,15 +181,15 @@ export function CurrentVideoProjects({
     ),
   );
   const href = (row: VideoRow) =>
-    `/${row.kind === "short" ? "short-videos" : "long-videos"}/${row.id}`;
+    `/${row.kind === "short" ? "short-videos" : row.kind === "book" ? "book-videos" : "long-videos"}/${row.id}`;
   const removeMark = (row: VideoRow) => {
     try {
       const key = currentProjectStorageKey(
-        row.kind === "short" ? "short" : "long",
+        row.kind === "short" ? "short" : row.kind === "book" ? "book" : "long",
       );
       const marks = parseCurrentProjects(
         localStorage.getItem(key),
-        row.kind === "short" ? "short" : "long",
+        row.kind === "short" ? "short" : row.kind === "book" ? "book" : "long",
       );
       localStorage.setItem(
         key,
@@ -249,7 +249,8 @@ export function CurrentVideoProjects({
     setAdvancing(row.id);
     setError("");
     try {
-      const kind = row.kind === "short" ? "short" : "long";
+      const kind =
+        row.kind === "short" ? "short" : row.kind === "book" ? "book" : "long";
       const key = currentProjectStorageKey(kind);
       const before = parseCurrentProjects(localStorage.getItem(key), kind);
       const others = (before[projectVersionKey(row)] ?? []).filter(
@@ -282,14 +283,16 @@ export function CurrentVideoProjects({
   return (
     <>
       {error && <p className="error">{t(error)}</p>}
-      {(["short", "long"] as const).map((kind) => (
+      {(["short", "long", "book"] as const).map((kind) => (
         <section className="panel" key={kind}>
           <div className="panel-heading">
             <h3>
               {t(
                 kind === "short"
                   ? "Current projects · Short videos"
-                  : "Current projects · Long videos",
+                  : kind === "book"
+                    ? "Current projects · Book videos"
+                    : "Current projects · Long videos",
               )}
             </h3>
             <PublishedProjectCleanup
@@ -475,7 +478,9 @@ export function CurrentVideoProjects({
                 {t(
                   kind === "short"
                     ? "Mark a project in Short Videos to see it here."
-                    : "Mark a project in Long Videos to see it here.",
+                    : kind === "book"
+                      ? "Mark a project in Book Videos to see it here."
+                      : "Mark a project in Long Videos to see it here.",
                 )}
               </div>
             )}

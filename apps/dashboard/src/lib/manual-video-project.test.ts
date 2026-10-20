@@ -53,3 +53,11 @@ test("manual project validation accepts custom passages and checks version-speci
     false,
   );
 });
+
+test("book projects use a canonical identity and all chapters of the selected book", () => {
+  const project = validateManualVideoProject({ ...input, kind: "book" }, books);
+  assert.equal(project.slug, "genesis");
+  assert.deepEqual(project.start, { book: "genesis", chapter: 1, verse: 1 });
+  assert.deepEqual(project.end, { book: "genesis", chapter: 2, verse: 25 });
+  assert.equal(project.episode, undefined);
+});

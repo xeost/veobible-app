@@ -16,7 +16,7 @@ export const emptyProjectSettings = (): ProjectSettings => ({
 });
 export async function loadProjectSettings(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
 ): Promise<ProjectSettings> {
   const row = await database
     .prepare("SELECT value FROM site_settings WHERE key=?")
@@ -28,7 +28,7 @@ export async function loadProjectSettings(
 }
 export async function saveProjectSettings(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   input: unknown,
 ) {
   const settings = projectSettingsSchema.parse(input);

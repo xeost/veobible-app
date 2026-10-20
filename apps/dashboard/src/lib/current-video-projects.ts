@@ -7,7 +7,7 @@ export const projectVersionKey = (
   row: Pick<VideoRow, "locale" | "version_code">,
 ) => `${row.locale}:${row.version_code}`;
 export const currentProjectLimit = (kind: VideoKind) =>
-  kind === "long" ? 2 : 1;
+  kind !== "short" ? 2 : 1;
 
 export function parseCurrentProjects(
   value: string | null,
@@ -56,7 +56,7 @@ export function toggleCurrentProjectMark(
   const key = projectVersionKey(row);
   const ids = marks[key] ?? [];
   if (ids.includes(row.id)) return removeCurrentProject(marks, row);
-  if (kind === "long" && ids.length >= currentProjectLimit(kind)) return marks;
+  if (kind !== "short" && ids.length >= currentProjectLimit(kind)) return marks;
   return { ...marks, [key]: kind === "short" ? [row.id] : [...ids, row.id] };
 }
 

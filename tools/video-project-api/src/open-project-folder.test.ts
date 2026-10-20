@@ -95,7 +95,14 @@ test("Finder targets the project folder in list view sorted by name ascending an
         // Script property readbacks can be stale. Sorting must also use the
         // native command, with all three modifiers (without Option it groups).
         const nativeSort = script.indexOf('keystroke "1"');
-        assert.ok(nativeSort > script.indexOf("set sort direction"));
+        assert.ok(nativeSort > script.indexOf("set sort column"));
+        const ascendingSort = script.indexOf("set sort direction");
+        assert.ok(ascendingSort > nativeSort);
+        assert.match(script.slice(nativeSort, ascendingSort), /delay 0\.2/);
+        assert.match(
+          script.slice(nativeSort, ascendingSort),
+          /my assertProjectWindow\(projectWindow, projectFolder\)/,
+        );
         assert.match(
           script.slice(nativeSort),
           /^keystroke "1" using \{control down, option down, command down\}/,
@@ -114,10 +121,10 @@ test("Finder targets the project folder in list view sorted by name ascending an
           "my assertProjectWindow(projectWindow, projectFolder)",
           nativeSort,
         );
-        assert.ok(guard > script.indexOf("set sort direction"));
+        assert.ok(guard > script.indexOf("set sort column"));
         const observe = script.indexOf("repeat 20 times", nativeSort);
         const success = script.indexOf("if sortRestored then return", observe);
-        assert.ok(observe > nativeSort && success > observe);
+        assert.ok(observe > ascendingSort && success > observe);
         assert.match(script.slice(observe, success), /delay 0\.1/);
         assert.match(script.slice(observe, success), /set sortRestored to false/);
         assert.match(

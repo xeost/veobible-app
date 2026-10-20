@@ -213,7 +213,7 @@ export function VideoProjectEditor({
       `videos/${encodeURIComponent(projectId)}${action ? `/${action}` : ""}?kind=${kind}`,
     [projectId, kind],
   );
-  const backHref = `/${kind === "short" ? "short-videos" : "long-videos"}`;
+  const backHref = `/${kind === "short" ? "short-videos" : kind === "book" ? "book-videos" : "long-videos"}`;
   useProjectBreadcrumb(
     `${backHref}/${encodeURIComponent(projectId)}`,
     String(project?.project_id) === projectId ? project?.title : undefined,
@@ -476,7 +476,7 @@ export function VideoProjectEditor({
       !["queued", "running"].includes(voices[part]?.status ?? ""),
   );
   const narrationRequirement =
-    kind === "long" || readingParts.length > 0
+    kind !== "short" || readingParts.length > 0
       ? "Generate all section narrations before generating the video."
       : "Generate the introduction and closing voices before generating the video.";
   const { editingLocked, taskQueueLocked } = editorActivityLocks({
@@ -1085,7 +1085,7 @@ export function VideoProjectEditor({
     "intro",
     ...(timeline.length
       ? timeline.flatMap((section) =>
-          kind === "long"
+          kind !== "short"
             ? [`chapter-${section.index}`, `reading-${section.index}`]
             : [`reading-${section.index}`],
         )
@@ -1860,7 +1860,7 @@ export function VideoProjectEditor({
                     applyingAlignment.sectionIndex === section.index);
                 return (
                   <div key={id} style={{ display: "contents" }}>
-                    {kind === "long" &&
+                    {kind !== "short" &&
                       analysis?.chapterIntroductions?.[section.index] &&
                       voiceSection(
                         analysis.chapterIntroductions[section.index].part,
@@ -1869,7 +1869,7 @@ export function VideoProjectEditor({
                     <section className="section-card">
                       {sectionHeading(
                         id,
-                        kind === "long"
+                        kind !== "short"
                           ? section.index * 2 + 3
                           : section.index + 2,
                         `${t("Passage reading")} ${timeline.length > 1 ? section.index + 1 : ""}`,

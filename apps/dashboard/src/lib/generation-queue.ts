@@ -16,7 +16,7 @@ export type GenerationQueueItem = {
   createdAt: string;
   finishedAt?: string;
   title: string;
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   version: string;
   href: string;
 };

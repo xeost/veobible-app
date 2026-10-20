@@ -280,7 +280,9 @@ async function handle(req: Request, lang: Language) {
     return json({ error: "Route not found" }, 404);
   }
   if (parts.join("/") === "settings/base-voices") {
-    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    const kind = z
+      .enum(["short", "long", "book"])
+      .parse(url.searchParams.get("kind"));
     if (method === "GET") {
       const [defaults, readingParameters, styles] = await Promise.all([
         loadBaseVoiceDefaults(database, kind),
@@ -369,7 +371,7 @@ async function handle(req: Request, lang: Language) {
         const input = z
           .object({
             text: z.string().trim().min(1).max(500),
-            kind: z.enum(["short", "long"]).optional(),
+            kind: z.enum(["short", "long", "book"]).optional(),
             role: z.enum(["intro", "outro", "reading"]).optional(),
             readingParameters: readingNarrationParametersSchema
               .nullable()
@@ -413,7 +415,9 @@ async function handle(req: Request, lang: Language) {
     }
   }
   if (parts.join("/") === "settings/voice-templates") {
-    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    const kind = z
+      .enum(["short", "long", "book"])
+      .parse(url.searchParams.get("kind"));
     if (method === "GET")
       return json({ templates: await loadVoiceSettings(database, kind) });
     if (method === "PUT") {
@@ -424,7 +428,9 @@ async function handle(req: Request, lang: Language) {
     }
   }
   if (parts.join("/") === "settings/publication-templates") {
-    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    const kind = z
+      .enum(["short", "long", "book"])
+      .parse(url.searchParams.get("kind"));
     if (method === "GET")
       return json({ templates: await loadPublicationSettings(database, kind) });
     if (method === "PUT") {
@@ -435,7 +441,9 @@ async function handle(req: Request, lang: Language) {
     }
   }
   if (parts.join("/") === "settings/project-settings") {
-    const kind = z.enum(["short", "long"]).parse(url.searchParams.get("kind"));
+    const kind = z
+      .enum(["short", "long", "book"])
+      .parse(url.searchParams.get("kind"));
     if (method === "GET")
       return json({ settings: await loadProjectSettings(database, kind) });
     if (method === "PUT") {

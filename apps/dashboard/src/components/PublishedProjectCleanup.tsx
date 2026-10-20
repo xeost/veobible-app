@@ -18,7 +18,7 @@ export function PublishedProjectCleanup({
   kind,
   onDeleted,
 }: {
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   onDeleted: () => void;
 }) {
   const notify = useToast();
@@ -104,7 +104,9 @@ export function PublishedProjectCleanup({
         aria-label={t(
           kind === "short"
             ? "Clean up published short video files"
-            : "Clean up published long video files",
+            : kind === "book"
+              ? "Clean up published book video files"
+              : "Clean up published long video files",
         )}
         data-tooltip={t(
           "Delete local folders for all published projects of this format. Projects with generation tasks are kept.",
@@ -140,7 +142,9 @@ export function PublishedProjectCleanup({
             {t(
               kind === "short"
                 ? "Clean up published short video files"
-                : "Clean up published long video files",
+                : kind === "book"
+                  ? "Clean up published book video files"
+                  : "Clean up published long video files",
             )}
           </h2>
           <p id={`cleanup-description-${kind}`}>

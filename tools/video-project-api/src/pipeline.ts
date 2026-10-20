@@ -19,6 +19,7 @@ import {
   isNumberedThumbnailFilename,
 } from "./output-files.js";
 export { videoFilename } from "./output-files.js";
+import { publicationDescriptions } from "./publication.js";
 import { publicationPassageUrl } from "./publication.js";
 import { chapterVoiceCache } from "./chapter-voice-cache.js";
 import { episodeReference } from "./episode-reference.js";
@@ -31,7 +32,11 @@ import { applyReadingCuts, expandReadingContext } from "./reading-timeline.js";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { outputRoot, type OutputEnvironment } from "./working-directories.js";
+import {
+  outputRoot,
+  workingDirectories,
+  type OutputEnvironment,
+} from "./working-directories.js";
 import * as short from "./engines/short/shorts.js";
 import * as long from "./engines/long/episodes.js";
 import * as shortVoice from "./engines/short/voice.js";
@@ -198,7 +203,16 @@ async function writePassageFiles(
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
   }
 }
-function modules(kind: "short" | "long") {
+const bookDescriptions: typeof longDescriptions = (
+  locale,
+  title,
+  verses,
+  templates = {},
+  passageUrl = "",
+) =>
+  publicationDescriptions(locale, title, verses, templates, "book", passageUrl);
+
+function modules(kind: "short" | "long" | "book") {
   return kind === "short"
     ? {
         passages: short,
@@ -214,9 +228,23 @@ function modules(kind: "short" | "long") {
         voice: longVoice,
         video: longVideo,
         timing: longTiming,
-        config: longConfig,
+        config:
+          kind === "book"
+            ? {
+                ...longConfig,
+                workingDir: workingDirectories.book,
+                videosDir: path.join(
+                  workingDirectories.book,
+                  "material",
+                  "videos",
+                ),
+                audioDir:
+                  process.env.VIDEO_AUDIO_DIR ??
+                  path.join(workingDirectories.book, "material", "bible-audio"),
+              }
+            : longConfig,
         outro: longOutro,
-        descriptions: longDescriptions,
+        descriptions: kind === "book" ? bookDescriptions : longDescriptions,
       };
 }
 const readingText = (text: string) =>
@@ -319,6 +347,7 @@ export async function analyze(
     version,
     input.passage,
     true,
+    m.config.audioDir,
   );
   const originalSections = m.passages.applyPassageAudioOffsets(
     data.sections,
@@ -458,7 +487,7 @@ export async function analyze(
       ? undefined
       : narrationModelForLocale(input.voiceModel, input.version.locale);
   const episodeContent =
-    input.kind === "long"
+    input.kind !== "short"
       ? episodeReference(
           long.passageChapters(data.index, input.passage),
           version.locale,
@@ -472,7 +501,7 @@ export async function analyze(
     context.end = episodeContent.end;
   }
   const chapterIntroductions: ChapterIntroduction[] =
-    input.kind === "long"
+    input.kind !== "short"
       ? long.passageChapters(data.index, input.passage).map((range, index) => {
           const { title, script } = chapterIntroductionText(
             version.locale,
@@ -749,7 +778,7 @@ export async function projectChapterVoiceFiles(
     };
   },
 ) {
-  if (input.kind !== "long") return [];
+  if (input.kind === "short") return [];
   const version = longConfig.versions.find(
     (item) =>
       item.id === input.version.id && item.locale === input.version.locale,
@@ -908,6 +937,7 @@ export async function render(
             episodeContent!.display,
             data.index.metadata.name,
             input.passage.episode,
+            input.kind === "book",
           );
     const renderer =
       input.kind === "short"

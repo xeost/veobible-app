@@ -48,9 +48,21 @@ test("format roots keep clips and outputs separate while base voices share the w
       videos: path.join(formatRoot, "material", "videos"),
       voices: path.join(root, "material", "voices"),
       output: path.join(formatRoot, "outputs", "rv1909", "project"),
-      source: path.join(formatRoot, "outputs", "rv1909", "project", "_internal"),
+      source: path.join(
+        formatRoot,
+        "outputs",
+        "rv1909",
+        "project",
+        "_internal",
+      ),
       development: path.join(formatRoot, "outputs-dev", "rv1909", "project"),
-      developmentSource: path.join(formatRoot, "outputs-dev", "rv1909", "project", "_internal"),
+      developmentSource: path.join(
+        formatRoot,
+        "outputs-dev",
+        "rv1909",
+        "project",
+        "_internal",
+      ),
     })),
   );
 });
@@ -59,18 +71,39 @@ test("format names default to shorts/longs and reject paths", async () => {
   const execute = promisify(execFile);
   const cwd = fileURLToPath(new URL("..", import.meta.url));
   const root = path.join(os.tmpdir(), "veobible-default-path-test");
-  const args = ["--import", "tsx", "--input-type=module", "-e",
-    "import {workingDirectories} from './src/working-directories.ts'; console.log(JSON.stringify(workingDirectories));"];
-  const env = { ...process.env, WORKING_DIR: root, SHORTS_DIR_NAME: "", LONGS_DIR_NAME: "" };
+  const args = [
+    "--import",
+    "tsx",
+    "--input-type=module",
+    "-e",
+    "import {workingDirectories} from './src/working-directories.ts'; console.log(JSON.stringify(workingDirectories));",
+  ];
+  const env = {
+    ...process.env,
+    WORKING_DIR: root,
+    SHORTS_DIR_NAME: "",
+    LONGS_DIR_NAME: "",
+    BOOKS_DIR_NAME: "",
+  };
   const { stdout } = await execute(process.execPath, args, { cwd, env });
   assert.deepEqual(JSON.parse(stdout), {
     short: path.join(root, "shorts"),
     long: path.join(root, "longs"),
+    book: path.join(root, "books"),
   });
-  for (const name of ["SHORTS_DIR_NAME", "LONGS_DIR_NAME"])
-    for (const value of ["..", ".", "/absolute/path", "nested/path", "nested\\path"])
+  for (const name of ["SHORTS_DIR_NAME", "LONGS_DIR_NAME", "BOOKS_DIR_NAME"])
+    for (const value of [
+      "..",
+      ".",
+      "/absolute/path",
+      "nested/path",
+      "nested\\path",
+    ])
       await assert.rejects(
-        execute(process.execPath, args, { cwd, env: { ...env, [name]: value } }),
+        execute(process.execPath, args, {
+          cwd,
+          env: { ...env, [name]: value },
+        }),
         { message: new RegExp(`${name} must be a single directory name`) },
       );
 });

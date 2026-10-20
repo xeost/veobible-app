@@ -52,12 +52,15 @@ export type VideoPreviewView = "composition" | "rendered";
 
 function SectionPreview(
   props: ShortCompositionProps & {
-    previewKind?: "short" | "long";
+    previewKind?: "short" | "long" | "book";
     previewVoicePart?: VoicePart;
   },
 ) {
   if (props.previewVoicePart === "intro") {
-    const Intro = props.previewKind === "long" ? LongIntro : ShortIntro;
+    const Intro =
+      props.previewKind === "long" || props.previewKind === "book"
+        ? LongIntro
+        : ShortIntro;
     return (
       <Intro
         introVideoPath={props.introVideoPath}
@@ -69,7 +72,10 @@ function SectionPreview(
     );
   }
   if (props.previewVoicePart === "outro") {
-    const Outro = props.previewKind === "long" ? LongOutro : ShortOutro;
+    const Outro =
+      props.previewKind === "long" || props.previewKind === "book"
+        ? LongOutro
+        : ShortOutro;
     return (
       <Outro
         outroVideoPath={props.outroVideoPath}
@@ -80,7 +86,10 @@ function SectionPreview(
       />
     );
   }
-  const Reading = props.previewKind === "long" ? LongReading : ShortReading;
+  const Reading =
+    props.previewKind === "long" || props.previewKind === "book"
+      ? LongReading
+      : ShortReading;
   return (
     <Reading
       {...props}
@@ -114,7 +123,7 @@ export function VideoProjectPreview({
   playbackRef,
   onBackground,
 }: {
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   endpoint: (action?: string) => string;
   media: (asset: string) => string;
   settings: RenderRequest["settings"];
@@ -389,7 +398,7 @@ export function VideoProjectPreview({
               {t(
                 ready
                   ? "Preparing preview…"
-                  : kind === "long"
+                  : kind !== "short"
                     ? "Generate all section narrations to preview the video."
                     : "Generate the introduction and closing voices to preview the video.",
               )}

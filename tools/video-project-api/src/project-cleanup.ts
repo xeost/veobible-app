@@ -3,7 +3,7 @@ import path from "node:path";
 import { z } from "zod";
 
 export const cleanupRequestSchema = z.object({
-  kind: z.enum(["short", "long"]),
+  kind: z.enum(["short", "long", "book"]),
   outputEnvironment: z.enum(["production", "development"]),
   action: z.enum(["preview", "delete"]),
   projects: z

@@ -38,6 +38,7 @@ const items = [
   ["/bible-versions", "Bible versions", BookOpen],
   ["/short-videos", "Short Videos", Clapperboard],
   ["/long-videos", "Long Videos", Film],
+  ["/book-videos", "Book Videos", Film],
   ["/deployments", "Publications", Rocket],
   ["/settings", "Settings", Settings],
   ["/admin-tools", "Admin Tools", Wrench],
@@ -129,7 +130,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
     pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   const section = items.find((i) => isActive(i[0]));
   const title = section?.[1] ?? "Dashboard";
-  const isProjectEditor = /^\/(short|long)-videos\/[^/]+/.test(pathname);
+  const isProjectEditor = /^\/(short|long|book)-videos\/[^/]+/.test(pathname);
   const projectTitle =
     projectBreadcrumb?.href === pathname
       ? projectBreadcrumb.title
@@ -297,7 +298,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
           </header>
           <main
             className={
-              /^\/(short|long)-videos\/[^/]+/.test(pathname)
+              /^\/(short|long|book)-videos\/[^/]+/.test(pathname)
                 ? "video-editor-main"
                 : undefined
             }

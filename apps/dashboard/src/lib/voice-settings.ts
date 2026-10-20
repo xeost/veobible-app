@@ -31,7 +31,7 @@ export function emptyVoiceSettings(): VoiceSettings {
 }
 export async function loadVoiceSettings(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
 ): Promise<VoiceSettings> {
   const row = await database
     .prepare("SELECT value FROM site_settings WHERE key=?")
@@ -43,7 +43,7 @@ export async function loadVoiceSettings(
 }
 export async function saveVoiceSettings(
   database: D1Database,
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   input: unknown,
 ) {
   const templates = voiceSettingsSchema.parse(input);

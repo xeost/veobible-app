@@ -12,7 +12,7 @@ const point = z.object({
 });
 export const manualVideoProjectSchema = z
   .object({
-    kind: z.enum(["short", "long"]),
+    kind: z.enum(["short", "long", "book"]),
     versionId: z.number().int().positive(),
     slug: identifier,
     title: z.string().trim().min(1).max(500),
@@ -39,6 +39,22 @@ export const bibleBooksSchema = z
   .min(1);
 export type BibleBook = z.infer<typeof bibleBooksSchema>[number];
 export function validateManualVideoProject(input: unknown, books: BibleBook[]) {
+  const parsed = manualVideoProjectSchema.parse(input);
+  if (parsed.kind === "book") {
+    const book = books.find((book) => book.id === parsed.start.book);
+    if (!book || book.versesPerChapter.length !== book.chapters)
+      throw new Error("Invalid book boundaries");
+    input = {
+      ...parsed,
+      slug: book.id,
+      start: { book: book.id, chapter: 1, verse: 1 },
+      end: {
+        book: book.id,
+        chapter: book.chapters,
+        verse: book.versesPerChapter[book.chapters - 1],
+      },
+    };
+  }
   return manualVideoProjectSchema
     .superRefine((value, ctx) => {
       const indices = [value.start, value.end].map((point) =>

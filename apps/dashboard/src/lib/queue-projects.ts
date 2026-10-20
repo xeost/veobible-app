@@ -1,6 +1,6 @@
 export type QueueProject = {
   id: number;
-  kind: "short" | "long";
+  kind: "short" | "long" | "book";
   title: string;
   version_code: string;
 };
@@ -49,7 +49,7 @@ export async function loadQueueView<
               ...item,
               title: project.title,
               version: project.version_code,
-              href: `/${item.kind === "short" ? "short-videos" : "long-videos"}/${project.id}`,
+              href: `/${item.kind === "short" ? "short-videos" : item.kind === "book" ? "book-videos" : "long-videos"}/${project.id}`,
             },
           ]
         : [];

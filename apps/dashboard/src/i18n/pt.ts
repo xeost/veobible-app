@@ -1,4 +1,17 @@
 export const portuguese: Record<string, string> = {
+  "Clean up published book video files":
+    "Excluir arquivos de vídeos de livros publicados",
+  "Book Videos": "Vídeos de Livros",
+  "COMPLETE BOOKS · LANDSCAPE": "LIVROS COMPLETOS · HORIZONTAL",
+  "Create a video for each complete book of the Bible.":
+    "Crie um vídeo para cada livro completo da Bíblia.",
+  "A project will be added for each complete book in this version. Existing book projects will keep all their changes.":
+    "Será adicionado um projeto para cada livro completo desta versão. Os projetos existentes manterão todas as suas alterações.",
+  "Current projects · Book videos": "Projetos atuais · Vídeos de livros",
+  "Mark a project in Book Videos to see it here.":
+    "Marque um projeto em Vídeos de Livros para vê-lo aqui.",
+  books: "livros",
+  Book: "Livro",
   "Generate voice": "Gerar voz",
   "These voices are saved with this project. Changing the defaults does not change these selections.":
     "Estas vozes são salvas neste projeto. Alterar os padrões não muda estas seleções.",

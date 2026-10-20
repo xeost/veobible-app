@@ -13,6 +13,12 @@ test("project sync only adds missing slugs within a format and Bible version, re
       "utf8",
     ),
   );
+  sqlite.exec(
+    readFileSync(
+      new URL("../../migrations/0003_book_videos.sql", import.meta.url),
+      "utf8",
+    ),
+  );
   const database = {
     prepare(query: string) {
       let args: any[] = [];
@@ -153,6 +159,36 @@ test("project sync only adds missing slugs within a format and Bible version, re
     assert.equal(
       sqlite.prepare("SELECT count(*) count FROM video_projects").get()?.count,
       4,
+    );
+    const book = {
+      id: 1,
+      slug: "genesis",
+      title: "Génesis",
+      start: { book: "genesis", chapter: 1, verse: 1 },
+      end: { book: "genesis", chapter: 50, verse: 26 },
+    };
+    assert.deepEqual(
+      await syncVideoProjects(database, "book", spanish, [book]),
+      { added: 1, total: 1 },
+    );
+    sqlite.exec(
+      "UPDATE video_projects SET title='Edited book',published=1 WHERE kind='book'",
+    );
+    const savedBook = sqlite
+      .prepare("SELECT * FROM video_projects WHERE kind='book'")
+      .get()!;
+    assert.equal(JSON.parse(String(savedBook.passage)).episode, undefined);
+    assert.deepEqual(
+      await syncVideoProjects(database, "book", spanish, [book]),
+      { added: 0, total: 1 },
+    );
+    assert.deepEqual(
+      sqlite.prepare("SELECT * FROM video_projects WHERE kind='book'").get(),
+      savedBook,
+    );
+    assert.deepEqual(
+      await syncVideoProjects(database, "book", english, [book]),
+      { added: 1, total: 1 },
     );
   } finally {
     sqlite.close();

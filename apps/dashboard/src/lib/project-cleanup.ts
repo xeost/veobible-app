@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 export const publishedCleanupSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("preview"), kind: z.enum(["short", "long"]) }),
+  z.object({
+    action: z.literal("preview"),
+    kind: z.enum(["short", "long", "book"]),
+  }),
   z.object({
     action: z.literal("delete"),
-    kind: z.enum(["short", "long"]),
+    kind: z.enum(["short", "long", "book"]),
     ids: z.array(z.number().int().positive()).min(1).max(10000),
   }),
 ]);

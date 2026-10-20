@@ -45,7 +45,7 @@ function versionFilter(value: string | null): string {
     ? value
     : "all";
 }
-export function Videos({ kind }: { kind: "short" | "long" }) {
+export function Videos({ kind }: { kind: "short" | "long" | "book" }) {
   const notify = useToast();
   const { t, language } = useI18n();
   const { orderVersions } = usePinnedBibleVersions();
@@ -232,7 +232,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("version", next);
     router.replace(
-      `/${kind === "short" ? "short-videos" : "long-videos"}?${params}`,
+      `/${kind === "short" ? "short-videos" : kind === "book" ? "book-videos" : "long-videos"}?${params}`,
       { scroll: false },
     );
   };
@@ -302,7 +302,7 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
     }
   };
   const projectHref = (row: VideoRow) =>
-    `/${kind === "short" ? "short-videos" : "long-videos"}/${String(row.id)}`;
+    `/${kind === "short" ? "short-videos" : kind === "book" ? "book-videos" : "long-videos"}/${String(row.id)}`;
   return (
     <>
       <div className="page-heading">
@@ -311,15 +311,27 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
             {t(
               kind === "short"
                 ? "DAILY DOSE · VERTICAL"
-                : "365 DAYS · LANDSCAPE",
+                : kind === "book"
+                  ? "COMPLETE BOOKS · LANDSCAPE"
+                  : "365 DAYS · LANDSCAPE",
             )}
           </p>
-          <h1>{t(kind === "short" ? "Short Videos" : "Long Videos")}</h1>
+          <h1>
+            {t(
+              kind === "short"
+                ? "Short Videos"
+                : kind === "book"
+                  ? "Book Videos"
+                  : "Long Videos",
+            )}
+          </h1>
           <p className="muted">
             {t(
               kind === "short"
                 ? "Inspiring passages, one video at a time."
-                : "A journey through the entire Bible, in 365 episodes.",
+                : kind === "book"
+                  ? "Create a video for each complete book of the Bible."
+                  : "A journey through the entire Bible, in 365 episodes.",
             )}
           </p>
         </div>
@@ -334,7 +346,9 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
           <VideoProjectMenu
             onSettings={() => setSettingsOpen(true)}
             onSync={() => setSyncOpen(true)}
-            onSyncExisting={() => void syncExisting()}
+            onSyncExisting={
+              kind === "book" ? undefined : () => void syncExisting()
+            }
             syncingExisting={syncingExisting}
           />
         </div>
@@ -343,7 +357,15 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
         <div>
           <Icon size={21} />
           <strong>{summary.total}</strong>
-          <span>{t(kind === "short" ? "passages" : "episodes")}</span>
+          <span>
+            {t(
+              kind === "short"
+                ? "passages"
+                : kind === "book"
+                  ? "books"
+                  : "episodes",
+            )}
+          </span>
         </div>
         <div>
           <span className="dot green" />
@@ -543,8 +565,14 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                       <span>
                         {row.title}
                         <small>
-                          {t(kind === "short" ? "Daily Dose" : "365 Days")} ·{" "}
-                          {row.locale.toUpperCase()} · {row.label}
+                          {t(
+                            kind === "short"
+                              ? "Daily Dose"
+                              : kind === "book"
+                                ? "Book Videos"
+                                : "365 Days",
+                          )}{" "}
+                          · {row.locale.toUpperCase()} · {row.label}
                         </small>
                       </span>
                     </Link>
@@ -580,13 +608,13 @@ export function Videos({ kind }: { kind: "short" | "long" }) {
                         aria-pressed={isCurrentProject(row)}
                         aria-label={`${t(isCurrentProject(row) ? "Remove current project mark" : "Mark as current project")}: ${row.title}`}
                         disabled={
-                          kind === "long" &&
+                          kind !== "short" &&
                           !isCurrentProject(row) &&
                           (currentProjects[projectVersionKey(row)]?.length ??
                             0) >= 2
                         }
                         data-tooltip={t(
-                          kind === "long" &&
+                          kind !== "short" &&
                             !isCurrentProject(row) &&
                             (currentProjects[projectVersionKey(row)]?.length ??
                               0) >= 2

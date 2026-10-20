@@ -9,7 +9,7 @@ export const publicationFields = [
   "passage_url",
   "hashtags",
 ] as const;
-export const publicationPlatforms = (kind: "short" | "long") =>
+export const publicationPlatforms = (kind: "short" | "long" | "book") =>
   kind === "short"
     ? (["instagram", "facebook", "youtube", "tiktok", "x"] as const)
     : (["youtube", "facebook", "tiktok", "x"] as const);

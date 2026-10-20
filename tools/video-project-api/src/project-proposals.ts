@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { bibleDataRoot, readBibleDataFile } from "./bible-data.js";
+import { availableBibleBooks } from "./bible-versions.js";
 import { z } from "zod";
 
 const identifier = z
@@ -33,11 +34,30 @@ export const projectProposalsSchema = z
       });
   });
 export async function loadProjectProposals(
-  kind: "short" | "long",
+  kind: "short" | "long" | "book",
   version: { locale: "es" | "en" | "pt"; code: string },
   directory?: string,
   bibleRoot = bibleDataRoot,
 ) {
+  if (kind === "book") {
+    const books = await availableBibleBooks(
+      version.locale,
+      version.code,
+      bibleRoot,
+    );
+    return books.map((book, index) => {
+      const lastVerse = book.versesPerChapter[book.chapters - 1];
+      if (!lastVerse || book.versesPerChapter.length !== book.chapters)
+        throw new Error("Invalid book chapter boundaries");
+      return {
+        id: index + 1,
+        slug: book.id,
+        title: book.name,
+        start: { book: book.id, chapter: 1, verse: 1 },
+        end: { book: book.id, chapter: book.chapters, verse: lastVerse },
+      };
+    });
+  }
   const root =
     directory ??
     (await import("./working-directories.js")).workingDirectory(kind);
