@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import {
   workingDirectories,
   sharedVoiceDirectory,
+  sharedAudioDirectory,
 } from "../../working-directories.js";
 
 const toolRoot = path.resolve(
@@ -43,7 +44,7 @@ const settings = {
   audioDir:
     process.env.VIDEO_SHORT_AUDIO_DIR ??
     process.env.VIDEO_AUDIO_DIR ??
-    path.join(workingDir, "material", "bible-audio"),
+    sharedAudioDirectory,
   bibleDataDir: path.resolve(toolRoot, "../../apps/frontend/public/bible-data"),
   ttsProvider: process.env.VIDEO_SHORT_TTS_PROVIDER ?? "chatterbox",
   elevenLabsApiKey: process.env.VIDEO_SHORT_ELEVENLABS_API_KEY ?? "",

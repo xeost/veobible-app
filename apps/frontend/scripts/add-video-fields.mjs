@@ -13,8 +13,8 @@
  *   "chapterOffsets": []
  *     → Array of integers (seconds) representing the start time of each
  *       chapter within the YouTube video. Element 0 is always 0 (Chapter 1
- *       starts at the beginning). Populated automatically by the
- *       audiobibles-cli Step 4 after probing the chapter MP3 durations.
+ *       starts at the beginning). Fill these in using the chapter start
+ *       times in the published video.
  *       Use to build deep-link URLs like:
  *       https://www.youtube.com/watch?v=zBwWW2mVMNs&t=351s
  *

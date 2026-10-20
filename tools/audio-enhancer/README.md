@@ -15,11 +15,11 @@ brew install ffmpeg
 El archivo local `tools/audio-enhancer/.env` ya está configurado con:
 
 ```dotenv
-AUDIO_ENHANCE_INPUT_DIR=/Users/fabian/Documents/audiobibles/sources/audios
-AUDIO_ENHANCE_OUTPUT_DIR=/Users/fabian/Documents/audiobibles/sources/enhanced-audios
+AUDIO_ENHANCE_INPUT_DIR=material/audios
+AUDIO_ENHANCE_OUTPUT_DIR=material/enhanced-audios
 ```
 
-`.env` está excluido de Git. En otra máquina, copia `.env.example` a `.env`. Las variables exportadas en el entorno prevalecen sobre el archivo; los paths deben ser absolutos. También puedes usar `--env-file /ruta/config.env` **antes del subcomando**. No se expanden expresiones de shell dentro del archivo.
+`.env` está excluido de Git. En otra máquina, copia `.env.example` a `.env`. Las variables exportadas en el entorno prevalecen sobre el archivo; las rutas relativas se construyen desde `WORKING_DIR`, leído de `tools/api-proxy/.env`. También se admiten rutas absolutas explícitas. Entrada y salida deben ser carpetas separadas; por ejemplo, usa `material/enhanced-audios` como salida para conservar los originales. También puedes usar `--env-file /ruta/config.env` **antes del subcomando**. No se expanden expresiones de shell dentro del archivo.
 
 ## Uso desde la raíz del repositorio
 

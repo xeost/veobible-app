@@ -35,6 +35,7 @@ import path from "node:path";
 import {
   outputRoot,
   workingDirectories,
+  sharedAudioDirectory,
   type OutputEnvironment,
 } from "./working-directories.js";
 import * as short from "./engines/short/shorts.js";
@@ -240,7 +241,7 @@ function modules(kind: "short" | "long" | "book") {
                 ),
                 audioDir:
                   process.env.VIDEO_AUDIO_DIR ??
-                  path.join(workingDirectories.book, "material", "bible-audio"),
+                  sharedAudioDirectory,
               }
             : longConfig,
         outro: longOutro,

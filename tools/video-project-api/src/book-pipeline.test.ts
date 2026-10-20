@@ -42,6 +42,7 @@ test("book analysis includes every verse and chapter announcement and uses its o
       assert.equal(result.chapterIntroductions.length, 1);
       assert.equal(result.chapterIntroductions[0].complete, true);
       assert.equal(result.m.config.videosDir, path.join(process.env.WORKING_DIR, 'books/material/videos'));
+      assert.equal(result.m.config.audioDir, path.join(process.env.WORKING_DIR, 'material/audios'));
       assert.deepEqual(await result.m.video.backgroundVideos(result.m.config.videosDir), [path.join(result.m.config.videosDir, 'bg-1.mp4')]);
       assert.equal(projectDir('book', 'rv1909', 'jude'), path.join(process.env.WORKING_DIR, 'books/outputs/rv1909/jude'));
       assert.equal(projectDir('book', 'rv1909', 'jude', 'development'), path.join(process.env.WORKING_DIR, 'books/outputs-dev/rv1909/jude'));

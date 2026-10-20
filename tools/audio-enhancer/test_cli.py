@@ -41,6 +41,20 @@ class SafetyTests(unittest.TestCase):
                 cli.roots({"AUDIO_ENHANCE_INPUT_DIR": str(self.source),
                            "AUDIO_ENHANCE_OUTPUT_DIR": str(output)})
 
+    def test_relative_roots_use_working_dir(self):
+        source = self.root / "material" / "audios"
+        source.mkdir(parents=True)
+        self.assertEqual(cli.roots({
+            "WORKING_DIR": str(self.root),
+            "AUDIO_ENHANCE_INPUT_DIR": "material/audios",
+            "AUDIO_ENHANCE_OUTPUT_DIR": "material/enhanced-audios",
+        }), (source, self.root / "material" / "enhanced-audios"))
+
+    def test_relative_roots_require_working_dir(self):
+        with self.assertRaisesRegex(cli.EnhanceError, "Falta WORKING_DIR"):
+            cli.roots({"AUDIO_ENHANCE_INPUT_DIR": "material/audios",
+                       "AUDIO_ENHANCE_OUTPUT_DIR": "material/enhanced-audios"})
+
     def test_version_traversal_rejected(self):
         for version in ("../audios", "/tmp", ".", "rv1909/other"):
             with self.subTest(version=version), self.assertRaises(cli.EnhanceError):

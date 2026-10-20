@@ -2,7 +2,6 @@
   "name": "veobible-app-root",
   "private": true,
   "scripts": {
-    "audiobibles": "cd tools/audiobibles-cli && pnpm start",
     "audio:enhance": "python3 tools/audio-enhancer/cli.py",
     "dev:dashboard": "pnpm --dir apps/dashboard dev",
     "build:dashboard": "pnpm --dir apps/dashboard build",

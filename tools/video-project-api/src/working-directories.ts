@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 const toolRoot = fileURLToPath(new URL("..", import.meta.url));
 // The proxy supplies the shared root when starting the service.
 const workingRoot = path.resolve(toolRoot, process.env.WORKING_DIR || "work");
+export const sharedAudioDirectory = path.join(workingRoot, "material", "audios");
 export const sharedVoiceDirectory = path.join(
   workingRoot,
   "material",

@@ -21,7 +21,7 @@ test("format roots keep clips and outputs separate while base voices share the w
     import {config as long} from './src/engines/long/config.ts';
     import {projectDir,sourceDir} from './src/pipeline.ts';
     console.log(JSON.stringify([short,long].map((config,index)=>({
-      root:config.workingDir, videos:config.videosDir, voices:config.voiceDir,
+      root:config.workingDir, videos:config.videosDir, voices:config.voiceDir, audio:config.audioDir,
       output:projectDir(index?'long':'short','rv1909','project'),source:sourceDir(index?'long':'short','rv1909','project'),
       development:projectDir(index?'long':'short','rv1909','project','development'),
       developmentSource:sourceDir(index?'long':'short','rv1909','project','development')
@@ -47,6 +47,7 @@ test("format roots keep clips and outputs separate while base voices share the w
       root: formatRoot,
       videos: path.join(formatRoot, "material", "videos"),
       voices: path.join(root, "material", "voices"),
+      audio: path.join(root, "material", "audios"),
       output: path.join(formatRoot, "outputs", "rv1909", "project"),
       source: path.join(
         formatRoot,

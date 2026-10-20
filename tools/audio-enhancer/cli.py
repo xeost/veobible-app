@@ -66,7 +66,12 @@ def roots(env):
             raise EnhanceError(f"Falta {key}; configura {HERE / '.env'}")
         path = Path(env[key]).expanduser()
         if not path.is_absolute():
-            raise EnhanceError(f"{key} debe ser una ruta absoluta")
+            if not env.get("WORKING_DIR"):
+                raise EnhanceError("Falta WORKING_DIR; configura tools/api-proxy/.env")
+            working = Path(env["WORKING_DIR"]).expanduser()
+            if not working.is_absolute():
+                working = HERE.parent / "video-project-api" / working
+            path = working / path
         paths.append(path.resolve())
     source, output = paths
     if source == output or source in output.parents or output in source.parents:
@@ -402,7 +407,8 @@ def main(argv=None):
             return 0
         if not args.env_file.is_file():
             raise EnhanceError(f"No existe {args.env_file}; copia .env.example a .env")
-        source, output = roots(load_env(args.env_file))
+        env = load_env(HERE.parent / "api-proxy" / ".env") | load_env(args.env_file)
+        source, output = roots(env)
         if args.command == "versions":
             for directory in sorted(source.iterdir()):
                 if directory.is_dir() and not directory.is_symlink():
@@ -437,7 +443,7 @@ def main(argv=None):
             raise EnhanceError("Dos originales tienen el mismo nombre de salida; selecciona una extensión con --pattern")
         for destination in destinations:
             output_guard(destination, output)
-        executables = binaries(load_env(args.env_file), args.format)
+        executables = binaries(env, args.format)
         print(f"Entrada (solo lectura): {directory}\nSalida: {target}\nArchivos: {len(jobs)}", flush=True)
         if args.dry_run:
             for path, destination, preset, _, _ in jobs:

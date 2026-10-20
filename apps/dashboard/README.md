@@ -68,7 +68,9 @@ Audio, thumbnails, composition assets, and final videos stream directly from the
 
 `WORKING_DIR` (in `tools/api-proxy/.env`) provides the shared base; `SHORTS_DIR_NAME` and `LONGS_DIR_NAME` (in `tools/video-project-api/.env`) separate the formats beneath it:
 
-- `material/`: video, narration, and Bible audio sources.
+- `material/videos/` inside each format directory: video sources.
+- `material/audios/` directly inside `WORKING_DIR`: shared Bible chapter audio, organized by version.
+- `material/voices/` directly inside `WORKING_DIR`: shared narration samples.
 - `outputs/<version>/<passage>/`: production dashboard projects.
 - `outputs-dev/<version>/<passage>/`: dashboard in development.
 
