@@ -20,6 +20,21 @@ test("Bible version CRUD isolates languages and protects existing projects", asy
       "utf8",
     ),
   );
+  sqlite.exec(
+    readFileSync(
+      new URL("../../migrations/0004_audio_projects.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  sqlite.exec(
+    readFileSync(
+      new URL(
+        "../../migrations/0005_audio_project_environments.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const database = {
     prepare(query: string) {
       let parameters: unknown[] = [];
@@ -149,6 +164,21 @@ test("version synchronization adds only missing language and code pairs and neve
   sqlite.exec(
     readFileSync(
       new URL("../../migrations/0001_dashboard.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  sqlite.exec(
+    readFileSync(
+      new URL("../../migrations/0004_audio_projects.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  sqlite.exec(
+    readFileSync(
+      new URL(
+        "../../migrations/0005_audio_project_environments.sql",
+        import.meta.url,
+      ),
       "utf8",
     ),
   );

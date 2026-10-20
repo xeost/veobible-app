@@ -25,7 +25,7 @@ export class BibleVersionError extends Error {
   }
 }
 const select =
-  "SELECT v.id,v.locale,v.code,v.label,(SELECT count(*) FROM video_projects p WHERE p.bible_version_id=v.id) project_count FROM bible_versions v";
+  "SELECT v.id,v.locale,v.code,v.label,((SELECT count(*) FROM video_projects p WHERE p.bible_version_id=v.id)+(SELECT count(*) FROM audio_projects a WHERE a.bible_version_id=v.id)) project_count FROM bible_versions v";
 export async function listBibleVersions(database: D1Database) {
   return (
     await database
@@ -68,14 +68,14 @@ export async function saveBibleVersion(
     try {
       const result = await database
         .prepare(
-          `UPDATE bible_versions SET locale=?,code=?,label=? WHERE id=?${identityChanged ? " AND NOT EXISTS (SELECT 1 FROM video_projects WHERE bible_version_id=?)" : ""}`,
+          `UPDATE bible_versions SET locale=?,code=?,label=? WHERE id=?${identityChanged ? " AND NOT EXISTS (SELECT 1 FROM video_projects WHERE bible_version_id=?) AND NOT EXISTS (SELECT 1 FROM audio_projects WHERE bible_version_id=?)" : ""}`,
         )
         .bind(
           input.locale,
           input.code,
           input.label,
           id,
-          ...(identityChanged ? [id] : []),
+          ...(identityChanged ? [id, id] : []),
         )
         .run();
       if (!result.meta.changes) throw inUse();
@@ -99,9 +99,9 @@ export async function deleteBibleVersion(database: D1Database, id: number) {
   if (current.project_count) throw inUse();
   const result = await database
     .prepare(
-      "DELETE FROM bible_versions WHERE id=? AND NOT EXISTS (SELECT 1 FROM video_projects WHERE bible_version_id=?)",
+      "DELETE FROM bible_versions WHERE id=? AND NOT EXISTS (SELECT 1 FROM video_projects WHERE bible_version_id=?) AND NOT EXISTS (SELECT 1 FROM audio_projects WHERE bible_version_id=?)",
     )
-    .bind(id, id)
+    .bind(id, id, id)
     .run();
   if (!result.meta.changes) throw inUse();
 }

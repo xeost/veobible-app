@@ -75,6 +75,7 @@ const {
   projectChapterVoiceFiles,
 } = await import("./pipeline.js");
 const { outputRoot } = await import("./working-directories.js");
+const { audioProjectHttp } = await import("./audio-project-http.js");
 const { listBaseVoices, queueVoiceSample, sampleFile, sampleRequestSchema } =
   await import("./voice-samples.js");
 const { alignProjectReading, stopAlignmentWorkers } =
@@ -240,6 +241,17 @@ const server = http.createServer(async (req, res) => {
       return json(res, 401, { error: "Unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
     const parts = url.pathname.split("/").filter(Boolean);
+    if (
+      await audioProjectHttp(
+        req,
+        res,
+        url,
+        () => body(req),
+        (run) => generationQueue.enqueueBackground(run),
+        origins,
+      )
+    )
+      return;
     if (url.pathname === "/v1/base-voices" && req.method === "GET")
       return json(res, 200, { voices: await listBaseVoices() });
     if (

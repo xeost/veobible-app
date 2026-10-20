@@ -234,3 +234,30 @@ test("multiple results merge independently and replaying an applied job never ov
   );
   assert.deepEqual(migrated.alignmentAppliedJobIds, ["first", "second"]);
 });
+
+test("alignment results cannot be reused for another audio edition", () => {
+  const input = {
+    kind: "book",
+    version: { id: "rv1909", locale: "es" },
+    passage: { book: "jude" },
+    settings: { passageOffsets: { startSeconds: 0, endSeconds: 0 } },
+  };
+  const original = alignmentSignature(input);
+  const generated = {
+    ...input,
+    settings: { ...input.settings, audioEdition: "rv1909-v2" },
+  };
+  assert.equal(alignmentSignatureMatches(original, generated), false);
+  assert.equal(
+    alignmentSignatureMatches(alignmentSignature(generated), generated),
+    true,
+  );
+  assert.equal(
+    alignmentSignatureMatches(alignmentSignature(generated), {
+      ...generated,
+      settings: { ...generated.settings, audioEdition: "rv1909-v3" },
+    }),
+    false,
+  );
+  assert.equal(alignmentSignatureMatches(original, input), true);
+});

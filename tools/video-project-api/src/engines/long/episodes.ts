@@ -344,9 +344,10 @@ async function chapterAudio(
   number: number,
   chapter: number,
   audioDir = config.audioDir,
+  audioVersion: string = version.id,
 ): Promise<string> {
   return findChapterAudio(
-    path.join(audioDir, version.id),
+    path.join(audioDir, audioVersion),
     book,
     number,
     chapter,
@@ -358,6 +359,7 @@ export async function analyzePassageAudio(
   passage: Passage,
   allowMissing = false,
   audioDir = config.audioDir,
+  audioVersion: string = version.id,
 ) {
   const index = await readIndex(version);
   const { book } = getBook(index, passage);
@@ -390,6 +392,7 @@ export async function analyzePassageAudio(
       number,
       chapter,
       audioDir,
+      audioVersion,
     ).catch((error) => {
       if (allowMissing && /^Missing audio for chapter/.test(error.message))
         return "";

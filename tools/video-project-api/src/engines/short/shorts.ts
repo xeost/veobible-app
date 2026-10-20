@@ -269,9 +269,11 @@ async function chapterAudio(
   book: Book,
   number: number,
   chapter: number,
+  audioDir = config.audioDir,
+  audioVersion: string = version.id,
 ): Promise<string> {
   return findChapterAudio(
-    path.join(config.audioDir, version.id),
+    path.join(audioDir, audioVersion),
     book,
     number,
     chapter,
@@ -282,6 +284,8 @@ export async function analyzePassageAudio(
   version: Version,
   passage: Passage,
   allowMissing = false,
+  audioDir = config.audioDir,
+  audioVersion: string = version.id,
 ) {
   const index = await readIndex(version);
   const { book, number } = getBook(index, passage);
@@ -312,13 +316,18 @@ export async function analyzePassageAudio(
         `Missing verses from ${book.name} ${chapter}:${first}-${last}`,
       );
     lines.push(...selected.map((v) => `${chapter}:${v.verse} ${v.text}`));
-    const source = await chapterAudio(version, book, number, chapter).catch(
-      (error) => {
-        if (allowMissing && /^Missing audio for chapter/.test(error.message))
-          return "";
-        throw error;
-      },
-    );
+    const source = await chapterAudio(
+      version,
+      book,
+      number,
+      chapter,
+      audioDir,
+      audioVersion,
+    ).catch((error) => {
+      if (allowMissing && /^Missing audio for chapter/.test(error.message))
+        return "";
+      throw error;
+    });
     const sourceDuration = source
       ? await audioDurationSeconds(source)
       : Math.max(

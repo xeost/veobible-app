@@ -3,7 +3,11 @@ import { fileURLToPath } from "node:url";
 const toolRoot = fileURLToPath(new URL("..", import.meta.url));
 // The proxy supplies the shared root when starting the service.
 const workingRoot = path.resolve(toolRoot, process.env.WORKING_DIR || "work");
-export const sharedAudioDirectory = path.join(workingRoot, "material", "audios");
+export const sharedAudioDirectory = path.join(
+  workingRoot,
+  "material",
+  "audios",
+);
 export const sharedVoiceDirectory = path.join(
   workingRoot,
   "material",
@@ -26,6 +30,12 @@ export function workingDirectory(kind: string) {
   return workingDirectories[kind];
 }
 export type OutputEnvironment = "production" | "development";
+export const audioOutputRoot = (
+  environment: OutputEnvironment = "production",
+) =>
+  environment === "development"
+    ? path.join(sharedAudioDirectory, "dev")
+    : sharedAudioDirectory;
 export const outputRoot = (
   kind: string,
   environment: OutputEnvironment = "production",

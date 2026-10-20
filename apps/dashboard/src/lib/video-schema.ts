@@ -7,11 +7,13 @@ import { narrationParametersSchema } from "../../../../tools/video-project-api/s
 import { narrationModelSchema } from "../../../../tools/video-project-api/src/narration-models";
 import { publicationTemplatesSchema } from "../../../../tools/video-project-api/src/publication-templates";
 import { z } from "zod";
+import { audioEditionSchema } from "../../../../tools/video-project-api/src/audio-project-schema";
 const point = z.object({
   chapter: z.number().int().positive(),
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  audioEdition: audioEditionSchema.optional(),
   baseVoice: baseVoiceSchema.optional(),
   baseVoices: voiceRolesSchema.optional(),
   readingVoices: readingVoiceSettingsSchema.optional(),

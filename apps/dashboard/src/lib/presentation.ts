@@ -55,6 +55,14 @@ export function generationStage(
 }
 
 const voiceMessages = [
+  "Could not complete the audio request. Check that generation is available and try again.",
+  "The next audio version changed. Reload the list and try again.",
+  "This audio project changed. Reload it before saving.",
+  "Wait for audio generation to finish.",
+  "An existing chapter audio is protected. Create a new audio version.",
+  "The audio trim is outside this verse.",
+  "Audio project not found.",
+  "Audio version does not match the Bible version.",
   "Could not generate the reading. Try again.",
   "Enable generated reading for this block first.",
   "Generate the selected passage reading before previewing or rendering.",

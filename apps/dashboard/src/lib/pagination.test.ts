@@ -24,6 +24,21 @@ function fixture() {
   sqlite.exec(
     "INSERT INTO bible_versions(locale,code,label) VALUES('es','test','Spanish'),('en','test','English')",
   );
+  sqlite.exec(
+    readFileSync(
+      new URL("../../migrations/0004_audio_projects.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  sqlite.exec(
+    readFileSync(
+      new URL(
+        "../../migrations/0005_audio_project_environments.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const insert = sqlite.prepare(
     "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage,published,settings) VALUES(?,?,?,?,?,?,?)",
   );

@@ -52,6 +52,8 @@ import {
 } from "../../../lib/security";
 import { videoFetch } from "../../../lib/video-client";
 import { videoApi } from "../../../lib/video-api";
+import { audioApi } from "../../../lib/audio-api";
+import { audioProjectCallback } from "../../../lib/audio-projects";
 import {
   localModelsSchema,
   localModelUpdateSchema,
@@ -114,6 +116,8 @@ async function handle(req: Request, lang: Language) {
     .find((s) => s.startsWith("veo_session="))
     ?.slice(12);
   const secure = url.protocol === "https:";
+  const audioCallback = await audioProjectCallback(req, database);
+  if (audioCallback) return audioCallback;
   if (method !== "GET" && req.headers.get("origin") !== url.origin)
     return json({ error: "Origin not allowed" }, 403);
   if (parts.join("/") === "auth/login" && method === "POST") {
@@ -139,6 +143,8 @@ async function handle(req: Request, lang: Language) {
   const admin = () => {
     if (user.role !== "admin") throw new Error("Administrator required");
   };
+  const audioResponse = await audioApi(req, database);
+  if (audioResponse) return audioResponse;
   if (
     parts.length === 4 &&
     parts[0] === "admin-tools" &&

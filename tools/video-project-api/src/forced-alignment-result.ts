@@ -30,7 +30,10 @@ export function alignmentSignature(input: {
   kind: string;
   version: { id: string; locale: string };
   passage: unknown;
-  settings: { passageOffsets: { startSeconds: number; endSeconds: number } };
+  settings: {
+    passageOffsets: { startSeconds: number; endSeconds: number };
+    audioEdition?: string;
+  };
 }) {
   const passage =
     input.passage && typeof input.passage === "object"
@@ -58,6 +61,9 @@ export function alignmentSignature(input: {
       locale: input.version.locale,
       passage,
       passageOffsets: input.settings.passageOffsets,
+      ...(input.settings.audioEdition
+        ? { audioEdition: input.settings.audioEdition }
+        : {}),
     }),
   );
 }
@@ -73,7 +79,10 @@ export function alignmentSignatureMatches(
         kind: previous.kind,
         version: { id: previous.version, locale: previous.locale },
         passage: previous.passage,
-        settings: { passageOffsets: previous.passageOffsets },
+        settings: {
+          passageOffsets: previous.passageOffsets,
+          audioEdition: previous.audioEdition,
+        },
       }) === alignmentSignature(input)
     );
   } catch {

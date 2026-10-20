@@ -1,4 +1,5 @@
 import { selectedRoleVoice } from "./base-voice-schema.js";
+import { AudioProjects } from "./audio-projects.js";
 import { baseVoiceSample } from "./base-voice.js";
 import { type NarrationParameters } from "./narration-parameters.js";
 import {
@@ -36,6 +37,7 @@ import {
   outputRoot,
   workingDirectories,
   sharedAudioDirectory,
+  audioOutputRoot,
   type OutputEnvironment,
 } from "./working-directories.js";
 import * as short from "./engines/short/shorts.js";
@@ -239,9 +241,7 @@ function modules(kind: "short" | "long" | "book") {
                   "material",
                   "videos",
                 ),
-                audioDir:
-                  process.env.VIDEO_AUDIO_DIR ??
-                  sharedAudioDirectory,
+                audioDir: process.env.VIDEO_AUDIO_DIR ?? sharedAudioDirectory,
               }
             : longConfig,
         outro: longOutro,
@@ -344,11 +344,25 @@ export async function analyze(
   const version = m.config.versions.find((v) => v.id === input.version.id);
   if (!version || version.locale !== input.version.locale)
     throw new Error("Invalid Bible version");
+  if (input.settings.audioEdition) {
+    const { marker } = await new AudioProjects(
+      undefined,
+      input.outputEnvironment,
+    ).owned(input.settings.audioEdition);
+    if (
+      marker.version.code !== version.id ||
+      marker.version.locale !== version.locale
+    )
+      throw new Error("Audio version does not match the Bible version.");
+  }
   const data = await m.passages.analyzePassageAudio(
     version,
     input.passage,
     true,
-    m.config.audioDir,
+    input.settings.audioEdition
+      ? audioOutputRoot(input.outputEnvironment)
+      : m.config.audioDir,
+    input.settings.audioEdition ?? version.id,
   );
   const originalSections = m.passages.applyPassageAudioOffsets(
     data.sections,

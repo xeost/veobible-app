@@ -1546,4 +1546,82 @@ export const spanish: Record<string, string> = {
     "El audio se generó, pero no se pudieron sincronizar sus tiempos. Inténtalo de nuevo; si el problema continúa, contacta al administrador.",
   "Regenerate all reading verses": "Regenerar todos los versículos del bloque",
   "Regenerate this verse": "Regenerar este versículo",
+  Audios: "Audios",
+  "Audio version": "Versión de audio",
+  "Create audio projects": "Crear proyectos de audio",
+  "Create one audio project for each book in a new audio version. Original recordings and previous audio versions are preserved.":
+    "Crea un proyecto de audio para cada libro en una nueva versión de audio. Se conservan las grabaciones originales y las versiones de audio anteriores.",
+  "Could not load audio versions. Try again.":
+    "No se pudieron cargar las versiones de audio. Inténtalo de nuevo.",
+  "Could not create audio projects. Reload the available versions and try again.":
+    "No se pudieron crear los proyectos de audio. Vuelve a cargar las versiones disponibles e inténtalo de nuevo.",
+  "Add a Bible version before creating audio projects.":
+    "Añade una versión bíblica antes de crear proyectos de audio.",
+  "Prepare chapter recordings to use in your videos.":
+    "Prepara grabaciones de capítulos para utilizarlas en tus videos.",
+  "Could not load audio projects. Check that generation is available and try again.":
+    "No se pudieron cargar los proyectos de audio. Comprueba que la generación esté disponible e inténtalo de nuevo.",
+  "Search books": "Buscar libros",
+  "No audio projects yet": "Todavía no hay proyectos de audio",
+  "Create a new audio version to start preparing chapter recordings.":
+    "Crea una nueva versión de audio para empezar a preparar grabaciones de capítulos.",
+  "Audio projects created.": "Proyectos de audio creados.",
+  "Could not complete the audio request. Check that generation is available and try again.":
+    "No se pudo completar la solicitud de audio. Comprueba que la generación esté disponible e inténtalo de nuevo.",
+  "This audio project changed. Reload it before saving.":
+    "Este proyecto de audio cambió. Vuelve a cargarlo antes de guardar.",
+  "Generate audios": "Generar audios",
+  "Each verse has its own recording. Generate audios joins the saved verses into one audio file per chapter.":
+    "Cada versículo tiene su propia grabación. Generar audios une los versículos guardados en un archivo de audio por capítulo.",
+  "Waiting to generate audio": "En espera para generar audio",
+  "Generating audios": "Generando audios",
+  "Audio generation could not be completed. Completed verses are saved; try again to continue.":
+    "No se pudo completar la generación de audio. Los versículos completados están guardados; inténtalo de nuevo para continuar.",
+  "Chapter recordings are ready to use in videos.":
+    "Las grabaciones de los capítulos están listas para usarse en videos.",
+  "Regenerate individual verses and adjust their waveform before joining the chapter.":
+    "Regenera versículos individuales y ajusta su forma de onda antes de unir el capítulo.",
+  "Expand all sections": "Expandir todas las secciones",
+  "Collapse all sections": "Contraer todas las secciones",
+  "Download chapter audio": "Descargar audio del capítulo",
+  "Generate chapter audio": "Generar audio del capítulo",
+  "Generate verse audio": "Generar audio del versículo",
+  "Pause after verse (seconds)": "Pausa después del versículo (segundos)",
+  "Audio folder is not available.": "La carpeta de audio no está disponible.",
+  "Invalid audio file.": "El archivo de audio no es válido.",
+  "Linked audio files cannot be changed.":
+    "No se pueden modificar archivos de audio enlazados.",
+  "No new audio version is available.":
+    "No hay una nueva versión de audio disponible.",
+  "This audio folder belongs to another project.":
+    "Esta carpeta de audio pertenece a otro proyecto.",
+  "The next audio version changed. Reload the list and try again.":
+    "La siguiente versión de audio cambió. Vuelve a cargar la lista e inténtalo de nuevo.",
+  "Audio project does not match its folder.":
+    "El proyecto de audio no corresponde a su carpeta.",
+  "Wait for audio generation to finish.":
+    "Espera a que termine la generación de audio.",
+  "Choose a voice in the project's language.":
+    "Elige una voz en el idioma del proyecto.",
+  "Verse not found.": "No se encontró el versículo.",
+  "The audio trim is outside this verse.":
+    "El recorte de audio está fuera de este versículo.",
+  "Audio is not ready yet.": "El audio todavía no está listo.",
+  "An existing chapter audio is protected. Create a new audio version.":
+    "El audio de capítulo existente está protegido. Crea una nueva versión de audio.",
+  "Audio project not found.": "No se encontró el proyecto de audio.",
+  Chapter: "Capítulo",
+  Chapters: "Capítulos",
+  Verses: "Versículos",
+  "Unsaved changes": "Cambios sin guardar",
+  "Audio project": "Proyecto de audio",
+  Retry: "Reintentar",
+  "Changing the audio source resets verse timing adjustments.":
+    "Cambiar el origen del audio restablece los ajustes de tiempo de los versículos.",
+  "Chapter audio source": "Origen del audio de capítulos",
+  "Original recordings": "Grabaciones originales",
+  "New audio versions become available after generating chapter recordings in Audios.":
+    "Las nuevas versiones de audio estarán disponibles después de generar grabaciones de capítulos en Audios.",
+  "Audio version does not match the Bible version.":
+    "La versión de audio no corresponde a la versión bíblica.",
 };

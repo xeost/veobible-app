@@ -17,6 +17,7 @@ import {
   BookOpen,
   House,
   Wrench,
+  AudioLines,
 } from "lucide-react";
 import type { User } from "../lib/auth";
 import { api } from "./api";
@@ -39,6 +40,7 @@ const items = [
   ["/short-videos", "Short Videos", Clapperboard],
   ["/long-videos", "Long Videos", Film],
   ["/book-videos", "Book Videos", Film],
+  ["/audios", "Audios", AudioLines],
   ["/deployments", "Publications", Rocket],
   ["/settings", "Settings", Settings],
   ["/admin-tools", "Admin Tools", Wrench],
@@ -130,11 +132,14 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
     pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   const section = items.find((i) => isActive(i[0]));
   const title = section?.[1] ?? "Dashboard";
-  const isProjectEditor = /^\/(short|long|book)-videos\/[^/]+/.test(pathname);
+  const isProjectEditor =
+    /^\/(?:(?:short|long|book)-videos\/[^/]+|audios\/[^/]+\/[^/]+)/.test(
+      pathname,
+    );
   const projectTitle =
     projectBreadcrumb?.href === pathname
       ? projectBreadcrumb.title
-      : t("Video project");
+      : t(pathname.startsWith("/audios/") ? "Audio project" : "Video project");
   const pending = queue.items.filter((item) =>
     ["queued", "running"].includes(item.status),
   );
@@ -296,13 +301,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
               </button>
             </div>
           </header>
-          <main
-            className={
-              /^\/(short|long|book)-videos\/[^/]+/.test(pathname)
-                ? "video-editor-main"
-                : undefined
-            }
-          >
+          <main className={isProjectEditor ? "video-editor-main" : undefined}>
             <GenerationQueueContext.Provider value={queue}>
               {children}
             </GenerationQueueContext.Provider>

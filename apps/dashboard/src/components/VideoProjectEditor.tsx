@@ -1,5 +1,6 @@
 "use client";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
+import { AudioLibrarySelector } from "./AudioLibrarySelector";
 import {
   projectBaseVoice,
   voiceRoles,
@@ -1738,6 +1739,27 @@ export function VideoProjectEditor({
           </p>
         </details>
         <div className="project-studio-layout">
+          <section className="section-card audio-project-settings">
+            <AudioLibrarySelector
+              locale={project.locale}
+              code={project.version_code}
+              value={settings.audioEdition}
+              disabled={locked || analyzing}
+              onChange={(audioEdition) => {
+                const next = {
+                  ...settings,
+                  audioEdition,
+                  readingVoices: {},
+                  verseOffsets: [],
+                  readingSectionPadding: [],
+                  passageOffsets: { startSeconds: 0, endSeconds: 0 },
+                  alignmentReviewReferences: [],
+                };
+                setSettings(next);
+                void inspect(next);
+              }}
+            />
+          </section>
           <div className="section-stack">
             <div className="sections-toolbar">
               <div>

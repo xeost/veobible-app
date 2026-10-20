@@ -5,11 +5,13 @@ import { narrationModelSchema } from "./narration-models.js";
 import { publicationTemplatesSchema } from "./publication-templates.js";
 import type { VoicePart } from "./chapter-introductions.js";
 import { z } from "zod";
+import { audioEditionSchema } from "./audio-project-schema.js";
 const point = z.object({
   chapter: z.number().int().positive(),
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  audioEdition: audioEditionSchema.optional(),
   baseVoice: baseVoiceSchema.optional(),
   baseVoices: voiceRolesSchema.optional(),
   readingVoices: readingVoiceSettingsSchema.optional(),
