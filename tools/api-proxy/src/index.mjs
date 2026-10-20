@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createProxy } from "./proxy.mjs";
+import { readProxyTokens, serviceEnvironment } from "./tokens.mjs";
 
 const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -62,12 +63,13 @@ function stop(exitCode = 0) {
   if (!children.size) process.exit(exitCode);
 }
 
-if (!process.env.PROXY_API_TOKEN)
-  throw new Error("Set PROXY_API_TOKEN in tools/api-proxy/.env");
+const { apiToken } = readProxyTokens(envFile);
+if (!apiToken || apiToken.length < 32)
+  throw new Error("Set API_TOKEN (at least 32 characters) in tools/api-proxy/.env");
 
 const server = createProxy({
   videoPort,
-  token: process.env.PROXY_API_TOKEN,
+  token: apiToken,
   isRunning: (name) => children.has(name),
 });
 server.on("error", (error) => {
@@ -80,7 +82,7 @@ server.listen(proxyPort, "127.0.0.1", () => {
     const cwd = path.join(workspaceRoot, "tools", service.directory);
     const child = spawn(process.execPath, ["--import", "tsx", service.entry], {
       cwd,
-      env: { ...process.env, PORT: String(service.port), API_PROXY_CHILD: "1" },
+      env: serviceEnvironment(process.env, apiToken, service.port),
       stdio: ["ignore", "pipe", "pipe"],
     });
     children.set(name, child);

@@ -1,6 +1,6 @@
 # JWT signing key; use an independent random secret of at least 32 bytes
 JWT_SECRET=replace-with-long-random-jwt-signing-secret
-PROXY_API_TOKEN=replace-with-long-random-shared-token
+DASHBOARD_API_PROXY_TOKEN=replace-with-long-random-shared-token
 # Public site publishing; the saved site_settings value takes precedence
 CLOUDFLARE_ACCOUNT_ID=
 CLOUDFLARE_API_TOKEN=

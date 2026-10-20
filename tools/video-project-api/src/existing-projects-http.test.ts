@@ -21,7 +21,7 @@ test(
     await new Promise<void>((resolve) => socket.close(() => resolve()));
     let child: ReturnType<typeof spawn> | undefined;
     try {
-      const output = path.join(directory, "outputs/rv1909/john-3-16");
+      const output = path.join(directory, "short/outputs/rv1909/john-3-16");
       await fs.mkdir(path.join(output, "_internal"), { recursive: true });
       await fs.writeFile(
         path.join(output, "_internal/0-metadata.txt"),
@@ -36,9 +36,11 @@ test(
         env: {
           ...process.env,
           PORT: String(port),
-          PROXY_API_TOKEN: token,
-          SHORTS_WORKING_DIR: directory,
-          LONGS_WORKING_DIR: path.join(directory, "long"),
+          API_TOKEN: token,
+          API_PROXY_CHILD: "1",
+          WORKING_DIR: directory,
+          SHORTS_DIR_NAME: "short",
+          LONGS_DIR_NAME: "long",
           VIDEO_SHORT_TTS_PROVIDER: "elevenlabs",
           VIDEO_LONG_TTS_PROVIDER: "elevenlabs",
           VIDEO_ALIGNER_SCRIPT: new URL(
@@ -358,7 +360,7 @@ test(
       const developmentData = await development.json();
       assert.equal(developmentData.status, "draft");
       assert.equal(developmentData.progress, 0);
-      const devOutput = path.join(directory, "outputs-dev/rv1909/john-3-16");
+      const devOutput = path.join(directory, "short/outputs-dev/rv1909/john-3-16");
       await fs.mkdir(path.join(devOutput, "_internal"), { recursive: true });
       await fs.copyFile(
         path.join(output, "_internal/0-metadata.txt"),
@@ -369,7 +371,7 @@ test(
         JSON.stringify({ volumeMultiplier: 3 }),
       );
       await fs.writeFile(
-        path.join(directory, "outputs-dev/status.json"),
+        path.join(directory, "short/outputs-dev/status.json"),
         JSON.stringify({
           "es/rv1909/john-3-16": {
             locale: "es",

@@ -3,7 +3,7 @@ export interface Bindings {
   DB: D1Database;
   JWT_SECRET: string;
   VIDEO_API_URL: string;
-  PROXY_API_TOKEN: string;
+  DASHBOARD_API_PROXY_TOKEN: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_API_TOKEN?: string;
 }

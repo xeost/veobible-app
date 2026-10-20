@@ -39,9 +39,11 @@ test(
         env: {
           ...process.env,
           PORT: String(port),
-          PROXY_API_TOKEN: token,
-          SHORTS_WORKING_DIR: short,
-          LONGS_WORKING_DIR: long,
+          API_TOKEN: token,
+          API_PROXY_CHILD: "1",
+          WORKING_DIR: temporary,
+          SHORTS_DIR_NAME: "short",
+          LONGS_DIR_NAME: "long",
         },
         stdio: ["ignore", "pipe", "pipe"],
       });

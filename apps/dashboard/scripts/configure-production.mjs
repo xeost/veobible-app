@@ -118,8 +118,10 @@ export function wranglerEnvironment(environment = process.env) {
 export function runtimeSecrets(environment = process.env) {
   wranglerEnvironment(environment);
   const secrets = {};
-  for (const name of ["JWT_SECRET", "PROXY_API_TOKEN"]) {
-    const inputName = `DASHBOARD_${name}`;
+  for (const [name, inputName] of Object.entries({
+    JWT_SECRET: "DASHBOARD_JWT_SECRET",
+    DASHBOARD_API_PROXY_TOKEN: "DASHBOARD_API_PROXY_TOKEN",
+  })) {
     if (!environment[inputName])
       throw new Error(`Missing deployment environment variable: ${inputName}`);
     if (Buffer.byteLength(environment[inputName]) < 32)

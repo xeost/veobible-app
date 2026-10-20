@@ -23,7 +23,7 @@ test("technical errors are replaced by actionable, stable user messages", () => 
     /Files needed/,
   );
   assert.match(
-    userMessage("Configura PROXY_API_TOKEN", 503),
+    userMessage("Configura DASHBOARD_API_PROXY_TOKEN", 503),
     /Could not connect/,
   );
 
@@ -45,7 +45,7 @@ test("technical errors are replaced by actionable, stable user messages", () => 
     /Faltan archivos/,
   );
   assert.match(
-    userMessage("Configura PROXY_API_TOKEN", 503, "es"),
+    userMessage("Configura DASHBOARD_API_PROXY_TOKEN", 503, "es"),
     /No se pudo conectar/,
   );
   assert.match(

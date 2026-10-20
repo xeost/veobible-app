@@ -93,13 +93,28 @@ await fs.writeFile(arg('--output'),JSON.stringify({model:'fixture',chapters:inpu
           ),
         ),
         PORT: String(port),
-        PROXY_API_TOKEN: token,
-        SHORTS_WORKING_DIR: path.join(directory, "short"),
-        LONGS_WORKING_DIR: path.join(directory, "long"),
+        API_TOKEN: token,
+        API_PROXY_CHILD: "1",
+        WORKING_DIR: directory,
+        SHORTS_DIR_NAME: "short",
+        LONGS_DIR_NAME: "long",
         VIDEO_AUDIO_DIR: path.dirname(audio),
         VIDEO_ALIGNER_PYTHON: process.execPath,
         VIDEO_ALIGNER_SCRIPT: provider,
       };
+      // Local credentials and startup markers cannot replace proxy-provided settings.
+      await fs.writeFile(
+        path.join(isolated, ".env"),
+        "API_TOKEN=local-token-that-must-never-be-used-123456\nAPI_PROXY_CHILD=1\nPORT=1\nWORKING_DIR=/ignored-local-root\n",
+      );
+      for (const overrides of [{ API_PROXY_CHILD: "" }, { API_TOKEN: "" }])
+        await assert.rejects(
+          execute(process.execPath, ["--import", "tsx", "src/server.ts"], {
+            cwd: isolated,
+            env: { ...env, ...overrides },
+          }),
+          { message: /Start this service through pnpm start:api-proxy/ },
+        );
       const start = async () => {
         child = spawn(process.execPath, ["--import", "tsx", "src/server.ts"], {
           cwd: isolated,

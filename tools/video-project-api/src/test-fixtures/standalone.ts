@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 const execute = promisify(execFile);
 const working = process.cwd();
-process.env.SHORTS_WORKING_DIR = path.join(working, "work", "short");
-process.env.LONGS_WORKING_DIR = path.join(working, "work", "long");
+process.env.WORKING_DIR = path.join(working, "work");
+process.env.SHORTS_DIR_NAME = "short";
+process.env.LONGS_DIR_NAME = "long";
 const data = path.resolve(
   working,
   "../../apps/frontend/public/bible-data/es/rv1909",

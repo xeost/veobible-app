@@ -88,7 +88,7 @@ test("runtime secrets require signing and generation credentials and never reuse
     DASHBOARD_CLOUDFLARE_ACCOUNT_ID: "test-account",
     DASHBOARD_CLOUDFLARE_API_TOKEN: "deploy-token",
     DASHBOARD_JWT_SECRET: "j".repeat(32),
-    DASHBOARD_PROXY_API_TOKEN: "v".repeat(32),
+    DASHBOARD_API_PROXY_TOKEN: "v".repeat(32),
   };
   assert.throws(() => runtimeSecrets({}), /Missing deployment/);
   assert.throws(
@@ -97,7 +97,7 @@ test("runtime secrets require signing and generation credentials and never reuse
   );
   assert.deepEqual(runtimeSecrets(env), {
     JWT_SECRET: env.DASHBOARD_JWT_SECRET,
-    PROXY_API_TOKEN: env.DASHBOARD_PROXY_API_TOKEN,
+    DASHBOARD_API_PROXY_TOKEN: env.DASHBOARD_API_PROXY_TOKEN,
   });
   assert.deepEqual(
     runtimeSecrets({
@@ -106,7 +106,7 @@ test("runtime secrets require signing and generation credentials and never reuse
     }),
     {
       JWT_SECRET: env.DASHBOARD_JWT_SECRET,
-      PROXY_API_TOKEN: env.DASHBOARD_PROXY_API_TOKEN,
+      DASHBOARD_API_PROXY_TOKEN: env.DASHBOARD_API_PROXY_TOKEN,
       CLOUDFLARE_ACCOUNT_ID: "test-account",
       CLOUDFLARE_API_TOKEN: "read-only-publish-token",
     },

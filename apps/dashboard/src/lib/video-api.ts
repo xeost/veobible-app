@@ -448,7 +448,7 @@ export async function videoApi(
     const path = `/v1/projects/${id}/media/`;
     const token = await signMediaAccess(
       { path, query: query.toString(), origin: url.origin, expiresAt },
-      bindings().PROXY_API_TOKEN,
+      bindings().DASHBOARD_API_PROXY_TOKEN,
     );
     return {
       base: `${bindings().VIDEO_API_URL.replace(/\/$/, "")}${path}`,

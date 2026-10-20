@@ -26,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import { timingSafeEqual } from "node:crypto";
 import { renderSchema, previewSchema } from "./protocol.js";
 import { z } from "zod";
+import { parseEnv } from "node:util";
 import {
   AlignmentJobStore,
   alignmentIsPending,
@@ -38,8 +39,19 @@ const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-if (fs.existsSync(path.join(toolRoot, ".env")))
-  process.loadEnvFile(path.join(toolRoot, ".env"));
+// Credentials must arrive from the proxy before this service reads local settings.
+const token = process.env.API_TOKEN;
+if (process.env.API_PROXY_CHILD !== "1" || !token || token.length < 32)
+  throw new Error("Start this service through pnpm start:api-proxy; configure tokens in tools/api-proxy/.env");
+const envFile = path.join(toolRoot, ".env");
+const proxyOnlySettings = new Set([
+  "API_TOKEN", "CLOUDFLARE_TUNNEL_TOKEN", "TUNNEL_TOKEN", "TUNNEL_TOKEN_FILE",
+  "API_PROXY_CHILD", "PORT", "WORKING_DIR",
+]);
+if (fs.existsSync(envFile))
+  for (const [key, value] of Object.entries(parseEnv(fs.readFileSync(envFile, "utf8"))))
+    if (!proxyOnlySettings.has(key) && process.env[key] === undefined)
+      process.env[key] = value;
 const {
   render,
   inspection,
@@ -55,9 +67,6 @@ const { outputRoot } = await import("./working-directories.js");
 const { alignProjectReading, stopAlignmentWorkers } =
   await import("./forced-alignment.js");
 const { createPreview, previewAsset } = await import("./preview.js");
-const token = process.env.PROXY_API_TOKEN;
-if (!token || token.length < 32)
-  throw new Error("PROXY_API_TOKEN must contain at least 32 characters");
 const origins = new Set(
   (
     process.env.DASHBOARD_ORIGINS ??

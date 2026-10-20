@@ -1,33 +1,26 @@
 import { spawn } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readProxyTokens } from "../src/tokens.mjs";
 
 const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
 const envFile = path.join(toolRoot, ".env");
-if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
-const args = process.argv.slice(2);
-const hasTokenArgument =
-  args.includes("--token") || args.some((arg) => arg.startsWith("--token="));
-const token = process.env.CLOUDFLARE_TUNNEL_TOKEN || process.env.TUNNEL_TOKEN;
-if (!token && !hasTokenArgument) {
-  console.error(
-    "Set CLOUDFLARE_TUNNEL_TOKEN in tools/api-proxy/.env or pass --token.",
-  );
+if (process.argv.length > 2) {
+  console.error("Configure the tunnel only in tools/api-proxy/.env; command-line options are not supported.");
+  process.exit(1);
+}
+const { tunnelToken } = readProxyTokens(envFile);
+if (!tunnelToken) {
+  console.error("Set CLOUDFLARE_TUNNEL_TOKEN in tools/api-proxy/.env.");
   process.exit(1);
 }
 
 const child = spawn(
   "cloudflared",
-  [
-    "tunnel",
-    "run",
-    ...(!hasTokenArgument && token ? ["--token", token] : []),
-    ...args,
-  ],
+  ["tunnel", "run", "--token", tunnelToken],
   {
     stdio: "inherit",
   },
