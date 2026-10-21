@@ -770,6 +770,8 @@ export function VideoProjectEditor({
       setMediaAccess((current) =>
         current &&
         current.expiresAt > Date.now() + 15 * 60 * 1000 &&
+        new URLSearchParams(current.query).get("voiceParameters") ===
+          new URLSearchParams(access.query).get("voiceParameters") &&
         new URLSearchParams(current.query).get("voiceModel") ===
           new URLSearchParams(access.query).get("voiceModel") &&
         new URLSearchParams(current.query).get("baseVoice") ===
@@ -1688,78 +1690,102 @@ export function VideoProjectEditor({
             />
           </div>
         )}
-        <details className="panel project-voice-settings">
-          <summary>{t("Narration voice")}</summary>
-          <p className="muted">
-            {t(
-              "These voices are saved with this project. Changing the defaults does not change these selections.",
-            )}
-          </p>
-          {voiceRoles.map((role) => (
-            <BaseVoiceSelector
-              key={role}
-              label={roleLabels[role]}
-              locale={project.locale as VoiceLocale}
-              value={projectBaseVoice(
-                settings,
-                project.locale as VoiceLocale,
-                role,
-              )}
-              onChange={(id) =>
-                setSettings((current) => ({
-                  ...current,
-                  baseVoices: {
-                    intro: projectBaseVoice(
-                      current,
-                      project.locale as VoiceLocale,
-                      "intro",
-                    ),
-                    outro: projectBaseVoice(
-                      current,
-                      project.locale as VoiceLocale,
-                      "outro",
-                    ),
-                    reading: projectBaseVoice(
-                      current,
-                      project.locale as VoiceLocale,
-                      "reading",
-                    ),
-                    ...current.baseVoices,
-                    [role]: id,
-                  },
-                }))
-              }
-              disabled={locked}
-            />
-          ))}
-          <p className="muted">
-            {t(
-              "Save changes to keep these voices. Existing narrations change only when you regenerate them.",
-            )}
-          </p>
+        <details className="panel project-voice-settings project-configuration">
+          <summary>
+            <span>{t("Project configuration")}</span>
+            <ChevronDown size={18} aria-hidden="true" />
+          </summary>
+          <div className="project-configuration-content">
+            <section aria-labelledby="project-narration-settings-title">
+              <h2 id="project-narration-settings-title">
+                {t("Narration voice")}
+              </h2>
+              <p className="muted">
+                {t(
+                  "Choose voices and narration styles for this project. Existing recordings stay unchanged until you regenerate them.",
+                )}
+              </p>
+              {voiceRoles.map((role) => (
+                <BaseVoiceSelector
+                  key={role}
+                  label={roleLabels[role]}
+                  preset={settings.voiceStylePresets?.[role]}
+                  onPresetChange={(preset) =>
+                    setSettings((current) => ({
+                      ...current,
+                      voiceStylePresets: {
+                        ...current.voiceStylePresets,
+                        [role]: preset,
+                      },
+                    }))
+                  }
+                  locale={project.locale as VoiceLocale}
+                  value={projectBaseVoice(
+                    settings,
+                    project.locale as VoiceLocale,
+                    role,
+                  )}
+                  onChange={(id) =>
+                    setSettings((current) => ({
+                      ...current,
+                      baseVoices: {
+                        intro: projectBaseVoice(
+                          current,
+                          project.locale as VoiceLocale,
+                          "intro",
+                        ),
+                        outro: projectBaseVoice(
+                          current,
+                          project.locale as VoiceLocale,
+                          "outro",
+                        ),
+                        reading: projectBaseVoice(
+                          current,
+                          project.locale as VoiceLocale,
+                          "reading",
+                        ),
+                        ...current.baseVoices,
+                        [role]: id,
+                      },
+                    }))
+                  }
+                  disabled={locked}
+                />
+              ))}
+              <p className="muted">
+                {t(
+                  "Save changes to keep these voices and narration styles. Existing narrations change only when you regenerate them.",
+                )}
+              </p>
+            </section>
+            <section aria-labelledby="project-audio-source-title">
+              <h2 id="project-audio-source-title">
+                {t("Chapter audio source")}
+              </h2>
+              <AudioLibrarySelector
+                label="Audio version"
+                locale={project.locale}
+                code={project.version_code}
+                value={settings.audioEdition}
+                disabled={locked || analyzing}
+                onChange={(audioEdition) => {
+                  const next = {
+                    ...settings,
+                    audioEdition,
+                    readingVoices: {},
+                    verseOffsets: [],
+                    readingSectionPadding: [],
+                    passageOffsets: { startSeconds: 0, endSeconds: 0 },
+                    alignmentReviewReferences: [],
+                  };
+                  setSettings(next);
+                  void inspect(next);
+                }}
+              />
+            </section>
+          </div>
         </details>
         <div className="project-studio-layout">
-          <section className="section-card audio-project-settings">
-            <AudioLibrarySelector
-              locale={project.locale}
-              code={project.version_code}
-              value={settings.audioEdition}
-              disabled={locked || analyzing}
-              onChange={(audioEdition) => {
-                const next = {
-                  ...settings,
-                  audioEdition,
-                  readingVoices: {},
-                  verseOffsets: [],
-                  readingSectionPadding: [],
-                  passageOffsets: { startSeconds: 0, endSeconds: 0 },
-                  alignmentReviewReferences: [],
-                };
-                setSettings(next);
-                void inspect(next);
-              }}
-            />
-          </section>
           <div className="section-stack">
             <div className="sections-toolbar">
               <div>

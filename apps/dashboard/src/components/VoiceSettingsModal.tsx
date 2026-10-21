@@ -1,13 +1,10 @@
 "use client";
 import { defaultAudioVersePause } from "../lib/audio-settings";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
-import { ReadingVoiceParameters } from "./ReadingVoiceParameters";
 import {
-  defaultReadingNarrationOverrides,
-  narrationPresets,
-  type ReadingNarrationOverrides,
-  type NarrationParameters,
-} from "../lib/narration-parameters";
+  emptyVoiceStyleDefaults,
+  type VoiceStyleDefaults,
+} from "../lib/voice-style-presets";
 import {
   defaultBaseVoices,
   voiceRoles,
@@ -65,23 +62,14 @@ export function VoiceSettingsModal({
   const [baseVoiceLocale, setBaseVoiceLocale] = useState<"es" | "en" | "pt">(
     "en",
   );
-  const [baseVoiceRole, setBaseVoiceRole] = useState<
-    "intro" | "outro" | "reading"
-  >(audioOnly ? "reading" : "intro");
   const [versePauseSeconds, setVersePauseSeconds] = useState(
     defaultAudioVersePause,
   );
   const [baseVoices, setBaseVoices] =
     useState<BaseVoiceDefaults>(defaultBaseVoices);
-  const [readingParameters, setReadingParameters] =
-    useState<ReadingNarrationOverrides>(defaultReadingNarrationOverrides);
-  const [generalParameters, setGeneralParameters] = useState<
-    Record<"en" | "es" | "pt", NarrationParameters>
-  >({
-    en: narrationPresets.natural,
-    es: narrationPresets.natural,
-    pt: narrationPresets.natural,
-  });
+  const [stylePresets, setStylePresets] = useState<VoiceStyleDefaults>(
+    emptyVoiceStyleDefaults,
+  );
   const [publication, setPublication] = useState<PublicationSettings>(() =>
     emptyPublicationSettings(publicationKind),
   );
@@ -106,8 +94,7 @@ export function VoiceSettingsModal({
       api<{
         versePauseSeconds?: number;
         defaults: BaseVoiceDefaults;
-        readingParameters: ReadingNarrationOverrides;
-        generalParameters: Record<"en" | "es" | "pt", NarrationParameters>;
+        stylePresets: VoiceStyleDefaults;
       }>(`settings/base-voices?kind=${kind}`),
       audioOnly
         ? Promise.resolve(null)
@@ -141,8 +128,7 @@ export function VoiceSettingsModal({
           setVersePauseSeconds(
             voices.versePauseSeconds ?? defaultAudioVersePause,
           );
-          setReadingParameters(voices.readingParameters);
-          setGeneralParameters(voices.generalParameters);
+          setStylePresets(voices.stylePresets);
           if (publication) setPublication(publication.templates);
           if (voice) setTemplates(voice.templates);
           if (projects) setProjectSettings(projects.settings);
@@ -173,7 +159,7 @@ export function VoiceSettingsModal({
           method: "PUT",
           body: JSON.stringify({
             defaults: baseVoices,
-            readingParameters,
+            stylePresets,
             ...(audioOnly ? { versePauseSeconds } : {}),
           }),
         });
@@ -292,6 +278,20 @@ export function VoiceSettingsModal({
           </button>
         </div>
         <div className="tabs profile-tabs" aria-label={t("Settings")}>
+          {!audioOnly && (
+            <button
+              type="button"
+              className={tab === "voice" ? "active" : ""}
+              aria-pressed={tab === "voice"}
+              disabled={busy}
+              onClick={() => {
+                setTab("voice");
+                setError("");
+              }}
+            >
+              {t("Voice templates")}
+            </button>
+          )}
           <button
             type="button"
             className={tab === "baseVoices" ? "active" : ""}
@@ -308,18 +308,6 @@ export function VoiceSettingsModal({
             <>
               <button
                 type="button"
-                className={tab === "voice" ? "active" : ""}
-                aria-pressed={tab === "voice"}
-                disabled={busy}
-                onClick={() => {
-                  setTab("voice");
-                  setError("");
-                }}
-              >
-                {t("Narration settings")}
-              </button>
-              <button
-                type="button"
                 className={tab === "projects" ? "active" : ""}
                 aria-pressed={tab === "projects"}
                 disabled={busy}
@@ -328,7 +316,7 @@ export function VoiceSettingsModal({
                   setError("");
                 }}
               >
-                {t("Project settings")}
+                {t("Reading (original audio)")}
               </button>
               <button
                 type="button"
@@ -348,9 +336,7 @@ export function VoiceSettingsModal({
         {tab === "baseVoices" ? (
           <p className="muted">
             {t(
-              audioOnly
-                ? "Choose reading voices for new audio projects in each language. Existing projects keep their voices."
-                : "Choose introduction, closing and reading voices for new projects in each language. Existing projects keep their voices.",
+              "Choose default voices and narration styles for each language. New projects use these choices; existing recordings stay unchanged.",
             )}
           </p>
         ) : tab === "voice" ? (
@@ -492,57 +478,39 @@ export function VoiceSettingsModal({
                 </button>
               ))}
             </div>
-            {!audioOnly && (
-              <div
-                className="tabs profile-tabs"
-                aria-label={t("Voice purpose")}
+            {(audioOnly ? (["reading"] as const) : voiceRoles).map((role) => (
+              <section
+                className="voice-settings-language"
+                key={`${baseVoiceLocale}:${role}`}
               >
-                {voiceRoles.map((role) => (
-                  <button
-                    type="button"
-                    key={role}
-                    className={baseVoiceRole === role ? "active" : ""}
-                    aria-pressed={baseVoiceRole === role}
-                    onClick={() => setBaseVoiceRole(role)}
-                    disabled={busy}
-                  >
-                    {t(roleLabels[role])}
-                  </button>
-                ))}
-              </div>
-            )}
-            <section className="voice-settings-language">
-              {baseVoiceRole === "reading" && (
-                <ReadingVoiceParameters
-                  key={baseVoiceLocale}
-                  value={readingParameters[baseVoiceLocale]}
-                  general={generalParameters[baseVoiceLocale]}
-                  onChange={(value) =>
-                    setReadingParameters((current) => ({
+                {!audioOnly && <h3>{t(roleLabels[role])}</h3>}
+                <BaseVoiceSelector
+                  label={audioOnly ? roleLabels[role] : "Narration voice"}
+                  locale={baseVoiceLocale}
+                  value={baseVoices[baseVoiceLocale][role]}
+                  preset={stylePresets[baseVoiceLocale][role]}
+                  onPresetChange={(preset) =>
+                    setStylePresets((current) => ({
                       ...current,
-                      [baseVoiceLocale]: value,
+                      [baseVoiceLocale]: {
+                        ...current[baseVoiceLocale],
+                        [role]: preset,
+                      },
+                    }))
+                  }
+                  onChange={(id) =>
+                    setBaseVoices((current) => ({
+                      ...current,
+                      [baseVoiceLocale]: {
+                        ...current[baseVoiceLocale],
+                        [role]: id,
+                      },
                     }))
                   }
                   disabled={busy || loadFailed || !canEdit}
                 />
-              )}
-              <BaseVoiceSelector
-                key={`${baseVoiceLocale}:${baseVoiceRole}`}
-                label={roleLabels[baseVoiceRole]}
-                locale={baseVoiceLocale}
-                value={baseVoices[baseVoiceLocale][baseVoiceRole]}
-                onChange={(id) =>
-                  setBaseVoices((current) => ({
-                    ...current,
-                    [baseVoiceLocale]: {
-                      ...current[baseVoiceLocale],
-                      [baseVoiceRole]: id,
-                    },
-                  }))
-                }
-                disabled={busy || loadFailed || !canEdit}
-              />
-            </section>
+              </section>
+            ))}
           </div>
         ) : (
           <fieldset

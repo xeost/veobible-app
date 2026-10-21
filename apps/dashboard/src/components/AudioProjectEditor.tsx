@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ChevronDown,
   ChevronsDown,
   ChevronsUp,
   LoaderCircle,
@@ -198,20 +199,29 @@ export function AudioProjectEditor({
         </button>
       </ProjectEditorHeader>
       <div className="project-studio-layout audio-editor">
-        <details className="panel project-voice-settings">
-          <summary>{t("Narration voice")}</summary>
-          <BaseVoiceSelector
-            locale={project.version.locale}
-            value={settings.baseVoice}
-            disabled={locked}
-            onChange={(baseVoice) => change({ ...settings, baseVoice })}
-          />
-          <p className="muted">
-            {t(
-              "Each verse has its own recording. Generate audios joins the saved verses into one audio file per chapter.",
-            )}
-          </p>
-          {dirty && <p className="notice">{t("Unsaved changes")}</p>}
+        <details className="panel project-voice-settings project-configuration">
+          <summary>
+            <span>{t("Project configuration")}</span>
+            <ChevronDown size={18} aria-hidden="true" />
+          </summary>
+          <div className="project-configuration-content">
+            <BaseVoiceSelector
+              locale={project.version.locale}
+              value={settings.baseVoice}
+              preset={settings.narrationPreset}
+              onPresetChange={(narrationPreset) =>
+                change({ ...settings, narrationPreset })
+              }
+              disabled={locked}
+              onChange={(baseVoice) => change({ ...settings, baseVoice })}
+            />
+            <p className="muted">
+              {t(
+                "Each verse has its own recording. Generate audios joins the saved verses into one audio file per chapter.",
+              )}
+            </p>
+            {dirty && <p className="notice">{t("Unsaved changes")}</p>}
+          </div>
         </details>
         {project.status === "failed" && (
           <p className="error" role="alert">

@@ -1,4 +1,25 @@
 export const portuguese: Record<string, string> = {
+  "Project configuration": "Configuração do projeto",
+
+  "Reading (original audio)": "Leitura (áudios originais)",
+
+  "Voice templates": "Modelos de voz",
+
+  "Choose default voices and narration styles for each language. New projects use these choices; existing recordings stay unchanged.":
+    "Escolha as vozes e os estilos de narração padrão para cada idioma. Novos projetos usarão essas opções; as gravações existentes permanecem iguais.",
+  "Choose voices and narration styles for this project. Existing recordings stay unchanged until you regenerate them.":
+    "Escolha as vozes e os estilos de narração para este projeto. As gravações existentes permanecem iguais até que você as gere novamente.",
+  "Save changes to keep these voices and narration styles. Existing narrations change only when you regenerate them.":
+    "Salve as alterações para manter essas vozes e estilos de narração. As narrações existentes só mudarão quando você as gerar novamente.",
+
+  "Sets the expression and pacing of generated narration. The voice example may have been generated with a different style.":
+    "Define a expressão e o ritmo da narração gerada. A amostra de voz pode ter sido gerada com um estilo diferente.",
+  "Use default narration style": "Usar o estilo de narração padrão",
+
+  "Delete preset": "Excluir predefinição",
+  "Preset removed. Save changes to keep this change.":
+    "Predefinição removida. Salve as alterações para manter esta mudança.",
+
   "Restore default example text": "Restaurar o texto de exemplo padrão",
 
   "Voice example": "Amostra de voz",

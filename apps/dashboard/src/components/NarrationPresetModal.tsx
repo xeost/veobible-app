@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { CircleHelp, X } from "lucide-react";
+import { CircleHelp, X, Trash2 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { useModalDismiss } from "./useModalDismiss";
 import {
@@ -22,12 +22,14 @@ export function NarrationPresetModal({
   language,
   close,
   apply,
+  onDelete,
 }: {
   initial: CustomNarrationPreset;
   readOnly: boolean;
   language: string;
   close: () => void;
   apply: (preset: CustomNarrationPreset) => void;
+  onDelete?: () => void;
 }) {
   const { t } = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -146,19 +148,31 @@ export function NarrationPresetModal({
             <dd>{values.top_p}</dd>
           </div>
         </dl>
-        <div className="modal-footer">
-          <button type="button" onClick={close}>
-            {t(readOnly ? "Close" : "Cancel")}
-          </button>
-          {!readOnly && (
+        <div className="modal-footer narration-preset-footer">
+          {!readOnly && onDelete && (
             <button
-              className="primary"
-              type="submit"
-              disabled={!draft.name.trim()}
+              type="button"
+              className="narration-preset-delete"
+              onClick={onDelete}
             >
-              {t("Apply preset")}
+              <Trash2 size={16} aria-hidden="true" />
+              {t("Delete preset")}
             </button>
           )}
+          <div>
+            <button type="button" onClick={close}>
+              {t(readOnly ? "Close" : "Cancel")}
+            </button>
+            {!readOnly && (
+              <button
+                className="primary"
+                type="submit"
+                disabled={!draft.name.trim()}
+              >
+                {t("Apply preset")}
+              </button>
+            )}
+          </div>
         </div>
       </form>
     </dialog>

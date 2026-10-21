@@ -1,4 +1,8 @@
 import {
+  loadVoiceStyleDefaults,
+  voiceStyleDefaultsSchema,
+} from "../../../lib/voice-style-presets";
+import {
   voiceSampleRequestSchema,
   resolveVoiceSampleSettings,
 } from "../../../lib/voice-sample-settings";
@@ -298,13 +302,16 @@ async function handle(req: Request, lang: Language) {
       .enum(["short", "long", "book", "audio"])
       .parse(url.searchParams.get("kind"));
     if (method === "GET") {
-      const [defaults, readingParameters, styles] = await Promise.all([
-        loadBaseVoiceDefaults(database, kind),
-        loadReadingNarrationOverrides(database, kind),
-        loadNarrationStyles(database),
-      ]);
+      const [defaults, readingParameters, styles, stylePresets] =
+        await Promise.all([
+          loadBaseVoiceDefaults(database, kind),
+          loadReadingNarrationOverrides(database, kind),
+          loadNarrationStyles(database),
+          loadVoiceStyleDefaults(database, kind),
+        ]);
       return json({
         defaults,
+        stylePresets,
         readingParameters,
         ...(kind === "audio"
           ? { versePauseSeconds: await loadAudioVersePause(database) }
@@ -322,7 +329,8 @@ async function handle(req: Request, lang: Language) {
       const configuration = z
         .object({
           defaults: baseVoiceDefaultsSchema,
-          readingParameters: readingNarrationOverridesSchema,
+          readingParameters: readingNarrationOverridesSchema.optional(),
+          stylePresets: voiceStyleDefaultsSchema.optional(),
           versePauseSeconds:
             kind === "audio"
               ? audioVersePauseSchema.optional()
@@ -357,6 +365,7 @@ async function handle(req: Request, lang: Language) {
           configuration.success && kind === "audio"
             ? configuration.data.versePauseSeconds
             : undefined,
+          configuration.success ? configuration.data.stylePresets : undefined,
         ),
       });
     }
@@ -375,6 +384,7 @@ async function handle(req: Request, lang: Language) {
         voices: catalog.voices.filter(
           (voice) => !locale || voice.locale === locale,
         ),
+        presets: await loadNarrationPresetLibrary(database),
       });
     }
     if (parts.length === 3 && parts[2] === "sample") {

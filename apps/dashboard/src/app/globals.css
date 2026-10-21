@@ -3176,28 +3176,6 @@ audio {
 .project-voice-settings .base-voice-picker + .base-voice-picker {
   margin-top: 1.5rem;
 }
-.reading-voice-parameters {
-  min-width: 0;
-  margin: 0 0 1.25rem;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-.reading-voice-parameters > .checkbox {
-  display: flex;
-  flex-direction: row;
-  margin: 0 0 10px;
-}
-.reading-voice-parameters .narration-controls {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 24px;
-}
-@media (max-width: 600px) {
-  .reading-voice-parameters .narration-controls {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 /* Audio projects share the video editor's chapter cards and waveform controls. */
 .audio-project-settings { padding: 24px; display: grid; gap: 16px; }
 .audio-project-settings .base-voice-picker { max-width: 480px; }
@@ -3264,4 +3242,70 @@ audio {
 }
 .base-voice-text-heading .icon-button {
   border: 0;
+}
+
+.narration-preset-footer {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.narration-preset-footer > div {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.narration-preset-delete {
+  margin-right: auto;
+  color: #ffc1c1;
+  border-color: #b9535366;
+  background: #83363633;
+}
+
+.voice-style-picker-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.voice-style-picker-label label {
+  margin: 0;
+}
+
+.project-configuration {
+  padding: 0;
+}
+.project-configuration > summary {
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 24px;
+  border-radius: inherit;
+  list-style: none;
+}
+.project-configuration > summary::-webkit-details-marker {
+  display: none;
+}
+.project-configuration > summary > svg {
+  flex-shrink: 0;
+  color: #9797a6;
+  transition: transform 0.2s;
+}
+.project-configuration[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.project-configuration-content {
+  padding: 0 24px 24px;
+}
+.project-configuration-content > section + section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.project-configuration-content h2 {
+  margin-top: 0;
+}
+.project-configuration-content label:has(> select) {
+  display: grid;
+  gap: 8px;
 }

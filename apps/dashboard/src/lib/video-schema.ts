@@ -1,3 +1,4 @@
+import { voiceStylePresetsSchema } from "../../../../tools/video-project-api/src/narration-preset-selection";
 import { readingVoiceSettingsSchema } from "../../../../tools/video-project-api/src/reading-voice-settings";
 import {
   baseVoiceSchema,
@@ -16,6 +17,7 @@ export const settingsSchema = z.object({
   audioEdition: audioEditionSchema.optional(),
   baseVoice: baseVoiceSchema.optional(),
   baseVoices: voiceRolesSchema.optional(),
+  voiceStylePresets: voiceStylePresetsSchema.optional(),
   readingVoices: readingVoiceSettingsSchema.optional(),
   alignmentJobId: z.string().uuid().optional(),
   alignmentAppliedJobIds: z.array(z.string().uuid()).optional(),

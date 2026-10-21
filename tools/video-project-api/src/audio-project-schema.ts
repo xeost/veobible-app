@@ -1,3 +1,4 @@
+import { narrationPresetSelectionSchema } from "./narration-preset-selection.js";
 import { z } from "zod";
 import { baseVoiceSchema } from "./base-voice-schema.js";
 import {
@@ -32,6 +33,7 @@ export const audioTrimSchema = z
   .refine((v) => v.endSeconds - v.startSeconds >= 0.02);
 export const audioSettingsSchema = z.object({
   baseVoice: baseVoiceSchema,
+  narrationPreset: narrationPresetSelectionSchema.optional(),
   trims: z.record(z.string().regex(/^\d+:\d+$/), audioTrimSchema).default({}),
   pauses: z
     .record(z.string().regex(/^\d+:\d+$/), z.number().finite().min(0).max(10))

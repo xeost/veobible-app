@@ -1,3 +1,4 @@
+import { voiceStylePresetsSchema } from "./narration-preset-selection.js";
 import { readingVoiceSettingsSchema } from "./reading-voice-settings.js";
 import { baseVoiceSchema, voiceRolesSchema } from "./base-voice-schema.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
@@ -17,6 +18,7 @@ export const settingsSchema = z.object({
   audioEdition: audioEditionSchema.optional(),
   baseVoice: baseVoiceSchema.optional(),
   baseVoices: voiceRolesSchema.optional(),
+  voiceStylePresets: voiceStylePresetsSchema.optional(),
   readingVoices: readingVoiceSettingsSchema.optional(),
   alignmentJobId: z.string().uuid().optional(),
   alignmentAppliedJobIds: z.array(z.string().uuid()).optional(),

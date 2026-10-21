@@ -1,4 +1,8 @@
 import {
+  loadVoiceStyleDefaults,
+  selectedVoiceStyleParameters,
+} from "./voice-style-presets";
+import {
   loadBaseVoiceDefaults,
   projectBaseVoice,
   voiceRoles,
@@ -6,8 +10,6 @@ import {
 import {
   loadNarrationStyles,
   resolveNarrationStyle,
-  loadReadingNarrationOverrides,
-  resolveReadingNarrationParameters,
 } from "./narration-parameters";
 import {
   loadNarrationModels,
@@ -325,6 +327,9 @@ export async function videoApi(
       baseVoices: (await loadBaseVoiceDefaults(database, input.kind))[
         version.locale
       ],
+      voiceStylePresets: (await loadVoiceStyleDefaults(database, input.kind))[
+        version.locale
+      ],
     });
     const result = await database
       .prepare(
@@ -457,7 +462,16 @@ export async function videoApi(
   ]);
   const voiceModel = models[project.locale];
   const voiceDecoder = selectedNarrationDecoder(models, project.locale);
-  const voiceParameters = resolveNarrationStyle(styles[project.locale]);
+  const styleDefaults = (await loadVoiceStyleDefaults(database, project.kind))[
+    project.locale
+  ];
+  const generalVoiceParameters = resolveNarrationStyle(styles[project.locale]);
+  const voiceParameters = selectedVoiceStyleParameters(
+    generalVoiceParameters,
+    styleDefaults,
+    JSON.parse(project.settings).voiceStylePresets,
+    "intro",
+  );
   const query = new URLSearchParams({
     kind: project.kind,
     version: project.version_code,
@@ -655,6 +669,17 @@ export async function videoApi(
       project.locale,
     );
     query.set("baseVoice", settings.baseVoice);
+    query.set(
+      "voiceParameters",
+      JSON.stringify(
+        selectedVoiceStyleParameters(
+          generalVoiceParameters,
+          styleDefaults,
+          settings.voiceStylePresets,
+          "intro",
+        ),
+      ),
+    );
     const defaults = versionProjectSettings(
       await loadProjectSettings(database, project.kind),
       project.locale,
@@ -698,16 +723,16 @@ export async function videoApi(
         .parse(values.part);
       if (verseReference && !part.startsWith("reading-"))
         return json({ error: "Invalid reading verse" }, 400);
-      if (part.startsWith("reading-")) {
-        const overrides = await loadReadingNarrationOverrides(
-          database,
-          project.kind,
-        );
-        common.voiceParameters = resolveReadingNarrationParameters(
-          voiceParameters,
-          overrides[project.locale],
-        );
-      }
+      common.voiceParameters = selectedVoiceStyleParameters(
+        generalVoiceParameters,
+        styleDefaults,
+        settings.voiceStylePresets,
+        part === "outro"
+          ? "outro"
+          : part.startsWith("reading-")
+            ? "reading"
+            : "intro",
+      );
       if (
         (part === "intro" || part === "outro") &&
         !voiceTemplates[part] &&
@@ -744,12 +769,15 @@ export async function videoApi(
         const stored = settingsSchema.parse(JSON.parse(project.settings));
         if (
           stored.voiceTrims?.[part] ||
+          JSON.stringify(stored.voiceStylePresets) !==
+            JSON.stringify(settings.voiceStylePresets) ||
           stored.baseVoice !== settings.baseVoice ||
           JSON.stringify(stored.baseVoices) !==
             JSON.stringify(settings.baseVoices) ||
           JSON.stringify(stored.readingVoices) !==
             JSON.stringify(settings.readingVoices)
         ) {
+          stored.voiceStylePresets = settings.voiceStylePresets;
           stored.baseVoice = settings.baseVoice;
           stored.baseVoices = settings.baseVoices;
           stored.readingVoices = settings.readingVoices;

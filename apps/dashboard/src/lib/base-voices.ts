@@ -1,3 +1,7 @@
+import {
+  voiceStyleDefaultsSchema,
+  type VoiceStyleDefaults,
+} from "./voice-style-presets";
 import { z } from "zod";
 import { audioVersePauseKey, audioVersePauseSchema } from "./audio-settings";
 import {
@@ -76,8 +80,13 @@ export async function saveBaseVoiceDefaults(
   input: unknown,
   readingParameters?: ReadingNarrationOverrides,
   versePauseSeconds?: number,
+  stylePresets?: VoiceStyleDefaults,
 ) {
   const defaults = baseVoiceDefaultsSchema.parse(input);
+  const presets =
+    stylePresets === undefined
+      ? undefined
+      : voiceStyleDefaultsSchema.parse(stylePresets);
   const statement = database
     .prepare(
       "INSERT INTO site_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
@@ -99,6 +108,18 @@ export async function saveBaseVoiceDefaults(
           JSON.stringify(
             readingNarrationOverridesSchema.parse(readingParameters),
           ),
+          new Date().toISOString(),
+        ),
+    );
+  if (presets !== undefined)
+    statements.push(
+      database
+        .prepare(
+          "INSERT INTO site_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
+        )
+        .bind(
+          `voice_style_defaults:${kind}`,
+          JSON.stringify(presets),
           new Date().toISOString(),
         ),
     );

@@ -1,10 +1,20 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import { Play, Pause, WandSparkles, RotateCcw } from "lucide-react";
+import { Play, Pause, WandSparkles, RotateCcw, CircleHelp } from "lucide-react";
 import { api } from "./api";
 import { useI18n } from "../i18n/context";
 import { queueChangedEvent } from "../lib/generation-queue";
 import { pollWhileVisible } from "../lib/visible-polling";
+import {
+  narrationPresets,
+  narrationParametersSchema,
+} from "../lib/narration-parameters";
+import {
+  builtInNarrationLabels,
+  narrationPresetLibrarySchema,
+  type NarrationPresetLibrary,
+} from "../lib/narration-style-presets";
+import type { NarrationPresetSelection } from "../lib/voice-style-presets";
 import type { VoiceSampleSettings } from "../lib/voice-sample-settings";
 import {
   sampleTexts,
@@ -19,6 +29,8 @@ export function BaseVoiceSelector({
   disabled = false,
   label,
   narrationSettings,
+  preset,
+  onPresetChange,
 }: {
   locale: VoiceLocale;
   value: string;
@@ -26,6 +38,8 @@ export function BaseVoiceSelector({
   disabled?: boolean;
   label?: string;
   narrationSettings?: VoiceSampleSettings;
+  preset?: NarrationPresetSelection;
+  onPresetChange?: (preset: NarrationPresetSelection | undefined) => void;
 }) {
   const { t } = useI18n();
   const canGenerate = Boolean(narrationSettings);
@@ -33,6 +47,7 @@ export function BaseVoiceSelector({
   const [playing, setPlaying] = useState(false);
   const id = useId();
   const [voices, setVoices] = useState<BaseVoice[]>([]);
+  const [presets, setPresets] = useState<NarrationPresetLibrary | null>(null);
   const [text, setText] = useState(sampleTexts[locale]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -46,9 +61,10 @@ export function BaseVoiceSelector({
       const stop = pollWhileVisible(
         async () => {
           try {
-            const data = await api<{ voices: BaseVoice[] }>(
-              `base-voices?locale=${locale}`,
-            );
+            const data = await api<{
+              voices: BaseVoice[];
+              presets: NarrationPresetLibrary;
+            }>(`base-voices?locale=${locale}`);
             if (!live) return;
             const wasPending = pending.current;
             pending.current = data.voices.some((voice) =>
@@ -56,6 +72,7 @@ export function BaseVoiceSelector({
             );
             if (wasPending && !pending.current)
               window.dispatchEvent(new Event(queueChangedEvent));
+            setPresets(narrationPresetLibrarySchema.parse(data.presets));
             setVoices(data.voices);
             setError("");
           } catch (cause) {
@@ -184,6 +201,85 @@ export function BaseVoiceSelector({
         </select>
         {!canGenerate && playbackButton}
       </div>
+      {!canGenerate && onPresetChange && (
+        <>
+          <div className="voice-style-picker-label">
+            <label htmlFor={`${id}-preset`}>{t("Narration style")}</label>
+            <button
+              type="button"
+              className="narration-help"
+              aria-label={`${t("Narration style")}: ${t("Help")}`}
+              data-tooltip={t(
+                "Sets the expression and pacing of generated narration. The voice example may have been generated with a different style.",
+              )}
+              aria-describedby={`${id}-preset-help`}
+            >
+              <CircleHelp size={15} aria-hidden="true" />
+            </button>
+            <span id={`${id}-preset-help`} className="sr-only">
+              {t(
+                "Sets the expression and pacing of generated narration. The voice example may have been generated with a different style.",
+              )}
+            </span>
+          </div>
+          <select
+            id={`${id}-preset`}
+            value={preset?.id ?? ""}
+            aria-describedby={`${id}-preset-help`}
+            disabled={disabled || loading || !presets}
+            onChange={(event) => {
+              const selected = event.target.value;
+              if (!selected) {
+                onPresetChange(undefined);
+                return;
+              }
+              if (Object.hasOwn(narrationPresets, selected)) {
+                const key = selected as keyof typeof narrationPresets;
+                onPresetChange({
+                  id: key,
+                  name: builtInNarrationLabels[key],
+                  settings: { ...narrationPresets[key] },
+                });
+              } else {
+                const item = presets?.[locale].items.find(
+                  (item) => item.id === selected,
+                );
+                if (item)
+                  onPresetChange({
+                    ...item,
+                    settings: narrationParametersSchema.parse(item.settings),
+                  });
+              }
+            }}
+          >
+            <option value="">{t("Use default narration style")}</option>
+            {Object.entries(builtInNarrationLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {t(label)}
+              </option>
+            ))}
+            {presets?.[locale].items.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.id === "saved-narration" &&
+                item.name === "Saved narration"
+                  ? t("Saved narration")
+                  : item.name}
+              </option>
+            ))}
+            {preset &&
+              !Object.hasOwn(narrationPresets, preset.id) &&
+              !presets?.[locale].items.some(
+                (item) => item.id === preset.id,
+              ) && (
+                <option value={preset.id}>
+                  {preset.name === "Saved narration"
+                    ? t("Saved narration")
+                    : preset.name}
+                </option>
+              )}
+          </select>
+        </>
+      )}
       {loading && (
         <p className="muted" role="status">
           {t("Loading voices…")}

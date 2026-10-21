@@ -6,6 +6,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import {
+  browserLanguage,
+  persistBrowserLanguage,
+} from "../lib/language-preference";
 import { spanish } from "./es";
 import { portuguese } from "./pt";
 export type Language = "es" | "en" | "pt";
@@ -23,22 +27,13 @@ export function I18nProvider({
 }) {
   const [language, updateLanguage] = useState(initialLanguage);
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("veo-language");
-      if (saved === "es" || saved === "en" || saved === "pt")
-        updateLanguage(saved);
-    } catch {}
-  }, []);
-  useEffect(() => {
-    document.documentElement.lang = language;
-  }, [language]);
+    const restored = browserLanguage(initialLanguage);
+    updateLanguage(restored);
+    persistBrowserLanguage(restored);
+  }, [initialLanguage]);
   const setLanguage = (value: Language) => {
+    persistBrowserLanguage(value);
     updateLanguage(value);
-    document.documentElement.lang = value;
-    document.cookie = `veo_language=${value}; Path=/; Max-Age=31536000; SameSite=Lax`;
-    try {
-      localStorage.setItem("veo-language", value);
-    } catch {}
   };
   const t = (text: string) => {
     if (language === "es") return spanish[text] ?? text;

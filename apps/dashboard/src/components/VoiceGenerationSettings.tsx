@@ -283,6 +283,30 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
               { en: "English", es: "Spanish", pt: "Portuguese" }[editor.locale]
             }
             close={() => setEditor(null)}
+            onDelete={
+              !editor.readOnly &&
+              presets[editor.locale].items.some(
+                (item) => item.id === editor.preset.id,
+              )
+                ? () => {
+                    const current = presets[editor.locale];
+                    setPresets({
+                      ...presets,
+                      [editor.locale]: {
+                        selected:
+                          current.selected === editor.preset.id
+                            ? "natural"
+                            : current.selected,
+                        items: current.items.filter(
+                          (item) => item.id !== editor.preset.id,
+                        ),
+                      },
+                    });
+                    setEditor(null);
+                    notify("Preset removed. Save changes to keep this change.");
+                  }
+                : undefined
+            }
             apply={(preset) => {
               const current = presets[editor.locale];
               setPresets({

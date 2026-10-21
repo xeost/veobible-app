@@ -1,3 +1,5 @@
+import { emptyVoiceStyleDefaults } from "./voice-style-presets";
+import { narrationPresets } from "./narration-parameters";
 import { saveBaseVoiceDefaults } from "./base-voices";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -85,6 +87,7 @@ test("project sync only adds missing slugs within a format and Bible version, re
     const saved = sqlite.prepare("SELECT * FROM video_projects").get()!;
     assert.deepEqual(JSON.parse(String(saved.settings)), {
       baseVoices: { intro: "es-1", outro: "es-1", reading: "es-1" },
+      voiceStylePresets: {},
       volumeMultiplier: 1.5,
       overrideReadingVolume: false,
       passageOffsets: { startSeconds: 0, endSeconds: 0 },
@@ -96,11 +99,24 @@ test("project sync only adds missing slugs within a format and Bible version, re
       "UPDATE video_projects SET title='User title',settings='{\"volumeMultiplier\":3}',published=1",
     );
     const original = sqlite.prepare("SELECT * FROM video_projects").get();
-    await saveBaseVoiceDefaults(database, "short", {
-      es: "es-3",
-      en: "en-2",
-      pt: "pt-1",
-    });
+    const styleDefaults = emptyVoiceStyleDefaults();
+    styleDefaults.es.intro = {
+      id: "expressive",
+      name: "Expressive narration",
+      settings: narrationPresets.expressive,
+    };
+    await saveBaseVoiceDefaults(
+      database,
+      "short",
+      {
+        es: "es-3",
+        en: "en-2",
+        pt: "pt-1",
+      },
+      undefined,
+      undefined,
+      styleDefaults,
+    );
     assert.deepEqual(
       await syncVideoProjects(database, "short", spanish, [
         {
@@ -122,6 +138,10 @@ test("project sync only adds missing slugs within a format and Bible version, re
     assert.equal(
       JSON.parse(String(newSettings.settings)).baseVoices.intro,
       "es-3",
+    );
+    assert.deepEqual(
+      JSON.parse(String(newSettings.settings)).voiceStylePresets,
+      styleDefaults.es,
     );
     assert.deepEqual(
       await syncVideoProjects(database, "short", spanish, [first, second]),

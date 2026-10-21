@@ -9,7 +9,9 @@ export function AudioLibrarySelector({
   value,
   disabled,
   onChange,
+  label = "Chapter audio source",
 }: {
+  label?: string;
   code: string;
   locale: string;
   value?: string;
@@ -43,7 +45,7 @@ export function AudioLibrarySelector({
   }, [code, locale]);
   return (
     <label>
-      {t("Chapter audio source")}
+      {t(label)}
       <select
         value={value ?? ""}
         disabled={disabled}

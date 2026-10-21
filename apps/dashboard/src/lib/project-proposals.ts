@@ -1,3 +1,4 @@
+import { loadVoiceStyleDefaults } from "./voice-style-presets";
 import { loadBaseVoiceDefaults } from "./base-voices";
 import { z } from "zod";
 import { settingsSchema } from "./video-schema";
@@ -51,6 +52,9 @@ export async function syncVideoProjects(
         version.code,
       ),
       baseVoices: (await loadBaseVoiceDefaults(database, kind))[version.locale],
+      voiceStylePresets: (await loadVoiceStyleDefaults(database, kind))[
+        version.locale
+      ],
     }),
   );
   let added = 0;

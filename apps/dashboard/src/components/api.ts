@@ -1,20 +1,13 @@
 import { userMessage } from "../lib/presentation";
 import type { Language } from "../i18n/context";
 
-function currentLanguage(): Language {
-  if (typeof window === "undefined") return "en";
-  try {
-    const saved = localStorage.getItem("veo-language");
-    if (saved === "es" || saved === "en" || saved === "pt") return saved;
-  } catch {}
-  return "en";
-}
+import { browserLanguage } from "../lib/language-preference";
 
 export async function api<T = any>(
   url: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const language = currentLanguage();
+  const language = browserLanguage();
   const response = await fetch(`/api/${url}`, {
     ...init,
     headers: {

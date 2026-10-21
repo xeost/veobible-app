@@ -1,3 +1,7 @@
+import {
+  loadVoiceStyleDefaults,
+  selectedVoiceStyleParameters,
+} from "./voice-style-presets";
 import { loadAudioVersePause } from "./audio-settings";
 import { z } from "zod";
 import { pageAudioProjects } from "./audio-listing";
@@ -16,8 +20,6 @@ import {
   selectedNarrationDecoder,
 } from "./narration-models";
 import {
-  loadReadingNarrationOverrides,
-  resolveReadingNarrationParameters,
   loadNarrationStyles,
   resolveNarrationStyle,
 } from "./narration-parameters";
@@ -91,7 +93,10 @@ export async function audioApi(
         (v) => v.id === input.versionId,
       );
       if (!version) throw new AudioDatabaseError("Version not found", 404);
-      const defaults = await loadBaseVoiceDefaults(database, "audio");
+      const [defaults, styleDefaults] = await Promise.all([
+        loadBaseVoiceDefaults(database, "audio"),
+        loadVoiceStyleDefaults(database, "audio"),
+      ]);
       const response = await forward("/v1/audio-projects", {
         version,
         edition: input.edition,
@@ -110,6 +115,7 @@ export async function audioApi(
           settings: {
             ...project.settings,
             baseVoice: defaults[project.version.locale].reading,
+            narrationPreset: styleDefaults[project.version.locale].reading,
           },
         };
       });
@@ -176,10 +182,7 @@ export async function audioApi(
         throw new AudioDatabaseError("Verse not found.", 400);
       const models = await loadNarrationModels(database),
         styles = await loadNarrationStyles(database),
-        readingParameters = await loadReadingNarrationOverrides(
-          database,
-          "audio",
-        );
+        styleDefaults = await loadVoiceStyleDefaults(database, "audio");
       const active =
         row.active_job_id && ["queued", "running"].includes(project.status);
       const job = active
@@ -204,9 +207,11 @@ export async function audioApi(
               models,
               project.version.locale,
             ),
-            voiceParameters: resolveReadingNarrationParameters(
+            voiceParameters: selectedVoiceStyleParameters(
               resolveNarrationStyle(styles[project.version.locale]),
-              readingParameters[project.version.locale],
+              styleDefaults[project.version.locale],
+              { reading: project.settings.narrationPreset },
+              "reading",
             ),
           },
           ...(job
