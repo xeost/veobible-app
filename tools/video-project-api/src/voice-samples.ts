@@ -5,6 +5,7 @@ import { baseVoiceSchema, voiceForLocale } from "./base-voice-schema.js";
 import { sharedVoiceDirectory } from "./working-directories.js";
 import {
   narrationModelSchema,
+  narrationDecoderSchema,
   narrationModelForLocale,
 } from "./narration-models.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
@@ -15,6 +16,7 @@ export const sampleRequestSchema = z
     voice: baseVoiceSchema,
     text: z.string().trim().min(1).max(500),
     voiceModel: narrationModelSchema,
+    voiceDecoder: narrationDecoderSchema.optional(),
     voiceParameters: narrationParametersSchema,
   })
   .strict();
@@ -84,6 +86,7 @@ export async function queueVoiceSample(
           locale,
           baseVoice: input.voice,
           voiceModel: input.voiceModel,
+          voiceDecoder: input.voiceDecoder,
           voiceParameters: input.voiceParameters,
           reference: "",
           version: "",
@@ -104,7 +107,17 @@ export async function queueVoiceSample(
       if (!(await fs.stat(output)).size) throw new Error("Empty voice sample");
       await fs.writeFile(
         path.join(staging, "metadata.json"),
-        JSON.stringify({ ...input, generatedAt: new Date().toISOString() }),
+        JSON.stringify({
+          ...input,
+          voiceDecoder:
+            input.voiceDecoder ??
+            (input.voiceModel === "latam"
+              ? "general"
+              : input.voiceModel === "pt-br"
+                ? "v3"
+                : undefined),
+          generatedAt: new Date().toISOString(),
+        }),
       );
       await fs.rename(output, sampleFile(input.voice));
       await fs.rename(

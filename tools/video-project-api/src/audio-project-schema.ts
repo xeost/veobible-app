@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { baseVoiceSchema } from "./base-voice-schema.js";
-import { narrationModelSchema } from "./narration-models.js";
+import {
+  narrationModelSchema,
+  narrationDecoderSchema,
+} from "./narration-models.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
 export const audioVersionSchema = z.object({
   id: z.number().int().positive(),
@@ -44,6 +47,7 @@ export const audioGenerateSchema = z
     verse: z.number().int().positive().optional(),
     regenerate: z.boolean().default(false),
     voiceModel: narrationModelSchema.optional(),
+    voiceDecoder: narrationDecoderSchema.optional(),
     voiceParameters: narrationParametersSchema.optional(),
   })
   .refine((v) => !v.verse || !!v.chapter);
@@ -63,7 +67,16 @@ export type AudioProject = {
   revision: number;
   recordings: Record<
     string,
-    { file: string; duration: number; revision: string }
+    {
+      file: string;
+      duration: number;
+      revision: string;
+      synthesis?: {
+        model?: z.infer<typeof narrationModelSchema>;
+        decoder?: z.infer<typeof narrationDecoderSchema>;
+        parameters?: z.infer<typeof narrationParametersSchema>;
+      };
+    }
   >;
   chapters: Record<string, { file: string; revision: string }>;
   status: "draft" | "queued" | "running" | "done" | "failed";

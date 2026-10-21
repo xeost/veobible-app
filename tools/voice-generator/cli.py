@@ -68,7 +68,7 @@ def load_decoder_state(decoder, state, regional: bool):
         raise RuntimeError(f"Incompatible regional speech decoder: missing={result.missing_keys}, unexpected={result.unexpected_keys}")
 
 
-def load_checkpoint_model(kind: str, device: str):
+def load_checkpoint_model(kind: str, device: str, audio_decoder: str | None = None):
     """Explicit T3 selection, compatible with chatterbox-tts 0.1.7.
 
     V2 and V3 use the upstream multilingual architecture and shared decoder.
@@ -89,13 +89,21 @@ def load_checkpoint_model(kind: str, device: str):
         "pt-br": ("ResembleAI/Chatterbox-Multilingual-pt-br", "t3_pt_br.safetensors"),
     }.get(kind)
     filename = regional[1] if regional else ("t3_mtl23ls_v2.safetensors" if kind == "multilingual-v2" else "t3_mtl23ls_v3.safetensors")
+    if audio_decoder is not None and audio_decoder not in ("general", "v3"):
+        raise ValueError("Audio decoder must be general or v3")
+    use_v3 = audio_decoder == "v3" or (kind == "pt-br" and audio_decoder is None)
+    regional_decoder = bool(regional) and use_v3
     patterns = ["ve.pt", "conds.pt"]
+    if regional and not regional_decoder:
+        patterns.append("s3gen.pt")
     if not regional:
         patterns += [filename, "s3gen.pt", "grapheme_mtl_merged_expanded_v1.json", "Cangjie5_TC.json"]
+        if use_v3:
+            patterns.append("s3gen_v3.pt")
     base = Path(snapshot_download(repo_id="ResembleAI/chatterbox", allow_patterns=patterns, token=os.getenv("HF_TOKEN")))
     assets = Path(snapshot_download(
         repo_id=regional[0],
-        allow_patterns=[filename, "s3gen_v3.pt", "grapheme_mtl_merged_expanded_v1.json"],
+        allow_patterns=[filename, "grapheme_mtl_merged_expanded_v1.json"] + (["s3gen_v3.pt"] if regional_decoder else []),
         token=os.getenv("HF_TOKEN"),
     )) if regional else base
     checkpoint = str(assets / filename)
@@ -111,14 +119,15 @@ def load_checkpoint_model(kind: str, device: str):
     del state
     t3.to(device).eval()
     s3gen = S3Gen()
-    load_decoder_state(s3gen, torch.load(assets / ("s3gen_v3.pt" if regional else "s3gen.pt"), map_location=location, weights_only=True), bool(regional))
+    decoder_path = assets / "s3gen_v3.pt" if regional_decoder else base / ("s3gen_v3.pt" if use_v3 else "s3gen.pt")
+    load_decoder_state(s3gen, torch.load(decoder_path, map_location=location, weights_only=True), use_v3)
     s3gen.to(device).eval()
     tokenizer = MTLTokenizer(str(assets / "grapheme_mtl_merged_expanded_v1.json"))
     conds = Conditionals.load(base / "conds.pt", map_location=location).to(device) if (base / "conds.pt").exists() else None
     return ChatterboxMultilingualTTS(t3, s3gen, voice_encoder, tokenizer, device, conds=conds)
 
 
-def load_model(kind: str, device: str):
+def load_model(kind: str, device: str, audio_decoder: str | None = None):
     import torch
     if kind not in ("multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"):
         raise ValueError(f"Unknown narration model: {kind}")
@@ -126,8 +135,20 @@ def load_model(kind: str, device: str):
         device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     if kind == "chatterbox":
         from chatterbox.tts import ChatterboxTTS
-        return ChatterboxTTS.from_pretrained(device=device)
-    return load_checkpoint_model(kind, device)
+        model = ChatterboxTTS.from_pretrained(device=device)
+        if audio_decoder is not None:
+            from huggingface_hub import hf_hub_download
+            from chatterbox.models.s3gen import S3Gen
+            if audio_decoder not in ("general", "v3"):
+                raise ValueError("Audio decoder must be general or v3")
+            filename = "s3gen_v3.pt" if audio_decoder == "v3" else "s3gen.pt"
+            checkpoint = hf_hub_download(repo_id="ResembleAI/chatterbox", filename=filename, token=os.getenv("HF_TOKEN"))
+            del model.s3gen
+            decoder = S3Gen()
+            load_decoder_state(decoder, torch.load(checkpoint, map_location="cpu", weights_only=True), audio_decoder == "v3")
+            model.s3gen = decoder.to(device).eval()
+        return model
+    return load_checkpoint_model(kind, device, audio_decoder) if audio_decoder is not None else load_checkpoint_model(kind, device)
 
 
 def convert_audio(source: Path, target: Path, codec: str) -> None:
@@ -168,7 +189,8 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
     output_names = [f"{name}.{extension}" for name in scripts for extension in ("txt", "wav")]
     print("Stage: Loading model", flush=True)
     import torchaudio
-    model = load_model(args.model, args.device)
+    decoder = getattr(args, "audio_decoder", None)
+    model = load_model(args.model, args.device, decoder) if decoder is not None else load_model(args.model, args.device)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     staging_dir = getattr(args, "staging_dir", None)
     staging_context = nullcontext(staging_dir) if staging_dir else tempfile.TemporaryDirectory(prefix=".voice-", dir=args.output_dir)
@@ -218,6 +240,7 @@ def main() -> int:
     parser.add_argument("--language", required=True, help="Language code supported by Chatterbox, such as es, en, or pt")
     parser.add_argument("--output-dir", required=True, type=Path, help="Output directory")
     parser.add_argument("--model", choices=("multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"), default="multilingual")
+    parser.add_argument("--audio-decoder", choices=("general", "v3"), help="Audio decoder: general s3gen.pt or s3gen_v3.pt; omitted retains the model default")
     parser.add_argument("--device", choices=("auto", "cpu", "mps", "cuda"), default="auto")
     parser.add_argument("--voice-prompt", type=Path, help="Optional WAV/MP3 voice reference")
     parser.add_argument("--voice-prompts", type=Path, help="JSON mapping track names to voice reference files")

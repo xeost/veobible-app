@@ -24,7 +24,7 @@ test("voice parameters cross the request and CLI boundaries with all six explici
       "--top-p",
       "1",
       "--repetition-penalty",
-      "1.2",
+      "2",
     ]);
   }
   assert.deepEqual(narrationParameterArgs(), []);

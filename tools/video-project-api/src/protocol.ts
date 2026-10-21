@@ -1,7 +1,10 @@
 import { readingVoiceSettingsSchema } from "./reading-voice-settings.js";
 import { baseVoiceSchema, voiceRolesSchema } from "./base-voice-schema.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
-import { narrationModelSchema } from "./narration-models.js";
+import {
+  narrationModelSchema,
+  narrationDecoderSchema,
+} from "./narration-models.js";
 import { publicationTemplatesSchema } from "./publication-templates.js";
 import type { VoicePart } from "./chapter-introductions.js";
 import { z } from "zod";
@@ -107,6 +110,7 @@ export const renderSchema = z.object({
   }),
   settings: settingsSchema,
   voiceModel: narrationModelSchema.optional(),
+  voiceDecoder: narrationDecoderSchema.optional(),
   voiceParameters: narrationParametersSchema.optional(),
   voiceTemplates: z
     .object({

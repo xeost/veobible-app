@@ -7,6 +7,7 @@ import {
   defaultNarrationModels,
   narrationModelsSchema,
   applyNarrationSelection,
+  selectedNarrationDecoder,
 } from "./narration-models";
 import { localModelsSchema } from "./local-models";
 test("voice models persist in one site setting independently of templates and enforce language compatibility", async () => {
@@ -34,6 +35,23 @@ test("voice models persist in one site setting independently of templates and en
     const chosen = { en: "chatterbox", es: "latam", pt: "pt-br" };
     await saveNarrationModels(db, chosen);
     assert.deepEqual(await loadNarrationModels(db), chosen);
+    const configured = { ...chosen, decoders: { es: { latam: "v3" } } };
+    await saveNarrationModels(db, configured);
+    const loaded = await loadNarrationModels(db);
+    assert.deepEqual(loaded, configured);
+    assert.equal(selectedNarrationDecoder(loaded, "es"), "v3");
+    assert.equal(selectedNarrationDecoder(loaded, "en"), "general");
+    assert.equal(
+      selectedNarrationDecoder(narrationModelsSchema.parse(chosen), "es"),
+      "general",
+    );
+    await assert.rejects(
+      saveNarrationModels(db, {
+        ...chosen,
+        decoders: { es: { latam: "unknown" } },
+      }),
+    );
+    await saveNarrationModels(db, chosen);
     await assert.rejects(saveNarrationModels(db, { ...chosen, en: "pt-br" }));
     assert.deepEqual(await loadNarrationModels(db), chosen);
     assert.equal(
@@ -97,4 +115,24 @@ test("model inventory uses follow saved language selections in both formats", ()
       .every((m) => m.uses.length === 2),
   );
   assert.ok(inventory.models.every((m) => m.uses.length === 0));
+});
+
+test("decoder choices are independent for each language and model", () => {
+  const models = narrationModelsSchema.parse({
+    en: "multilingual-v3",
+    es: "multilingual-v3",
+    pt: "pt-br",
+    decoders: {
+      en: { "multilingual-v3": "v3", chatterbox: "general" },
+      es: { "multilingual-v3": "general", latam: "v3" },
+      pt: { "pt-br": "general" },
+    },
+  });
+  assert.equal(selectedNarrationDecoder(models, "en"), "v3");
+  assert.equal(selectedNarrationDecoder(models, "es"), "general");
+  assert.equal(selectedNarrationDecoder(models, "pt"), "general");
+  models.en = "chatterbox";
+  models.es = "latam";
+  assert.equal(selectedNarrationDecoder(models, "en"), "general");
+  assert.equal(selectedNarrationDecoder(models, "es"), "v3");
 });

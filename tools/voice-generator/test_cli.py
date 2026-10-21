@@ -100,17 +100,17 @@ class ModelSelectionTests(unittest.TestCase):
 
     def test_loads_selected_weights_strictly_without_downloading_other_variants(self):
         from unittest.mock import MagicMock
-        for kind, filename in (("multilingual", "t3_mtl23ls_v3.safetensors"), ("multilingual-v3", "t3_mtl23ls_v3.safetensors"), ("multilingual-v2", "t3_mtl23ls_v2.safetensors"), ("latam", "t3_es_mx_latam.safetensors"), ("pt-br", "t3_pt_br.safetensors")):
+        for kind, filename, audio_decoder in (("multilingual", "t3_mtl23ls_v3.safetensors", None), ("multilingual-v3", "t3_mtl23ls_v3.safetensors", None), ("multilingual-v2", "t3_mtl23ls_v2.safetensors", None), ("latam", "t3_es_mx_latam.safetensors", None), ("latam", "t3_es_mx_latam.safetensors", "general"), ("latam", "t3_es_mx_latam.safetensors", "v3"), ("pt-br", "t3_pt_br.safetensors", None), ("pt-br", "t3_pt_br.safetensors", "general"), ("pt-br", "t3_pt_br.safetensors", "v3"), ("multilingual-v3", "t3_mtl23ls_v3.safetensors", "general"), ("multilingual-v3", "t3_mtl23ls_v3.safetensors", "v3")):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
-                snapshot = MagicMock(return_value=directory)
+                snapshot = MagicMock(side_effect=lambda repo_id, **kwargs: str(root / ("general" if repo_id == "ResembleAI/chatterbox" else "regional")))
                 download = MagicMock(return_value=str(root / filename))
                 load_weights = MagicMock(return_value={"weights": "selected"})
                 t3 = MagicMock()
                 decoder = MagicMock()
                 decoder.return_value.load_state_dict.return_value = types.SimpleNamespace(missing_keys=[], unexpected_keys=[])
                 modules = {
-                    "torch": types.SimpleNamespace(device=lambda value: value, load=lambda *a, **k: {}),
+                    "torch": types.SimpleNamespace(device=lambda value: value, load=MagicMock(return_value={})),
                     "huggingface_hub": types.SimpleNamespace(snapshot_download=snapshot, hf_hub_download=download),
                     "safetensors.torch": types.SimpleNamespace(load_file=load_weights),
                     "chatterbox.models.s3gen": types.SimpleNamespace(S3Gen=decoder),
@@ -121,18 +121,49 @@ class ModelSelectionTests(unittest.TestCase):
                     "chatterbox.mtl_tts": types.SimpleNamespace(ChatterboxMultilingualTTS=MagicMock(), Conditionals=MagicMock()),
                 }
                 with patch.dict(sys.modules, modules):
-                    load_checkpoint_model(kind, "cpu")
-                load_weights.assert_called_once_with(str(root / filename))
+                    load_checkpoint_model(kind, "cpu", audio_decoder)
+                load_weights.assert_called_once_with(str(root / ("regional" if kind in ("latam", "pt-br") else "general") / filename))
                 t3.return_value.load_state_dict.assert_called_once_with({"weights": "selected"})
                 patterns = snapshot.call_args.kwargs["allow_patterns"]
                 selected = [name for name in patterns if name.endswith(".safetensors")]
                 self.assertEqual(selected, [filename])
                 self.assertEqual(snapshot.call_count, 2 if kind in ("latam", "pt-br") else 1)
-                if kind in ("latam", "pt-br"):
+                if audio_decoder == "v3" or (kind == "pt-br" and audio_decoder is None):
                     self.assertIn("s3gen_v3.pt", patterns)
+                    decoder_path = root / ("regional" if kind in ("latam", "pt-br") else "general") / "s3gen_v3.pt"
+                    decoder.return_value.load_state_dict.assert_called_once_with({}, strict=False)
+                else:
+                    self.assertNotIn("s3gen_v3.pt", patterns)
+                    self.assertIn("s3gen.pt", snapshot.call_args_list[0].kwargs["allow_patterns"])
+                    decoder_path = root / "general" / "s3gen.pt"
+                    decoder.return_value.load_state_dict.assert_called_once_with({})
+                self.assertIn(unittest.mock.call(decoder_path, map_location="cpu", weights_only=True), modules["torch"].load.call_args_list)
 
 
 class NarrationDispatchTests(unittest.TestCase):
+    def test_original_english_loads_the_selected_decoder(self):
+        from unittest.mock import MagicMock
+        for selected, filename in (("general", "s3gen.pt"), ("v3", "s3gen_v3.pt")):
+            with self.subTest(decoder=selected):
+                english = MagicMock()
+                decoder = MagicMock()
+                decoder.return_value.load_state_dict.return_value = types.SimpleNamespace(missing_keys=[], unexpected_keys=[])
+                download = MagicMock(return_value=filename)
+                torch = types.SimpleNamespace(load=MagicMock(return_value={}))
+                with patch.dict(sys.modules, {
+                    "torch": torch,
+                    "chatterbox.tts": types.SimpleNamespace(ChatterboxTTS=english),
+                    "chatterbox.models.s3gen": types.SimpleNamespace(S3Gen=decoder),
+                    "huggingface_hub": types.SimpleNamespace(hf_hub_download=download),
+                }):
+                    model = load_model("chatterbox", "cpu", selected)
+                self.assertEqual(download.call_args.kwargs["filename"], filename)
+                self.assertIs(model.s3gen, decoder.return_value.to.return_value.eval.return_value)
+                if selected == "v3":
+                    decoder.return_value.load_state_dict.assert_called_once_with({}, strict=False)
+                else:
+                    decoder.return_value.load_state_dict.assert_called_once_with({})
+
     def test_original_english_uses_its_own_loader(self):
         from unittest.mock import MagicMock
         english = MagicMock()

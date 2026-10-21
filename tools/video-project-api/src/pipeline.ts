@@ -56,11 +56,12 @@ import { publicationDescriptions as shortDescriptions } from "./engines/short/pu
 import { publicationDescriptions as longDescriptions } from "./engines/long/publication.js";
 import type { RenderRequest } from "./protocol.js";
 /** Cache chapter announcements by synthesis configuration, independently of project/version. */
-function chapterSynthesis(
+export function chapterSynthesis(
   locale: "es" | "en" | "pt",
   selected?: NarrationModel,
   parameters?: NarrationParameters,
   baseVoice?: string,
+  decoder?: "general" | "v3",
 ) {
   const model = selected ?? longConfig.ttsModels[locale];
   // Every local model must isolate recordings made with the shared base sample.
@@ -82,6 +83,13 @@ function chapterSynthesis(
             : longConfig.elevenLabsVoices[locale],
         script: longConfig.ttsScript,
         ...(parameters ? { parameters } : {}),
+        decoder:
+          decoder ??
+          (model === "latam"
+            ? "general"
+            : model === "pt-br"
+              ? "v3"
+              : "default"),
       }),
     )
     .digest("hex")
@@ -118,6 +126,7 @@ async function prepareProjectDirectories(
     | "passage"
     | "outputEnvironment"
     | "voiceModel"
+    | "voiceDecoder"
     | "voiceParameters"
   >,
 ) {
@@ -176,6 +185,17 @@ async function generateNamedVoice(
         duration,
         trim: { startSeconds: cue.start, endSeconds: cue.end },
         alignment: { method: "forced", model, version: 1 },
+        synthesis: {
+          model: context.voiceModel,
+          decoder:
+            context.voiceDecoder ??
+            (context.voiceModel === "latam"
+              ? "general"
+              : context.voiceModel === "pt-br"
+                ? "v3"
+                : undefined),
+          parameters: context.voiceParameters,
+        },
       }),
     );
     for (const extension of ["wav", "txt", "wav.json"])
@@ -335,6 +355,7 @@ export async function analyze(
     | "settings"
     | "voiceTemplates"
     | "voiceModel"
+    | "voiceDecoder"
     | "voiceParameters"
     | "readingCuts"
   > & { outputEnvironment?: OutputEnvironment },
@@ -495,6 +516,7 @@ export async function analyze(
     input.voiceTemplates,
   );
   context.voiceParameters = input.voiceParameters;
+  context.voiceDecoder = input.voiceDecoder;
   context.baseVoice = input.settings.baseVoice;
   context.scriptOverrides = input.settings.voiceScriptOverrides;
   context.voiceModel =
@@ -558,6 +580,7 @@ export async function inspection(
     | "settings"
     | "voiceTemplates"
     | "voiceModel"
+    | "voiceDecoder"
     | "voiceParameters"
   > & { outputEnvironment?: OutputEnvironment },
 ) {
@@ -609,6 +632,7 @@ export async function generateProjectVoice(
     | "settings"
     | "voiceTemplates"
     | "voiceModel"
+    | "voiceDecoder"
     | "voiceParameters"
     | "projectId"
     | "outputEnvironment"
@@ -693,6 +717,17 @@ export async function generateProjectVoice(
             duration,
             cues,
             alignment: { method: "forced", model, version: 1 },
+            synthesis: {
+              model: context.voiceModel,
+              decoder:
+                context.voiceDecoder ??
+                (context.voiceModel === "latam"
+                  ? "general"
+                  : context.voiceModel === "pt-br"
+                    ? "v3"
+                    : undefined),
+              parameters: context.voiceParameters,
+            },
           }),
         );
         await fs.rename(generated, target);
@@ -740,6 +775,7 @@ export async function generateProjectVoice(
               input.voiceModel,
               input.voiceParameters,
               selectedRoleVoice(input.settings, input.version.locale, "intro"),
+              input.voiceDecoder,
             ),
             complete: true,
             locale: input.version.locale,
@@ -785,6 +821,7 @@ export async function projectChapterVoiceFiles(
     | "passage"
     | "outputEnvironment"
     | "voiceModel"
+    | "voiceDecoder"
     | "voiceParameters"
   > & {
     settings?: {
@@ -822,6 +859,7 @@ export async function projectChapterVoiceFiles(
               input.version.locale,
               "intro",
             ),
+            input.voiceDecoder,
           ),
           locale: version.locale,
           complete:
@@ -867,6 +905,7 @@ export async function chapterVoicesAvailable(
     | "passage"
     | "outputEnvironment"
     | "voiceModel"
+    | "voiceDecoder"
     | "voiceParameters"
   >,
 ) {
@@ -884,6 +923,7 @@ export async function existingProjectVoices(
     | "passage"
     | "outputEnvironment"
     | "voiceModel"
+    | "voiceDecoder"
     | "voiceParameters"
   >,
 ) {

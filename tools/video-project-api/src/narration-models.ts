@@ -7,11 +7,39 @@ export const narrationModelSchema = z.enum([
   "pt-br",
 ]);
 export type NarrationModel = z.infer<typeof narrationModelSchema>;
+export const narrationDecoderSchema = z.enum(["general", "v3"]);
+export type NarrationDecoder = z.infer<typeof narrationDecoderSchema>;
 export const narrationModelsSchema = z
   .object({
     en: z.enum(["chatterbox", "multilingual-v3"]),
     es: z.enum(["multilingual-v3", "latam"]),
     pt: z.enum(["multilingual-v3", "pt-br"]),
+    decoders: z
+      .object({
+        en: z
+          .object({
+            chatterbox: narrationDecoderSchema.optional(),
+            "multilingual-v3": narrationDecoderSchema.optional(),
+          })
+          .strict()
+          .optional(),
+        es: z
+          .object({
+            latam: narrationDecoderSchema.optional(),
+            "multilingual-v3": narrationDecoderSchema.optional(),
+          })
+          .strict()
+          .optional(),
+        pt: z
+          .object({
+            "pt-br": narrationDecoderSchema.optional(),
+            "multilingual-v3": narrationDecoderSchema.optional(),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type NarrationModels = z.infer<typeof narrationModelsSchema>;
@@ -20,6 +48,15 @@ export const defaultNarrationModels = (): NarrationModels => ({
   es: "multilingual-v3",
   pt: "multilingual-v3",
 });
+export function selectedNarrationDecoder(
+  models: NarrationModels,
+  locale: "en" | "es" | "pt",
+): NarrationDecoder {
+  const model = models[locale];
+  const choices = models.decoders?.[locale] as
+    Partial<Record<NarrationModel, NarrationDecoder>> | undefined;
+  return choices?.[model] ?? (model === "pt-br" ? "v3" : "general");
+}
 export function narrationModelForLocale(
   model: unknown,
   locale: "en" | "es" | "pt",

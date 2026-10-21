@@ -6,6 +6,7 @@ import {
 import {
   narrationModelForLocale,
   type NarrationModel,
+  type NarrationDecoder,
 } from "../../narration-models.js";
 import {
   voiceStageProgress,
@@ -209,6 +210,7 @@ export interface VoiceContext {
   singleUtterance?: boolean;
   baseVoice?: string;
   voiceModel?: NarrationModel;
+  voiceDecoder?: NarrationDecoder;
   voiceParameters?: NarrationParameters;
   scriptOverrides?: Partial<Record<"intro" | "outro", string>>;
   templates: { intro: string; outro: string };
@@ -495,6 +497,8 @@ export async function generateVoice(
       ) + "\n",
       "utf8",
     );
+    if (context.voiceDecoder)
+      args.push("--audio-decoder", context.voiceDecoder);
     args.push(...narrationParameterArgs(context.voiceParameters));
     if (context.singleUtterance) args.push("--single-utterance");
     args.push("--voice-prompts", promptsPath);

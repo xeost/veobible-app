@@ -76,7 +76,7 @@ test("voice styles default without changing saved model choices and persist by l
       temperature: 0.8,
       min_p: 0.05,
       top_p: 1,
-      repetition_penalty: 1.2,
+      repetition_penalty: 2,
     });
     assert.equal(resolveNarrationStyle(styles.es).temperature, 0.7);
     assert.equal(resolveNarrationStyle(styles.pt).exaggeration, 0.65);

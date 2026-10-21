@@ -11,7 +11,10 @@ import {
 import { videoFetch } from "./video-client";
 import { bibleVersionOptions } from "./bible-versions";
 import { loadBaseVoiceDefaults } from "./base-voices";
-import { loadNarrationModels } from "./narration-models";
+import {
+  loadNarrationModels,
+  selectedNarrationDecoder,
+} from "./narration-models";
 import {
   loadReadingNarrationOverrides,
   resolveReadingNarrationParameters,
@@ -191,6 +194,10 @@ export async function audioApi(
           input: {
             ...input,
             voiceModel: models[project.version.locale],
+            voiceDecoder: selectedNarrationDecoder(
+              models,
+              project.version.locale,
+            ),
             voiceParameters: resolveReadingNarrationParameters(
               resolveNarrationStyle(styles[project.version.locale]),
               readingParameters[project.version.locale],

@@ -1,6 +1,6 @@
 export const narrationControlHelp = {
   repetition_penalty:
-    "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Previous multilingual settings used 2.0; the narration presets use 1.2. This does not guarantee that every sentence will be spoken.",
+    "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Narration presets use 2. This does not guarantee that every sentence will be spoken.",
   exaggeration:
     "Controls emotional intensity. 0–2: 0.5 is neutral; higher values add expression and may speed up speech. Extreme values can be unstable.",
   cfg_weight:

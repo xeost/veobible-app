@@ -1,4 +1,8 @@
 export const spanish: Record<string, string> = {
+  "Advanced voice settings": "Ajustes avanzados de voz",
+  "Audio decoder": "Decodificador de audio",
+  "General (s3gen.pt)": "General (s3gen.pt)",
+  "V3 (s3gen_v3.pt)": "V3 (s3gen_v3.pt)",
   "Generate all audio for this chapter":
     "Generar todos los audios del capítulo",
   "Applies to every verse in all audio projects and languages the next time chapter audios are generated. Existing recordings stay unchanged.":
@@ -74,8 +78,8 @@ export const spanish: Record<string, string> = {
     "Esta voz se guarda en este proyecto. Cambiar la voz predeterminada no modifica esta selección.",
   "Save changes to keep this voice. Existing narrations change only when you regenerate them.":
     "Guarda los cambios para conservar esta voz. Las narraciones existentes solo cambian al regenerarlas.",
-  "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Previous multilingual settings used 2.0; the narration presets use 1.2. This does not guarantee that every sentence will be spoken.":
-    "Desincentiva los sonidos repetidos. 1–2: 1 no aplica penalización; los valores más altos desincentivan más la repetición. La configuración multilingüe anterior usaba 2.0; los presets de narración usan 1.2. Esto no garantiza que se pronuncien todas las frases.",
+  "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Narration presets use 2. This does not guarantee that every sentence will be spoken.":
+    "Desincentiva los sonidos repetidos. 1–2: 1 no aplica penalización; los valores más altos desincentivan más la repetición. Los presets de narración usan 2. Esto no garantiza que se pronuncien todas las frases.",
   "Narration style": "Estilo de narración",
   "Natural narration": "Narración natural",
   "Expressive narration": "Narración expresiva",

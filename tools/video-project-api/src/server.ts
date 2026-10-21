@@ -123,6 +123,9 @@ async function chapterFilesFromQuery(url: URL) {
           JSON.parse(url.searchParams.get("voiceParameters")!),
         )
       : undefined,
+    voiceDecoder: renderSchema.shape.voiceDecoder.parse(
+      url.searchParams.get("voiceDecoder") ?? undefined,
+    ),
     voiceModel: url.searchParams.has("voiceModel")
       ? narrationModelForLocale(
           url.searchParams.get("voiceModel"),
@@ -226,6 +229,7 @@ const analysisSchema = renderSchema
     settings: true,
     voiceTemplates: true,
     voiceModel: true,
+    voiceDecoder: true,
     voiceParameters: true,
   })
   .extend({ projectId: z.number().int().positive() });

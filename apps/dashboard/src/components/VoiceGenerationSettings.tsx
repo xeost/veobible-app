@@ -14,6 +14,7 @@ import { api } from "./api";
 import {
   narrationModelsSchema,
   narrationModelOptions,
+  selectedNarrationDecoder,
   type NarrationModels,
 } from "../lib/narration-models";
 const presets = {
@@ -231,8 +232,35 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
                 <p className="muted narration-fixed-values">
                   min_p=0.05 · top_p=1
                   {styles[locale].preset !== "custom" &&
-                    " · repetition_penalty=1.2"}
+                    ` · repetition_penalty=${resolveNarrationStyle(styles[locale]).repetition_penalty}`}
                 </p>
+                <details>
+                  <summary>{t("Advanced voice settings")}</summary>
+                  <label htmlFor={`audio-decoder-${locale}`}>
+                    {t("Audio decoder")}
+                  </label>
+                  <select
+                    id={`audio-decoder-${locale}`}
+                    value={selectedNarrationDecoder(models, locale)}
+                    onChange={(event) =>
+                      setModels(
+                        narrationModelsSchema.parse({
+                          ...models,
+                          decoders: {
+                            ...models.decoders,
+                            [locale]: {
+                              ...models.decoders?.[locale],
+                              [models[locale]]: event.target.value,
+                            },
+                          },
+                        }),
+                      )
+                    }
+                  >
+                    <option value="general">{t("General (s3gen.pt)")}</option>
+                    <option value="v3">{t("V3 (s3gen_v3.pt)")}</option>
+                  </select>
+                </details>
               </fieldset>
             ))}
           </div>

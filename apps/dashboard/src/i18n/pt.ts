@@ -1,4 +1,8 @@
 export const portuguese: Record<string, string> = {
+  "Advanced voice settings": "Configurações avançadas de voz",
+  "Audio decoder": "Decodificador de áudio",
+  "General (s3gen.pt)": "Geral (s3gen.pt)",
+  "V3 (s3gen_v3.pt)": "V3 (s3gen_v3.pt)",
   "Generate all audio for this chapter": "Gerar todos os áudios do capítulo",
   "Applies to every verse in all audio projects and languages the next time chapter audios are generated. Existing recordings stay unchanged.":
     "Aplica-se a todos os versículos de todos os projetos de áudio e idiomas na próxima geração dos áudios dos capítulos. As gravações existentes são mantidas.",
@@ -73,8 +77,8 @@ export const portuguese: Record<string, string> = {
     "Esta voz é salva neste projeto. Alterar a voz padrão não muda esta seleção.",
   "Save changes to keep this voice. Existing narrations change only when you regenerate them.":
     "Salve as alterações para manter esta voz. As narrações existentes só mudam ao gerá-las novamente.",
-  "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Previous multilingual settings used 2.0; the narration presets use 1.2. This does not guarantee that every sentence will be spoken.":
-    "Desestimula sons repetidos. 1–2: 1 não aplica penalidade; valores mais altos desestimulam mais a repetição. A configuração multilíngue anterior usava 2.0; os presets de narração usam 1.2. Isso não garante que todas as frases sejam pronunciadas.",
+  "Discourages repeated sounds. 1–2: 1 applies no penalty; higher values discourage repetition more strongly. Narration presets use 2. This does not guarantee that every sentence will be spoken.":
+    "Desestimula sons repetidos. 1–2: 1 não aplica penalidade; valores mais altos desestimulam mais a repetição. Os presets de narração usam 2. Isso não garante que todas as frases sejam pronunciadas.",
   "Narration style": "Estilo de narração",
   "Natural narration": "Narração natural",
   "Expressive narration": "Narração expressiva",

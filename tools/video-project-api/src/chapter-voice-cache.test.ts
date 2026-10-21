@@ -146,3 +146,10 @@ test("new synthesis namespaces never adopt or reuse legacy or other-model shared
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+test("Latam chapter caches isolate audio decoders while legacy selections default to general", async () => {
+  const { chapterSynthesis } = await import("./pipeline.js");
+  const general = chapterSynthesis("es", "latam", undefined, "es-1", "general");
+  const v3 = chapterSynthesis("es", "latam", undefined, "es-1", "v3");
+  assert.notEqual(general, v3);
+  assert.equal(general, chapterSynthesis("es", "latam", undefined, "es-1"));
+});

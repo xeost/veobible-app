@@ -429,6 +429,17 @@ export class AudioProjects {
           file: `${relative}/intro.wav`,
           duration,
           revision,
+          synthesis: {
+            model: input.voiceModel,
+            decoder:
+              input.voiceDecoder ??
+              (input.voiceModel === "latam"
+                ? "general"
+                : input.voiceModel === "pt-br"
+                  ? "v3"
+                  : undefined),
+            parameters: input.voiceParameters,
+          },
         };
         delete project.settings.trims[ref];
         delete project.chapters[String(verse.chapter)];
@@ -604,6 +615,7 @@ const productionDependencies: AudioGenerationDependencies = {
         locale: project.version.locale,
         baseVoice: project.settings.baseVoice,
         voiceModel: input.voiceModel,
+        voiceDecoder: input.voiceDecoder,
         voiceParameters: input.voiceParameters,
         singleUtterance: true,
         reference: "",

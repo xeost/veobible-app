@@ -20,6 +20,7 @@ import {
 } from "../../../lib/narration-parameters";
 import {
   loadNarrationModels,
+  selectedNarrationDecoder,
   applyNarrationSelection,
 } from "../../../lib/narration-models";
 import {
@@ -419,6 +420,7 @@ async function handle(req: Request, lang: Language) {
           body: JSON.stringify({
             text,
             voiceModel: models[locale],
+            voiceDecoder: selectedNarrationDecoder(models, locale),
             voiceParameters: resolveReadingNarrationParameters(
               resolveNarrationStyle(styles[locale]),
               readingOverride,

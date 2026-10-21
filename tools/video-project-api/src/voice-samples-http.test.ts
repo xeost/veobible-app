@@ -137,6 +137,7 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         voice: string,
         text: string,
         voiceModel = "multilingual-v3",
+        voiceDecoder?: "general" | "v3",
       ) =>
         fetch(`${base}/${voice}/sample`, {
           method: "POST",
@@ -144,6 +145,7 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
           body: JSON.stringify({
             text,
             voiceModel,
+            voiceDecoder,
             voiceParameters: narrationPresets.expressive,
           }),
         });
@@ -156,7 +158,7 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         throw new Error("Sample generation timed out");
       };
       assert.equal(
-        (await request("es-2", "A literal {example}.", "latam")).status,
+        (await request("es-2", "A literal {example}.", "latam", "v3")).status,
         202,
       );
       assert.equal((await request("es-2", "duplicate")).status, 202);
@@ -177,6 +179,17 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         calls[0].args[calls[0].args.indexOf("--model") + 1],
         "latam",
       );
+      assert.equal(
+        calls[0].args[calls[0].args.indexOf("--audio-decoder") + 1],
+        "v3",
+      );
+      const metadata = JSON.parse(
+        await fs.readFile(
+          path.join(voices, "samples/es-2-sample.wav.json"),
+          "utf8",
+        ),
+      );
+      assert.equal(metadata.voiceDecoder, "v3");
       for (const [key, value] of Object.entries(narrationPresets.expressive))
         assert.equal(
           calls[0].args[

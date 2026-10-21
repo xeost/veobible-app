@@ -227,7 +227,6 @@ export async function loadLocalModels(
           "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
           [
             "t3_es_mx_latam.safetensors",
-            "s3gen_v3.pt",
             "grapheme_mtl_merged_expanded_v1.json",
           ],
           config.ttsPython,
@@ -278,11 +277,7 @@ export async function loadLocalModels(
     [
       "Chatterbox es-MX Latam",
       "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
-      [
-        "t3_es_mx_latam.safetensors",
-        "s3gen_v3.pt",
-        "grapheme_mtl_merged_expanded_v1.json",
-      ],
+      ["t3_es_mx_latam.safetensors", "grapheme_mtl_merged_expanded_v1.json"],
     ],
   ];
   for (const [name, repository, required] of catalogue) {

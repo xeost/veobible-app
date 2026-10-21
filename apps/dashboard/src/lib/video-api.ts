@@ -9,7 +9,10 @@ import {
   loadReadingNarrationOverrides,
   resolveReadingNarrationParameters,
 } from "./narration-parameters";
-import { loadNarrationModels } from "./narration-models";
+import {
+  loadNarrationModels,
+  selectedNarrationDecoder,
+} from "./narration-models";
 import { loadDashboardSummary } from "./dashboard-summary";
 import {
   projectPublicationSchema,
@@ -446,6 +449,7 @@ export async function videoApi(
     loadNarrationStyles(database),
   ]);
   const voiceModel = models[project.locale];
+  const voiceDecoder = selectedNarrationDecoder(models, project.locale);
   const voiceParameters = resolveNarrationStyle(styles[project.locale]);
   const query = new URLSearchParams({
     kind: project.kind,
@@ -454,6 +458,7 @@ export async function videoApi(
     locale: project.locale,
     passageRange: project.passage,
     voiceModel,
+    ...(voiceDecoder ? { voiceDecoder } : {}),
     voiceParameters: JSON.stringify(voiceParameters),
     baseVoice: projectBaseVoice(JSON.parse(project.settings), project.locale),
     outputEnvironment,
@@ -667,6 +672,7 @@ export async function videoApi(
       settings: generationSettings,
       voiceTemplates,
       voiceModel,
+      voiceDecoder,
       voiceParameters,
     };
     if (parts[2] === "voices") {
