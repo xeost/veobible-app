@@ -197,3 +197,68 @@ test("failed work is settled in the queue total while retaining its last individ
   assert.equal(queue.snapshot()[0].progress, 35);
   assert.deepEqual(queue.summary(), { progress: 100, completed: 1, total: 1 });
 });
+
+test("audio groups share the video queue, expose individual progress and settle failed remaining tasks", async () => {
+  const queue = new GenerationQueue();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let finished!: () => void;
+  const end = new Promise<void>((resolve) => {
+    finished = resolve;
+  });
+  const first = job("audio-1"),
+    second = job("audio-2"),
+    chapter = job("chapter");
+  const metadata = {
+    projectId: 1,
+    kind: "audio" as const,
+    outputEnvironment: "development" as const,
+    chapter: 1,
+  };
+  queue.enqueueGroup(
+    [
+      { metadata: { ...metadata, type: "audio-verse", verse: 1 }, job: first },
+      { metadata: { ...metadata, type: "audio-verse", verse: 2 }, job: second },
+      { metadata: { ...metadata, type: "audio-chapter" }, job: chapter },
+    ],
+    async () => {
+      first.status = "running";
+      first.progress = 42;
+      await gate;
+      first.status = "done";
+      first.progress = 100;
+      second.status = "running";
+      second.progress = 30;
+      throw new Error("test synthesis failure");
+    },
+  );
+  const video = job("video-after-audio");
+  queue.enqueue(
+    { projectId: 1, kind: "short", type: "video" },
+    video,
+    async () => {
+      finished();
+    },
+  );
+  await Promise.resolve();
+  const before = queue.snapshot();
+  assert.equal(before[0].progress, 42);
+  assert.equal(before[0].verse, 1);
+  assert.equal(before[1].position, 1);
+  assert.equal(before[2].type, "audio-chapter");
+  assert.equal(video.status, "queued");
+  assert.equal(queue.summary("development").total, 3);
+  release();
+  await end;
+  await Promise.resolve();
+  assert.deepEqual(
+    queue
+      .snapshot()
+      .slice(0, 3)
+      .map((item) => item.status),
+    ["done", "failed", "failed"],
+  );
+  assert.equal(queue.pendingCount, 0);
+});

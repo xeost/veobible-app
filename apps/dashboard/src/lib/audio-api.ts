@@ -35,6 +35,7 @@ import {
 export async function audioApi(
   req: Request,
   database: D1Database,
+  retryFinishedSession = true,
 ): Promise<Response | null> {
   const url = new URL(req.url),
     parts = url.pathname.slice(5).split("/");
@@ -179,18 +180,23 @@ export async function audioApi(
           database,
           "audio",
         );
-      const job = await beginAudioJob(
-        database,
-        edition,
-        book,
-        outputEnvironment,
-        await loadAudioVersePause(database),
-      );
+      const active =
+        row.active_job_id && ["queued", "running"].includes(project.status);
+      const job = active
+        ? null
+        : await beginAudioJob(
+            database,
+            edition,
+            book,
+            outputEnvironment,
+            await loadAudioVersePause(database),
+          );
       try {
         const response = await forward(`${endpoint}/generate`, {
-          project: job.project,
-          jobId: job.jobId,
-          sequence: 0,
+          project: job?.project ?? project,
+          jobId: job?.jobId ?? row.active_job_id,
+          sequence: job ? 0 : row.job_sequence,
+          append: Boolean(active),
           input: {
             ...input,
             voiceModel: models[project.version.locale],
@@ -203,13 +209,35 @@ export async function audioApi(
               readingParameters[project.version.locale],
             ),
           },
-          callback: {
-            url: `${url.origin}/api/audio-project-events/${job.id}/${job.jobId}`,
-            token: job.token,
-          },
+          ...(job
+            ? {
+                callback: {
+                  url: `${url.origin}/api/audio-project-events/${job.id}/${job.jobId}`,
+                  token: job.token,
+                },
+              }
+            : {}),
         });
+        if (response.status === 409 && active && retryFinishedSession) {
+          const latest = await findAudioProject(
+            database,
+            edition,
+            book,
+            outputEnvironment,
+          );
+          if (!["queued", "running"].includes(latest.project.status))
+            return audioApi(
+              new Request(req.url, {
+                method: "POST",
+                headers: req.headers,
+                body: JSON.stringify(input),
+              }),
+              database,
+              false,
+            );
+        }
         if (!response.ok) {
-          await failAudioJob(database, job.id, job.jobId);
+          if (job) await failAudioJob(database, job.id, job.jobId);
           return relay(response);
         }
         return json({ queued: true }, 202);

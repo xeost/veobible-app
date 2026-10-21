@@ -49,6 +49,7 @@ export function VerseWaveform({
   preservedReferences,
   resetRevision = 0,
   onRegenerate,
+  regenerationDisabled,
   compact = false,
   textOnly = false,
   selectedReference,
@@ -88,6 +89,7 @@ export function VerseWaveform({
   preservedReferences: string[];
   resetRevision?: number;
   onRegenerate?: () => void;
+  regenerationDisabled?: boolean;
   compact?: boolean;
   textOnly?: boolean;
   selectedReference?: string;
@@ -657,7 +659,11 @@ export function VerseWaveform({
                       ? regenerateLabel
                       : "Align with previous verse",
                   )}
-                  disabled={disabled || (!onRegenerate && !alignment?.moved)}
+                  disabled={
+                    onRegenerate
+                      ? (regenerationDisabled ?? disabled)
+                      : disabled || !alignment?.moved
+                  }
                   data-tooltip={t(
                     onRegenerate
                       ? regenerateLabel

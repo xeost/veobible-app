@@ -68,6 +68,7 @@ test(
         worker,
         `import fs from 'node:fs/promises';import path from 'node:path';import {execFile} from 'node:child_process';import {promisify} from 'node:util';
 const arg=k=>process.argv[process.argv.indexOf(k)+1];
+await new Promise(resolve=>setTimeout(resolve,800));
 await fs.appendFile(process.env.AUDIO_TEST_LOG,await fs.readFile(arg('--scripts'),'utf8')+'\\n');
 await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavfi','-i','sine=frequency=440:duration=0.2',path.join(arg('--output-dir'),'intro.wav')]);`,
       );
@@ -201,6 +202,66 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
         202,
         diagnostics + (await generated.text()),
       );
+      const activeQueue = await (
+        await fetch(`${base}/v1/queue?outputEnvironment=production`, {
+          headers,
+        })
+      ).json();
+      const activeAudio = activeQueue.items.find(
+        (item: any) => item.kind === "audio",
+      );
+      assert.ok(activeAudio, diagnostics);
+      assert.equal(activeAudio.projectId, 1);
+      assert.equal(activeAudio.chapter, 1);
+      assert.equal(activeAudio.verse, 1);
+      assert.equal(activeAudio.groupId, jobId);
+      assert.ok(["queued", "running"].includes(activeAudio.status));
+      const reloaded = await (
+        await fetch(project, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(snapshot()),
+        })
+      ).json();
+      assert.ok(["queued", "running"].includes(reloaded.status));
+      assert.equal(
+        (
+          await (
+            await fetch(`${base}/v1/queue?outputEnvironment=development`, {
+              headers,
+            })
+          ).json()
+        ).items.length,
+        0,
+      );
+      const appendBody = () =>
+        JSON.stringify({
+          ...snapshot(),
+          append: true,
+          input: { chapter: 1, verse: 2, voiceModel: "multilingual-v3" },
+        });
+      const appended = await fetch(`${project}/generate`, {
+        method: "POST",
+        headers,
+        body: appendBody(),
+      });
+      assert.equal(appended.status, 202, await appended.text());
+      const duplicate = await fetch(`${project}/generate`, {
+        method: "POST",
+        headers,
+        body: appendBody(),
+      });
+      assert.equal(duplicate.status, 409);
+      const multiple = await (
+        await fetch(`${base}/v1/queue?outputEnvironment=production`, {
+          headers,
+        })
+      ).json();
+      assert.equal(
+        multiple.items.filter((item: any) => item.kind === "audio").length,
+        2,
+      );
+      assert.equal(new Set(multiple.items.map((item: any) => item.id)).size, 2);
       let state;
       for (let attempt = 0; attempt < 150; attempt++) {
         state = await (
@@ -215,6 +276,7 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
       }
       assert.equal(state.status, "draft", diagnostics);
       assert.ok(state.recordings["1:1"]);
+      assert.ok(state.recordings["1:2"]);
       const media = await fetch(`${project}/media?chapter=1&verse=1`, {
         method: "POST",
         body: JSON.stringify(snapshot()),

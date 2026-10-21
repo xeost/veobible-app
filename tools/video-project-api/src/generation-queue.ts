@@ -1,5 +1,7 @@
 import { clampProgress } from "./generation-progress.js";
 export type GenerationType =
+  | "audio-verse"
+  | "audio-chapter"
   | "intro"
   | "outro"
   | `reading-${number}`
@@ -16,7 +18,10 @@ export type QueueJob = {
 type Entry = {
   projectId: number;
   outputEnvironment?: "production" | "development";
-  kind: "short" | "long" | "book";
+  kind: "short" | "long" | "book" | "audio";
+  chapter?: number;
+  verse?: number;
+  groupId?: string;
   type: GenerationType;
   job: QueueJob;
   createdAt: string;
@@ -70,6 +75,46 @@ export class GenerationQueue {
       } finally {
         entry.finishedAt = new Date().toISOString();
         // Keep bounded recent history without removing pending work.
+        while (this.entries.length > 100) {
+          const index = this.entries.findIndex(({ job }) =>
+            ["done", "failed"].includes(job.status),
+          );
+          if (index < 0) break;
+          this.entries.splice(index, 1);
+        }
+      }
+    });
+  }
+  /** One serialized operation with individually visible verse/assembly tasks. */
+  enqueueGroup(
+    items: {
+      metadata: Omit<Entry, "job" | "createdAt" | "finishedAt">;
+      job: QueueJob;
+    }[],
+    run: () => Promise<void>,
+  ) {
+    if (this.pendingCount === 0) this.batch = [];
+    const entries: Entry[] = items.map(({ metadata, job }) => ({
+      ...metadata,
+      job,
+      createdAt: new Date().toISOString(),
+    }));
+    for (const entry of entries) {
+      entry.job.progress = 0;
+      this.entries.push(entry);
+      this.batch.push(entry);
+    }
+    this.tail = this.tail.then(async () => {
+      try {
+        await run();
+      } catch (error) {
+        console.error("Audio generation group failed", error);
+      } finally {
+        for (const entry of entries) {
+          if (["queued", "running"].includes(entry.job.status))
+            entry.job.status = "failed";
+          entry.finishedAt ??= new Date().toISOString();
+        }
         while (this.entries.length > 100) {
           const index = this.entries.findIndex(({ job }) =>
             ["done", "failed"].includes(job.status),

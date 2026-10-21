@@ -11,7 +11,10 @@ import {
   type AudioGenerationDependencies,
 } from "./audio-projects.js";
 import { config } from "./engines/long/config.js";
-import { audioEditionSchema } from "./audio-project-schema.js";
+import {
+  type AudioProject,
+  audioEditionSchema,
+} from "./audio-project-schema.js";
 const version = {
   id: 1,
   code: "rv1909",
@@ -406,6 +409,134 @@ test("development editions, verse jobs and final chapters are isolated from prod
     assert.equal(
       (await production.nextEdition("rv1909")).edition,
       "rv1909-v10",
+    );
+  } finally {
+    await clean();
+  }
+});
+
+test("chapter generation exposes every verse and assembly task with live progress", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    let run!: () => Promise<void>;
+    let plan: { chapter: number; verse?: number }[] = [];
+    const events: {
+      chapter: number;
+      verse?: number;
+      status: string;
+      progress: number;
+    }[] = [];
+    const generated = generation();
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1 },
+      (task, tasks) => {
+        run = task;
+        plan = tasks;
+      },
+      {
+        ...generated.dependencies,
+        synthesize: async (...args) => {
+          args[4]?.(37);
+          await generated.dependencies.synthesize(...args);
+        },
+      },
+      undefined,
+      (task, status, progress) => events.push({ ...task, status, progress }),
+    );
+    assert.equal(plan.length, 26);
+    assert.deepEqual(plan[0], { chapter: 1, verse: 1 });
+    assert.deepEqual(plan.at(-1), { chapter: 1 });
+    await run();
+    assert.equal(events.filter((event) => event.status === "done").length, 26);
+    assert.ok(
+      events.some((event) => event.verse === 1 && event.progress === 37),
+    );
+    assert.equal((await projects.read("rv1909-v2", "jude")).status, "done");
+  } finally {
+    await clean();
+  }
+});
+
+test("distinct verse requests queue together, reject overlapping scopes and preserve every result", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    const runs: (() => Promise<void>)[] = [];
+    const enqueue = (run: () => Promise<void>) => {
+      runs.push(run);
+    };
+    const generated = generation();
+    const snapshots: AudioProject[] = [];
+    const report = async (project: AudioProject) => {
+      snapshots.push(structuredClone(project));
+    };
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 1 },
+      enqueue,
+      generated.dependencies,
+      report,
+    );
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 2 },
+      enqueue,
+      generated.dependencies,
+      report,
+      undefined,
+      true,
+    );
+    await assert.rejects(
+      projects.queue(
+        "rv1909-v2",
+        "jude",
+        { chapter: 1, verse: 2 },
+        enqueue,
+        generated.dependencies,
+        report,
+        undefined,
+        true,
+      ),
+    );
+    await assert.rejects(
+      projects.queue(
+        "rv1909-v2",
+        "jude",
+        { chapter: 1 },
+        enqueue,
+        generated.dependencies,
+        report,
+        undefined,
+        true,
+      ),
+    );
+    assert.equal(runs.length, 2);
+    await runs[0]();
+    const first = await projects.read("rv1909-v2", "jude");
+    assert.equal(first.status, "running");
+    assert.ok(first.recordings["1:1"]);
+    assert.equal(snapshots.at(-1)?.status, "running");
+    await runs[1]();
+    const final = await projects.read("rv1909-v2", "jude");
+    assert.equal(final.status, "draft");
+    assert.deepEqual(Object.keys(final.recordings).sort(), ["1:1", "1:2"]);
+    assert.deepEqual(final.recordings["1:1"], first.recordings["1:1"]);
+    await assert.rejects(
+      projects.queue(
+        "rv1909-v2",
+        "jude",
+        { chapter: 1, verse: 3 },
+        enqueue,
+        generated.dependencies,
+        report,
+        undefined,
+        true,
+      ),
     );
   } finally {
     await clean();

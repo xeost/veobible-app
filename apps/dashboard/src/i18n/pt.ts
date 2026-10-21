@@ -1,4 +1,6 @@
 export const portuguese: Record<string, string> = {
+  "Generating verse audio…": "Gerando áudio do versículo…",
+  "Joining chapter audio…": "Unindo áudios do capítulo…",
   "Advanced voice settings": "Configurações avançadas de voz",
   "Audio decoder": "Decodificador de áudio",
   "General (s3gen.pt)": "Geral (s3gen.pt)",

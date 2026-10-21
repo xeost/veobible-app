@@ -251,7 +251,7 @@ const server = http.createServer(async (req, res) => {
         res,
         url,
         () => body(req),
-        (run) => generationQueue.enqueueBackground(run),
+        generationQueue,
         origins,
       )
     )

@@ -14,6 +14,8 @@ import type {
   AudioSettings,
 } from "../../../../tools/video-project-api/src/audio-project-schema";
 import { useI18n } from "../i18n/context";
+import type { GenerationQueueItem } from "../lib/generation-queue";
+import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
 
 export function AudioChapter({
@@ -21,6 +23,8 @@ export function AudioChapter({
   project,
   settings,
   locked,
+  submitting,
+  tasks,
   open,
   toggle,
   change,
@@ -32,6 +36,8 @@ export function AudioChapter({
   project: AudioProjectDetail;
   settings: AudioSettings;
   locked: boolean;
+  submitting: boolean;
+  tasks: GenerationQueueItem[];
   open: boolean;
   toggle: () => void;
   change: (settings: AudioSettings) => void;
@@ -44,11 +50,16 @@ export function AudioChapter({
   onPlay: (audio: HTMLAudioElement) => void;
 }) {
   const { t } = useI18n();
+  const activeTask =
+    tasks.find((task) => task.status === "running") ?? tasks[0];
   const [selection, setSelection] = useState({ index: 0, play: false });
   const [resetRevision, setResetRevision] = useState(0);
   const verse = chapter.verses[selection.index] ?? chapter.verses[0];
   const reference = `${chapter.chapter}:${verse.verse}`;
   const recording = project.recordings[reference];
+  const generationLocked =
+    submitting ||
+    tasks.some((task) => !task.verse || task.verse === verse.verse);
   const final = project.chapters[String(chapter.chapter)];
   const title = `${t("Chapter")} ${chapter.chapter}`;
   const picker = useRef<HTMLDivElement>(null);
@@ -161,7 +172,7 @@ export function AudioChapter({
         <button
           type="button"
           className="icon-button section-action-button"
-          disabled={locked}
+          disabled={submitting || tasks.length > 0}
           aria-label={t("Generate all audio for this chapter")}
           data-tooltip={t("Generate all audio for this chapter")}
           onClick={() => void generate({ chapter: chapter.chapter })}
@@ -207,6 +218,12 @@ export function AudioChapter({
           <ChevronDown size={18} className={open ? "expanded" : ""} />
         </button>
       </div>
+      {activeTask && (
+        <GenerationProgress
+          value={activeTask.progress}
+          label={`${t(activeTask.status === "queued" ? "Waiting to generate audio" : activeTask.verse ? "Generating verse audio…" : "Joining chapter audio…")}${activeTask.verse ? ` · ${chapter.chapter}:${activeTask.verse}` : ""}`}
+        />
+      )}
       {open && (
         <div
           ref={body}
@@ -269,6 +286,7 @@ export function AudioChapter({
                   regenerate: true,
                 })
               }
+              regenerationDisabled={generationLocked}
               regenerateLabel="Regenerate this verse"
               onTrim={(_, edge, value) =>
                 change({
@@ -321,7 +339,7 @@ export function AudioChapter({
                 <button
                   type="button"
                   className="primary"
-                  disabled={locked}
+                  disabled={generationLocked}
                   onClick={() =>
                     void generate({
                       chapter: chapter.chapter,

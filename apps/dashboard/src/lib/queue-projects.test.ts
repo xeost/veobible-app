@@ -80,6 +80,39 @@ test("queue queries only participant IDs, deduplicates them and skips the databa
       queries.map((query) => query.ids.length),
       [90, 90, 20],
     );
+    sqlite.exec(
+      "CREATE TABLE audio_projects(id INTEGER,title TEXT,edition TEXT,book TEXT,output_environment TEXT,bible_version_id INTEGER); INSERT INTO audio_projects VALUES(3,'Génesis','rv1909-v2','genesis','development',1)",
+    );
+    queries.length = 0;
+    const audioEntry = {
+      projectId: 3,
+      kind: "audio",
+      type: "audio-verse",
+      status: "running",
+      chapter: 1,
+      verse: 2,
+      outputEnvironment: "development",
+    };
+    const mixed = await loadQueueView(
+      database,
+      [...entries.slice(0, 1), audioEntry],
+      true,
+    );
+    assert.equal(mixed.items[0].href, "/audios/rv1909-v2/genesis");
+    assert.equal(mixed.items[0].title, "Génesis");
+    assert.ok("verse" in mixed.items[0]);
+    assert.equal(mixed.items[0].verse, 2);
+    assert.equal(mixed.history?.[0].href, "/short-videos/3");
+    assert.equal(
+      (
+        await loadQueueView(
+          database,
+          [{ ...audioEntry, outputEnvironment: "production" }],
+          false,
+        )
+      ).items.length,
+      0,
+    );
   } finally {
     sqlite.close();
   }

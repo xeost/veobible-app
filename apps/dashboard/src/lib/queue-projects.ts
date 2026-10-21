@@ -27,8 +27,42 @@ export async function loadQueueProjects(
   return new Map(projects.map((project) => [project.id, project]));
 }
 
+type AudioQueueProject = {
+  id: number;
+  title: string;
+  version_code: string;
+  edition: string;
+  book: string;
+  output_environment: string;
+};
+async function loadAudioQueueProjects(database: D1Database, ids: number[]) {
+  const unique = [
+    ...new Set(ids.filter((id) => Number.isSafeInteger(id) && id > 0)),
+  ];
+  const projects: AudioQueueProject[] = [];
+  for (let offset = 0; offset < unique.length; offset += 90) {
+    const batch = unique.slice(offset, offset + 90);
+    projects.push(
+      ...(
+        await database
+          .prepare(
+            `SELECT p.id,p.title,p.edition,p.book,p.output_environment,v.code version_code FROM audio_projects p JOIN bible_versions v ON v.id=p.bible_version_id WHERE p.id IN (${batch.map(() => "?").join(",")})`,
+          )
+          .bind(...batch)
+          .all<AudioQueueProject>()
+      ).results,
+    );
+  }
+  return new Map(projects.map((p) => [p.id, p]));
+}
+
 export async function loadQueueView<
-  T extends { projectId: number; kind: string; status: string },
+  T extends {
+    projectId: number;
+    kind: string;
+    status: string;
+    outputEnvironment?: string;
+  },
 >(database: D1Database, entries: T[], includeHistory: boolean) {
   const active = entries.filter((item) =>
     ["queued", "running"].includes(item.status),
@@ -38,10 +72,32 @@ export async function loadQueueView<
     : [];
   const projects = await loadQueueProjects(
     database,
-    [...active, ...history].map((item) => item.projectId),
+    [...active, ...history]
+      .filter((item) => item.kind !== "audio")
+      .map((item) => item.projectId),
+  );
+  const audioProjects = await loadAudioQueueProjects(
+    database,
+    [...active, ...history]
+      .filter((item) => item.kind === "audio")
+      .map((item) => item.projectId),
   );
   const withProjects = (items: T[]) =>
     items.flatMap((item) => {
+      if (item.kind === "audio") {
+        const audio = audioProjects.get(item.projectId);
+        return audio &&
+          audio.output_environment === (item.outputEnvironment ?? "production")
+          ? [
+              {
+                ...item,
+                title: audio.title,
+                version: audio.edition,
+                href: `/audios/${encodeURIComponent(audio.edition)}/${encodeURIComponent(audio.book)}`,
+              },
+            ]
+          : [];
+      }
       const project = projects.get(item.projectId);
       return project?.kind === item.kind
         ? [

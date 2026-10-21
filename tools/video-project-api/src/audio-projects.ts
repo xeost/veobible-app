@@ -77,6 +77,33 @@ async function atomicJson(file: string, value: unknown) {
     await fs.unlink(temporary).catch(() => {});
   }
 }
+export type AudioTask = { chapter: number; verse?: number };
+export type AudioTaskReporter = (
+  task: AudioTask,
+  status: "running" | "done",
+  progress: number,
+) => void;
+export function audioTasks(
+  project: AudioProjectDetail,
+  input: z.infer<typeof audioGenerateSchema>,
+): AudioTask[] {
+  const chapters = project.content.filter(
+    (c) => !input.chapter || c.chapter === input.chapter,
+  );
+  return [
+    ...chapters.flatMap((c) =>
+      c.verses
+        .filter(
+          (v) =>
+            (!input.verse || input.verse === v.verse) &&
+            (input.regenerate ||
+              !project.recordings[`${c.chapter}:${v.verse}`]),
+        )
+        .map((v) => ({ chapter: c.chapter, verse: v.verse })),
+    ),
+    ...(!input.verse ? chapters.map((c) => ({ chapter: c.chapter })) : []),
+  ];
+}
 export class AudioProjects {
   // Only transient worker snapshots live here. The dashboard database owns
   // project persistence; disk contains recordings and ownership receipts only.
@@ -86,6 +113,11 @@ export class AudioProjects {
     (project: AudioProject) => Promise<void>
   >();
   private pending = new Set<string>();
+  private generationScopes = new Map<
+    string,
+    Map<string, { chapter?: number; verse?: number }>
+  >();
+  private closing = new Set<string>();
   public root: string;
   constructor(
     root = sharedAudioDirectory,
@@ -350,16 +382,48 @@ export class AudioProjects {
     edition: string,
     book: string,
     value: unknown,
-    enqueue: (run: () => Promise<void>) => void,
+    enqueue: (run: () => Promise<void>, tasks: AudioTask[]) => void,
     dependencies: AudioGenerationDependencies = productionDependencies,
     reporter?: (project: AudioProject) => Promise<void>,
+    taskReporter?: AudioTaskReporter,
+    append = false,
   ) {
     const input = audioGenerateSchema.parse(value),
       id = key(edition, book);
-    if (this.pending.has(id))
+    const scopes =
+      this.generationScopes.get(id) ??
+      new Map<string, { chapter?: number; verse?: number }>();
+    if (
+      this.closing.has(id) ||
+      (append && !scopes.size) ||
+      (this.pending.has(id) && (!append || !scopes.size))
+    )
       throw new AudioProjectError("Wait for audio generation to finish.");
+    if (
+      [...scopes.values()].some(
+        (scope) =>
+          !scope.chapter ||
+          !input.chapter ||
+          (scope.chapter === input.chapter &&
+            (!scope.verse || !input.verse || scope.verse === input.verse)),
+      )
+    )
+      throw new AudioProjectError("Wait for audio generation to finish.");
+    const requestId = randomUUID();
+    const first = scopes.size === 0;
+    scopes.set(requestId, { chapter: input.chapter, verse: input.verse });
+    this.generationScopes.set(id, scopes);
     this.pending.add(id);
-    if (reporter) this.reporters.set(id, reporter);
+    if (first && reporter) this.reporters.set(id, reporter);
+    const release = () => {
+      scopes.delete(requestId);
+      if (!scopes.size) {
+        this.pending.delete(id);
+        this.generationScopes.delete(id);
+        this.reporters.delete(id);
+        this.closing.delete(id);
+      }
+    };
     let project: AudioProjectDetail;
     try {
       project = await this.detail(edition, book);
@@ -372,34 +436,44 @@ export class AudioProjects {
         )
       )
         throw new AudioProjectError("Verse not found.", 400);
-      project.status = "queued";
-      project.progress = 0;
-      const { content: _, ...stored } = project;
-      await this.write(stored);
+      if (first) {
+        project.status = "queued";
+        project.progress = 0;
+        const { content: _, ...stored } = project;
+        await this.write(stored);
+      }
     } catch (error) {
-      this.pending.delete(id);
-      this.reporters.delete(id);
+      release();
       throw error;
     }
-    enqueue(async () => {
-      try {
-        await this.generate(project, input, dependencies);
-      } catch (error) {
-        console.error("Audio generation failed", id, error);
-        const current = await this.read(edition, book);
-        current.status = "failed";
-        await this.write(current);
-      } finally {
-        this.pending.delete(id);
-        this.reporters.delete(id);
-      }
-    });
+    enqueue(
+      async () => {
+        try {
+          await this.generate(
+            await this.detail(edition, book),
+            input,
+            dependencies,
+            taskReporter,
+          );
+        } catch (error) {
+          console.error("Audio generation failed", id, error);
+          const current = await this.read(edition, book);
+          current.status = scopes.size > 1 ? "running" : "failed";
+          if (scopes.size === 1) this.closing.add(id);
+          await this.write(current);
+        } finally {
+          release();
+        }
+      },
+      audioTasks(project, input),
+    );
     return { queued: true };
   }
   private async generate(
     detail: AudioProjectDetail,
     input: z.infer<typeof audioGenerateSchema>,
     dependencies: AudioGenerationDependencies,
+    taskReporter?: AudioTaskReporter,
   ) {
     const { content, ...project } = detail;
     const { internal, output } = await this.owned(project.edition);
@@ -415,12 +489,21 @@ export class AudioProjects {
     await this.write(project);
     for (const [index, verse] of verses.entries()) {
       const ref = `${verse.chapter}:${verse.verse}`;
-      if (input.regenerate || !project.recordings[ref]) {
+      const needsGeneration = input.regenerate || !project.recordings[ref];
+      if (needsGeneration) {
         const revision = randomUUID();
         const relative = `${project.book}/${verse.chapter}-${verse.verse}-${revision}`;
         const directory = await safeFile(internal, relative);
         await fs.mkdir(directory, { recursive: true });
-        await dependencies.synthesize(directory, verse.text, project, input);
+        const task = { chapter: verse.chapter, verse: verse.verse };
+        taskReporter?.(task, "running", 0);
+        await dependencies.synthesize(
+          directory,
+          verse.text,
+          project,
+          input,
+          (progress) => taskReporter?.(task, "running", Math.min(99, progress)),
+        );
         const wav = path.join(directory, "intro.wav");
         const duration = await dependencies.duration(wav);
         if (!Number.isFinite(duration) || duration <= 0.02)
@@ -449,9 +532,16 @@ export class AudioProjects {
       );
       project.revision++;
       await this.write(project);
+      if (needsGeneration)
+        taskReporter?.(
+          { chapter: verse.chapter, verse: verse.verse },
+          "done",
+          100,
+        );
     }
     if (!input.verse) {
       for (const [index, chapter] of chapters.entries()) {
+        taskReporter?.({ chapter: chapter.chapter }, "running", 0);
         const filename = `${String(project.order).padStart(2, "0")}-${project.book}-${chapter.chapter}.mp3`;
         // A chapter belongs only to this book. Refuse unexpected files even in
         // an owned edition; no overwriting imported or manually added audio.
@@ -510,13 +600,18 @@ export class AudioProjects {
             85 + Math.round(((index + 1) / chapters.length) * 15);
           project.revision++;
           await this.write(project);
+          taskReporter?.({ chapter: chapter.chapter }, "done", 100);
         } finally {
           await fs.unlink(temporary).catch(() => {});
         }
       }
     }
-    project.status =
-      Object.keys(project.chapters).length === project.chapterCount
+    const id = key(project.edition, project.book);
+    const remaining = (this.generationScopes.get(id)?.size ?? 1) > 1;
+    if (!remaining) this.closing.add(id);
+    project.status = remaining
+      ? "running"
+      : Object.keys(project.chapters).length === project.chapterCount
         ? "done"
         : "draft";
     project.progress = 100;
@@ -534,6 +629,7 @@ export type AudioGenerationDependencies = {
     text: string,
     project: AudioProject,
     input: z.infer<typeof audioGenerateSchema>,
+    onProgress?: (progress: number) => void,
   ) => Promise<void>;
   duration: (file: string) => Promise<number>;
   assemble: (segments: AudioSegment[], output: string) => Promise<void>;
@@ -606,7 +702,7 @@ export async function assembleAudioChapter(
   }
 }
 const productionDependencies: AudioGenerationDependencies = {
-  synthesize: (directory, text, project, input) =>
+  synthesize: (directory, text, project, input, onProgress) =>
     generateVoice(
       directory,
       {
@@ -627,6 +723,7 @@ const productionDependencies: AudioGenerationDependencies = {
       },
       true,
       "intro",
+      onProgress,
     ),
   duration: async (file) =>
     Number(

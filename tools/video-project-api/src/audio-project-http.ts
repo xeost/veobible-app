@@ -1,7 +1,10 @@
+import { randomUUID } from "node:crypto";
 import type http from "node:http";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import { z } from "zod";
+import { GenerationQueue, type QueueJob } from "./generation-queue.js";
+import { audioGenerateSchema } from "./audio-project-schema.js";
 import { AudioProjects, AudioProjectError } from "./audio-projects.js";
 import {
   audioVersionSchema,
@@ -14,7 +17,10 @@ const libraries = {
   production: new AudioProjects(),
   development: new AudioProjects(undefined, "development"),
 };
-const sessions = new Map<string, { jobId: string; sequence: number }>();
+const sessions = new Map<
+  string,
+  { jobId: string; sequence: number; callback?: z.infer<typeof callbackSchema> }
+>();
 const snapshotInput = z.object({
   project: audioProjectSchema,
   jobId: z.string().uuid().nullable().optional(),
@@ -49,7 +55,7 @@ export async function audioProjectHttp(
   res: http.ServerResponse,
   url: URL,
   body: () => Promise<unknown>,
-  enqueue: (run: () => Promise<void>) => void,
+  queue: GenerationQueue,
   origins: ReadonlySet<string>,
 ) {
   if (
@@ -131,12 +137,22 @@ export async function audioProjectHttp(
       } else if (parts[2] === "generate") {
         const generation = z
           .object({
-            callback: callbackSchema,
+            callback: callbackSchema.optional(),
+            append: z.boolean().default(false),
             jobId: z.string().uuid(),
             input: z.unknown(),
           })
           .parse(raw);
-        const callback = new URL(generation.callback.url);
+        const session = sessions.get(id)!;
+        const callbackSettings = generation.append
+          ? session.callback
+          : generation.callback;
+        if (
+          !callbackSettings ||
+          (generation.append && session.jobId !== generation.jobId)
+        )
+          throw new AudioProjectError("Wait for audio generation to finish.");
+        const callback = new URL(callbackSettings.url);
         if (
           !origins.has(callback.origin) ||
           callback.username ||
@@ -146,20 +162,60 @@ export async function audioProjectHttp(
           )
         )
           throw new AudioProjectError("Origin not allowed", 403);
-        const session = sessions.get(id)!;
+        if (!generation.append) session.callback = callbackSettings;
+        const requestId = randomUUID();
+        audioGenerateSchema.parse(generation.input);
+        const projectId = Number(callback.pathname.split("/")[3]);
+        const jobs = new Map<string, QueueJob>();
+        const taskKey = (task: { chapter: number; verse?: number }) =>
+          `${task.chapter}:${task.verse ?? "chapter"}`;
         json(
           await projects.queue(
             edition,
             book,
             generation.input,
-            enqueue,
+            (run, tasks) => {
+              const entries = tasks.map((task) => {
+                const job: QueueJob = {
+                  id: `${generation.jobId}:${requestId}:${taskKey(task)}`,
+                  status: "queued",
+                  stage: "Queued",
+                  progress: 0,
+                };
+                jobs.set(taskKey(task), job);
+                return {
+                  metadata: {
+                    projectId,
+                    kind: "audio" as const,
+                    type: task.verse
+                      ? ("audio-verse" as const)
+                      : ("audio-chapter" as const),
+                    outputEnvironment: environment,
+                    groupId: generation.jobId,
+                    ...task,
+                  },
+                  job,
+                };
+              });
+              queue.enqueueGroup(entries, run);
+            },
             undefined,
             async (project) => {
-              await notify(generation.callback.url, generation.callback.token, {
+              await notify(callbackSettings.url, callbackSettings.token, {
                 sequence: ++session.sequence,
                 project,
               });
             },
+            (task, status, progress) => {
+              const job = jobs.get(taskKey(task));
+              if (job) {
+                job.status = status;
+                job.progress = progress;
+                job.stage =
+                  status === "done" ? "Completed" : "Generating audio";
+              }
+            },
+            generation.append,
           ),
           202,
         );

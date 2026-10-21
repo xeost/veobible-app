@@ -183,20 +183,26 @@ export function GenerationQueueModal({
                 <strong>{item.title}</strong>
                 <small>
                   {t(
-                    item.type.startsWith("alignment")
-                      ? "Reading timing analysis"
-                      : item.type === "video"
-                        ? "Final video"
-                        : item.type === "intro"
-                          ? "Introduction narration"
-                          : item.type === "outro"
-                            ? "Closing narration"
-                            : item.type.startsWith("reading-")
-                              ? "Generated passage reading"
-                              : "Chapter introduction",
+                    item.type === "audio-verse"
+                      ? "Generate verse audio"
+                      : item.type === "audio-chapter"
+                        ? "Generate chapter audio"
+                        : item.type.startsWith("alignment")
+                          ? "Reading timing analysis"
+                          : item.type === "video"
+                            ? "Final video"
+                            : item.type === "intro"
+                              ? "Introduction narration"
+                              : item.type === "outro"
+                                ? "Closing narration"
+                                : item.type.startsWith("reading-")
+                                  ? "Generated passage reading"
+                                  : "Chapter introduction",
                   )}{" "}
                   {item.type.startsWith("alignment-") &&
                     ` · ${t("Reading")} ${Number(item.type.split("-")[1]) + 1}`}
+                  {item.kind === "audio" &&
+                    ` · ${t("Chapter")} ${item.chapter}${item.verse ? `:${item.verse}` : ""}`}{" "}
                   · {item.version.toUpperCase()}
                 </small>
                 <span>

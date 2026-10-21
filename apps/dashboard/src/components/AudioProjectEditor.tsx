@@ -16,7 +16,8 @@ import { api } from "./api";
 import { AudioChapter } from "./AudioChapter";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import { ProjectEditorHeader } from "./ProjectEditorHeader";
-import { GenerationProgress } from "./GenerationProgress";
+import { useGenerationQueue } from "./GenerationQueueContext";
+import { queueChangedEvent } from "../lib/generation-queue";
 import { useProjectBreadcrumb } from "./ProjectBreadcrumb";
 import { useToast } from "./ToastProvider";
 import { pollWhileVisible } from "../lib/visible-polling";
@@ -29,6 +30,14 @@ export function AudioProjectEditor({
 }) {
   const { t } = useI18n(),
     notify = useToast();
+  const queue = useGenerationQueue();
+  const queueTasks = queue.items.filter(
+    (item) =>
+      item.kind === "audio" &&
+      item.href ===
+        `/audios/${encodeURIComponent(edition)}/${encodeURIComponent(book)}` &&
+      ["queued", "running"].includes(item.status),
+  );
   const endpoint = `audios/${encodeURIComponent(edition)}/${encodeURIComponent(book)}`;
   const [project, setProject] = useState<AudioProjectDetail | null>(null),
     [settings, setSettings] = useState<AudioSettings | null>(null);
@@ -40,7 +49,9 @@ export function AudioProjectEditor({
     busyRef = useRef(false),
     pendingRef = useRef(false);
   const players = useRef<Record<string, HTMLAudioElement>>({});
-  const pending = !!project && ["queued", "running"].includes(project.status),
+  const pending =
+      queueTasks.length > 0 ||
+      (!!project && ["queued", "running"].includes(project.status)),
     locked = busy || pending;
   pendingRef.current = pending;
   dirtyRef.current = dirty;
@@ -97,7 +108,7 @@ export function AudioProjectEditor({
   const generate = async (
     scope: { chapter?: number; verse?: number; regenerate?: boolean } = {},
   ) => {
-    if (locked) return;
+    if (busyRef.current) return;
     setBusy(true);
     busyRef.current = true;
     setError("");
@@ -108,6 +119,7 @@ export function AudioProjectEditor({
         method: "POST",
         body: JSON.stringify(scope),
       });
+      window.dispatchEvent(new Event(queueChangedEvent));
       const value = await api<AudioProjectDetail>(endpoint);
       setProject(value);
       setSettings(value.settings);
@@ -201,16 +213,6 @@ export function AudioProjectEditor({
           </p>
           {dirty && <p className="notice">{t("Unsaved changes")}</p>}
         </details>
-        {pending && (
-          <GenerationProgress
-            label={t(
-              project.status === "queued"
-                ? "Waiting to generate audio"
-                : "Generating audios",
-            )}
-            value={project.progress}
-          />
-        )}
         {project.status === "failed" && (
           <p className="error" role="alert">
             {t(
@@ -259,6 +261,10 @@ export function AudioProjectEditor({
               project={project}
               settings={settings}
               locked={locked}
+              submitting={busy}
+              tasks={queueTasks.filter(
+                (task) => task.chapter === chapter.chapter,
+              )}
               open={expanded.has(chapter.chapter)}
               toggle={() =>
                 setExpanded((current) => {
