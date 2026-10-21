@@ -114,7 +114,14 @@ export async function videoApi(
       );
       if (!response.ok) throw new Error("Queue unavailable");
       const data = (await response.json()) as {
-        items: { projectId: number; kind: string; status: string }[];
+        items: {
+          projectId: number | null;
+          kind: string;
+          status: string;
+          type?: string;
+          voice?: string;
+          locale?: string;
+        }[];
         summary: { progress: number; completed: number; total: number };
       };
       const includeHistory =

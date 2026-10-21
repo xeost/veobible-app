@@ -1,7 +1,8 @@
 export type GenerationQueueItem = {
   id: string;
-  projectId: number;
+  projectId: number | null;
   type:
+    | "voice-sample"
     | "audio-verse"
     | "audio-chapter"
     | "intro"
@@ -18,7 +19,9 @@ export type GenerationQueueItem = {
   createdAt: string;
   finishedAt?: string;
   title: string;
-  kind: "short" | "long" | "book" | "audio";
+  kind: "short" | "long" | "book" | "audio" | "voice-sample";
+  voice?: string;
+  locale?: "en" | "es" | "pt";
   chapter?: number;
   verse?: number;
   groupId?: string;

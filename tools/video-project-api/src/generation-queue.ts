@@ -1,5 +1,6 @@
 import { clampProgress } from "./generation-progress.js";
 export type GenerationType =
+  | "voice-sample"
   | "audio-verse"
   | "audio-chapter"
   | "intro"
@@ -16,9 +17,11 @@ export type QueueJob = {
   progress?: number;
 };
 type Entry = {
-  projectId: number;
+  projectId: number | null;
   outputEnvironment?: "production" | "development";
-  kind: "short" | "long" | "book" | "audio";
+  kind: "short" | "long" | "book" | "audio" | "voice-sample";
+  voice?: string;
+  locale?: "en" | "es" | "pt";
   chapter?: number;
   verse?: number;
   groupId?: string;
@@ -50,7 +53,10 @@ export class GenerationQueue {
     );
   }
   enqueue(
-    metadata: Pick<Entry, "projectId" | "kind" | "type" | "outputEnvironment">,
+    metadata: Pick<
+      Entry,
+      "projectId" | "kind" | "type" | "outputEnvironment" | "voice" | "locale"
+    >,
     job: QueueJob,
     run: () => Promise<void>,
   ) {
@@ -123,12 +129,6 @@ export class GenerationQueue {
           this.entries.splice(index, 1);
         }
       }
-    });
-  }
-  /** Serialize auxiliary synthesis with project work without adding a fake project. */
-  enqueueBackground(run: () => Promise<void>) {
-    this.tail = this.tail.then(run).catch((error) => {
-      console.error("Background generation failed", error);
     });
   }
   snapshot() {

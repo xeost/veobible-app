@@ -540,14 +540,6 @@ export function VoiceSettingsModal({
                     },
                   }))
                 }
-                canGenerate={canEdit}
-                generation={{
-                  kind,
-                  role: baseVoiceRole,
-                  ...(baseVoiceRole === "reading"
-                    ? { readingParameters: readingParameters[baseVoiceLocale] }
-                    : {}),
-                }}
                 disabled={busy || loadFailed || !canEdit}
               />
             </section>

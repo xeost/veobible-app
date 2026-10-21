@@ -117,3 +117,44 @@ test("queue queries only participant IDs, deduplicates them and skips the databa
     sqlite.close();
   }
 });
+
+test("voice examples appear in the queue and history without project database lookups", async () => {
+  const database = {
+    prepare() {
+      throw new Error("Samples must not query project tables");
+    },
+  } as unknown as D1Database;
+  const sample = {
+    id: "sample-1",
+    projectId: null,
+    type: "voice-sample",
+    kind: "voice-sample",
+    voice: "es-2",
+    locale: "es",
+    status: "running",
+    progress: 45,
+    finishedAt: undefined as string | undefined,
+  };
+  const entries = [
+    sample,
+    {
+      ...sample,
+      id: "sample-2",
+      status: "done",
+      finishedAt: "2026-10-21T12:00:00Z",
+    },
+    { ...sample, id: "sample-3", status: "failed" },
+  ];
+  const active = await loadQueueView(database, entries, false);
+  assert.equal(active.items.length, 1);
+  assert.equal(active.items[0].href, "/admin-tools");
+  assert.equal(active.items[0].progress, 45);
+  assert.equal(active.items[0].voice, "es-2");
+  assert.equal(active.history, undefined);
+  const full = await loadQueueView(database, entries, true);
+  assert.deepEqual(
+    full.history?.map((item) => item.status),
+    ["done", "failed"],
+  );
+  assert.equal(full.history?.[0].finishedAt, entries[1].finishedAt);
+});

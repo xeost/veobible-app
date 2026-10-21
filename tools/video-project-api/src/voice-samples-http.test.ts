@@ -51,6 +51,7 @@ const arg=k=>process.argv[process.argv.indexOf(k)+1];
 const scripts=JSON.parse(await fs.readFile(arg('--scripts'),'utf8'));
 const prompts=JSON.parse(await fs.readFile(arg('--voice-prompts'),'utf8'));
 await fs.appendFile(process.env.SAMPLE_LOG,JSON.stringify({args:process.argv,scripts,prompts})+'\\n');
+if(scripts.intro==='A literal {example}.') { while(!(await fs.stat(process.env.SAMPLE_LOG+'.release').catch(()=>null))) await new Promise(r=>setTimeout(r,10)); }
 await new Promise(r=>setTimeout(r,150));
 if(scripts.intro==='fail') process.exit(1);
 await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+scripts.intro);
@@ -157,11 +158,55 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         }
         throw new Error("Sample generation timed out");
       };
-      assert.equal(
-        (await request("es-2", "A literal {example}.", "latam", "v3")).status,
-        202,
+      const response = await request(
+        "es-2",
+        "A literal {example}.",
+        "latam",
+        "v3",
       );
-      assert.equal((await request("es-2", "duplicate")).status, 202);
+      assert.equal(response.status, 202);
+      const task = await response.json();
+      const duplicate = await request("es-2", "duplicate");
+      assert.equal(duplicate.status, 202);
+      assert.equal((await duplicate.json()).id, task.id);
+      const queueSnapshot = async (environment = "production") => {
+        const response = await fetch(
+          `http://127.0.0.1:${port}/v1/queue?outputEnvironment=${environment}`,
+          { headers },
+        );
+        assert.equal(response.status, 200);
+        return response.json();
+      };
+      const active = await queueSnapshot();
+      assert.equal(active.items.length, 1);
+      assert.equal(active.items[0].id, task.id);
+      assert.equal(active.items[0].type, "voice-sample");
+      assert.equal(active.items[0].projectId, null);
+      assert.equal(active.items[0].voice, "es-2");
+      assert.equal(active.items[0].locale, "es");
+      assert.equal(active.items[0].status, "running");
+      assert.equal(active.summary.total, 1);
+      assert.equal((await queueSnapshot("development")).items.length, 0);
+      // A second sample must wait behind the active one, rather than synthesize concurrently.
+      const waiting = await request("en-1", "Queued English example.");
+      assert.equal(waiting.status, 202);
+      const before = await queueSnapshot();
+      assert.deepEqual(
+        before.items.map((item: any) => [
+          item.voice,
+          item.status,
+          item.position,
+        ]),
+        [
+          ["es-2", "running", null],
+          ["en-1", "queued", 1],
+        ],
+      );
+      assert.equal(before.summary.total, 2);
+      await fs.writeFile(
+        path.join(directory, "calls.jsonl.release"),
+        "release",
+      );
       assert.equal((await settled("es-2")).available, true);
       const audio = await (
         await fetch(`${base}/es-2/sample`, { headers })
@@ -172,7 +217,8 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
       )
         .trim()
         .split("\n")
-        .map((line) => JSON.parse(line));
+        .map((line) => JSON.parse(line))
+        .filter((call) => call.prompts.intro === path.join(voices, "es-2.mp3"));
       assert.equal(calls.length, 1);
       assert.equal(calls[0].prompts.intro, path.join(voices, "es-2.mp3"));
       assert.equal(
@@ -213,6 +259,16 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         await fs.readFile(path.join(voices, "samples/es-2-sample.wav"), "utf8"),
         regenerated,
       );
+      assert.equal((await settled("en-1")).available, true);
+      const history = await queueSnapshot();
+      assert.deepEqual(
+        history.items
+          .filter((item: any) => item.voice === "es-2")
+          .map((item: any) => item.status),
+        ["done", "done", "failed"],
+      );
+      assert.ok(history.items.every((item: any) => item.finishedAt));
+      assert.equal(history.summary.completed, history.summary.total);
       await stop();
       await start();
       const cached = (await catalog()).find((voice) => voice.id === "es-2");

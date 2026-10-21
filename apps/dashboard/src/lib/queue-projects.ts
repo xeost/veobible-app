@@ -58,8 +58,11 @@ async function loadAudioQueueProjects(database: D1Database, ids: number[]) {
 
 export async function loadQueueView<
   T extends {
-    projectId: number;
+    projectId: number | null;
     kind: string;
+    type?: string;
+    voice?: string;
+    locale?: string;
     status: string;
     outputEnvironment?: string;
   },
@@ -73,17 +76,34 @@ export async function loadQueueView<
   const projects = await loadQueueProjects(
     database,
     [...active, ...history]
-      .filter((item) => item.kind !== "audio")
-      .map((item) => item.projectId),
+      .filter((item) => item.kind !== "audio" && item.kind !== "voice-sample")
+      .map((item) => item.projectId)
+      .filter((id): id is number => id !== null),
   );
   const audioProjects = await loadAudioQueueProjects(
     database,
     [...active, ...history]
       .filter((item) => item.kind === "audio")
-      .map((item) => item.projectId),
+      .map((item) => item.projectId)
+      .filter((id): id is number => id !== null),
   );
   const withProjects = (items: T[]) =>
     items.flatMap((item) => {
+      if (
+        item.kind === "voice-sample" &&
+        item.type === "voice-sample" &&
+        /^(en|es|pt)-[1-9]\d*$/.test(item.voice ?? "")
+      ) {
+        return [
+          {
+            ...item,
+            title: `Voice ${item.voice!.split("-")[1]}`,
+            version: "",
+            href: "/admin-tools",
+          },
+        ];
+      }
+      if (item.projectId === null) return [];
       if (item.kind === "audio") {
         const audio = audioProjects.get(item.projectId);
         return audio &&

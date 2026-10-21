@@ -1,3 +1,8 @@
+import {
+  narrationPresetLibrarySchema,
+  presetLibraryFromStyles,
+  stylesFromPresetLibrary,
+} from "./narration-style-presets";
 import { z } from "zod";
 import { narrationModelsSchema } from "./narration-models";
 import {
@@ -29,19 +34,38 @@ export async function loadNarrationStyles(database: D1Database) {
     : defaultNarrationStyles();
 }
 
+export async function loadNarrationPresetLibrary(database: D1Database) {
+  const row = await database
+    .prepare("SELECT value FROM site_settings WHERE key=?")
+    .bind("voice_generation_presets")
+    .first<{ value: string }>();
+  return row
+    ? narrationPresetLibrarySchema.parse(JSON.parse(row.value))
+    : presetLibraryFromStyles(await loadNarrationStyles(database));
+}
+
 export async function saveNarrationGenerationSettings(
   database: D1Database,
   input: unknown,
 ) {
   const settings = z
-    .object({ models: narrationModelsSchema, styles: narrationStylesSchema })
+    .object({
+      models: narrationModelsSchema,
+      styles: narrationStylesSchema,
+      presets: narrationPresetLibrarySchema.optional(),
+    })
     .strict()
     .parse(input);
+  if (settings.presets)
+    settings.styles = stylesFromPresetLibrary(settings.presets);
   const now = new Date().toISOString();
   await database.batch(
     [
       ["voice_generation_models", settings.models],
       ["voice_generation_parameters", settings.styles],
+      ...(settings.presets
+        ? [["voice_generation_presets", settings.presets]]
+        : []),
     ].map(([key, value]) =>
       database
         .prepare(

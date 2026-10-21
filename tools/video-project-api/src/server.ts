@@ -270,9 +270,7 @@ const server = http.createServer(async (req, res) => {
           ...(await body(req)),
           voice,
         });
-        const task = await queueVoiceSample(input, (run) =>
-          generationQueue.enqueueBackground(run),
-        );
+        const task = await queueVoiceSample(input, generationQueue);
         return json(res, 202, task);
       }
       if (req.method === "GET") {
@@ -384,7 +382,8 @@ const server = http.createServer(async (req, res) => {
                   input.outputEnvironment &&
                 ["queued", "running"].includes(entry.status),
             )
-            .map((entry) => entry.projectId),
+            .map((entry) => entry.projectId)
+            .filter((id): id is number => id !== null),
         );
         for (const project of input.projects) {
           const pending = await alignmentPending(
@@ -458,7 +457,8 @@ const server = http.createServer(async (req, res) => {
             (item) =>
               item.kind === kind && ["queued", "running"].includes(item.status),
           )
-          .map((item) => item.projectId),
+          .map((item) => item.projectId)
+          .filter((id): id is number => id !== null),
       });
     }
     if (

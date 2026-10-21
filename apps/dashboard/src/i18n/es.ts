@@ -1,4 +1,40 @@
 export const spanish: Record<string, string> = {
+  "Restore default example text":
+    "Restablecer el texto de ejemplo predeterminado",
+
+  "Voice example": "Muestra de voz",
+  "Open voice examples": "Abrir muestras de voz",
+
+  "Pause voice example": "Pausar muestra de voz",
+  "Could not play the example. Try again.":
+    "No se pudo reproducir la muestra. Inténtalo de nuevo.",
+
+  "Try narration voices": "Probar voces de narración",
+  "Choose a voice for each Bible language and generate an example using the model and narration preset selected above. You can try changes before saving them.":
+    "Elige una voz para cada idioma bíblico y genera una muestra con el modelo y el preset de narración seleccionados arriba. Puedes probar los cambios antes de guardarlos.",
+  "Load voice generation settings above to try the voices.":
+    "Carga la configuración de generación de voces de arriba para probar las voces.",
+  "Examples use the model and narration preset currently selected above, including unsaved changes. Regenerate an example after changing them.":
+    "Las muestras usan el modelo y el preset de narración seleccionados arriba, incluidos los cambios sin guardar. Vuelve a generar la muestra después de cambiarlos.",
+
+  "Saved narration": "Narración guardada",
+  "View preset": "Ver preset",
+  "Configure preset": "Configurar preset",
+  "Add preset": "Añadir preset",
+  "Configure narration preset": "Configurar preset de narración",
+  "Preset name": "Nombre del preset",
+  "Apply preset": "Aplicar preset",
+  "This built-in preset is read-only. Add a preset to create your own style.":
+    "Este preset predeterminado es de solo lectura. Añade un preset para crear tu propio estilo.",
+  "Adjust this style for this Bible language. Apply it, then save changes to keep the preset.":
+    "Ajusta este estilo para este idioma bíblico. Aplícalo y luego guarda los cambios para conservar el preset.",
+  "Emotional intensity": "Intensidad emocional",
+  "Guidance and pacing": "Guía y ritmo",
+  "Voice variation": "Variación de voz",
+  "Repetition prevention": "Prevención de repeticiones",
+  "Minimum sampling threshold": "Umbral mínimo de muestreo",
+  "Sampling probability limit": "Límite de probabilidad de muestreo",
+
   "Generating verse audio…": "Generando audio del versículo…",
   "Joining chapter audio…": "Uniendo audios del capítulo…",
   "Advanced voice settings": "Ajustes avanzados de voz",

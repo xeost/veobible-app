@@ -1,4 +1,8 @@
 import {
+  voiceSampleRequestSchema,
+  resolveVoiceSampleSettings,
+} from "../../../lib/voice-sample-settings";
+import {
   loadAudioVersePause,
   audioVersePauseSchema,
 } from "../../../lib/audio-settings";
@@ -12,15 +16,13 @@ import { baseVoiceSchema } from "../../../../../../tools/video-project-api/src/b
 import { resolveNarrationStyle } from "../../../lib/narration-parameters";
 import {
   loadNarrationStyles,
+  loadNarrationPresetLibrary,
   saveNarrationGenerationSettings,
   loadReadingNarrationOverrides,
   readingNarrationOverridesSchema,
-  readingNarrationParametersSchema,
-  resolveReadingNarrationParameters,
 } from "../../../lib/narration-parameters";
 import {
   loadNarrationModels,
-  selectedNarrationDecoder,
   applyNarrationSelection,
 } from "../../../lib/narration-models";
 import {
@@ -186,6 +188,7 @@ async function handle(req: Request, lang: Language) {
       return json({
         models: await loadNarrationModels(database),
         styles: await loadNarrationStyles(database),
+        presets: await loadNarrationPresetLibrary(database),
       });
     if (method === "PUT")
       return json(
@@ -389,24 +392,15 @@ async function handle(req: Request, lang: Language) {
       }
       if (method === "POST") {
         admin();
-        const input = z
-          .object({
-            text: z.string().trim().min(1).max(500),
-            kind: z.enum(["short", "long", "book", "audio"]).optional(),
-            role: z.enum(["intro", "outro", "reading"]).optional(),
-            readingParameters: readingNarrationParametersSchema
-              .nullable()
-              .optional(),
-          })
-          .strict()
-          .refine((value) => value.role !== "reading" || Boolean(value.kind))
-          .parse(await body());
+        const input = voiceSampleRequestSchema.parse(await body());
         const { text } = input;
         const locale = z.enum(["es", "en", "pt"]).parse(voice.split("-")[0]);
-        const [models, styles] = await Promise.all([
-          loadNarrationModels(database),
-          loadNarrationStyles(database),
-        ]);
+        const [models, styles] = input.narrationSettings
+          ? [input.narrationSettings.models, input.narrationSettings.styles]
+          : await Promise.all([
+              loadNarrationModels(database),
+              loadNarrationStyles(database),
+            ]);
         const readingOverride =
           input.role === "reading" && input.kind
             ? input.readingParameters !== undefined
@@ -419,10 +413,13 @@ async function handle(req: Request, lang: Language) {
           method: "POST",
           body: JSON.stringify({
             text,
-            voiceModel: models[locale],
-            voiceDecoder: selectedNarrationDecoder(models, locale),
-            voiceParameters: resolveReadingNarrationParameters(
-              resolveNarrationStyle(styles[locale]),
+            outputEnvironment:
+              process.env.NODE_ENV === "production"
+                ? "production"
+                : "development",
+            ...resolveVoiceSampleSettings(
+              locale,
+              { models, styles },
               readingOverride,
             ),
           }),

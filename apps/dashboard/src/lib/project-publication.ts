@@ -12,7 +12,7 @@ export const projectPublicationSchema = z.object({
 export const publicationQueueSchema = z.object({
   items: z.array(
     z.object({
-      projectId: z.number(),
+      projectId: z.number().nullable(),
       kind: z.string(),
       type: z.string(),
       status: z.string(),
@@ -38,6 +38,7 @@ export async function updateProjectPublication(
       (item) =>
         item.kind === input.kind &&
         item.type === "video" &&
+        item.projectId !== null &&
         ids.includes(item.projectId) &&
         ["queued", "running"].includes(item.status),
     )

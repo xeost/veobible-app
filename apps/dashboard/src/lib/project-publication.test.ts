@@ -133,6 +133,12 @@ test("queued or running video generation blocks the whole batch; unrelated work 
     assert.equal(calls(), 0);
     assert.deepEqual(
       await updateProjectPublication(database, input, [
+        {
+          projectId: null,
+          kind: "voice-sample",
+          type: "voice-sample",
+          status: "running",
+        },
         { projectId: 1, kind: "short", type: "alignment", status: "running" },
         { projectId: 1, kind: "short", type: "intro", status: "queued" },
         { projectId: 1, kind: "long", type: "video", status: "running" },

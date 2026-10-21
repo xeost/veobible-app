@@ -1,12 +1,15 @@
 "use client";
-import { narrationControlHelp as help } from "../lib/narration-control-help";
-import { CircleHelp } from "lucide-react";
+import { resolveNarrationStyle } from "../lib/narration-parameters";
 import {
-  narrationStylesSchema,
-  resolveNarrationStyle,
-  narrationControls,
-  type NarrationStyles,
-} from "../lib/narration-parameters";
+  builtInNarrationLabels,
+  narrationPresetLibrarySchema,
+  stylesFromPresetLibrary,
+  type NarrationPresetLibrary,
+  type NarrationLocale,
+  type CustomNarrationPreset,
+} from "../lib/narration-style-presets";
+import { VoiceSamples } from "./VoiceSamples";
+import { NarrationPresetModal } from "./NarrationPresetModal";
 import { useToast } from "./ToastProvider";
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n/context";
@@ -17,19 +20,19 @@ import {
   selectedNarrationDecoder,
   type NarrationModels,
 } from "../lib/narration-models";
-const presets = {
-  natural: "Natural narration",
-  expressive: "Expressive narration",
-  relaxed: "Slower voice",
-  custom: "Custom",
-} as const;
 export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
   const notify = useToast();
   const { t } = useI18n();
   const [models, setModels] = useState<NarrationModels | null>(null);
   const [saved, setSaved] = useState<NarrationModels | null>(null);
-  const [styles, setStyles] = useState<NarrationStyles | null>(null);
-  const [savedStyles, setSavedStyles] = useState<NarrationStyles | null>(null);
+  const [presets, setPresets] = useState<NarrationPresetLibrary | null>(null);
+  const [savedPresets, setSavedPresets] =
+    useState<NarrationPresetLibrary | null>(null);
+  const [editor, setEditor] = useState<{
+    locale: NarrationLocale;
+    preset: CustomNarrationPreset;
+    readOnly: boolean;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -37,10 +40,10 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
     api("admin-tools/voice-generation", { signal: controller.signal })
       .then((data) => {
         const value = narrationModelsSchema.parse(data.models);
-        const initialStyles = narrationStylesSchema.parse(data.styles);
+        const initialPresets = narrationPresetLibrarySchema.parse(data.presets);
         if (!controller.signal.aborted) {
-          setStyles(initialStyles);
-          setSavedStyles(initialStyles);
+          setPresets(initialPresets);
+          setSavedPresets(initialPresets);
           setModels(value);
           setSaved(value);
         }
@@ -54,18 +57,22 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
     return () => controller.abort();
   }, []);
   async function save() {
-    if (!models || !styles || saving) return;
+    if (!models || !presets || saving) return;
     setSaving(true);
     setError("");
     try {
       const response = await api("admin-tools/voice-generation", {
         method: "PUT",
-        body: JSON.stringify({ models, styles }),
+        body: JSON.stringify({
+          models,
+          styles: stylesFromPresetLibrary(presets),
+          presets,
+        }),
       });
       const value = narrationModelsSchema.parse(response.models);
-      const nextStyles = narrationStylesSchema.parse(response.styles);
-      setStyles(nextStyles);
-      setSavedStyles(nextStyles);
+      const nextPresets = narrationPresetLibrarySchema.parse(response.presets);
+      setPresets(nextPresets);
+      setSavedPresets(nextPresets);
       setModels(value);
       setSaved(value);
       notify("Voice generation settings saved.");
@@ -77,206 +84,231 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
     }
   }
   return (
-    <section
-      className="panel voice-generation-settings"
-      aria-labelledby="voice-generation-title"
-    >
-      <h2 id="voice-generation-title">{t("Voice generation settings")}</h2>
-      <p className="muted">
-        {t(
-          "Choose the narration model for each Bible language. Applies to new voice generations in Short Videos and Long Videos. Multilingual options use V3.",
-        )}
-      </p>
-      {error && (
-        <p className="error" role="alert">
-          {t(error)}
+    <>
+      <section
+        className="panel voice-generation-settings"
+        aria-labelledby="voice-generation-title"
+      >
+        <h2 id="voice-generation-title">{t("Voice generation settings")}</h2>
+        <p className="muted">
+          {t(
+            "Choose the narration model for each Bible language. Applies to new voice generations in Short Videos and Long Videos. Multilingual options use V3.",
+          )}
         </p>
-      )}
-      {!models && !error && (
-        <p role="status">{t("Loading voice generation settings…")}</p>
-      )}
-      {models && styles && (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void save();
-          }}
-        >
-          <div className="voice-generation-languages">
-            {(["en", "es", "pt"] as const).map((locale) => (
-              <fieldset key={locale} disabled={saving}>
-                <legend>
-                  {t(
-                    { en: "English", es: "Spanish", pt: "Portuguese" }[locale],
-                  )}
-                </legend>
-                <label htmlFor={`narration-model-${locale}`}>
-                  {t("Voice model")}
-                </label>
-                <select
-                  id={`narration-model-${locale}`}
-                  value={models[locale]}
-                  onChange={(event) => {
-                    setModels(
-                      narrationModelsSchema.parse({
-                        ...models,
-                        [locale]: event.target.value,
-                      }),
-                    );
-                  }}
-                >
-                  {narrationModelOptions[locale].map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {t(option.label)}
-                    </option>
-                  ))}
-                </select>
-                <label
-                  className="narration-style-label"
-                  htmlFor={`narration-style-${locale}`}
-                >
-                  {t("Narration style")}
-                </label>
-                <select
-                  id={`narration-style-${locale}`}
-                  value={styles[locale].preset}
-                  onChange={(event) => {
-                    const preset = event.target.value;
-                    const {
-                      exaggeration,
-                      cfg_weight,
-                      temperature,
-                      repetition_penalty,
-                    } = resolveNarrationStyle(styles[locale]);
-                    setStyles(
-                      narrationStylesSchema.parse({
-                        ...styles,
-                        [locale]:
-                          preset === "custom"
-                            ? {
-                                preset,
-                                exaggeration,
-                                cfg_weight,
-                                temperature,
-                                repetition_penalty,
-                              }
-                            : { preset },
-                      }),
-                    );
-                  }}
-                >
-                  {Object.entries(presets).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {t(label)}
-                    </option>
-                  ))}
-                </select>
-                {styles[locale].preset === "custom" ? (
-                  <div className="narration-controls">
-                    {(
-                      Object.keys(
-                        narrationControls,
-                      ) as (keyof typeof narrationControls)[]
-                    ).map((parameter) => {
-                      const id = `narration-${locale}-${parameter}`;
-                      const value = resolveNarrationStyle(styles[locale])[
-                        parameter
-                      ];
-                      return (
-                        <div key={parameter}>
-                          <div className="narration-control-label">
-                            <label htmlFor={id}>{parameter}</label>
-                            <button
-                              type="button"
-                              className="narration-help"
-                              aria-label={`${parameter}: ${t("Help")}`}
-                              data-tooltip={t(help[parameter])}
-                              aria-describedby={`${id}-help`}
-                            >
-                              <CircleHelp size={15} aria-hidden="true" />
-                            </button>
-                            <span id={`${id}-help`} className="sr-only">
-                              {t(help[parameter])}
-                            </span>
-                            <output htmlFor={id}>{value.toFixed(2)}</output>
-                          </div>
-                          <input
-                            id={id}
-                            type="range"
-                            {...narrationControls[parameter]}
-                            value={value}
-                            onChange={(event) =>
-                              setStyles(
-                                narrationStylesSchema.parse({
-                                  ...styles,
-                                  [locale]: {
-                                    ...styles[locale],
-                                    [parameter]: Number(event.target.value),
-                                  },
-                                }),
-                              )
-                            }
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="muted narration-preset-values">
-                    {Object.entries(resolveNarrationStyle(styles[locale]))
-                      .slice(0, 3)
-                      .map(([key, value]) => `${key}=${value}`)
-                      .join(" · ")}
-                  </p>
-                )}
-                <p className="muted narration-fixed-values">
-                  min_p=0.05 · top_p=1
-                  {styles[locale].preset !== "custom" &&
-                    ` · repetition_penalty=${resolveNarrationStyle(styles[locale]).repetition_penalty}`}
-                </p>
-                <details>
-                  <summary>{t("Advanced voice settings")}</summary>
-                  <label htmlFor={`audio-decoder-${locale}`}>
-                    {t("Audio decoder")}
+        {error && (
+          <p className="error" role="alert">
+            {t(error)}
+          </p>
+        )}
+        {!models && !error && (
+          <p role="status">{t("Loading voice generation settings…")}</p>
+        )}
+        {models && presets && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save();
+            }}
+          >
+            <div className="voice-generation-languages">
+              {(["en", "es", "pt"] as const).map((locale) => (
+                <fieldset key={locale} disabled={saving}>
+                  <legend>
+                    {t(
+                      { en: "English", es: "Spanish", pt: "Portuguese" }[
+                        locale
+                      ],
+                    )}
+                  </legend>
+                  <label htmlFor={`narration-model-${locale}`}>
+                    {t("Voice model")}
                   </label>
                   <select
-                    id={`audio-decoder-${locale}`}
-                    value={selectedNarrationDecoder(models, locale)}
-                    onChange={(event) =>
+                    id={`narration-model-${locale}`}
+                    value={models[locale]}
+                    onChange={(event) => {
                       setModels(
                         narrationModelsSchema.parse({
                           ...models,
-                          decoders: {
-                            ...models.decoders,
-                            [locale]: {
-                              ...models.decoders?.[locale],
-                              [models[locale]]: event.target.value,
-                            },
-                          },
+                          [locale]: event.target.value,
                         }),
-                      )
+                      );
+                    }}
+                  >
+                    {narrationModelOptions[locale].map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {t(option.label)}
+                      </option>
+                    ))}
+                  </select>
+                  <label
+                    className="narration-style-label"
+                    htmlFor={`narration-style-${locale}`}
+                  >
+                    {t("Narration style")}
+                  </label>
+                  <select
+                    id={`narration-style-${locale}`}
+                    value={presets[locale].selected}
+                    onChange={(event) =>
+                      setPresets({
+                        ...presets,
+                        [locale]: {
+                          ...presets[locale],
+                          selected: event.target.value,
+                        },
+                      })
                     }
                   >
-                    <option value="general">{t("General (s3gen.pt)")}</option>
-                    <option value="v3">{t("V3 (s3gen_v3.pt)")}</option>
+                    {Object.entries(builtInNarrationLabels).map(
+                      ([value, label]) => (
+                        <option key={value} value={value}>
+                          {t(label)}
+                        </option>
+                      ),
+                    )}
+                    {presets[locale].items.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.id === "saved-narration" &&
+                        preset.name === "Saved narration"
+                          ? t("Saved narration")
+                          : preset.name}
+                      </option>
+                    ))}
                   </select>
-                </details>
-              </fieldset>
-            ))}
-          </div>
-          <button
-            className="primary"
-            type="submit"
-            disabled={
-              saving ||
-              (JSON.stringify(models) === JSON.stringify(saved) &&
-                JSON.stringify(styles) === JSON.stringify(savedStyles))
+                  <div className="narration-preset-actions">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const selected = presets[locale].selected;
+                        const builtIn = Object.hasOwn(
+                          builtInNarrationLabels,
+                          selected,
+                        );
+                        setEditor({
+                          locale,
+                          readOnly: builtIn,
+                          preset: builtIn
+                            ? {
+                                id: selected,
+                                name: builtInNarrationLabels[
+                                  selected as keyof typeof builtInNarrationLabels
+                                ],
+                                settings: resolveNarrationStyle(
+                                  stylesFromPresetLibrary(presets)[locale],
+                                ),
+                              }
+                            : presets[locale].items.find(
+                                (preset) => preset.id === selected,
+                              )!,
+                        });
+                      }}
+                    >
+                      {t(
+                        Object.hasOwn(
+                          builtInNarrationLabels,
+                          presets[locale].selected,
+                        )
+                          ? "View preset"
+                          : "Configure preset",
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditor({
+                          locale,
+                          readOnly: false,
+                          preset: {
+                            id: crypto.randomUUID(),
+                            name: "",
+                            settings: resolveNarrationStyle(
+                              stylesFromPresetLibrary(presets)[locale],
+                            ),
+                          },
+                        })
+                      }
+                    >
+                      {t("Add preset")}
+                    </button>
+                  </div>
+                  <details>
+                    <summary>{t("Advanced voice settings")}</summary>
+                    <label htmlFor={`audio-decoder-${locale}`}>
+                      {t("Audio decoder")}
+                    </label>
+                    <select
+                      id={`audio-decoder-${locale}`}
+                      value={selectedNarrationDecoder(models, locale)}
+                      onChange={(event) =>
+                        setModels(
+                          narrationModelsSchema.parse({
+                            ...models,
+                            decoders: {
+                              ...models.decoders,
+                              [locale]: {
+                                ...models.decoders?.[locale],
+                                [models[locale]]: event.target.value,
+                              },
+                            },
+                          }),
+                        )
+                      }
+                    >
+                      <option value="general">{t("General (s3gen.pt)")}</option>
+                      <option value="v3">{t("V3 (s3gen_v3.pt)")}</option>
+                    </select>
+                  </details>
+                </fieldset>
+              ))}
+            </div>
+            <button
+              className="primary"
+              type="submit"
+              disabled={
+                saving ||
+                (JSON.stringify(models) === JSON.stringify(saved) &&
+                  JSON.stringify(presets) === JSON.stringify(savedPresets))
+              }
+            >
+              {t(saving ? "Saving…" : "Save changes")}
+            </button>
+          </form>
+        )}
+        {editor && presets && (
+          <NarrationPresetModal
+            initial={editor.preset}
+            readOnly={editor.readOnly}
+            language={
+              { en: "English", es: "Spanish", pt: "Portuguese" }[editor.locale]
             }
-          >
-            {t(saving ? "Saving…" : "Save changes")}
-          </button>
-        </form>
-      )}
-    </section>
+            close={() => setEditor(null)}
+            apply={(preset) => {
+              const current = presets[editor.locale];
+              setPresets({
+                ...presets,
+                [editor.locale]: {
+                  selected: preset.id,
+                  items: current.items.some((item) => item.id === preset.id)
+                    ? current.items.map((item) =>
+                        item.id === preset.id ? preset : item,
+                      )
+                    : [...current.items, preset],
+                },
+              });
+              setEditor(null);
+            }}
+          />
+        )}
+      </section>
+      <VoiceSamples
+        settings={
+          models && presets
+            ? { models, styles: stylesFromPresetLibrary(presets) }
+            : null
+        }
+        disabled={saving}
+      />
+    </>
   );
 }

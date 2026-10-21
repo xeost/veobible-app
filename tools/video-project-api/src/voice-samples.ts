@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import type { GenerationQueue, QueueJob } from "./generation-queue.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
@@ -18,13 +20,12 @@ export const sampleRequestSchema = z
     voiceModel: narrationModelSchema,
     voiceDecoder: narrationDecoderSchema.optional(),
     voiceParameters: narrationParametersSchema,
+    outputEnvironment: z
+      .enum(["production", "development"])
+      .default("production"),
   })
   .strict();
-type Status = {
-  status: "queued" | "running" | "done" | "failed";
-  progress: number;
-};
-const tasks = new Map<string, Status>();
+const tasks = new Map<string, QueueJob>();
 const samples = path.join(sharedVoiceDirectory, "samples");
 export const sampleFile = (id: string) =>
   path.join(samples, `${baseVoiceSchema.parse(id)}-sample.wav`);
@@ -55,14 +56,15 @@ export async function listBaseVoices() {
       generatedAt:
         metadata.generatedAt ?? (stat ? stat.mtime.toISOString() : null),
       text: metadata.text ?? null,
-      ...(tasks.get(id) ?? { status: "done", progress: 0 }),
+      status: tasks.get(id)?.status ?? "done",
+      progress: tasks.get(id)?.progress ?? 0,
     });
   }
   return voices;
 }
 export async function queueVoiceSample(
   input: z.infer<typeof sampleRequestSchema>,
-  enqueue: (run: () => Promise<void>) => void,
+  queue: GenerationQueue,
 ) {
   input = sampleRequestSchema.parse(input);
   const locale = z.enum(["es", "en", "pt"]).parse(input.voice.split("-")[0]);
@@ -72,66 +74,86 @@ export async function queueVoiceSample(
     throw new Error("Base voice not found");
   const current = tasks.get(input.voice);
   if (current && ["queued", "running"].includes(current.status)) return current;
-  const task: Status = { status: "queued", progress: 0 };
+  const task: QueueJob = {
+    id: randomUUID(),
+    status: "queued",
+    stage: "Queued",
+    progress: 0,
+  };
   tasks.set(input.voice, task);
-  enqueue(async () => {
-    task.status = "running";
-    let staging: string | undefined;
-    try {
-      await fs.mkdir(samples, { recursive: true });
-      staging = await fs.mkdtemp(path.join(samples, ".generating-"));
-      await generateVoice(
-        staging,
-        {
-          locale,
-          baseVoice: input.voice,
-          voiceModel: input.voiceModel,
-          voiceDecoder: input.voiceDecoder,
-          voiceParameters: input.voiceParameters,
-          reference: "",
-          version: "",
-          book: "",
-          start: "",
-          end: "",
-          passage_id: "sample",
-          templates: { intro: "", outro: "" },
-          scriptOverrides: { intro: input.text },
-        },
-        true,
-        "intro",
-        (progress) => {
-          task.progress = progress;
-        },
-      );
-      const output = path.join(staging, "intro.wav");
-      if (!(await fs.stat(output)).size) throw new Error("Empty voice sample");
-      await fs.writeFile(
-        path.join(staging, "metadata.json"),
-        JSON.stringify({
-          ...input,
-          voiceDecoder:
-            input.voiceDecoder ??
-            (input.voiceModel === "latam"
-              ? "general"
-              : input.voiceModel === "pt-br"
-                ? "v3"
-                : undefined),
-          generatedAt: new Date().toISOString(),
-        }),
-      );
-      await fs.rename(output, sampleFile(input.voice));
-      await fs.rename(
-        path.join(staging, "metadata.json"),
-        sampleFile(input.voice) + ".json",
-      );
-      task.status = "done";
-      task.progress = 100;
-    } catch (error) {
-      task.status = "failed";
-      console.error("Voice sample generation failed", error);
-    } finally {
-      if (staging) await fs.rm(staging, { recursive: true, force: true });
-    }
-  });
+  queue.enqueue(
+    {
+      projectId: null,
+      kind: "voice-sample",
+      type: "voice-sample",
+      voice: input.voice,
+      locale,
+      outputEnvironment: input.outputEnvironment,
+    },
+    task,
+    async () => {
+      task.status = "running";
+      task.stage = "Generating voice";
+      let staging: string | undefined;
+      try {
+        await fs.mkdir(samples, { recursive: true });
+        staging = await fs.mkdtemp(path.join(samples, ".generating-"));
+        await generateVoice(
+          staging,
+          {
+            locale,
+            baseVoice: input.voice,
+            voiceModel: input.voiceModel,
+            voiceDecoder: input.voiceDecoder,
+            voiceParameters: input.voiceParameters,
+            reference: "",
+            version: "",
+            book: "",
+            start: "",
+            end: "",
+            passage_id: "sample",
+            templates: { intro: "", outro: "" },
+            scriptOverrides: { intro: input.text },
+          },
+          true,
+          "intro",
+          (progress) => {
+            task.progress = progress;
+          },
+        );
+        const output = path.join(staging, "intro.wav");
+        if (!(await fs.stat(output)).size)
+          throw new Error("Empty voice sample");
+        await fs.writeFile(
+          path.join(staging, "metadata.json"),
+          JSON.stringify({
+            ...input,
+            voiceDecoder:
+              input.voiceDecoder ??
+              (input.voiceModel === "latam"
+                ? "general"
+                : input.voiceModel === "pt-br"
+                  ? "v3"
+                  : undefined),
+            generatedAt: new Date().toISOString(),
+          }),
+        );
+        await fs.rename(output, sampleFile(input.voice));
+        await fs.rename(
+          path.join(staging, "metadata.json"),
+          sampleFile(input.voice) + ".json",
+        );
+        task.stage = "Done";
+        task.status = "done";
+        task.progress = 100;
+      } catch (error) {
+        task.stage = "Failed";
+        task.status = "failed";
+        console.error("Voice sample generation failed", error);
+      } finally {
+        if (staging) await fs.rm(staging, { recursive: true, force: true });
+      }
+    },
+  );
   return task;
 }

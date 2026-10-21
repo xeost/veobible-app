@@ -180,30 +180,46 @@ export function GenerationQueueModal({
                 )}
               </span>
               <span className="generation-queue-details">
-                <strong>{item.title}</strong>
+                <strong>
+                  {item.type === "voice-sample"
+                    ? t("Voice {number}").replace(
+                        "{number}",
+                        item.voice?.split("-")[1] ?? "",
+                      )
+                    : item.title}
+                </strong>
                 <small>
                   {t(
-                    item.type === "audio-verse"
-                      ? "Generate verse audio"
-                      : item.type === "audio-chapter"
-                        ? "Generate chapter audio"
-                        : item.type.startsWith("alignment")
-                          ? "Reading timing analysis"
-                          : item.type === "video"
-                            ? "Final video"
-                            : item.type === "intro"
-                              ? "Introduction narration"
-                              : item.type === "outro"
-                                ? "Closing narration"
-                                : item.type.startsWith("reading-")
-                                  ? "Generated passage reading"
-                                  : "Chapter introduction",
+                    item.type === "voice-sample"
+                      ? "Voice example"
+                      : item.type === "audio-verse"
+                        ? "Generate verse audio"
+                        : item.type === "audio-chapter"
+                          ? "Generate chapter audio"
+                          : item.type.startsWith("alignment")
+                            ? "Reading timing analysis"
+                            : item.type === "video"
+                              ? "Final video"
+                              : item.type === "intro"
+                                ? "Introduction narration"
+                                : item.type === "outro"
+                                  ? "Closing narration"
+                                  : item.type.startsWith("reading-")
+                                    ? "Generated passage reading"
+                                    : "Chapter introduction",
                   )}{" "}
                   {item.type.startsWith("alignment-") &&
                     ` · ${t("Reading")} ${Number(item.type.split("-")[1]) + 1}`}
                   {item.kind === "audio" &&
                     ` · ${t("Chapter")} ${item.chapter}${item.verse ? `:${item.verse}` : ""}`}{" "}
-                  · {item.version.toUpperCase()}
+                  ·{" "}
+                  {item.type === "voice-sample"
+                    ? t(
+                        { en: "English", es: "Spanish", pt: "Portuguese" }[
+                          item.locale ?? "en"
+                        ],
+                      )
+                    : item.version.toUpperCase()}
                 </small>
                 <span>
                   {t(
@@ -232,7 +248,14 @@ export function GenerationQueueModal({
                   />
                 )}
               </span>
-              <ArrowUpRight size={18} aria-label={t("Open project")} />
+              <ArrowUpRight
+                size={18}
+                aria-label={t(
+                  item.type === "voice-sample"
+                    ? "Open voice examples"
+                    : "Open project",
+                )}
+              />
             </Link>
           </div>
         ))}

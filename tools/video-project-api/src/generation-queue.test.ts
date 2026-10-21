@@ -262,3 +262,56 @@ test("audio groups share the video queue, expose individual progress and settle 
   );
   assert.equal(queue.pendingCount, 0);
 });
+
+test("voice examples share project turns and contribute to progress without a project identity", async () => {
+  const queue = new GenerationQueue();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const order: string[] = [];
+  queue.enqueue(
+    { projectId: 1, kind: "short", type: "intro" },
+    job("intro"),
+    async () => {
+      order.push("intro");
+      await gate;
+    },
+  );
+  const sample = job("sample");
+  queue.enqueue(
+    {
+      projectId: null,
+      kind: "voice-sample",
+      type: "voice-sample",
+      voice: "es-2",
+      locale: "es",
+    },
+    sample,
+    async () => {
+      order.push("sample");
+      sample.progress = 30;
+    },
+  );
+  queue.enqueue(
+    { projectId: 2, kind: "long", type: "video" },
+    job("video"),
+    async () => {
+      order.push("video");
+    },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(queue.pendingCount, 3);
+  assert.equal(queue.summary().total, 3);
+  assert.equal(queue.snapshot()[1].position, 1);
+  assert.equal(queue.snapshot()[1].projectId, null);
+  assert.equal(queue.snapshot()[1].voice, "es-2");
+  assert.equal(queue.hasPending(1, "voice-sample"), false);
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(order, ["intro", "sample", "video"]);
+  assert.equal(queue.snapshot()[1].status, "done");
+  assert.equal(queue.snapshot()[1].progress, 100);
+  assert.ok(queue.snapshot()[1].finishedAt);
+  assert.equal(queue.pendingCount, 0);
+});
