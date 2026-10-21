@@ -1,3 +1,4 @@
+import { loadAudioVersePause, defaultAudioVersePause } from "./audio-settings";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
@@ -149,6 +150,45 @@ test("reading overrides are optional, isolated by format/language and saved atom
       ...defaultReadingNarrationOverrides(),
       en: { ...reading, temperature: 1.1 },
     });
+    const audioVoices = defaultBaseVoices();
+    audioVoices.es.reading = "es-3";
+    const audioReading = {
+      ...defaultReadingNarrationOverrides(),
+      es: { ...reading, temperature: 0.9 },
+    };
+    assert.equal(await loadAudioVersePause(db), defaultAudioVersePause);
+    await saveBaseVoiceDefaults(db, "audio", audioVoices, audioReading, 0.6);
+    assert.equal(await loadAudioVersePause(db), 0.6);
+    for (const invalid of [-0.1, 10.1, NaN, Infinity]) {
+      const changed = defaultBaseVoices();
+      changed.es.reading = "es-4";
+      await assert.rejects(
+        saveBaseVoiceDefaults(db, "audio", changed, audioReading, invalid),
+      );
+      assert.equal(
+        (await loadBaseVoiceDefaults(db, "audio")).es.reading,
+        "es-3",
+      );
+      assert.equal(await loadAudioVersePause(db), 0.6);
+    }
+    await assert.rejects(
+      saveBaseVoiceDefaults(db, "book", defaultBaseVoices(), undefined, 0.9),
+    );
+    await saveBaseVoiceDefaults(db, "book", defaultBaseVoices());
+    assert.equal(await loadAudioVersePause(db), 0.6);
+    assert.deepEqual(await loadBaseVoiceDefaults(db, "audio"), audioVoices);
+    assert.deepEqual(
+      await loadReadingNarrationOverrides(db, "audio"),
+      audioReading,
+    );
+    assert.deepEqual(
+      await loadBaseVoiceDefaults(db, "book"),
+      defaultBaseVoices(),
+    );
+    assert.deepEqual(
+      await loadReadingNarrationOverrides(db, "book"),
+      defaultReadingNarrationOverrides(),
+    );
     assert.deepEqual(await loadReadingNarrationOverrides(db, "short"), short);
     const long = await loadReadingNarrationOverrides(db, "long");
     assert.equal(long.en?.temperature, 1.1);

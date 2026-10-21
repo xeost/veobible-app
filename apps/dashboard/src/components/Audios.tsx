@@ -8,16 +8,26 @@ import {
   X,
   ArrowRight,
   LoaderCircle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
-import type {
-  AudioProjectSummary,
-  AudioVersion,
-} from "../../../../tools/video-project-api/src/audio-project-schema";
+import type { AudioVersion } from "../../../../tools/video-project-api/src/audio-project-schema";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import { useToast } from "./ToastProvider";
 import { useModalDismiss } from "./useModalDismiss";
 import { statusLabel } from "../lib/presentation";
+import { audioEditionSchema } from "../../../../tools/video-project-api/src/audio-project-schema";
+import type { AudioCatalog, AudioCatalogRow } from "../lib/audio-listing";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useDebouncedValue } from "./useDebouncedValue";
+import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
+import { VideoProjectMenu } from "./VideoProjectMenu";
+import { VoiceSettingsModal } from "./VoiceSettingsModal";
+import { UpdatedAt } from "./UpdatedAt";
 export type AudioVersionOption = AudioVersion & {
   edition: string;
   number: number;
@@ -161,41 +171,104 @@ function CreateAudioProjects({
     </dialog>
   );
 }
+function editionFilter(value: string | null) {
+  return value && audioEditionSchema.safeParse(value).success ? value : "all";
+}
 export function Audios() {
-  const { t, language } = useI18n();
-  const notify = useToast();
-  const [rows, setRows] = useState<AudioProjectSummary[]>([]),
-    [loading, setLoading] = useState(true),
+  const { t, language } = useI18n(),
+    notify = useToast();
+  const router = useRouter(),
+    searchParams = useSearchParams();
+  const requestedEdition = searchParams.get("edition");
+  const { orderVersions } = usePinnedBibleVersions();
+  const [catalog, setCatalog] = useState<AudioCatalog>({
+    projects: [],
+    editions: [],
+    pagination: { page: 1, pageSize: 10, total: 0, pages: 1 },
+    summary: { total: 0, generated: 0, pending: 0 },
+  });
+  const [loading, setLoading] = useState(true),
     [error, setError] = useState("");
-  const [create, setCreate] = useState(false),
-    [edition, setEdition] = useState(""),
-    [query, setQuery] = useState("");
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      setRows(
-        (await api<{ projects: AudioProjectSummary[] }>("audios")).projects,
-      );
-    } catch {
-      setError(
-        "Could not load audio projects. Check that generation is available and try again.",
-      );
-    } finally {
-      setLoading(false);
-    }
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [canEditSettings, setCanEditSettings] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void api("auth/me")
+      .then((data) => {
+        if (live) setCanEditSettings(data.user.role === "admin");
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
   }, []);
+  const [create, setCreate] = useState(false),
+    [edition, setEdition] = useState<string | null>(null),
+    [query, setQuery] = useState(""),
+    [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1),
+    [pageSize, setPageSize] = useState(10),
+    [revision, setRevision] = useState(0);
+  const debouncedQuery = useDebouncedValue(query);
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => {
+    let value = editionFilter(requestedEdition);
+    try {
+      if (requestedEdition === null)
+        value = editionFilter(localStorage.getItem("veo-audio-edition-filter"));
+      localStorage.setItem("veo-audio-edition-filter", value);
+    } catch {}
+    setEdition(value);
+    setPage(1);
+  }, [requestedEdition]);
+  const selectEdition = (value: string) => {
+    const next = editionFilter(value);
+    setEdition(next);
+    setPage(1);
+    try {
+      localStorage.setItem("veo-audio-edition-filter", next);
+    } catch {}
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("edition", next);
+    router.replace(`/audios?${params}`, { scroll: false });
+  };
+  const load = useCallback(async () => {
+    request.current?.abort();
+    if (edition === null || query !== debouncedQuery) return;
+    const controller = new AbortController();
+    request.current = controller;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        catalog: "1",
+        edition,
+        query: debouncedQuery,
+        status,
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      const data = await api<AudioCatalog>(`audios?${params}`, {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      setCatalog(data);
+      setError("");
+      if (data.pagination.page !== page) setPage(data.pagination.page);
+    } catch {
+      if (!controller.signal.aborted)
+        setError(
+          "Could not load audio projects. Check that generation is available and try again.",
+        );
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, [edition, query, debouncedQuery, status, page, pageSize, revision]);
   useEffect(() => {
     void load();
+    return () => request.current?.abort();
   }, [load]);
-  const editions = [...new Map(rows.map((p) => [p.edition, p])).values()];
-  const visible = rows.filter(
-    (p) =>
-      (!edition || p.edition === edition) &&
-      (!query ||
-        `${p.title} ${p.version.label}`
-          .toLocaleLowerCase()
-          .includes(query.toLocaleLowerCase())),
-  );
+  const { projects: rows, editions, pagination, summary } = catalog;
+  const href = (row: AudioCatalogRow) => `/audios/${row.edition}/${row.book}`;
   return (
     <>
       <div className="page-heading">
@@ -206,117 +279,270 @@ export function Audios() {
             {t("Prepare chapter recordings to use in your videos.")}
           </p>
         </div>
-        <button className="primary" onClick={() => setCreate(true)}>
-          <Plus size={17} />
-          {t("Create audio projects")}
-        </button>
-      </div>
-      <div className="audio-project-filters">
-        <label>
-          {t("Audio version")}
-          <select
-            value={edition}
-            onChange={(event) => setEdition(event.target.value)}
+        <div className="project-top-actions">
+          <button
+            type="button"
+            className="primary"
+            onClick={() => setCreate(true)}
           >
-            <option value="">{t("All versions")}</option>
-            {editions.map((p) => (
-              <option key={p.edition} value={p.edition}>
-                {p.version.label} · {t("Audio version")}{" "}
-                {p.edition.match(/-v(\d+)$/)?.[1]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>
-            <Search size={14} /> {t("Search books")}
-          </span>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("Search books")}
-          />
-        </label>
+            <Plus size={17} />
+            {t("Create audio projects")}
+          </button>
+          <VideoProjectMenu onSettings={() => setSettingsOpen(true)} />
+        </div>
+      </div>
+      <div className="video-summary">
+        <div>
+          <AudioLines size={21} />
+          <strong>{summary.total}</strong>
+          <span>{t("books")}</span>
+        </div>
+        <div>
+          <span className="dot green" />
+          <strong>{summary.pending}</strong>
+          <span>{t("Pending")}</span>
+        </div>
+        <div>
+          <Check size={17} />
+          <strong>{summary.generated}</strong>
+          <span>{t("Generated")}</span>
+        </div>
       </div>
       {error && (
         <p className="error" role="alert">
-          {t(error)} <button onClick={() => void load()}>{t("Retry")}</button>
+          {t(error)}{" "}
+          <button type="button" onClick={() => void load()}>
+            {t("Retry")}
+          </button>
         </p>
       )}
-      {loading ? (
-        <p className="empty">{t("Loading projects…")}</p>
-      ) : !visible.length && !error ? (
-        <div className="empty">
-          <AudioLines size={30} />
-          <h2>{t("No audio projects yet")}</h2>
-          <p>
-            {t(
-              "Create a new audio version to start preparing chapter recordings.",
-            )}
-          </p>
-        </div>
-      ) : (
-        <div className="audio-project-groups">
-          {editions
-            .filter((group) => visible.some((p) => p.edition === group.edition))
-            .map((group) => (
-              <section className="panel" key={group.edition}>
-                <h2>
-                  {group.version.label} · {t("Audio version")}{" "}
-                  {group.edition.match(/-v(\d+)$/)?.[1]}
-                </h2>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{t("Book")}</th>
-                        <th>{t("Chapters")}</th>
-                        <th>{t("Status")}</th>
-                        <th>
-                          <span className="sr-only">{t("Open project")}</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visible
-                        .filter((p) => p.edition === group.edition)
-                        .map((p) => (
-                          <tr key={p.book}>
-                            <td>
-                              <Link href={`/audios/${p.edition}/${p.book}`}>
-                                {p.title}
-                              </Link>
-                            </td>
-                            <td>
-                              {Object.keys(p.chapters).length} /{" "}
-                              {p.chapterCount}
-                            </td>
-                            <td>{statusLabel(p.status, language)}</td>
-                            <td>
-                              <Link
-                                className="icon-button"
-                                href={`/audios/${p.edition}/${p.book}`}
-                                aria-label={`${t("Open project")}: ${p.title}`}
-                              >
-                                <ArrowRight size={17} />
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+      <section className="panel catalog-panel">
+        <div className="catalog-toolbar">
+          <div className="search">
+            <Search size={17} />
+            <input
+              aria-label={t("Search books")}
+              placeholder={t("Search books")}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <select
+            aria-label={t("Audio version")}
+            value={edition ?? "all"}
+            disabled={edition === null}
+            onChange={(event) => selectEdition(event.target.value)}
+          >
+            <option value="all">{t("All versions")}</option>
+            {edition &&
+              edition !== "all" &&
+              !editions.some((option) => option.edition === edition) && (
+                <option value={edition}>
+                  {t("Audio version")} {edition.match(/-v(\d+)$/)?.[1]}
+                </option>
+              )}
+            {orderVersions(editions).map((option) => (
+              <option key={option.edition} value={option.edition}>
+                {option.locale.toUpperCase()} · {option.label} ·{" "}
+                {t("Audio version")} {option.number}
+              </option>
             ))}
+          </select>
+          <select
+            aria-label={t("Filter status")}
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="all">{t("All projects")}</option>
+            {["draft", "queued", "running", "done", "failed"].map((value) => (
+              <option value={value} key={value}>
+                {statusLabel(value, language)}
+              </option>
+            ))}
+          </select>
         </div>
+        <div className="table-wrap">
+          <table className="catalog">
+            <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">{t("Audio project")}</th>
+                <th scope="col">{t("Bible version")}</th>
+                <th scope="col">{t("Chapters")}</th>
+                <th scope="col">{t("Status")}</th>
+                <th scope="col">{t("Updated")}</th>
+                <th scope="col">
+                  <span className="sr-only">{t("Open project")}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="video-project-row"
+                  tabIndex={0}
+                  aria-label={`${t("Open project")}: ${row.title}`}
+                  onClick={(event) => {
+                    if (
+                      !(event.target as Element).closest(
+                        "a,button,input,label,select",
+                      )
+                    )
+                      router.push(href(row));
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      router.push(href(row));
+                    }
+                  }}
+                >
+                  <td className="muted">{row.id}</td>
+                  <td>
+                    <Link className="button project-name" href={href(row)}>
+                      <span className="video-icon">
+                        <AudioLines size={19} />
+                      </span>
+                      <span>
+                        {row.title}
+                        <small>
+                          {t("Audio version")}{" "}
+                          {row.edition.match(/-v(\d+)$/)?.[1]} ·{" "}
+                          {row.version.locale.toUpperCase()} ·{" "}
+                          {row.version.label}
+                        </small>
+                      </span>
+                    </Link>
+                  </td>
+                  <td>{row.version.code.toUpperCase()}</td>
+                  <td className="muted">
+                    {row.completedChapters} / {row.chapterCount}
+                  </td>
+                  <td>
+                    <span className={`badge ${row.status}`}>
+                      {statusLabel(row.status, language)}
+                    </span>
+                  </td>
+                  <td className="muted">
+                    <UpdatedAt value={row.updatedAt} />
+                  </td>
+                  <td>
+                    <Link
+                      className="button icon-button"
+                      href={href(row)}
+                      aria-label={`${t("Open project")}: ${row.title}`}
+                    >
+                      <ArrowRight size={17} />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {loading && <div className="empty">{t("Loading projects…")}</div>}
+          {!loading && !rows.length && !error && (
+            <div className="empty">
+              {summary.total === 0 &&
+              edition === "all" &&
+              !query &&
+              status === "all"
+                ? t(
+                    "Create a new audio version to start preparing chapter recordings.",
+                  )
+                : t("No audio projects match these filters.")}
+            </div>
+          )}
+        </div>
+        <div className="pagination">
+          <span>
+            {pagination.total} {t("projects · page")} {pagination.page}{" "}
+            {t("of")} {pagination.pages}
+          </span>
+          <div>
+            <label className="pagination-page-size">
+              {t("Items per page")}
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setPage(1);
+                }}
+              >
+                {[10, 20, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("First page")}
+              data-tooltip={t("First page")}
+              disabled={loading || pagination.page === 1}
+              onClick={() => setPage(1)}
+            >
+              <ChevronsLeft size={17} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("Previous page")}
+              disabled={loading || pagination.page === 1}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("Next page")}
+              disabled={loading || pagination.page >= pagination.pages}
+              onClick={() =>
+                setPage((value) => Math.min(pagination.pages, value + 1))
+              }
+            >
+              <ChevronRight size={17} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("Last page")}
+              data-tooltip={t("Last page")}
+              disabled={loading || pagination.page >= pagination.pages}
+              onClick={() => setPage(pagination.pages)}
+            >
+              <ChevronsRight size={17} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </section>
+      {settingsOpen && (
+        <VoiceSettingsModal
+          kind="audio"
+          canEdit={canEditSettings}
+          close={() => setSettingsOpen(false)}
+        />
       )}
       {create && (
         <CreateAudioProjects
           close={() => setCreate(false)}
           created={(value) => {
             setCreate(false);
-            setEdition(value);
-            void load();
+            setQuery("");
+            setStatus("all");
+            setPage(1);
+            selectEdition(value);
+            setRevision((current) => current + 1);
             notify("Audio projects created.", "success");
           }}
         />

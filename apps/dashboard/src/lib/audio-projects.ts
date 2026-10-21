@@ -1,3 +1,4 @@
+import { withAudioVersePause } from "./audio-settings";
 import {
   audioProjectSchema,
   audioSaveSchema,
@@ -234,6 +235,7 @@ export async function beginAudioJob(
   edition: string,
   book: string,
   environment: AudioProject["outputEnvironment"] = "production",
+  versePauseSeconds?: number,
 ) {
   const { row, project } = await findAudioProject(
     database,
@@ -241,13 +243,28 @@ export async function beginAudioJob(
     book,
     environment,
   );
+  const settings =
+    versePauseSeconds === undefined
+      ? project.settings
+      : withAudioVersePause(
+          project.settings,
+          project.verseCounts,
+          versePauseSeconds,
+        );
   const jobId = crypto.randomUUID(),
     token = crypto.randomUUID() + crypto.randomUUID();
   const result = await database
     .prepare(
-      `UPDATE audio_projects SET status='queued',progress=0,active_job_id=?,callback_hash=?,job_sequence=0,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND status NOT IN ('queued','running')`,
+      `UPDATE audio_projects SET settings=?,status='queued',progress=0,active_job_id=?,callback_hash=?,job_sequence=0,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND status NOT IN ('queued','running')`,
     )
-    .bind(jobId, await audioTokenHash(token), now(), row.id, row.revision)
+    .bind(
+      JSON.stringify(settings),
+      jobId,
+      await audioTokenHash(token),
+      now(),
+      row.id,
+      row.revision,
+    )
     .run();
   if (!result.meta.changes)
     throw new AudioDatabaseError("Wait for audio generation to finish.");
@@ -257,6 +274,7 @@ export async function beginAudioJob(
     token,
     project: {
       ...project,
+      settings,
       status: "queued" as const,
       progress: 0,
       revision: project.revision + 1,

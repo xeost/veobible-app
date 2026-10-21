@@ -1,3 +1,4 @@
+import { withAudioVersePause } from "./audio-settings";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
@@ -437,6 +438,45 @@ test("environment migration preserves existing projects, state and IDs in produc
       )
       .run();
     assert.ok(Number(result.lastInsertRowid) > 40);
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("global audio pause overrides legacy verse pauses and is frozen in the queued snapshot", async () => {
+  const { sqlite, database, project } = fixture();
+  try {
+    project.settings.pauses = { "1:1": 2, "1:2": 3 };
+    const resolved = withAudioVersePause(project.settings, [2, 1], 0);
+    assert.deepEqual(resolved.pauses, { "1:1": 0, "1:2": 0, "2:1": 0 });
+    assert.deepEqual(project.settings.pauses, { "1:1": 2, "1:2": 3 });
+    await insertAudioProjects(database, [project]);
+    const job = await beginAudioJob(
+      database,
+      project.edition,
+      project.book,
+      "production",
+      0.6,
+    );
+    assert.equal(Object.keys(job.project.settings.pauses).length, 25);
+    assert.ok(
+      Object.values(job.project.settings.pauses).every(
+        (pause) => pause === 0.6,
+      ),
+    );
+    assert.deepEqual(
+      (await findAudioProject(database, project.edition, project.book)).project
+        .settings,
+      job.project.settings,
+    );
+    await assert.rejects(
+      beginAudioJob(database, project.edition, project.book, "production", 0.9),
+    );
+    assert.deepEqual(
+      (await findAudioProject(database, project.edition, project.book)).project
+        .settings,
+      job.project.settings,
+    );
   } finally {
     sqlite.close();
   }

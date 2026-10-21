@@ -57,7 +57,21 @@ export function VerseWaveform({
   toolbarActions,
   regenerateLabel = "Regenerate reading voice",
   children,
+  versePicker,
+  onNextVerse,
+  hasNextVerse,
+  autoPlay = false,
+  onAutoPlay,
+  showSourceContext = true,
+  playbackSpeedHelp = "Playback speed for listening in the editor only. Saved for this Bible language; previews and the final video keep their original speed.",
 }: WaveformPreparation & {
+  versePicker?: ReactNode;
+  onNextVerse?: (play: boolean) => void;
+  hasNextVerse?: boolean;
+  autoPlay?: boolean;
+  onAutoPlay?: () => void;
+  showSourceContext?: boolean;
+  playbackSpeedHelp?: string;
   expanded: boolean;
   src: string;
   locale: string;
@@ -427,27 +441,28 @@ export function VerseWaveform({
   return (
     <>
       <div className={`verse-sync${compact ? " verse-sync-compact" : ""}`}>
-        {!compact && (
-          <div className="verse-picker" ref={picker}>
-            {cues.map((verse, i) => (
-              <button
-                type="button"
-                key={verse.reference}
-                className={index === i ? "active" : ""}
-                aria-pressed={index === i}
-                onClick={() => selectVerse(i)}
-              >
-                <span>{verse.reference}</span>
-                {!textOnly && (
-                  <small>
-                    {(verse.start - timelineStart).toFixed(2)}–
-                    {(verse.end - timelineStart).toFixed(2)} s
-                  </small>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
+        {!compact &&
+          (versePicker ?? (
+            <div className="verse-picker" ref={picker}>
+              {cues.map((verse, i) => (
+                <button
+                  type="button"
+                  key={verse.reference}
+                  className={index === i ? "active" : ""}
+                  aria-pressed={index === i}
+                  onClick={() => selectVerse(i)}
+                >
+                  <span>{verse.reference}</span>
+                  {!textOnly && (
+                    <small>
+                      {(verse.start - timelineStart).toFixed(2)}–
+                      {(verse.end - timelineStart).toFixed(2)} s
+                    </small>
+                  )}
+                </button>
+              ))}
+            </div>
+          ))}
         <div className="sync-workspace">
           {!textOnly && (
             <>
@@ -464,9 +479,7 @@ export function VerseWaveform({
                   <select
                     className="waveform-playback-speed"
                     aria-label={t("Playback speed")}
-                    data-tooltip={t(
-                      "Playback speed for listening in the editor only. Saved for this Bible language; previews and the final video keep their original speed.",
-                    )}
+                    data-tooltip={t(playbackSpeedHelp)}
                     value={playbackSpeed}
                     onChange={(event) =>
                       setPlaybackSpeed(Number(event.target.value))
@@ -478,50 +491,55 @@ export function VerseWaveform({
                       </option>
                     ))}
                   </select>
-                  <span
-                    className="section-action-separator"
-                    aria-hidden="true"
-                  />
-                  {(["start", "end"] as const).map((edge) => {
-                    const label =
-                      edge === "start"
-                        ? "Add up to 10 seconds of audio on the left"
-                        : "Add up to 10 seconds of audio on the right";
-                    const unavailable =
-                      edge === "start"
-                        ? sourceStart <= 0
-                        : sourceEnd >= sourceDuration - 0.001;
-                    return (
-                      <button
-                        type="button"
-                        key={edge}
-                        className="waveform-context-button"
-                        aria-label={t(label)}
-                        data-tooltip={t(label)}
-                        disabled={disabled || unavailable}
-                        onClick={() => {
-                          onExpand(edge);
-                          setExtraContext((current) => ({
-                            ...current,
-                            [edge === "start" ? "before" : "after"]:
-                              current[edge === "start" ? "before" : "after"] +
-                              10,
-                          }));
-                        }}
-                      >
-                        {edge === "start" ? (
-                          <ArrowLeftToLine size={16} />
-                        ) : (
-                          <ArrowRightToLine size={16} />
-                        )}
-                        <span>+10 s</span>
-                      </button>
-                    );
-                  })}
-                  <span
-                    className="section-action-separator"
-                    aria-hidden="true"
-                  />
+                  {showSourceContext && (
+                    <>
+                      <span
+                        className="section-action-separator"
+                        aria-hidden="true"
+                      />
+                      {(["start", "end"] as const).map((edge) => {
+                        const label =
+                          edge === "start"
+                            ? "Add up to 10 seconds of audio on the left"
+                            : "Add up to 10 seconds of audio on the right";
+                        const unavailable =
+                          edge === "start"
+                            ? sourceStart <= 0
+                            : sourceEnd >= sourceDuration - 0.001;
+                        return (
+                          <button
+                            type="button"
+                            key={edge}
+                            className="waveform-context-button"
+                            aria-label={t(label)}
+                            data-tooltip={t(label)}
+                            disabled={disabled || unavailable}
+                            onClick={() => {
+                              onExpand(edge);
+                              setExtraContext((current) => ({
+                                ...current,
+                                [edge === "start" ? "before" : "after"]:
+                                  current[
+                                    edge === "start" ? "before" : "after"
+                                  ] + 10,
+                              }));
+                            }}
+                          >
+                            {edge === "start" ? (
+                              <ArrowLeftToLine size={16} />
+                            ) : (
+                              <ArrowRightToLine size={16} />
+                            )}
+                            <span>+10 s</span>
+                          </button>
+                        );
+                      })}
+                      <span
+                        className="section-action-separator"
+                        aria-hidden="true"
+                      />
+                    </>
+                  )}
                   <button
                     type="button"
                     aria-label={t("Zoom out")}
@@ -674,8 +692,12 @@ export function VerseWaveform({
                   className="icon-button verse-playback-icon"
                   aria-label={t("Next verse")}
                   data-tooltip={t("Next verse")}
-                  disabled={index >= cues.length - 1}
-                  onClick={() => selectVerse(index + 1)}
+                  disabled={
+                    onNextVerse ? !hasNextVerse : index >= cues.length - 1
+                  }
+                  onClick={() =>
+                    onNextVerse ? onNextVerse(false) : selectVerse(index + 1)
+                  }
                 >
                   <ChevronRight size={16} aria-hidden="true" />
                 </button>
@@ -684,8 +706,14 @@ export function VerseWaveform({
                   className="icon-button verse-playback-icon"
                   aria-label={t("Next verse and play")}
                   data-tooltip={t("Next verse and play")}
-                  disabled={index >= cues.length - 1}
-                  onClick={() => selectVerse(index + 1, false, true)}
+                  disabled={
+                    onNextVerse ? !hasNextVerse : index >= cues.length - 1
+                  }
+                  onClick={() =>
+                    onNextVerse
+                      ? onNextVerse(true)
+                      : selectVerse(index + 1, false, true)
+                  }
                 >
                   <ListVideo size={16} aria-hidden="true" />
                 </button>
@@ -718,6 +746,10 @@ export function VerseWaveform({
                   event.currentTarget,
                   playbackSpeedRef.current,
                 );
+                if (autoPlay && expanded && latest.current[index]) {
+                  onAutoPlay?.();
+                  void playRange(latest.current[index]);
+                }
               }}
               onPlay={(event) => {
                 applyVolume();

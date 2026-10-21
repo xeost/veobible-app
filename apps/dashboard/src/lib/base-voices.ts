@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { audioVersePauseKey, audioVersePauseSchema } from "./audio-settings";
 import {
   readingNarrationOverridesSchema,
   type ReadingNarrationOverrides,
@@ -59,7 +60,7 @@ export type BaseVoice = z.infer<
 >["voices"][number];
 export async function loadBaseVoiceDefaults(
   database: D1Database,
-  kind: "short" | "long" | "book",
+  kind: "short" | "long" | "book" | "audio",
 ) {
   const row = await database
     .prepare("SELECT value FROM site_settings WHERE key=?")
@@ -71,9 +72,10 @@ export async function loadBaseVoiceDefaults(
 }
 export async function saveBaseVoiceDefaults(
   database: D1Database,
-  kind: "short" | "long" | "book",
+  kind: "short" | "long" | "book" | "audio",
   input: unknown,
   readingParameters?: ReadingNarrationOverrides,
+  versePauseSeconds?: number,
 ) {
   const defaults = baseVoiceDefaultsSchema.parse(input);
   const statement = database
@@ -85,10 +87,9 @@ export async function saveBaseVoiceDefaults(
       JSON.stringify(defaults),
       new Date().toISOString(),
     );
-  if (readingParameters === undefined) await statement.run();
-  else
-    await database.batch([
-      statement,
+  const statements = [statement];
+  if (readingParameters !== undefined)
+    statements.push(
       database
         .prepare(
           "INSERT INTO site_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
@@ -100,7 +101,24 @@ export async function saveBaseVoiceDefaults(
           ),
           new Date().toISOString(),
         ),
-    ]);
+    );
+  if (versePauseSeconds !== undefined) {
+    if (kind !== "audio")
+      throw new Error("Verse pause is only available for audio projects");
+    statements.push(
+      database
+        .prepare(
+          "INSERT INTO site_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
+        )
+        .bind(
+          audioVersePauseKey,
+          JSON.stringify(audioVersePauseSchema.parse(versePauseSeconds)),
+          new Date().toISOString(),
+        ),
+    );
+  }
+  if (statements.length === 1) await statement.run();
+  else await database.batch(statements);
   return defaults;
 }
 /** Legacy projects used voice 1. Never resolve their voice from mutable defaults. */

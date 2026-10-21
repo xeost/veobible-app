@@ -1,4 +1,12 @@
 export const spanish: Record<string, string> = {
+  "Generate all audio for this chapter":
+    "Generar todos los audios del capítulo",
+  "Applies to every verse in all audio projects and languages the next time chapter audios are generated. Existing recordings stay unchanged.":
+    "Se aplica a todos los versículos de todos los proyectos de audio e idiomas la próxima vez que se generen los audios de los capítulos. Las grabaciones existentes se conservan.",
+  "Playback speed for listening in the editor only. Saved for this Bible language; generated audios keep their original speed.":
+    "Velocidad de escucha solo en el editor. Se guarda para este idioma bíblico; los audios generados conservan su velocidad original.",
+  "Choose reading voices for new audio projects in each language. Existing projects keep their voices.":
+    "Elige las voces de lectura para nuevos proyectos de audio en cada idioma. Los proyectos existentes conservan sus voces.",
   "Clean up published book video files":
     "Eliminar archivos de videos de libros publicados",
   "Book Videos": "Book Videos",
@@ -1624,4 +1632,8 @@ export const spanish: Record<string, string> = {
     "Las nuevas versiones de audio estarán disponibles después de generar grabaciones de capítulos en Audios.",
   "Audio version does not match the Bible version.":
     "La versión de audio no corresponde a la versión bíblica.",
+
+  "Filter status": "Filtrar por estado",
+  "No audio projects match these filters.":
+    "No hay proyectos de audio que coincidan con estos filtros.",
 };

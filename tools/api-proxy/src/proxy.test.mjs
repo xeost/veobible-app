@@ -7,6 +7,11 @@ test("routes only registered video namespaces", () => {
   for (const p of [
     "/v1/projects/x",
     "/v1/projects/existing",
+    "/v1/audio-projects",
+    "/v1/audio-projects/options",
+    "/v1/audio-projects/rv1909-v2/jude",
+    "/v1/audio-projects/rv1909-v2/jude/generate",
+    "/v1/audio-projects/rv1909-v2/jude/media",
     "/v1/jobs",
     "/v1/base-voices",
     "/v1/base-voices/es-2/sample",
@@ -23,6 +28,7 @@ test("routes only registered video namespaces", () => {
     "/",
     "/v1/batches",
     "/v1/jobs-extra",
+    "/v1/audio-projects-extra",
     "/v1/preview-extra",
     "/v1/bible-versions-extra",
     "/v1/local-models-extra",
@@ -124,4 +130,35 @@ test("auth, aggregate health, forwarding and unavailable upstream", async () => 
     upstream.closeAllConnections();
     upstream.close();
   }
+});
+
+test("audio requests retain authentication, environment, body and media ranges through the proxy", async () => {
+  const token = "audio-proxy-test-token";
+  const upstream = http.createServer(async (req, res) => {
+    const chunks=[]; for await (const chunk of req) chunks.push(chunk);
+    const body=JSON.parse(Buffer.concat(chunks).toString());
+    if(req.url.includes('/media')) {
+      assert.equal(req.headers.range,'bytes=0-3');
+      assert.equal(body.outputEnvironment,'development');
+      res.writeHead(206,{'Content-Type':'audio/wav','Content-Length':'4','Content-Range':'bytes 0-3/100','Accept-Ranges':'bytes'}); res.end('RIFF');
+    } else {
+      res.writeHead(200,{'Content-Type':'application/json'});
+      res.end(JSON.stringify({path:req.url,auth:req.headers.authorization,body}));
+    }
+  });
+  upstream.listen(0,'127.0.0.1');await once(upstream,'listening');
+  const proxy=createProxy({videoPort:upstream.address().port,token,log:()=>{}});
+  proxy.listen(0,'127.0.0.1');await once(proxy,'listening');
+  const base=`http://127.0.0.1:${proxy.address().port}`;
+  try {
+    const body={outputEnvironment:'development',versions:[{id:1,code:'rv1909',locale:'es',label:'Reina Valera 1909'}]};
+    for(const path of ['/v1/audio-projects/options','/v1/audio-projects','/v1/audio-projects/rv1909-v2/jude','/v1/audio-projects/rv1909-v2/jude/generate']) {
+      assert.equal((await fetch(base+path,{method:'POST',body:JSON.stringify(body)})).status,401);
+      const response=await fetch(base+path,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+      assert.equal(response.status,200);
+      assert.deepEqual(await response.json(),{path,auth:`Bearer ${token}`,body});
+    }
+    const media=await fetch(`${base}/v1/audio-projects/rv1909-v2/jude/media?chapter=1&verse=1`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',Range:'bytes=0-3'},body:JSON.stringify(body)});
+    assert.equal(media.status,206);assert.equal(media.headers.get('content-range'),'bytes 0-3/100');assert.equal(await media.text(),'RIFF');
+  } finally {proxy.closeAllConnections();proxy.close();upstream.closeAllConnections();upstream.close();}
 });

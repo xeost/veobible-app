@@ -26,7 +26,7 @@ export function BaseVoiceSelector({
   disabled?: boolean;
   label?: string;
   generation?: {
-    kind: "short" | "long" | "book";
+    kind: "short" | "long" | "book" | "audio";
     role: "intro" | "outro" | "reading";
     readingParameters?: ReadingNarrationParameters | null;
   };

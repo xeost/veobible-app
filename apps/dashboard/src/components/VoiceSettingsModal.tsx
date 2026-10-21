@@ -1,4 +1,5 @@
 "use client";
+import { defaultAudioVersePause } from "../lib/audio-settings";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import { ReadingVoiceParameters } from "./ReadingVoiceParameters";
 import {
@@ -47,10 +48,12 @@ export function VoiceSettingsModal({
   close,
   canEdit,
 }: {
-  kind: "short" | "long" | "book";
+  kind: "short" | "long" | "book" | "audio";
   close: () => void;
   canEdit: boolean;
 }) {
+  const audioOnly = kind === "audio";
+  const publicationKind = kind === "audio" ? "book" : kind;
   const notify = useToast();
   const { t } = useI18n();
   const dismiss = useModalDismiss(close);
@@ -58,13 +61,16 @@ export function VoiceSettingsModal({
   const [templates, setTemplates] = useState<VoiceSettings>(emptyVoiceSettings);
   const [tab, setTab] = useState<
     "voice" | "projects" | "publication" | "baseVoices"
-  >("voice");
+  >(audioOnly ? "baseVoices" : "voice");
   const [baseVoiceLocale, setBaseVoiceLocale] = useState<"es" | "en" | "pt">(
     "en",
   );
   const [baseVoiceRole, setBaseVoiceRole] = useState<
     "intro" | "outro" | "reading"
-  >("intro");
+  >(audioOnly ? "reading" : "intro");
+  const [versePauseSeconds, setVersePauseSeconds] = useState(
+    defaultAudioVersePause,
+  );
   const [baseVoices, setBaseVoices] =
     useState<BaseVoiceDefaults>(defaultBaseVoices);
   const [readingParameters, setReadingParameters] =
@@ -77,7 +83,7 @@ export function VoiceSettingsModal({
     pt: narrationPresets.natural,
   });
   const [publication, setPublication] = useState<PublicationSettings>(() =>
-    emptyPublicationSettings(kind),
+    emptyPublicationSettings(publicationKind),
   );
   const [publicationLocale, setPublicationLocale] = useState<
     "en" | "es" | "pt"
@@ -98,37 +104,49 @@ export function VoiceSettingsModal({
     document.body.style.overflow = "hidden";
     Promise.all([
       api<{
+        versePauseSeconds?: number;
         defaults: BaseVoiceDefaults;
         readingParameters: ReadingNarrationOverrides;
         generalParameters: Record<"en" | "es" | "pt", NarrationParameters>;
       }>(`settings/base-voices?kind=${kind}`),
-      api<{ templates: PublicationSettings }>(
-        `settings/publication-templates?kind=${kind}`,
-      ),
-      api<{ templates: VoiceSettings }>(
-        `settings/voice-templates?kind=${kind}`,
-      ),
-      api<{ settings: ProjectSettings }>(
-        `settings/project-settings?kind=${kind}`,
-      ),
-      api<{
-        versions: {
-          id: number | null;
-          code: string;
-          locale: string;
-          label: string;
-        }[];
-      }>("versions/options"),
+      audioOnly
+        ? Promise.resolve(null)
+        : api<{ templates: PublicationSettings }>(
+            `settings/publication-templates?kind=${kind}`,
+          ),
+      audioOnly
+        ? Promise.resolve(null)
+        : api<{ templates: VoiceSettings }>(
+            `settings/voice-templates?kind=${kind}`,
+          ),
+      audioOnly
+        ? Promise.resolve(null)
+        : api<{ settings: ProjectSettings }>(
+            `settings/project-settings?kind=${kind}`,
+          ),
+      audioOnly
+        ? Promise.resolve(null)
+        : api<{
+            versions: {
+              id: number | null;
+              code: string;
+              locale: string;
+              label: string;
+            }[];
+          }>("versions/options"),
     ])
       .then(([voices, publication, voice, projects, catalog]) => {
         if (live) {
           setBaseVoices(voices.defaults);
+          setVersePauseSeconds(
+            voices.versePauseSeconds ?? defaultAudioVersePause,
+          );
           setReadingParameters(voices.readingParameters);
           setGeneralParameters(voices.generalParameters);
-          setPublication(publication.templates);
-          setTemplates(voice.templates);
-          setProjectSettings(projects.settings);
-          setVersions(catalog.versions);
+          if (publication) setPublication(publication.templates);
+          if (voice) setTemplates(voice.templates);
+          if (projects) setProjectSettings(projects.settings);
+          if (catalog) setVersions(catalog.versions);
         }
       })
       .catch(() => {
@@ -144,7 +162,7 @@ export function VoiceSettingsModal({
       live = false;
       document.body.style.overflow = overflow;
     };
-  }, [kind]);
+  }, [kind, audioOnly]);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (tab === "baseVoices") {
@@ -153,7 +171,11 @@ export function VoiceSettingsModal({
       try {
         await api(`settings/base-voices?kind=${kind}`, {
           method: "PUT",
-          body: JSON.stringify({ defaults: baseVoices, readingParameters }),
+          body: JSON.stringify({
+            defaults: baseVoices,
+            readingParameters,
+            ...(audioOnly ? { versePauseSeconds } : {}),
+          }),
         });
         notify("Settings saved.");
         close();
@@ -165,7 +187,8 @@ export function VoiceSettingsModal({
       return;
     }
     if (tab === "publication") {
-      const parsed = publicationSettingsSchema(kind).safeParse(publication);
+      const parsed =
+        publicationSettingsSchema(publicationKind).safeParse(publication);
       if (!parsed.success) {
         setError(
           "Check the publication placeholders and use no more than 20000 characters per template.",
@@ -244,11 +267,13 @@ export function VoiceSettingsModal({
           <div>
             <p className="eyebrow">
               {t(
-                kind === "short"
-                  ? "Short Videos"
-                  : kind === "book"
-                    ? "Book Videos"
-                    : "Long Videos",
+                kind === "audio"
+                  ? "Audios"
+                  : kind === "short"
+                    ? "Short Videos"
+                    : kind === "book"
+                      ? "Book Videos"
+                      : "Long Videos",
               )}
             </p>
             <h2 id="voice-settings-title">
@@ -279,47 +304,53 @@ export function VoiceSettingsModal({
           >
             {t("Voices")}
           </button>
-          <button
-            type="button"
-            className={tab === "voice" ? "active" : ""}
-            aria-pressed={tab === "voice"}
-            disabled={busy}
-            onClick={() => {
-              setTab("voice");
-              setError("");
-            }}
-          >
-            {t("Narration settings")}
-          </button>
-          <button
-            type="button"
-            className={tab === "projects" ? "active" : ""}
-            aria-pressed={tab === "projects"}
-            disabled={busy}
-            onClick={() => {
-              setTab("projects");
-              setError("");
-            }}
-          >
-            {t("Project settings")}
-          </button>
-          <button
-            type="button"
-            className={tab === "publication" ? "active" : ""}
-            aria-pressed={tab === "publication"}
-            disabled={busy}
-            onClick={() => {
-              setTab("publication");
-              setError("");
-            }}
-          >
-            {t("Publication templates")}
-          </button>
+          {!audioOnly && (
+            <>
+              <button
+                type="button"
+                className={tab === "voice" ? "active" : ""}
+                aria-pressed={tab === "voice"}
+                disabled={busy}
+                onClick={() => {
+                  setTab("voice");
+                  setError("");
+                }}
+              >
+                {t("Narration settings")}
+              </button>
+              <button
+                type="button"
+                className={tab === "projects" ? "active" : ""}
+                aria-pressed={tab === "projects"}
+                disabled={busy}
+                onClick={() => {
+                  setTab("projects");
+                  setError("");
+                }}
+              >
+                {t("Project settings")}
+              </button>
+              <button
+                type="button"
+                className={tab === "publication" ? "active" : ""}
+                aria-pressed={tab === "publication"}
+                disabled={busy}
+                onClick={() => {
+                  setTab("publication");
+                  setError("");
+                }}
+              >
+                {t("Publication templates")}
+              </button>
+            </>
+          )}
         </div>
         {tab === "baseVoices" ? (
           <p className="muted">
             {t(
-              "Choose introduction, closing and reading voices for new projects in each language. Existing projects keep their voices.",
+              audioOnly
+                ? "Choose reading voices for new audio projects in each language. Existing projects keep their voices."
+                : "Choose introduction, closing and reading voices for new projects in each language. Existing projects keep their voices.",
             )}
           </p>
         ) : tab === "voice" ? (
@@ -411,6 +442,36 @@ export function VoiceSettingsModal({
           <p className="empty">{t("Loading settings…")}</p>
         ) : tab === "baseVoices" ? (
           <div className="voice-settings-fields">
+            {audioOnly && (
+              <section className="voice-settings-language">
+                <label htmlFor="audio-verse-pause">
+                  {t("Pause after verse (seconds)")}
+                  <input
+                    id="audio-verse-pause"
+                    type="number"
+                    min={0}
+                    max={10}
+                    step={0.05}
+                    required
+                    value={
+                      Number.isFinite(versePauseSeconds)
+                        ? versePauseSeconds
+                        : ""
+                    }
+                    disabled={busy || loadFailed || !canEdit}
+                    aria-describedby="audio-verse-pause-help"
+                    onChange={(event) =>
+                      setVersePauseSeconds(event.target.valueAsNumber)
+                    }
+                  />
+                </label>
+                <p id="audio-verse-pause-help" className="muted">
+                  {t(
+                    "Applies to every verse in all audio projects and languages the next time chapter audios are generated. Existing recordings stay unchanged.",
+                  )}
+                </p>
+              </section>
+            )}
             <div className="tabs profile-tabs" aria-label={t("Voice language")}>
               {(
                 [
@@ -431,20 +492,25 @@ export function VoiceSettingsModal({
                 </button>
               ))}
             </div>
-            <div className="tabs profile-tabs" aria-label={t("Voice purpose")}>
-              {voiceRoles.map((role) => (
-                <button
-                  type="button"
-                  key={role}
-                  className={baseVoiceRole === role ? "active" : ""}
-                  aria-pressed={baseVoiceRole === role}
-                  onClick={() => setBaseVoiceRole(role)}
-                  disabled={busy}
-                >
-                  {t(roleLabels[role])}
-                </button>
-              ))}
-            </div>
+            {!audioOnly && (
+              <div
+                className="tabs profile-tabs"
+                aria-label={t("Voice purpose")}
+              >
+                {voiceRoles.map((role) => (
+                  <button
+                    type="button"
+                    key={role}
+                    className={baseVoiceRole === role ? "active" : ""}
+                    aria-pressed={baseVoiceRole === role}
+                    onClick={() => setBaseVoiceRole(role)}
+                    disabled={busy}
+                  >
+                    {t(roleLabels[role])}
+                  </button>
+                ))}
+              </div>
+            )}
             <section className="voice-settings-language">
               {baseVoiceRole === "reading" && (
                 <ReadingVoiceParameters
@@ -506,7 +572,7 @@ export function VoiceSettingsModal({
                 <section className="voice-settings-language" key={locale}>
                   <h3>{t(label)}</h3>
                   {tab === "publication"
-                    ? publicationPlatforms(kind).map((platform) => (
+                    ? publicationPlatforms(publicationKind).map((platform) => (
                         <label
                           key={platform}
                           htmlFor={`publication-${locale}-${platform}`}

@@ -1,5 +1,8 @@
+import { loadAudioVersePause } from "./audio-settings";
 import { z } from "zod";
+import { pageAudioProjects } from "./audio-listing";
 import {
+  audioProjectSchema,
   audioEditionSchema,
   audioBookSchema,
   audioGenerateSchema,
@@ -7,8 +10,11 @@ import {
 } from "../../../../tools/video-project-api/src/audio-project-schema";
 import { videoFetch } from "./video-client";
 import { bibleVersionOptions } from "./bible-versions";
+import { loadBaseVoiceDefaults } from "./base-voices";
 import { loadNarrationModels } from "./narration-models";
 import {
+  loadReadingNarrationOverrides,
+  resolveReadingNarrationParameters,
   loadNarrationStyles,
   resolveNarrationStyle,
 } from "./narration-parameters";
@@ -52,6 +58,14 @@ export async function audioApi(
     return json(data, response.status);
   };
   try {
+    if (
+      parts.length === 1 &&
+      req.method === "GET" &&
+      url.searchParams.get("catalog") === "1"
+    )
+      return json(
+        await pageAudioProjects(database, url.searchParams, outputEnvironment),
+      );
     if (parts.length === 1 && req.method === "GET")
       return json({
         projects: await listAudioProjects(database, outputEnvironment),
@@ -73,6 +87,7 @@ export async function audioApi(
         (v) => v.id === input.versionId,
       );
       if (!version) throw new AudioDatabaseError("Version not found", 404);
+      const defaults = await loadBaseVoiceDefaults(database, "audio");
       const response = await forward("/v1/audio-projects", {
         version,
         edition: input.edition,
@@ -84,7 +99,17 @@ export async function audioApi(
         count: number;
         projects: unknown[];
       };
-      await insertAudioProjects(database, result.projects, outputEnvironment);
+      const projects = result.projects.map((value) => {
+        const project = audioProjectSchema.parse(value);
+        return {
+          ...project,
+          settings: {
+            ...project.settings,
+            baseVoice: defaults[project.version.locale].reading,
+          },
+        };
+      });
+      await insertAudioProjects(database, projects, outputEnvironment);
       return json(
         { edition: result.edition, number: result.number, count: result.count },
         201,
@@ -146,12 +171,17 @@ export async function audioApi(
       )
         throw new AudioDatabaseError("Verse not found.", 400);
       const models = await loadNarrationModels(database),
-        styles = await loadNarrationStyles(database);
+        styles = await loadNarrationStyles(database),
+        readingParameters = await loadReadingNarrationOverrides(
+          database,
+          "audio",
+        );
       const job = await beginAudioJob(
         database,
         edition,
         book,
         outputEnvironment,
+        await loadAudioVersePause(database),
       );
       try {
         const response = await forward(`${endpoint}/generate`, {
@@ -161,8 +191,9 @@ export async function audioApi(
           input: {
             ...input,
             voiceModel: models[project.version.locale],
-            voiceParameters: resolveNarrationStyle(
-              styles[project.version.locale],
+            voiceParameters: resolveReadingNarrationParameters(
+              resolveNarrationStyle(styles[project.version.locale]),
+              readingParameters[project.version.locale],
             ),
           },
           callback: {

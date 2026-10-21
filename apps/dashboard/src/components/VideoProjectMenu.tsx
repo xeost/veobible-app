@@ -12,12 +12,12 @@ export function VideoProjectMenu({
   onSettings,
   onSync,
   onSyncExisting,
-  syncingExisting,
+  syncingExisting = false,
 }: {
   onSettings: () => void;
-  onSync: () => void;
+  onSync?: () => void;
   onSyncExisting?: () => void;
-  syncingExisting: boolean;
+  syncingExisting?: boolean;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -84,17 +84,19 @@ export function VideoProjectMenu({
             <Settings size={16} aria-hidden="true" />
             {t("Settings")}
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onSync();
-            }}
-          >
-            <RefreshCw size={16} />
-            {t("Sync project presets")}
-          </button>
+          {onSync && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onSync();
+              }}
+            >
+              <RefreshCw size={16} />
+              {t("Sync project presets")}
+            </button>
+          )}
           {onSyncExisting && (
             <button
               type="button"

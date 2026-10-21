@@ -1,4 +1,8 @@
 import {
+  loadAudioVersePause,
+  audioVersePauseSchema,
+} from "../../../lib/audio-settings";
+import {
   baseVoiceCatalogSchema,
   loadBaseVoiceDefaults,
   saveBaseVoiceDefaults,
@@ -287,7 +291,7 @@ async function handle(req: Request, lang: Language) {
   }
   if (parts.join("/") === "settings/base-voices") {
     const kind = z
-      .enum(["short", "long", "book"])
+      .enum(["short", "long", "book", "audio"])
       .parse(url.searchParams.get("kind"));
     if (method === "GET") {
       const [defaults, readingParameters, styles] = await Promise.all([
@@ -298,6 +302,9 @@ async function handle(req: Request, lang: Language) {
       return json({
         defaults,
         readingParameters,
+        ...(kind === "audio"
+          ? { versePauseSeconds: await loadAudioVersePause(database) }
+          : {}),
         generalParameters: {
           en: resolveNarrationStyle(styles.en),
           es: resolveNarrationStyle(styles.es),
@@ -312,6 +319,10 @@ async function handle(req: Request, lang: Language) {
         .object({
           defaults: baseVoiceDefaultsSchema,
           readingParameters: readingNarrationOverridesSchema,
+          versePauseSeconds:
+            kind === "audio"
+              ? audioVersePauseSchema.optional()
+              : z.never().optional(),
         })
         .strict()
         .safeParse(input);
@@ -338,6 +349,9 @@ async function handle(req: Request, lang: Language) {
           defaults,
           configuration.success
             ? configuration.data.readingParameters
+            : undefined,
+          configuration.success && kind === "audio"
+            ? configuration.data.versePauseSeconds
             : undefined,
         ),
       });
@@ -377,7 +391,7 @@ async function handle(req: Request, lang: Language) {
         const input = z
           .object({
             text: z.string().trim().min(1).max(500),
-            kind: z.enum(["short", "long", "book"]).optional(),
+            kind: z.enum(["short", "long", "book", "audio"]).optional(),
             role: z.enum(["intro", "outro", "reading"]).optional(),
             readingParameters: readingNarrationParametersSchema
               .nullable()
