@@ -27,6 +27,7 @@ import {
 import {
   ChevronLeft,
   ChevronDown,
+  Settings,
   ChevronsDown,
   ChevronsUp,
   Mic,
@@ -1692,7 +1693,10 @@ export function VideoProjectEditor({
         )}
         <details className="panel project-voice-settings project-configuration">
           <summary>
-            <span>{t("Project configuration")}</span>
+            <span className="project-configuration-title">
+              <Settings size={18} aria-hidden="true" />
+              {t("Project configuration")}
+            </span>
             <ChevronDown size={18} aria-hidden="true" />
           </summary>
           <div className="project-configuration-content">

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
+  Settings,
   ChevronsDown,
   ChevronsUp,
   LoaderCircle,
@@ -201,7 +202,10 @@ export function AudioProjectEditor({
       <div className="project-studio-layout audio-editor">
         <details className="panel project-voice-settings project-configuration">
           <summary>
-            <span>{t("Project configuration")}</span>
+            <span className="project-configuration-title">
+              <Settings size={18} aria-hidden="true" />
+              {t("Project configuration")}
+            </span>
             <ChevronDown size={18} aria-hidden="true" />
           </summary>
           <div className="project-configuration-content">

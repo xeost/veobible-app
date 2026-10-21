@@ -3309,3 +3309,12 @@ audio {
   display: grid;
   gap: 8px;
 }
+
+.project-configuration-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.project-configuration-title > svg {
+  flex-shrink: 0;
+}
