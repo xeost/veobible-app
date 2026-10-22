@@ -6,6 +6,7 @@ import { settingsSchema } from "./video-schema";
 import { settingsSchema as workerSettings } from "../../../../tools/video-project-api/src/protocol";
 import {
   alignmentSignature,
+  mergeAlignment,
   type AlignmentJob,
 } from "../../../../tools/video-project-api/src/forced-alignment-result";
 
@@ -84,6 +85,62 @@ function fixture() {
   }));
   return { sqlite, database, project, jobs, initial };
 }
+
+test("applying one block can retain edits made in another block while its settings are saving", async () => {
+  const f = fixture();
+  try {
+    const project = f.project();
+    const job = f.jobs[0];
+    const saving = applyStoredAlignment({
+      jobId: job.id,
+      currentSettings: f.initial,
+      expectedSettings: project.settings,
+      project,
+      jobs: f.jobs,
+      database: f.database,
+    });
+    const edited = settingsSchema.parse({
+      ...f.initial,
+      voiceScriptOverrides: { outro: "Edited while analysis was saving" },
+      verseOffsets: [
+        ...f.initial.verseOffsets,
+        {
+          reference: "verse-1",
+          startOffsetSeconds: 3,
+          endOffsetSeconds: 4,
+          manuallyAdjusted: true,
+        },
+      ],
+    });
+    const applied = await saving;
+    assert.ok("settings" in applied);
+    const local = settingsSchema.parse({
+      ...mergeAlignment(edited, job.result!, job.id),
+      alignmentJobId: applied.settings.alignmentJobId,
+      alignmentAppliedJobIds: applied.settings.alignmentAppliedJobIds,
+    });
+    assert.equal(
+      local.voiceScriptOverrides?.outro,
+      edited.voiceScriptOverrides?.outro,
+    );
+    assert.deepEqual(
+      local.verseOffsets.find((cut) => cut.reference === "verse-1"),
+      edited.verseOffsets.at(-1),
+    );
+    assert.equal(
+      local.verseOffsets.find((cut) => cut.reference === "verse-0")
+        ?.startOffsetSeconds,
+      1,
+    );
+    assert.deepEqual(local.alignmentAppliedJobIds, [job.id]);
+    // Local edits are still unsaved, rather than replacing the persisted snapshot
+    // used to protect the next result's write.
+    assert.equal(f.project().settings, JSON.stringify(applied.settings));
+    assert.notDeepEqual(local, applied.settings);
+  } finally {
+    f.sqlite.close();
+  }
+});
 
 test("completed jobs apply by ID, persist together, preserve manual edits and remain idempotent after reload", async () => {
   const f = fixture();

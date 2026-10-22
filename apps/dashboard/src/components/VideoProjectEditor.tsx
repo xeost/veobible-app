@@ -12,6 +12,7 @@ import { useToast } from "./ToastProvider";
 import {
   alignmentWasApplied,
   alignmentSignatureMatches,
+  mergeAlignment,
   type AlignmentJob,
 } from "../../../../tools/video-project-api/src/forced-alignment-result";
 import type { VoicePart } from "../../../../tools/video-project-api/src/chapter-introductions";
@@ -79,7 +80,8 @@ import { expandReadingContext } from "../../../../tools/video-project-api/src/re
 import { VoiceWaveform } from "./VoiceWaveform";
 import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
-import { editorActivityLocks } from "../lib/editor-activity";
+import { editorActivityLocks, editorBlockLocks } from "../lib/editor-activity";
+import { createEditorTaskQueue } from "../lib/editor-task-queue";
 type Settings = RenderRequest["settings"];
 type EditorProject = VideoRow & { passage: string };
 type VoiceState = {
@@ -118,6 +120,12 @@ export function VideoProjectEditor({
   const analysisRequest = useRef(0);
   const [alignmentJobs, setAlignmentJobs] = useState<AlignmentJob[]>([]);
   const [alignmentLoaded, setAlignmentLoaded] = useState(false);
+  const [pendingTasks, setPendingTasks] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  const [taskSubmissions] = useState(() =>
+    createEditorTaskQueue(setPendingTasks),
+  );
   const [applyingAlignment, setApplyingAlignment] =
     useState<AlignmentJob | null>(null);
   const applyingAlignmentRef = useRef(false);
@@ -139,6 +147,10 @@ export function VideoProjectEditor({
     );
   const alignmentAwaitingApply = alignmentJobs.some(needsAlignmentApply);
   const alignmentScopeBusy = (sectionIndex?: number) =>
+    pendingTasks.has("alignment") ||
+    (sectionIndex === undefined
+      ? [...pendingTasks].some((scope) => scope.startsWith("alignment-"))
+      : pendingTasks.has(`alignment-${sectionIndex}`)) ||
     alignmentJobs.some(
       (job) =>
         (["queued", "running"].includes(job.status) ||
@@ -173,7 +185,7 @@ export function VideoProjectEditor({
   }, [settings, projectId]);
   const [voices, setVoices] = useState<Voices>(emptyVoices);
   const [voicesLoaded, setVoicesLoaded] = useState(false);
-  const [queuingVoices, setQueuingVoices] = useState(false);
+  const queuingVoices = pendingTasks.has("voices");
   const [voiceRevision, setVoiceRevision] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const collapseAnchor = useRef<{ id: string; top: number } | null>(null);
@@ -263,9 +275,9 @@ export function VideoProjectEditor({
     };
   }, [base]);
   const inspect = useCallback(
-    async (values: Settings) => {
+    async (values: Settings, background = false) => {
       const request = ++analysisRequest.current;
-      setAnalyzing(true);
+      setAnalyzing(!background);
       setAnalysisError("");
       try {
         // Always retain baseline estimates. Offsets are applied locally and saved for rendering.
@@ -382,12 +394,17 @@ export function VideoProjectEditor({
           ...current.filter((item) => !jobs.some((job) => job.id === item.id)),
         ]);
         setAlignmentLoaded(true);
-        if (busyRef.current || applyingAlignmentRef.current) return;
+        if (
+          busyRef.current ||
+          taskSubmissions.pending.size ||
+          applyingAlignmentRef.current
+        )
+          return;
         let changed = false;
         applyingAlignmentRef.current = true;
         try {
           for (const job of jobs) {
-            if (!live || busyRef.current) break;
+            if (!live || busyRef.current || taskSubmissions.pending.size) break;
             if (
               job.status !== "done" ||
               !job.result ||
@@ -403,29 +420,44 @@ export function VideoProjectEditor({
               })
             )
               continue;
-            setApplyingAlignment(job);
-            const applied = await api<{ settings: Settings }>(
-              endpoint("alignment/apply"),
-              {
-                method: "POST",
-                body: JSON.stringify({
-                  jobId: job.id,
-                  settings: settingsRef.current,
-                  expectedSettings: projectState.current?.settings,
-                }),
-              },
-            );
-            if (!live) return;
-            // The next result must merge into these settings, even before React renders.
-            settingsRef.current = applied.settings;
-            if (projectState.current)
-              projectState.current = {
-                ...projectState.current,
-                settings: JSON.stringify(applied.settings),
-              };
-            setSettings(applied.settings);
-            setProject(projectState.current);
-            changed = true;
+            await taskSubmissions.enqueue(["alignment-apply"], async () => {
+              if (!live) return;
+              setApplyingAlignment(job);
+              const alreadyApplied = alignmentWasApplied(
+                settingsSchema.parse(
+                  JSON.parse(projectState.current!.settings ?? "{}"),
+                ),
+                job.id,
+              );
+              const applied = await api<{ settings: Settings }>(
+                endpoint("alignment/apply"),
+                {
+                  method: "POST",
+                  body: JSON.stringify({
+                    jobId: job.id,
+                    settings: settingsRef.current,
+                    expectedSettings: projectState.current?.settings,
+                  }),
+                },
+              );
+              if (!live) return;
+              // Preserve edits in other blocks made while this result was saving.
+              settingsRef.current = settingsSchema.parse({
+                ...(alreadyApplied
+                  ? settingsRef.current
+                  : mergeAlignment(settingsRef.current, job.result!, job.id)),
+                alignmentJobId: applied.settings.alignmentJobId,
+                alignmentAppliedJobIds: applied.settings.alignmentAppliedJobIds,
+              });
+              if (projectState.current)
+                projectState.current = {
+                  ...projectState.current,
+                  settings: JSON.stringify(applied.settings),
+                };
+              setSettings(settingsRef.current);
+              setProject(projectState.current);
+              changed = true;
+            });
           }
         } finally {
           if (live) {
@@ -433,7 +465,7 @@ export function VideoProjectEditor({
             setApplyingAlignment(null);
           }
           if (live && changed) {
-            await inspect(settingsRef.current);
+            await inspect(settingsRef.current, true);
             window.dispatchEvent(new Event(queueChangedEvent));
           }
         }
@@ -492,15 +524,35 @@ export function VideoProjectEditor({
     kind !== "short" || readingParts.length > 0
       ? "Generate all section narrations before generating the video."
       : "Generate the introduction and closing voices before generating the video.";
-  const { editingLocked, taskQueueLocked } = editorActivityLocks({
+  const editorActivity = {
     busy,
+    submittingTasks: pendingTasks.size > 0,
     active,
     alignmentPending,
     alignmentAwaitingApply,
     applyingAlignment: Boolean(applyingAlignment),
     hasAnalysis: Boolean(analysis),
     alignmentLoaded,
-  });
+  };
+  const { editingLocked, taskQueueLocked } =
+    editorActivityLocks(editorActivity);
+  const readingLocks = (index: number) =>
+    editorBlockLocks(editorActivity, {
+      submitting:
+        pendingTasks.has("alignment") || pendingTasks.has(`alignment-${index}`),
+      alignmentBusy: alignmentScopeBusy(index),
+      applyingAlignment: Boolean(
+        applyingAlignment &&
+        (applyingAlignment.sectionIndex === undefined ||
+          applyingAlignment.sectionIndex === index),
+      ),
+    });
+  const voiceLocks = (part: VoicePart) =>
+    editorBlockLocks(editorActivity, {
+      submitting: pendingTasks.has(`voice:${part}`),
+      alignmentBusy: false,
+      applyingAlignment: false,
+    });
   const locked = editingLocked;
   const timeline = readingTimeline(analysis?.sections ?? []);
   const cues = adjustedCues(analysis?.cues ?? [], settings.verseOffsets);
@@ -582,6 +634,23 @@ export function VideoProjectEditor({
       setBusy(false);
     }
   };
+  const submitTask = async (scopes: string[], action: () => Promise<void>) => {
+    const requestedScope = base;
+    try {
+      await taskSubmissions.enqueue(scopes, async () => {
+        if (readingChangeScope.current !== requestedScope) return;
+        setError("");
+        await action();
+        const data = await api<{ video: EditorProject }>(base);
+        if (readingChangeScope.current !== requestedScope) return;
+        projectState.current = data.video;
+        setProject(data.video);
+      });
+    } catch (cause) {
+      if (readingChangeScope.current === requestedScope)
+        setError(userMessage(cause));
+    }
+  };
   const checkedSettings = () => {
     if (
       analysis &&
@@ -619,22 +688,34 @@ export function VideoProjectEditor({
       analyzing ||
       taskQueueLocked ||
       busyRef.current ||
-      alignmentScopeBusy(sectionIndex) ||
-      applyingAlignmentRef.current
+      alignmentScopeBusy(sectionIndex)
     )
       return;
-    await perform(async () => {
-      await save();
-      const { job } = await api<{ job: AlignmentJob }>(endpoint("alignment"), {
-        method: "POST",
-        body: JSON.stringify({ ...checkedSettings(), sectionIndex }),
-      });
-      setAlignmentJobs((current) => [
-        ...current.filter((item) => item.id !== job.id),
-        job,
-      ]);
-      window.dispatchEvent(new Event(queueChangedEvent));
-    });
+    await submitTask(
+      sectionIndex === undefined
+        ? [
+            "alignment",
+            ...analysis.sections.map((_, index) => `alignment-${index}`),
+          ]
+        : [`alignment-${sectionIndex}`],
+      async () => {
+        await save();
+        if (readingChangeScope.current !== base) return;
+        const { job } = await api<{ job: AlignmentJob }>(
+          endpoint("alignment"),
+          {
+            method: "POST",
+            body: JSON.stringify({ ...checkedSettings(), sectionIndex }),
+          },
+        );
+        if (readingChangeScope.current !== base) return;
+        setAlignmentJobs((current) => [
+          ...current.filter((item) => item.id !== job.id),
+          job,
+        ]);
+        window.dispatchEvent(new Event(queueChangedEvent));
+      },
+    );
   };
   const trim = (
     reference: string,
@@ -721,7 +802,8 @@ export function VideoProjectEditor({
     cue: VerseCue,
     manuallyAdjusted: boolean,
   ) => {
-    if (!analysis || editingLocked || analyzing) return false;
+    if (!analysis || readingLocks(sectionIndex).editingLocked || analyzing)
+      return false;
     const section = timeline[sectionIndex];
     const availableEnd =
       section.timelineStart +
@@ -753,30 +835,31 @@ export function VideoProjectEditor({
       }),
     });
     if (readingChangeScope.current !== requestedScope) return;
-    setSettings((current) => {
-      const currentTrims = { ...current.voiceTrims };
-      delete currentTrims[part];
-      return {
-        ...current,
-        voiceTrims: currentTrims,
-        ...(part.startsWith("reading-")
-          ? {
-              readingVoices: {
-                ...current.readingVoices,
-                [part.slice(8)]: {
-                  enabled: true,
-                  verseOffsets: verseReference
-                    ? (
-                        current.readingVoices?.[part.slice(8)]?.verseOffsets ??
-                        []
-                      ).filter((cut) => cut.reference !== verseReference)
-                    : [],
-                },
+    const current = settingsRef.current;
+    const currentTrims = { ...current.voiceTrims };
+    delete currentTrims[part];
+    const next: Settings = {
+      ...current,
+      voiceTrims: currentTrims,
+      ...(part.startsWith("reading-")
+        ? {
+            readingVoices: {
+              ...current.readingVoices,
+              [part.slice(8)]: {
+                enabled: true,
+                verseOffsets: verseReference
+                  ? (
+                      current.readingVoices?.[part.slice(8)]?.verseOffsets ?? []
+                    ).filter((cut) => cut.reference !== verseReference)
+                  : [],
               },
-            }
-          : {}),
-      };
-    });
+            },
+          }
+        : {}),
+    };
+    // The next accepted submission must see these changes before React renders.
+    settingsRef.current = next;
+    setSettings(next);
     if (generation.mediaAccess) {
       const access = generation.mediaAccess;
       setMediaAccess((current) =>
@@ -803,30 +886,29 @@ export function VideoProjectEditor({
     for (const player of Object.values(voicePlayers.current)) player?.pause();
     setPlayingVoice(null);
   };
-  const generateVoice = (part: VoicePart) => {
+  const generateVoice = (part: VoicePart, verseReference?: string) => {
     if (
       taskQueueLocked ||
       busyRef.current ||
-      applyingAlignmentRef.current ||
       ["queued", "running"].includes(voiceState.current[part]?.status ?? "")
     )
       return;
-    return perform(async () => {
+    return submitTask([`voice:${part}`], async () => {
       stopVoicePlayback();
-      await queueVoice(part);
+      await queueVoice(part, verseReference);
     });
   };
   const generateMissingVoices = () => {
-    if (taskQueueLocked || busyRef.current || applyingAlignmentRef.current)
-      return;
-    return perform(async () => {
-      setQueuingVoices(true);
-      stopVoicePlayback();
-      try {
+    if (taskQueueLocked || busyRef.current) return;
+    return submitTask(
+      ["voices", ...missingNarrations.map((part) => `voice:${part}`)],
+      async () => {
+        stopVoicePlayback();
         // Recheck shared chapter recordings and pending work before adding anything.
         const current = await api<{ voices: Voices }>(endpoint("voices"));
         setVoices(current.voices);
-        for (const part of narrationParts) {
+        for (const part of missingNarrations) {
+          if (readingChangeScope.current !== base) return;
           const voice = current.voices[part];
           if (
             !voice?.available &&
@@ -834,10 +916,8 @@ export function VideoProjectEditor({
           )
             await queueVoice(part);
         }
-      } finally {
-        setQueuingVoices(false);
-      }
-    });
+      },
+    );
   };
   const toggleVoicePlayback = async (part: VoicePart) => {
     const player = voicePlayers.current[part];
@@ -859,7 +939,11 @@ export function VideoProjectEditor({
   const autoReading = useRef(new Set<string>());
   const finishedReadings = useRef(new Set<string>());
   const changeReadingVoice = async (index: number, enabled: boolean) => {
-    if (readingChangeScope.current !== base) return;
+    if (
+      readingChangeScope.current !== base ||
+      taskSubmissions.pending.has(`voice:reading-${index}`)
+    )
+      return;
     const next = settingsSchema.parse({
       ...settingsRef.current,
       readingVoices: {
@@ -873,10 +957,10 @@ export function VideoProjectEditor({
     });
     settingsRef.current = next;
     setSettings(next);
-    try {
+    await submitTask([`voice:reading-${index}`], async () => {
       await api(endpoint(), {
         method: "PATCH",
-        body: JSON.stringify({ settings: next }),
+        body: JSON.stringify({ settings: settingsRef.current }),
       });
       const voice = voiceState.current[`reading-${index}`];
       if (
@@ -887,9 +971,7 @@ export function VideoProjectEditor({
         !["queued", "running"].includes(voice?.status ?? "")
       )
         await queueVoice(`reading-${index}`);
-    } catch (cause) {
-      setVoiceError(userMessage(cause));
-    }
+    });
   };
   useEffect(() => {
     autoReading.current.clear();
@@ -924,7 +1006,7 @@ export function VideoProjectEditor({
         !finishedReadings.current.has(key)
       ) {
         finishedReadings.current.add(key);
-        void inspect(settingsRef.current);
+        void inspect(settingsRef.current, true);
       }
     }
   }, [analysis, voicesLoaded, voices, base, inspect]);
@@ -933,6 +1015,7 @@ export function VideoProjectEditor({
     reference: string,
     selectReference: (reference: string) => void,
   ) => {
+    const voiceLocked = voiceLocks(`reading-${index}`).editingLocked;
     const original = analysis?.sections[index];
     const track = analysis?.generatedReadings?.[index];
     const enabled =
@@ -940,7 +1023,8 @@ export function VideoProjectEditor({
       original?.originalAvailable === false;
     const state = voices[`reading-${index}`];
     const pending = Boolean(
-      state && ["queued", "running"].includes(state.status),
+      pendingTasks.has(`voice:reading-${index}`) ||
+      (state && ["queued", "running"].includes(state.status)),
     );
     const offsets = settings.readingVoices?.[index]?.verseOffsets ?? [];
     const generatedCues = adjustedCues(track?.cues ?? [], offsets);
@@ -985,7 +1069,9 @@ export function VideoProjectEditor({
         <input
           type="checkbox"
           checked={Boolean(enabled)}
-          disabled={locked || pending || original?.originalAvailable === false}
+          disabled={
+            voiceLocked || pending || original?.originalAvailable === false
+          }
           onChange={(event) =>
             void changeReadingVoice(index, event.target.checked)
           }
@@ -1020,19 +1106,16 @@ export function VideoProjectEditor({
               <button
                 type="button"
                 className="icon-button"
-                disabled={locked || analyzing}
+                disabled={voiceLocked || analyzing}
                 aria-label={t("Regenerate all reading verses")}
                 data-tooltip={t("Regenerate all reading verses")}
-                onClick={() =>
-                  void queueVoice(`reading-${index}`).catch((cause) =>
-                    setVoiceError(userMessage(cause)),
-                  )
-                }
+                onClick={() => void generateVoice(`reading-${index}`)}
               >
                 <RotateCcw size={16} aria-hidden="true" />
               </button>
             }
             regenerateLabel="Regenerate this verse"
+            regenerationDisabled={taskQueueLocked || pending || analyzing}
             selectedReference={reference}
             onSelectReference={selectReference}
             key={`${index}:${track.revision}`}
@@ -1048,11 +1131,9 @@ export function VideoProjectEditor({
             onExpand={() => {}}
             volumeMultiplier={readingVolumeValue}
             cues={generatedCues}
-            disabled={locked || analyzing}
+            disabled={voiceLocked || analyzing}
             onRegenerate={() =>
-              void queueVoice(`reading-${index}`, reference).catch((cause) =>
-                setVoiceError(userMessage(cause)),
-              )
+              void generateVoice(`reading-${index}`, reference)
             }
             onTrim={trimGenerated}
             onShift={(cue) => {
@@ -1069,11 +1150,7 @@ export function VideoProjectEditor({
             <button
               type="button"
               disabled={taskQueueLocked || analyzing}
-              onClick={() =>
-                void queueVoice(`reading-${index}`).catch((cause) =>
-                  setVoiceError(userMessage(cause)),
-                )
-              }
+              onClick={() => void generateVoice(`reading-${index}`)}
             >
               {t("Generate voice")}
             </button>
@@ -1115,6 +1192,7 @@ export function VideoProjectEditor({
     voice = false,
     readingReferences: string[] = [],
   ) => {
+    const readingLocked = readingLocks(Number(id.slice(8))).editingLocked;
     const content = (
       <>
         <span className="section-number">
@@ -1167,6 +1245,10 @@ export function VideoProjectEditor({
           data-tooltip={t("Generate voice")}
           disabled={
             taskQueueLocked ||
+            pendingTasks.has(`voice:${id}`) ||
+            ["queued", "running"].includes(
+              voices[id as VoicePart]?.status ?? "",
+            ) ||
             analyzing ||
             !(
               settings.readingVoices?.[Number(id.slice(8))]?.enabled ||
@@ -1174,11 +1256,7 @@ export function VideoProjectEditor({
                 false
             )
           }
-          onClick={() =>
-            void queueVoice(id as VoicePart).catch((cause) =>
-              setVoiceError(userMessage(cause)),
-            )
-          }
+          onClick={() => void generateVoice(id as VoicePart)}
         >
           <Mic size={17} />
         </button>
@@ -1197,7 +1275,7 @@ export function VideoProjectEditor({
                   "Reanalyze the entire passage if the source audio or passage boundaries changed, or if analysis failed. Otherwise, results usually stay the same and do not improve manual cuts. Your adjustments are kept, but cuts may move if the estimated timings change. No audio is generated and no changes are saved.",
                 )
           }
-          disabled={analyzing || locked}
+          disabled={analyzing || taskQueueLocked}
           onClick={() => void inspect(settings)}
         >
           {analyzing ? (
@@ -1234,7 +1312,7 @@ export function VideoProjectEditor({
             "Restore estimated cuts for manually adjusted verses in this reading so AI can update them again. Other verse cuts are kept.",
           )}
           disabled={
-            locked ||
+            readingLocked ||
             analyzing ||
             !readingReferences.some((reference) =>
               verseHasManualCuts(settings.verseOffsets, reference),
@@ -1298,7 +1376,9 @@ export function VideoProjectEditor({
   };
   const voiceSection = (part: VoicePart, number: number) => {
     const voice = voices[part] ?? { available: false, status: "idle" };
-    const pending = ["queued", "running"].includes(voice.status);
+    const pending =
+      pendingTasks.has(`voice:${part}`) ||
+      ["queued", "running"].includes(voice.status);
     const chapter = analysis?.chapterIntroductions?.find(
       (item) => item.part === part,
     );
@@ -1863,6 +1943,10 @@ export function VideoProjectEditor({
                   )}
                   disabled={
                     taskQueueLocked ||
+                    queuingVoices ||
+                    narrationParts.some((part) =>
+                      pendingTasks.has(`voice:${part}`),
+                    ) ||
                     analyzing ||
                     !analysis ||
                     !voicesLoaded ||
@@ -2005,7 +2089,10 @@ export function VideoProjectEditor({
                           timelineStart={section.timelineStart}
                           volumeMultiplier={readingVolumeValue}
                           cues={verses}
-                          disabled={editingLocked || analyzing}
+                          disabled={
+                            readingLocks(section.index).editingLocked ||
+                            analyzing
+                          }
                           onTrim={trim}
                           preservedReferences={verses
                             .filter((cue) =>

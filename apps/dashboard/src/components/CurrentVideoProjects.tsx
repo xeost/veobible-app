@@ -97,7 +97,6 @@ export function CurrentVideoProjects({
   const [checkingVideos, setCheckingVideos] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [openingFolder, setOpeningFolder] = useState<number | null>(null);
   const [advancing, setAdvancing] = useState<number | null>(null);
   const [updatingPublication, setUpdatingPublication] = useState<number | null>(
     null,
@@ -233,7 +232,6 @@ export function CurrentVideoProjects({
     }
   };
   const openFolder = async (row: VideoRow) => {
-    setOpeningFolder(row.id);
     setError("");
     try {
       await api(`videos/${row.id}/open-folder`, { method: "POST" });
@@ -241,8 +239,6 @@ export function CurrentVideoProjects({
       setError(
         "Could not open the project folder. Check that generation is available and try again.",
       );
-    } finally {
-      setOpeningFolder(null);
     }
   };
   const markNext = async (row: VideoRow) => {
@@ -446,21 +442,12 @@ export function CurrentVideoProjects({
                               data-tooltip={t(
                                 "Open the project folder in Finder on the Mac that generates videos",
                               )}
-                              disabled={openingFolder !== null}
                               onClick={(event) => {
                                 event.stopPropagation();
                                 void openFolder(row);
                               }}
                             >
-                              {openingFolder === row.id ? (
-                                <LoaderCircle
-                                  size={16}
-                                  className="voice-spinner"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <FolderOpen size={16} aria-hidden="true" />
-                              )}
+                              <FolderOpen size={16} aria-hidden="true" />
                             </button>
                           )}
                         </div>

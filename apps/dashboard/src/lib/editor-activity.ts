@@ -1,5 +1,6 @@
 type EditorActivity = {
   busy: boolean;
+  submittingTasks: boolean;
   active: boolean;
   applyingAlignment: boolean;
   alignmentLoaded: boolean;
@@ -13,11 +14,31 @@ export function editorActivityLocks(activity: EditorActivity) {
   const updating =
     activity.busy || activity.active || activity.applyingAlignment;
   return {
-    taskQueueLocked: updating || !activity.alignmentLoaded,
+    taskQueueLocked:
+      activity.busy || activity.active || !activity.alignmentLoaded,
     editingLocked:
       updating ||
+      activity.submittingTasks ||
       activity.alignmentPending ||
       activity.alignmentAwaitingApply ||
       (activity.hasAnalysis && !activity.alignmentLoaded),
   };
+}
+
+/** A block only inherits work that changes its own audio or verse cuts. */
+export function editorBlockLocks(
+  activity: EditorActivity,
+  block: {
+    submitting: boolean;
+    alignmentBusy: boolean;
+    applyingAlignment: boolean;
+  },
+) {
+  return editorActivityLocks({
+    ...activity,
+    submittingTasks: block.submitting,
+    alignmentPending: block.alignmentBusy,
+    alignmentAwaitingApply: false,
+    applyingAlignment: block.applyingAlignment,
+  });
 }
