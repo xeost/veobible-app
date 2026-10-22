@@ -34,11 +34,16 @@ test("social settings start empty without inserting rows and persist all languag
       )
       .run();
     const accounts = emptySocialSettings();
+    accounts.es.domain = " VEOBIBLE.COM ";
+    accounts.en.domain = "en.example.org";
     accounts.es.youtube = " @canal_es ";
     accounts.en.x = "english";
     accounts.pt.facebook = "pagina.pt";
     await saveSocialSettings(database, accounts);
     const stored = await loadSocialSettings(database);
+    assert.equal(stored.es.domain, "veobible.com");
+    assert.equal(stored.en.domain, "en.example.org");
+    assert.equal(stored.pt.domain, "");
     assert.equal(stored.es.youtube, "@canal_es");
     assert.equal(stored.en.x, "english");
     assert.equal(stored.pt.facebook, "pagina.pt");
@@ -75,5 +80,43 @@ test("both video formats use the supplied social accounts and omit empty network
       { platform: "YouTube", handle: "@canal_manual" },
       { platform: "Facebook", handle: "@pagina.pt" },
     ]);
+  }
+});
+
+test("existing accounts load with empty domains and keep their usernames", () => {
+  const legacy = Object.fromEntries(
+    ["es", "en", "pt"].map((locale) => [
+      locale,
+      {
+        youtube: "@existing",
+        x: "",
+        instagram: "",
+        tiktok: "",
+        facebook: "",
+      },
+    ]),
+  );
+  const settings = socialSettingsSchema.parse(legacy);
+  for (const locale of ["es", "en", "pt"] as const) {
+    assert.equal(settings[locale].domain, "");
+    assert.equal(settings[locale].youtube, "@existing");
+  }
+});
+
+test("video domains allow bare hostnames or empty values and reject URLs", () => {
+  const domain = socialSettingsSchema.shape.es.shape.domain;
+  assert.equal(domain.parse(" VEOBIBLE.COM "), "veobible.com");
+  assert.equal(domain.parse("pt.example.org"), "pt.example.org");
+  assert.equal(domain.parse(""), "");
+  for (const value of [
+    "https://veobible.com",
+    "veobible.com/es",
+    "veo bible.com",
+    "-invalid.com",
+    "example.com?x=1",
+    "example.com#x",
+    "localhost",
+  ]) {
+    assert.equal(domain.safeParse(value).success, false, value);
   }
 });

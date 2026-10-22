@@ -55,6 +55,7 @@ export function generationStage(
 }
 
 const voiceMessages = [
+  "The original recording changed or is unavailable. Prepare it again.",
   "Could not complete the audio request. Check that generation is available and try again.",
   "The next audio version changed. Reload the list and try again.",
   "This audio project changed. Reload it before saving.",

@@ -93,6 +93,7 @@ function SectionPreview(
   return (
     <Reading
       {...props}
+      website={props.outroTitle.website}
       voices={undefined}
       readingDuration={props.readingLength - readingPadding(props)}
     />

@@ -158,7 +158,12 @@ export async function audioApi(
         sequence: number;
       };
       if (row.active_job_id && detail.sequence > row.job_sequence) {
-        const { content: _, sequence, ...updated } = detail;
+        const {
+          content: _,
+          originalChapters: __,
+          sequence,
+          ...updated
+        } = detail;
         await applyAudioEvent(database, row.id, row.active_job_id, {
           sequence,
           project: updated,
@@ -253,9 +258,20 @@ export async function audioApi(
         return json({ queued: true }, 202);
       }
     }
-    if (parts[3] === "media" && req.method === "GET") {
+    if (parts[3] === "original" && ["GET", "POST"].includes(req.method)) {
+      return relay(
+        await forward(`${endpoint}/original${url.search}`, {
+          ...snapshot,
+          start: req.method === "POST",
+        }),
+      );
+    }
+    if (
+      ["media", "original-media"].includes(parts[3]) &&
+      req.method === "GET"
+    ) {
       const response = await forward(
-        `${endpoint}/media${url.search}`,
+        `${endpoint}/${parts[3]}${url.search}`,
         snapshot,
       );
       if (!response.ok && response.status !== 416) return relay(response);

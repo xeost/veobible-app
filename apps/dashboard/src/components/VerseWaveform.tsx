@@ -35,6 +35,7 @@ export function VerseWaveform({
   expanded,
   resourceKey,
   onPrepared,
+  cacheWaveform,
   locale,
   sourceStart,
   sourceEnd,
@@ -44,6 +45,8 @@ export function VerseWaveform({
   volumeMultiplier,
   cues,
   disabled,
+  readOnly = false,
+  playbackInToolbar = false,
   onTrim,
   onShift,
   preservedReferences,
@@ -84,6 +87,8 @@ export function VerseWaveform({
   volumeMultiplier: number;
   cues: VerseCue[];
   disabled: boolean;
+  readOnly?: boolean;
+  playbackInToolbar?: boolean;
   onTrim: (reference: string, edge: "start" | "end", value: number) => void;
   onShift: (cue: VerseCue, manuallyAdjusted: boolean) => boolean;
   preservedReferences: string[];
@@ -110,9 +115,12 @@ export function VerseWaveform({
   const {
     data,
     error: waveError,
-    setError: setWaveError,
     retry,
-  } = useAudioWaveform(src, { resourceKey, onPrepared }, !textOnly);
+  } = useAudioWaveform(
+    src,
+    { resourceKey, onPrepared, cacheWaveform },
+    !textOnly,
+  );
   const [focus, setFocus] = useState(
     cues[0] ?? {
       start: timelineStart,
@@ -120,6 +128,8 @@ export function VerseWaveform({
     },
   );
   const [playing, setPlaying] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
+  useEffect(() => setPlaybackError(false), [src, resourceKey]);
   const [playhead, setPlayhead] = useState(0);
   const [hasPlayhead, setHasPlayhead] = useState(false);
   const [extraContext, setExtraContext] = useState({ before: 0, after: 0 });
@@ -276,12 +286,13 @@ export function VerseWaveform({
     if (!player || range.end <= range.start) return;
     const request = ++playbackRequest.current;
     player.pause();
-    applyReadingPlaybackSpeed(player, playbackSpeedRef.current);
-    player.currentTime = sourceStart + range.start - timelineStart;
-    stopAt.current = sourceStart + range.end - timelineStart;
-    setPlayhead(player.currentTime);
-    setHasPlayhead(true);
+    setPlaybackError(false);
     try {
+      applyReadingPlaybackSpeed(player, playbackSpeedRef.current);
+      player.currentTime = sourceStart + range.start - timelineStart;
+      stopAt.current = sourceStart + range.end - timelineStart;
+      setPlayhead(player.currentTime);
+      setHasPlayhead(true);
       // Native media volume is capped at 1; a gain node also supports amplified reading.
       if (!audioGraph.current) {
         const context = new AudioContext();
@@ -294,14 +305,16 @@ export function VerseWaveform({
       const graph = audioGraph.current;
       applyVolume();
       await Promise.all([graph.context.resume(), player.play()]);
-      if (request === playbackRequest.current)
+      if (request === playbackRequest.current) {
+        setPlaybackError(false);
         applyReadingPlaybackSpeed(player, playbackSpeedRef.current, true);
+      }
     } catch (error) {
       if (
         request === playbackRequest.current &&
         !(error instanceof DOMException && error.name === "AbortError")
       )
-        setWaveError(true);
+        setPlaybackError(true);
     }
   };
   const move = (edge: "start" | "end", time: number, recenter = false) => {
@@ -434,6 +447,21 @@ export function VerseWaveform({
         timelineStart + sourceDuration - sourceStart,
       )
     : null;
+  const playbackButton = (
+    <button
+      type="button"
+      className="icon-button verse-playback-icon"
+      aria-label={t(playing ? "Pause" : "Listen to verse")}
+      data-tooltip={t(playing ? "Pause" : "Listen to verse")}
+      onClick={preview}
+    >
+      {playing ? (
+        <Pause size={16} aria-hidden="true" />
+      ) : (
+        <Play size={16} aria-hidden="true" />
+      )}
+    </button>
+  );
   if (!cue)
     return (
       <p className="muted">
@@ -478,6 +506,7 @@ export function VerseWaveform({
                 )}
                 <div>
                   {toolbarActions}
+                  {playbackInToolbar && playbackButton}
                   <select
                     className="waveform-playback-speed"
                     aria-label={t("Playback speed")}
@@ -621,8 +650,8 @@ export function VerseWaveform({
                   >
                     <span>{cue.reference}</span>
                   </div>
-                  {handle("start")}
-                  {handle("end")}
+                  {!readOnly && handle("start")}
+                  {!readOnly && handle("end")}
                   {hasPlayhead && (
                     <div
                       className="waveform-playhead"
@@ -636,11 +665,28 @@ export function VerseWaveform({
               {waveError && (
                 <button
                   type="button"
-                  className="analysis-retry"
+                  className="waveform-retry"
                   onClick={retry}
                 >
                   {t("Retry loading audio")}
                 </button>
+              )}
+              {playbackError && (
+                <div className="waveform-playback-error" role="alert">
+                  <p className="error">
+                    {t("Could not play the audio. Try again.")}
+                  </p>
+                  <button
+                    type="button"
+                    className="waveform-retry"
+                    onClick={() => {
+                      audio.current?.load();
+                      void playRange(cue);
+                    }}
+                  >
+                    {t("Retry playback")}
+                  </button>
+                </div>
               )}
               <div className="waveform-ruler">
                 <span>{(window.start - timelineStart).toFixed(2)} s</span>
@@ -650,80 +696,85 @@ export function VerseWaveform({
                 </span>
                 <span>{(window.end - timelineStart).toFixed(2)} s</span>
               </div>
-              <div className="verse-playback">
-                <button
-                  type="button"
-                  className="icon-button verse-playback-icon"
-                  aria-label={t(
-                    onRegenerate
-                      ? regenerateLabel
-                      : "Align with previous verse",
+              {(!readOnly || !playbackInToolbar) && (
+                <div className="verse-playback">
+                  {!readOnly && (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-button verse-playback-icon"
+                        aria-label={t(
+                          onRegenerate
+                            ? regenerateLabel
+                            : "Align with previous verse",
+                        )}
+                        disabled={
+                          onRegenerate
+                            ? (regenerationDisabled ?? disabled)
+                            : disabled || !alignment?.moved
+                        }
+                        data-tooltip={t(
+                          onRegenerate
+                            ? regenerateLabel
+                            : "Move both trim edges so this verse starts at the previous verse’s end, keeping its duration. Your other verse cuts stay unchanged.",
+                        )}
+                        onClick={() =>
+                          onRegenerate
+                            ? onRegenerate()
+                            : selectVerse(index, true)
+                        }
+                      >
+                        {onRegenerate ? (
+                          <RotateCcw size={16} aria-hidden="true" />
+                        ) : (
+                          <AlignStartVertical size={16} aria-hidden="true" />
+                        )}
+                      </button>
+                      <span
+                        className="section-action-separator"
+                        aria-hidden="true"
+                      />
+                    </>
                   )}
-                  disabled={
-                    onRegenerate
-                      ? (regenerationDisabled ?? disabled)
-                      : disabled || !alignment?.moved
-                  }
-                  data-tooltip={t(
-                    onRegenerate
-                      ? regenerateLabel
-                      : "Move both trim edges so this verse starts at the previous verse’s end, keeping its duration. Your other verse cuts stay unchanged.",
+                  {!playbackInToolbar && playbackButton}
+                  {!readOnly && (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-button verse-playback-icon"
+                        aria-label={t("Next verse")}
+                        data-tooltip={t("Next verse")}
+                        disabled={
+                          onNextVerse ? !hasNextVerse : index >= cues.length - 1
+                        }
+                        onClick={() =>
+                          onNextVerse
+                            ? onNextVerse(false)
+                            : selectVerse(index + 1)
+                        }
+                      >
+                        <ChevronRight size={16} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button verse-playback-icon"
+                        aria-label={t("Next verse and play")}
+                        data-tooltip={t("Next verse and play")}
+                        disabled={
+                          onNextVerse ? !hasNextVerse : index >= cues.length - 1
+                        }
+                        onClick={() =>
+                          onNextVerse
+                            ? onNextVerse(true)
+                            : selectVerse(index + 1, false, true)
+                        }
+                      >
+                        <ListVideo size={16} aria-hidden="true" />
+                      </button>
+                    </>
                   )}
-                  onClick={() =>
-                    onRegenerate ? onRegenerate() : selectVerse(index, true)
-                  }
-                >
-                  {onRegenerate ? (
-                    <RotateCcw size={16} aria-hidden="true" />
-                  ) : (
-                    <AlignStartVertical size={16} aria-hidden="true" />
-                  )}
-                </button>
-                <span className="section-action-separator" aria-hidden="true" />
-                <button
-                  type="button"
-                  className="icon-button verse-playback-icon"
-                  aria-label={t(playing ? "Pause" : "Listen to verse")}
-                  data-tooltip={t(playing ? "Pause" : "Listen to verse")}
-                  onClick={preview}
-                >
-                  {playing ? (
-                    <Pause size={16} aria-hidden="true" />
-                  ) : (
-                    <Play size={16} aria-hidden="true" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="icon-button verse-playback-icon"
-                  aria-label={t("Next verse")}
-                  data-tooltip={t("Next verse")}
-                  disabled={
-                    onNextVerse ? !hasNextVerse : index >= cues.length - 1
-                  }
-                  onClick={() =>
-                    onNextVerse ? onNextVerse(false) : selectVerse(index + 1)
-                  }
-                >
-                  <ChevronRight size={16} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="icon-button verse-playback-icon"
-                  aria-label={t("Next verse and play")}
-                  data-tooltip={t("Next verse and play")}
-                  disabled={
-                    onNextVerse ? !hasNextVerse : index >= cues.length - 1
-                  }
-                  onClick={() =>
-                    onNextVerse
-                      ? onNextVerse(true)
-                      : selectVerse(index + 1, false, true)
-                  }
-                >
-                  <ListVideo size={16} aria-hidden="true" />
-                </button>
-              </div>
+                </div>
+              )}
             </>
           )}
           {!compact && (
@@ -772,13 +823,14 @@ export function VerseWaveform({
                   true,
                 )
               }
-              onPlaying={(event) =>
+              onPlaying={(event) => {
+                setPlaybackError(false);
                 applyReadingPlaybackSpeed(
                   event.currentTarget,
                   playbackSpeedRef.current,
                   true,
-                )
-              }
+                );
+              }}
               onRateChange={(event) => {
                 if (
                   event.currentTarget.playbackRate !== playbackSpeedRef.current
@@ -790,7 +842,7 @@ export function VerseWaveform({
               }}
               onPause={() => setPlaying(false)}
               onEnded={() => setPlaying(false)}
-              onError={() => setWaveError(true)}
+              onError={() => setPlaybackError(true)}
               onTimeUpdate={() => {
                 if (!audio.current) return;
                 if (audio.current.currentTime >= stopAt.current) {

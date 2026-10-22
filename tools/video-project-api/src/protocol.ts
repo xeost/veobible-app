@@ -1,3 +1,4 @@
+import { videoDomainSchema } from "./domain.js";
 import { voiceStylePresetsSchema } from "./narration-preset-selection.js";
 import { readingVoiceSettingsSchema } from "./reading-voice-settings.js";
 import { baseVoiceSchema, voiceRolesSchema } from "./base-voice-schema.js";
@@ -18,6 +19,10 @@ export const settingsSchema = z.object({
   audioEdition: audioEditionSchema.optional(),
   baseVoice: baseVoiceSchema.optional(),
   baseVoices: voiceRolesSchema.optional(),
+  inheritedBaseVoiceRoles: z
+    .array(z.enum(["intro", "reading", "outro"]))
+    .max(3)
+    .optional(),
   voiceStylePresets: voiceStylePresetsSchema.optional(),
   readingVoices: readingVoiceSettingsSchema.optional(),
   alignmentJobId: z.string().uuid().optional(),
@@ -121,6 +126,7 @@ export const renderSchema = z.object({
     })
     .default({ intro: "", outro: "" }),
   publicationTemplates: publicationTemplatesSchema.default({}),
+  website: videoDomainSchema,
   socialAccounts: z
     .object({
       youtube: z.string().trim().max(100),

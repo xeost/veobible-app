@@ -37,7 +37,7 @@ const DEFAULT_PROPS: ShortCompositionProps = {
     highlight: "para escuchar más",
     channel: "VeoBible en Español",
     social: [],
-    website: "veobible.com",
+    website: "",
   },
   verseCues: [],
   readingPalette: [

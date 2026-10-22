@@ -25,3 +25,21 @@ test("both formats use request accounts in every language and do not require soc
   assert.equal("socialAccounts" in shortConfig, false);
   assert.equal("socialAccounts" in longConfig, false);
 });
+
+test("both video formats show only the explicitly configured domain", async () => {
+  for (const outro of [shortOutro, longOutro]) {
+    for (const locale of ["es", "en", "pt"] as const) {
+      assert.equal((await outro(locale)).website, "");
+      assert.equal(
+        (await outro(locale, {}, "veobible.com")).website,
+        "veobible.com",
+      );
+      assert.equal(
+        (await outro(locale, {}, `${locale}.example.org`)).website,
+        `${locale}.example.org`,
+      );
+      assert.equal((await outro(locale, {}, "  ")).website, "");
+      await assert.rejects(() => outro(locale, {}, "https://example.org/path"));
+    }
+  }
+});

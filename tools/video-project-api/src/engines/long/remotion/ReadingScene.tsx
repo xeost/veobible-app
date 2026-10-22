@@ -17,6 +17,7 @@ const paper = {
 };
 
 interface ReadingSceneProps {
+  website: string;
   chapterIntroductions?: ChapterTrack[];
   bibleVersionTitle?: string;
   boomerangVideoPath: string;
@@ -32,6 +33,7 @@ interface ReadingSceneProps {
 }
 
 export const ReadingScene: React.FC<ReadingSceneProps> = ({
+  website,
   boomerangVideoPath,
   chapterIntroductions = [],
   bibleVersionTitle = "",
@@ -324,15 +326,17 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
           >
             {bibleVersionTitle}
           </span>
-          <span
-            style={{
-              flexShrink: 0,
-              letterSpacing: sx(4.5),
-              textAlign: "right",
-            }}
-          >
-            VEOBIBLE.COM
-          </span>
+          {website && (
+            <span
+              style={{
+                flexShrink: 0,
+                letterSpacing: sx(4.5),
+                textAlign: "right",
+              }}
+            >
+              {website.toUpperCase()}
+            </span>
+          )}
         </div>
         <div
           style={{

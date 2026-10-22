@@ -7,6 +7,7 @@ import { api } from "./api";
 import {
   emptySocialSettings,
   socialSettingsSchema,
+  socialAccountsSchema,
   type SocialSettings as Accounts,
 } from "../lib/social-settings";
 const languages = [
@@ -36,7 +37,7 @@ export function SocialSettings() {
       })
       .catch(() => {
         if (live)
-          setError("Could not load accounts. Reload the page to try again.");
+          setError("Could not load settings. Reload the page to try again.");
       })
       .finally(() => {
         if (live) setLoading(false);
@@ -49,8 +50,14 @@ export function SocialSettings() {
     event.preventDefault();
     const parsed = socialSettingsSchema.safeParse(accounts);
     if (!parsed.success) {
+      const invalidDomain = Object.values(accounts).some(
+        (account) =>
+          !socialAccountsSchema.shape.domain.safeParse(account.domain).success,
+      );
       setError(
-        "Enter usernames, without links or spaces, up to 100 characters.",
+        invalidDomain
+          ? "Enter a domain such as veobible.com, without https://, paths or spaces."
+          : "Enter usernames, without links or spaces, up to 100 characters.",
       );
       return;
     }
@@ -64,7 +71,7 @@ export function SocialSettings() {
       setAccounts(data.accounts);
       notify("Settings saved.");
     } catch {
-      notify("Could not save accounts. Try again.", "error");
+      notify("Could not save settings. Try again.", "error");
     } finally {
       setBusy(false);
     }
@@ -76,12 +83,14 @@ export function SocialSettings() {
           <p className="eyebrow">{t("SETTINGS")}</p>
           <h1>{t("Settings")}</h1>
           <p className="muted">
-            {t("Configure social media accounts for each language.")}
+            {t(
+              "Configure the video domain and social media accounts for each language.",
+            )}
           </p>
         </div>
       </div>
       {loading ? (
-        <p className="empty">{t("Loading accounts…")}</p>
+        <p className="empty">{t("Loading settings…")}</p>
       ) : (
         <form onSubmit={submit} className="social-settings-form">
           {error && (
@@ -92,7 +101,7 @@ export function SocialSettings() {
           <div className="social-settings-intro">
             <AtSign size={22} />
             <div>
-              <h2>{t("Social media accounts")}</h2>
+              <h2>{t("Video domain and social media accounts")}</h2>
               <p className="muted">
                 {t(
                   "Enter the username with or without @. Leave an account empty to hide that network in the video.",
@@ -100,6 +109,11 @@ export function SocialSettings() {
               </p>
             </div>
           </div>
+          <p className="muted">
+            {t(
+              "Enter the domain to display at the end of videos, such as veobible.com. Leave it empty to hide it. Each language needs its own domain setting.",
+            )}
+          </p>
           <div className="social-settings-grid">
             {languages.map(([locale, label]) => (
               <fieldset
@@ -108,7 +122,7 @@ export function SocialSettings() {
                 disabled={
                   busy ||
                   error ===
-                    "Could not load accounts. Reload the page to try again."
+                    "Could not load settings. Reload the page to try again."
                 }
               >
                 <legend>
@@ -116,6 +130,29 @@ export function SocialSettings() {
                   {t(label)}
                   <small>{locale.toUpperCase()}</small>
                 </legend>
+                <label htmlFor={`domain-${locale}`}>
+                  {t("Video domain")}
+                  <input
+                    id={`domain-${locale}`}
+                    type="text"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    placeholder="veobible.com"
+                    maxLength={253}
+                    value={accounts[locale].domain}
+                    aria-label={`${t("Video domain")} · ${t(label)}`}
+                    onChange={(event) => {
+                      setAccounts((current) => ({
+                        ...current,
+                        [locale]: {
+                          ...current[locale],
+                          domain: event.target.value,
+                        },
+                      }));
+                    }}
+                  />
+                </label>
                 {platforms.map(([platform, name]) => (
                   <label
                     key={platform}
@@ -156,7 +193,7 @@ export function SocialSettings() {
               disabled={
                 busy ||
                 error ===
-                  "Could not load accounts. Reload the page to try again."
+                  "Could not load settings. Reload the page to try again."
               }
             >
               <Save size={16} />

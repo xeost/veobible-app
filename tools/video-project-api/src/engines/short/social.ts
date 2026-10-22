@@ -1,3 +1,4 @@
+import { videoDomainSchema } from "../../domain.js";
 import type { Version } from "./config.js";
 import type { OutroTitle } from "./video.js";
 
@@ -26,6 +27,7 @@ const labels: Record<
 export async function outroTitle(
   locale: Version["locale"],
   configuredAccounts: Partial<Record<(typeof platforms)[number], string>> = {},
+  website = "",
 ): Promise<OutroTitle> {
   const social: OutroTitle["social"] = [];
   for (const platform of platforms) {
@@ -49,5 +51,9 @@ export async function outroTitle(
         handle: handle.startsWith("@") ? handle : `@${handle}`,
       });
   }
-  return { ...labels[locale], social, website: "veobible.com" };
+  return {
+    ...labels[locale],
+    social,
+    website: videoDomainSchema.parse(website),
+  };
 }

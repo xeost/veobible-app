@@ -6,9 +6,11 @@ import {
   loadBaseVoiceDefaults,
   saveBaseVoiceDefaults,
   projectBaseVoice,
+  resolveProjectBaseVoices,
   baseVoiceDefaultsSchema,
 } from "./base-voices";
 import { settingsSchema } from "./video-schema";
+import { settingsSchema as workerSettingsSchema } from "../../../../tools/video-project-api/src/protocol";
 
 test("voice defaults are separate per format and never resolve an existing project's voice", async () => {
   const sqlite = new DatabaseSync(":memory:");
@@ -66,6 +68,85 @@ test("voice defaults are separate per format and never resolve an existing proje
     );
     assert.throws(() => projectBaseVoice({ baseVoice: "en-2" }, "es"));
     assert.throws(() => settingsSchema.parse({ baseVoice: "../../escape" }));
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("inherited project voices follow each format and language while custom voices stay fixed", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(
+    "CREATE TABLE site_settings(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT)",
+  );
+  const database = {
+    prepare: (query: string) => ({
+      bind: (...values: any[]) => ({
+        first: async () => sqlite.prepare(query).get(...values) ?? null,
+        run: async () => sqlite.prepare(query).run(...values),
+      }),
+    }),
+  } as unknown as D1Database;
+  try {
+    for (const kind of ["short", "long", "book"] as const) {
+      for (const locale of ["es", "en", "pt"] as const) {
+        const project = settingsSchema.parse({
+          baseVoices: {
+            intro: `${locale}-1`,
+            reading: `${locale}-5`,
+            outro: `${locale}-1`,
+          },
+          inheritedBaseVoiceRoles: ["intro", "outro"],
+        });
+        const defaults = defaultBaseVoices();
+        defaults[locale] = {
+          intro: `${locale}-2`,
+          reading: `${locale}-3`,
+          outro: `${locale}-4`,
+        };
+        await saveBaseVoiceDefaults(database, kind, defaults);
+        const first = resolveProjectBaseVoices(
+          project,
+          locale,
+          (await loadBaseVoiceDefaults(database, kind))[locale],
+        );
+        assert.deepEqual(first.baseVoices, {
+          intro: `${locale}-2`,
+          reading: `${locale}-5`,
+          outro: `${locale}-4`,
+        });
+        // Saved selections survive both dashboard and generation request parsing.
+        const saved = settingsSchema.parse(
+          JSON.parse(JSON.stringify(workerSettingsSchema.parse(first))),
+        );
+        defaults[locale] = {
+          intro: `${locale}-3`,
+          reading: `${locale}-4`,
+          outro: `${locale}-2`,
+        };
+        await saveBaseVoiceDefaults(database, kind, defaults);
+        const next = resolveProjectBaseVoices(
+          saved,
+          locale,
+          (await loadBaseVoiceDefaults(database, kind))[locale],
+        );
+        assert.deepEqual(next.baseVoices, {
+          intro: `${locale}-3`,
+          reading: `${locale}-5`,
+          outro: `${locale}-2`,
+        });
+        assert.equal(next.baseVoice, `${locale}-3`);
+        // Requests already submitted keep their resolved voice snapshot.
+        assert.equal(first.baseVoices.intro, `${locale}-2`);
+        assert.equal(project.baseVoices?.intro, `${locale}-1`);
+        // Returning a custom reading to Default applies the current reading choice.
+        const inherited = resolveProjectBaseVoices(
+          { ...saved, inheritedBaseVoiceRoles: ["intro", "reading", "outro"] },
+          locale,
+          defaults[locale],
+        );
+        assert.equal(inherited.baseVoices.reading, `${locale}-4`);
+      }
+    }
   } finally {
     sqlite.close();
   }

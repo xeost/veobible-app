@@ -1,3 +1,4 @@
+import { OriginalAudioComparisons } from "./original-audio.js";
 import { randomUUID } from "node:crypto";
 import type http from "node:http";
 import fs from "node:fs";
@@ -13,6 +14,7 @@ import {
   audioBookSchema,
   audioProjectSchema,
 } from "./audio-project-schema.js";
+const originals = new OriginalAudioComparisons();
 const libraries = {
   production: new AudioProjects(),
   development: new AudioProjects(undefined, "development"),
@@ -133,7 +135,11 @@ export async function audioProjectHttp(
           session.sequence === input.sequence
         )
           session.sequence++;
-        json({ ...detail, sequence: session?.sequence ?? 0 });
+        json({
+          ...detail,
+          originalChapters: await originals.availableChapters(input.project),
+          sequence: session?.sequence ?? 0,
+        });
       } else if (parts[2] === "generate") {
         const generation = z
           .object({
@@ -219,7 +225,50 @@ export async function audioProjectHttp(
           ),
           202,
         );
-      } else if (parts[2] === "media") {
+      } else if (parts[2] === "original") {
+        const chapter = z.coerce
+          .number()
+          .int()
+          .positive()
+          .parse(url.searchParams.get("chapter"));
+        const { start } = z
+          .object({ start: z.boolean().default(false) })
+          .parse(raw);
+        json(
+          await originals.inspect(
+            input.project,
+            chapter,
+            start,
+            (run, progress) => {
+              const job: QueueJob = {
+                id: randomUUID(),
+                status: "queued",
+                stage: "Aligning original audio",
+                progress: 0,
+              };
+              queue.enqueue(
+                {
+                  projectId: null,
+                  kind: "audio",
+                  type: "alignment",
+                  outputEnvironment: environment,
+                },
+                job,
+                async () => {
+                  const timer = setInterval(() => {
+                    job.progress = progress();
+                  }, 500);
+                  try {
+                    await run();
+                  } finally {
+                    clearInterval(timer);
+                  }
+                },
+              );
+            },
+          ),
+        );
+      } else if (parts[2] === "media" || parts[2] === "original-media") {
         const chapter = z.coerce
           .number()
           .int()
@@ -232,7 +281,14 @@ export async function audioProjectHttp(
               .positive()
               .parse(url.searchParams.get("verse"))
           : undefined;
-        const file = await projects.media(edition, book, chapter, verse);
+        const file =
+          parts[2] === "original-media"
+            ? await originals.media(
+                input.project,
+                chapter,
+                url.searchParams.get("revision"),
+              )
+            : await projects.media(edition, book, chapter, verse);
         const stat = await fsp.stat(file);
         let start = 0,
           end = stat.size - 1;
@@ -253,7 +309,11 @@ export async function audioProjectHttp(
           }
         }
         res.writeHead(range ? 206 : 200, {
-          "Content-Type": file.endsWith(".mp3") ? "audio/mpeg" : "audio/wav",
+          "Content-Type": /\.mp3$/i.test(file)
+            ? "audio/mpeg"
+            : /\.m4a$/i.test(file)
+              ? "audio/mp4"
+              : "audio/wav",
           "Content-Length": end - start + 1,
           "Accept-Ranges": "bytes",
           "Cache-Control": "no-store",

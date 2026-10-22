@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { videoDomainSchema } from "../../../../tools/video-project-api/src/domain";
 const handle = z
   .string()
   .trim()
   .max(100)
   .regex(/^(?:@?[\p{L}\p{N}_.-]+)?$/u);
 export const socialAccountsSchema = z.object({
+  domain: videoDomainSchema,
   youtube: handle,
   x: handle,
   instagram: handle,
@@ -20,6 +22,7 @@ export type SocialSettings = z.infer<typeof socialSettingsSchema>;
 export const socialSettingsKey = "social_accounts";
 export function emptySocialSettings(): SocialSettings {
   const blank = () => ({
+    domain: "",
     youtube: "",
     x: "",
     instagram: "",

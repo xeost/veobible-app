@@ -166,6 +166,7 @@ export const VeoBibleShort: React.FC<ShortCompositionProps> = (props) => {
           totalFrames={readingFrames}
         >
           <ReadingScene
+            website={outroTitle.website}
             boomerangVideoPath={boomerangVideoPath}
             sections={sections}
             voices={voices}

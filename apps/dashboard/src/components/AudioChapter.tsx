@@ -17,6 +17,7 @@ import { useI18n } from "../i18n/context";
 import type { GenerationQueueItem } from "../lib/generation-queue";
 import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
+import { OriginalVerseAudio } from "./OriginalVerseAudio";
 
 export function AudioChapter({
   chapter,
@@ -54,6 +55,7 @@ export function AudioChapter({
     tasks.find((task) => task.status === "running") ?? tasks[0];
   const [selection, setSelection] = useState({ index: 0, play: false });
   const [resetRevision, setResetRevision] = useState(0);
+  const [listenToOriginal, setListenToOriginal] = useState(false);
   const verse = chapter.verses[selection.index] ?? chapter.verses[0];
   const reference = `${chapter.chapter}:${verse.verse}`;
   const recording = project.recordings[reference];
@@ -110,6 +112,16 @@ export function AudioChapter({
     body.current?.querySelectorAll("audio").forEach((audio) => audio.pause());
     setSelection({ index, play });
   };
+  const original = project.originalChapters?.includes(chapter.chapter) ? (
+    <OriginalVerseAudio
+      endpoint={`audios/${encodeURIComponent(project.edition)}/${encodeURIComponent(project.book)}`}
+      chapter={chapter.chapter}
+      reference={reference}
+      locale={project.version.locale}
+      checked={listenToOriginal}
+      onChange={setListenToOriginal}
+    />
+  ) : null;
   const versePicker = (
     <div className="verse-picker" ref={picker} aria-label={t("Verses")}>
       {chapter.verses.map((v, index) => {
@@ -311,7 +323,9 @@ export function AudioChapter({
               onAutoPlay={() =>
                 setSelection((current) => ({ ...current, play: false }))
               }
-            />
+            >
+              {original}
+            </VerseWaveform>
           ) : (
             <div className="verse-sync">
               {versePicker}
@@ -332,13 +346,9 @@ export function AudioChapter({
                     </button>
                   </div>
                 </div>
-                <div className="verse-preview">
-                  <span className="eyebrow">{reference}</span>
-                  <p>{verse.text}</p>
-                </div>
                 <button
                   type="button"
-                  className="primary"
+                  className="primary audio-verse-generate"
                   disabled={generationLocked}
                   onClick={() =>
                     void generate({
@@ -350,6 +360,11 @@ export function AudioChapter({
                   <Mic size={15} />
                   {t("Generate verse audio")}
                 </button>
+                <div className="verse-preview">
+                  <span className="eyebrow">{reference}</span>
+                  <p>{verse.text}</p>
+                </div>
+                {original}
               </div>
             </div>
           )}

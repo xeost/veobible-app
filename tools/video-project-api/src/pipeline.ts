@@ -1033,7 +1033,7 @@ export async function render(
       sections,
       m.config.videosDir,
       title,
-      await m.outro(version.locale, input.socialAccounts),
+      await m.outro(version.locale, input.socialAccounts, input.website),
       cues,
       trimmedVoices,
       work,

@@ -142,9 +142,26 @@ export async function saveBaseVoiceDefaults(
   else await database.batch(statements);
   return defaults;
 }
-/** Legacy projects used voice 1. Never resolve their voice from mutable defaults. */
+/** Explicit selections remain fixed; inherited roles resolve against current format defaults. */
 export const projectBaseVoice = (
-  settings: Parameters<typeof selectedRoleVoice>[0],
+  settings: Parameters<typeof selectedRoleVoice>[0] & {
+    inheritedBaseVoiceRoles?: ("intro" | "reading" | "outro")[];
+  },
   locale: "es" | "en" | "pt",
   role: "intro" | "outro" | "reading" = "intro",
-) => selectedRoleVoice(settings, locale, role);
+  defaults?: BaseVoiceDefaults["es"],
+) =>
+  settings.inheritedBaseVoiceRoles?.includes(role) && defaults
+    ? voiceForLocale(locale, defaults[role])
+    : selectedRoleVoice(settings, locale, role);
+
+export function resolveProjectBaseVoices<
+  T extends Parameters<typeof projectBaseVoice>[0],
+>(settings: T, locale: "es" | "en" | "pt", defaults: BaseVoiceDefaults["es"]) {
+  const baseVoices = {
+    intro: projectBaseVoice(settings, locale, "intro", defaults),
+    reading: projectBaseVoice(settings, locale, "reading", defaults),
+    outro: projectBaseVoice(settings, locale, "outro", defaults),
+  };
+  return { ...settings, baseVoice: baseVoices.intro, baseVoices };
+}

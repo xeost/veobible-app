@@ -86,6 +86,7 @@ export type AudioProject = {
   updatedAt: string;
 };
 export type AudioProjectDetail = AudioProject & {
+  originalChapters?: number[];
   content: { chapter: number; verses: { verse: number; text: string }[] }[];
 };
 export type AudioProjectSummary = Omit<

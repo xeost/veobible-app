@@ -5,6 +5,7 @@ import {
 import {
   loadBaseVoiceDefaults,
   projectBaseVoice,
+  resolveProjectBaseVoices,
   voiceRoles,
 } from "./base-voices";
 import {
@@ -324,6 +325,7 @@ export async function videoApi(
         version.locale,
         version.code,
       ),
+      inheritedBaseVoiceRoles: ["intro", "reading", "outro"],
       baseVoices: (await loadBaseVoiceDefaults(database, input.kind))[
         version.locale
       ],
@@ -460,6 +462,9 @@ export async function videoApi(
     loadNarrationModels(database),
     loadNarrationStyles(database),
   ]);
+  const baseVoiceDefaults = (
+    await loadBaseVoiceDefaults(database, project.kind)
+  )[project.locale];
   const voiceModel = models[project.locale];
   const voiceDecoder = selectedNarrationDecoder(models, project.locale);
   const styleDefaults = (await loadVoiceStyleDefaults(database, project.kind))[
@@ -481,7 +486,12 @@ export async function videoApi(
     voiceModel,
     ...(voiceDecoder ? { voiceDecoder } : {}),
     voiceParameters: JSON.stringify(voiceParameters),
-    baseVoice: projectBaseVoice(JSON.parse(project.settings), project.locale),
+    baseVoice: projectBaseVoice(
+      JSON.parse(project.settings),
+      project.locale,
+      "intro",
+      baseVoiceDefaults,
+    ),
     outputEnvironment,
   });
   const mediaAccess = async () => {
@@ -520,6 +530,7 @@ export async function videoApi(
         result: current.result ? JSON.stringify(current.result) : null,
       },
       mediaAccess: await mediaAccess(),
+      baseVoiceDefaults,
       defaults: settingsSchema.parse(
         versionProjectSettings(
           await loadProjectSettings(database, project.kind),
@@ -650,7 +661,7 @@ export async function videoApi(
     ["analyze", "alignment", "voices", "render", "preview"].includes(parts[2])
   ) {
     const values = (await req.json()) as Record<string, unknown>;
-    const settings = settingsSchema.parse(
+    let settings = settingsSchema.parse(
       parts[2] === "voices"
         ? {
             ...JSON.parse(project.settings),
@@ -659,16 +670,13 @@ export async function videoApi(
         : values,
     );
     settings.baseVoices ??= JSON.parse(project.settings).baseVoices;
-    for (const role of voiceRoles)
-      projectBaseVoice(settings, project.locale, role);
-    settings.baseVoice = projectBaseVoice(
-      {
-        ...settings,
-        baseVoice: settings.baseVoice ?? JSON.parse(project.settings).baseVoice,
-      },
+    settings.baseVoice ??= JSON.parse(project.settings).baseVoice;
+    settings = resolveProjectBaseVoices(
+      settings,
       project.locale,
+      baseVoiceDefaults,
     );
-    query.set("baseVoice", settings.baseVoice);
+    query.set("baseVoice", settings.baseVoice!);
     query.set(
       "voiceParameters",
       JSON.stringify(
@@ -832,13 +840,15 @@ export async function videoApi(
         headers: { "Content-Type": "application/json" },
       });
     }
+    const accounts = (await loadSocialSettings(database))[project.locale];
     const request = renderSchema.parse({
       ...common,
       id: crypto.randomUUID(),
       publicationTemplates: (
         await loadPublicationSettings(database, project.kind)
       )[project.locale],
-      socialAccounts: (await loadSocialSettings(database))[project.locale],
+      socialAccounts: accounts,
+      website: accounts.domain,
     });
     const response = await videoFetch(
       parts[2] === "preview" ? "/v1/preview" : "/v1/jobs",

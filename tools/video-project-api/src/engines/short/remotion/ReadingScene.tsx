@@ -36,6 +36,7 @@ const DEFAULT_PALETTE: RGB[] = [
 ];
 
 interface ReadingSceneProps {
+  website: string;
   boomerangVideoPath: string;
   sections: AudioSection[];
   voices?: VoiceTracks;
@@ -49,6 +50,7 @@ interface ReadingSceneProps {
 }
 
 export const ReadingScene: React.FC<ReadingSceneProps> = ({
+  website,
   boomerangVideoPath,
   sections,
   voices,
@@ -254,10 +256,10 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
       {(() => {
         const wAlpha = phaseAlpha(t, readingPhase);
         const wY = phaseY(t, readingPhase, sy(positionY(1510)), sy(10));
-        if (wAlpha <= 0) return null;
+        if (!website || wAlpha <= 0) return null;
         return (
           <AnimatedText
-            text="V E O B I B L E . C O M"
+            text={website.toUpperCase().split("").join(" ")}
             x={sx(116)}
             y={wY}
             fontSize={Math.max(1, Math.round((24 * width) / 1080))}

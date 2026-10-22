@@ -138,6 +138,8 @@ export class AudioProjects {
     audioVersionSchema.shape.code.parse(code);
     await fs.mkdir(this.root, { recursive: true });
     await realDirectory(this.root);
+    // The unsuffixed directory is reserved for human recordings, even when absent.
+    // Generated editions always start at v2; never infer v1 from missing originals.
     let next = 2;
     for (const name of await fs.readdir(this.root)) {
       if (!name.startsWith(`${code}-v`)) continue;

@@ -1,3 +1,4 @@
+import { videoDomainSchema } from "../../../../tools/video-project-api/src/domain";
 import { voiceStylePresetsSchema } from "../../../../tools/video-project-api/src/narration-preset-selection";
 import { readingVoiceSettingsSchema } from "../../../../tools/video-project-api/src/reading-voice-settings";
 import {
@@ -17,6 +18,10 @@ export const settingsSchema = z.object({
   audioEdition: audioEditionSchema.optional(),
   baseVoice: baseVoiceSchema.optional(),
   baseVoices: voiceRolesSchema.optional(),
+  inheritedBaseVoiceRoles: z
+    .array(z.enum(["intro", "reading", "outro"]))
+    .max(3)
+    .optional(),
   voiceStylePresets: voiceStylePresetsSchema.optional(),
   readingVoices: readingVoiceSettingsSchema.optional(),
   alignmentJobId: z.string().uuid().optional(),
@@ -109,6 +114,7 @@ export const renderSchema = z.object({
     })
     .default({ intro: "", outro: "" }),
   publicationTemplates: publicationTemplatesSchema.default({}),
+  website: videoDomainSchema,
   socialAccounts: z
     .object({
       youtube: z.string().trim().max(100),

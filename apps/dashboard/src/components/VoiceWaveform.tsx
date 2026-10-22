@@ -268,7 +268,7 @@ export function VoiceWaveform({
               "Could not load the waveform. You can still adjust the start and end times.",
             )}
           </p>
-          <button type="button" className="analysis-retry" onClick={retry}>
+          <button type="button" className="waveform-retry" onClick={retry}>
             {t("Retry loading audio")}
           </button>
         </div>

@@ -25,6 +25,7 @@ import {
 export function BaseVoiceSelector({
   locale,
   value,
+  defaultVoice,
   onChange,
   disabled = false,
   label,
@@ -34,6 +35,7 @@ export function BaseVoiceSelector({
 }: {
   locale: VoiceLocale;
   value: string;
+  defaultVoice?: string;
   onChange: (id: string) => void;
   disabled?: boolean;
   label?: string;
@@ -91,7 +93,8 @@ export function BaseVoiceSelector({
       };
     })();
   }, [locale]);
-  const selected = voices.find((voice) => voice.id === value);
+  const effectiveValue = value || defaultVoice || "";
+  const selected = voices.find((voice) => voice.id === effectiveValue);
   useEffect(() => {
     setText(selected?.text || sampleTexts[locale]);
   }, [selected?.id, selected?.text, locale]);
@@ -104,7 +107,7 @@ export function BaseVoiceSelector({
     return () => {
       player?.pause();
     };
-  }, [value, locale, selected?.generatedAt]);
+  }, [effectiveValue, locale, selected?.generatedAt]);
   useEffect(() => {
     if (working) {
       audio.current?.pause();
@@ -133,7 +136,7 @@ export function BaseVoiceSelector({
     setSubmitting(true);
     setError("");
     try {
-      await api(`base-voices/${value}/sample`, {
+      await api(`base-voices/${effectiveValue}/sample`, {
         method: "POST",
         body: JSON.stringify({ text, narrationSettings }),
       });
@@ -141,7 +144,7 @@ export function BaseVoiceSelector({
       window.dispatchEvent(new Event(queueChangedEvent));
       setVoices((current) =>
         current.map((voice) =>
-          voice.id === value
+          voice.id === effectiveValue
             ? { ...voice, status: "queued", progress: 0 }
             : voice,
         ),
@@ -188,7 +191,18 @@ export function BaseVoiceSelector({
           disabled={disabled || loading || (canGenerate && working)}
           onChange={(event) => onChange(event.target.value)}
         >
-          {!voices.some((voice) => voice.id === value) && (
+          {defaultVoice && (
+            <option value="">
+              {t("Default ({voice})").replace(
+                "{voice}",
+                t("Voice {number}").replace(
+                  "{number}",
+                  defaultVoice.split("-")[1],
+                ),
+              )}
+            </option>
+          )}
+          {value && !voices.some((voice) => voice.id === value) && (
             <option value={value}>
               {t("Voice {number}").replace("{number}", value.split("-")[1])}
             </option>
@@ -369,8 +383,8 @@ export function BaseVoiceSelector({
             setError("Could not play the example. Try again.");
           }}
           preload="none"
-          key={`${value}:${selected.generatedAt}`}
-          src={`/api/base-voices/${value}/sample?revision=${encodeURIComponent(selected.generatedAt ?? "")}`}
+          key={`${effectiveValue}:${selected.generatedAt}`}
+          src={`/api/base-voices/${effectiveValue}/sample?revision=${encodeURIComponent(selected.generatedAt ?? "")}`}
         />
       )}
       {error && (

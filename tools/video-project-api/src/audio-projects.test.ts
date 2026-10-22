@@ -97,6 +97,58 @@ test("editions protect originals, reserve atomically and skip existing internal 
     await clean();
   }
 });
+test("generated editions start at v2 without originals and leave room to import human recordings later", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "audio-without-originals-"),
+  );
+  try {
+    for (const environment of ["production", "development"] as const) {
+      const projects = new AudioProjects(root, environment);
+      assert.deepEqual(await projects.nextEdition("rv1960"), {
+        number: 2,
+        edition: "rv1960-v2",
+      });
+      assert.deepEqual(await projects.nextEdition(version.code), {
+        number: 2,
+        edition: "rv1909-v2",
+      });
+      const created = await projects.create(version, "rv1909-v2");
+      assert.equal(created.edition, "rv1909-v2");
+      assert.equal(created.number, 2);
+      assert.ok(created.projects.length > 0);
+      for (const name of ["rv1909", "rv1909-v1", "rv1960"]) {
+        await assert.rejects(fs.stat(path.join(projects.root, name)), {
+          code: "ENOENT",
+        });
+      }
+      for (const edition of ["rv1909", "rv1909-v1"]) {
+        await assert.rejects(
+          projects.create(version, edition),
+          /next audio version changed/,
+        );
+      }
+      // A later import into the reserved original directory must not affect numbering.
+      const original = path.join(projects.root, "rv1909");
+      await fs.mkdir(original);
+      await fs.writeFile(
+        path.join(original, "original.mp3"),
+        "human recording",
+      );
+      const restarted = new AudioProjects(root, environment);
+      assert.deepEqual(await restarted.nextEdition(version.code), {
+        number: 3,
+        edition: "rv1909-v3",
+      });
+      await restarted.create(version, "rv1909-v3");
+      assert.equal(
+        await fs.readFile(path.join(original, "original.mp3"), "utf8"),
+        "human recording",
+      );
+    }
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
 test("unowned folders, originals, traversal and symlinked audio cannot be accessed", async () => {
   const { root, projects, clean } = await fixture();
   try {

@@ -166,6 +166,7 @@ export const VeoBibleEpisode: React.FC<EpisodeCompositionProps> = (props) => {
           totalFrames={readingFrames}
         >
           <ReadingScene
+            website={outroTitle.website}
             boomerangVideoPath={boomerangVideoPath}
             sections={sections}
             voices={voices}

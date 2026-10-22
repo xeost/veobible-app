@@ -242,7 +242,7 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
         const wPhase = outroPhase(1.2, 0.18);
         const wAlpha = phaseAlpha(t, wPhase);
         const wY = phaseY(t, wPhase, sy(positionY(1418)), sy(26));
-        if (wAlpha <= 0) return null;
+        if (!outro.website || wAlpha <= 0) return null;
         return (
           <AnimatedText
             text={outro.website}

@@ -3,7 +3,8 @@ import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import { AudioLibrarySelector } from "./AudioLibrarySelector";
 import {
   projectBaseVoice,
-  voiceRoles,
+  defaultBaseVoices,
+  type BaseVoiceDefaults,
   roleLabels,
   type VoiceLocale,
 } from "../lib/base-voices";
@@ -106,6 +107,9 @@ export function VideoProjectEditor({
   const [project, setProject] = useState<EditorProject | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
   const [versionVolume, setVersionVolume] = useState(1);
+  const [baseVoiceDefaults, setBaseVoiceDefaults] = useState<
+    BaseVoiceDefaults["es"]
+  >(defaultBaseVoices().es);
   const readingVolumeValue = effectiveReadingVolume(settings, versionVolume);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -287,6 +291,7 @@ export function VideoProjectEditor({
         const data = await api<{
           video: EditorProject;
           defaults: Settings;
+          baseVoiceDefaults: BaseVoiceDefaults["es"];
           mediaAccess: NonNullable<typeof mediaAccess>;
         }>(base);
         if (!live) return;
@@ -296,6 +301,7 @@ export function VideoProjectEditor({
             : data.mediaAccess,
         );
         setVersionVolume(data.defaults.volumeMultiplier);
+        setBaseVoiceDefaults(data.baseVoiceDefaults);
         if (!initialized) {
           const values = settingsSchema.parse(
             data.video.settings && data.video.settings !== "{}"
@@ -312,6 +318,10 @@ export function VideoProjectEditor({
         throw cause;
       }
     };
+    const onFocus = () => {
+      void refresh().catch(() => {});
+    };
+    window.addEventListener("focus", onFocus);
     const stopPolling = pollWhileVisible(
       refresh,
       () =>
@@ -323,6 +333,7 @@ export function VideoProjectEditor({
     return () => {
       live = false;
       stopPolling();
+      window.removeEventListener("focus", onFocus);
     };
   }, [base, inspect]);
   useEffect(() => {
@@ -1709,53 +1720,66 @@ export function VideoProjectEditor({
                   "Choose voices and narration styles for this project. Existing recordings stay unchanged until you regenerate them.",
                 )}
               </p>
-              {voiceRoles.map((role) => (
-                <BaseVoiceSelector
-                  key={role}
-                  label={roleLabels[role]}
-                  preset={settings.voiceStylePresets?.[role]}
-                  onPresetChange={(preset) =>
-                    setSettings((current) => ({
-                      ...current,
-                      voiceStylePresets: {
-                        ...current.voiceStylePresets,
-                        [role]: preset,
-                      },
-                    }))
-                  }
-                  locale={project.locale as VoiceLocale}
-                  value={projectBaseVoice(
-                    settings,
-                    project.locale as VoiceLocale,
-                    role,
-                  )}
-                  onChange={(id) =>
-                    setSettings((current) => ({
-                      ...current,
-                      baseVoices: {
-                        intro: projectBaseVoice(
-                          current,
-                          project.locale as VoiceLocale,
-                          "intro",
-                        ),
-                        outro: projectBaseVoice(
-                          current,
-                          project.locale as VoiceLocale,
-                          "outro",
-                        ),
-                        reading: projectBaseVoice(
-                          current,
-                          project.locale as VoiceLocale,
-                          "reading",
-                        ),
-                        ...current.baseVoices,
-                        [role]: id,
-                      },
-                    }))
-                  }
-                  disabled={locked}
-                />
-              ))}
+              <div className="project-narration-columns">
+                {(["intro", "reading", "outro"] as const).map((role) => (
+                  <BaseVoiceSelector
+                    key={role}
+                    label={roleLabels[role]}
+                    preset={settings.voiceStylePresets?.[role]}
+                    onPresetChange={(preset) =>
+                      setSettings((current) => ({
+                        ...current,
+                        voiceStylePresets: {
+                          ...current.voiceStylePresets,
+                          [role]: preset,
+                        },
+                      }))
+                    }
+                    locale={project.locale as VoiceLocale}
+                    defaultVoice={baseVoiceDefaults[role]}
+                    value={
+                      settings.inheritedBaseVoiceRoles?.includes(role)
+                        ? ""
+                        : projectBaseVoice(
+                            settings,
+                            project.locale as VoiceLocale,
+                            role,
+                          )
+                    }
+                    onChange={(id) =>
+                      setSettings((current) => ({
+                        ...current,
+                        inheritedBaseVoiceRoles: [
+                          ...(current.inheritedBaseVoiceRoles ?? []).filter(
+                            (value) => value !== role,
+                          ),
+                          ...(!id ? [role] : []),
+                        ],
+                        baseVoices: {
+                          intro: projectBaseVoice(
+                            current,
+                            project.locale as VoiceLocale,
+                            "intro",
+                          ),
+                          reading: projectBaseVoice(
+                            current,
+                            project.locale as VoiceLocale,
+                            "reading",
+                          ),
+                          outro: projectBaseVoice(
+                            current,
+                            project.locale as VoiceLocale,
+                            "outro",
+                          ),
+                          ...current.baseVoices,
+                          ...(id ? { [role]: id } : {}),
+                        },
+                      }))
+                    }
+                    disabled={locked}
+                  />
+                ))}
+              </div>
               <p className="muted">
                 {t(
                   "Save changes to keep these voices and narration styles. Existing narrations change only when you regenerate them.",

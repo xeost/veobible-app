@@ -131,7 +131,7 @@ export function runAlignmentWorker(
   });
 }
 
-/** Align the exact synthesis transcript before publishing a generated recording. */
+/** Align a chapter transcript, optionally accounting for headings in original recordings. */
 export async function alignGeneratedSpeech(
   audio: string,
   duration: number,
@@ -139,6 +139,7 @@ export async function alignGeneratedSpeech(
   segments: Array<{ id: string; text: string; start: number; end: number }>,
   ffmpeg: string,
   onProgress: (value: number) => void,
+  detectHeadings = false,
 ) {
   const directory = await fs.mkdtemp(
     path.join(os.tmpdir(), "veobible-voice-alignment-"),
@@ -150,7 +151,7 @@ export async function alignGeneratedSpeech(
       request,
       JSON.stringify({
         language,
-        detectHeadings: false,
+        detectHeadings,
         chapters: [{ index: 0, audio, duration, segments }],
       }),
     );

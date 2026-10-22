@@ -118,7 +118,7 @@ function CreateAudioProjects({
         </div>
         <p className="muted">
           {t(
-            "Create one audio project for each book in a new audio version. Original recordings and previous audio versions are preserved.",
+            "Create one audio project for each book in a new audio version. Generated audio versions always start at version 2, even when original recordings are not available. Original recordings and previous audio versions are preserved.",
           )}
         </p>
         {error && (

@@ -1699,4 +1699,32 @@ export const spanish: Record<string, string> = {
   "Filter status": "Filtrar por estado",
   "No audio projects match these filters.":
     "No hay proyectos de audio que coincidan con estos filtros.",
+  "Configure the video domain and social media accounts for each language.":
+    "Configura el dominio de los videos y las cuentas de redes sociales para cada idioma.",
+  "Video domain and social media accounts":
+    "Dominio de los videos y cuentas de redes sociales",
+  "Video domain": "Dominio de los videos",
+  "Enter the domain to display at the end of videos, such as veobible.com. Leave it empty to hide it. Each language needs its own domain setting.":
+    "Introduce el dominio que se mostrará al final de los videos, por ejemplo veobible.com. Déjalo vacío para ocultarlo. Debes configurarlo para cada idioma.",
+  "Enter a domain such as veobible.com, without https://, paths or spaces.":
+    "Introduce un dominio como veobible.com, sin https://, rutas ni espacios.",
+  "Could not load settings. Reload the page to try again.":
+    "No se pudieron cargar los ajustes. Recarga la página para volver a intentarlo.",
+  "Default ({voice})": "Predeterminada ({voice})",
+  "Create one audio project for each book in a new audio version. Generated audio versions always start at version 2, even when original recordings are not available. Original recordings and previous audio versions are preserved.":
+    "Crea un proyecto de audio por libro en una nueva versión de audio. Las versiones de audio generado siempre empiezan en la versión 2, aunque no haya grabaciones originales disponibles. Se conservan las grabaciones originales y las versiones de audio anteriores.",
+  "Listen to original audio": "Escuchar audio original",
+  "Original recording": "Grabación original",
+  "Could not locate the original verse audio. Try again.":
+    "No se pudo localizar el audio original del versículo. Vuelve a intentarlo.",
+  "Waiting to locate original audio…":
+    "Esperando para localizar el audio original…",
+  "Locating original verse audio…":
+    "Localizando el audio original del versículo…",
+  "The original recording changed or is unavailable. Prepare it again.":
+    "La grabación original cambió o no está disponible. Vuelve a prepararla.",
+  "Try again": "Volver a intentar",
+  "Could not play the audio. Try again.":
+    "No se pudo reproducir el audio. Vuelve a intentarlo.",
+  "Retry playback": "Reintentar reproducción",
 };

@@ -52,6 +52,7 @@ export async function syncVideoProjects(
         version.code,
       ),
       baseVoices: (await loadBaseVoiceDefaults(database, kind))[version.locale],
+      inheritedBaseVoiceRoles: ["intro", "reading", "outro"],
       voiceStylePresets: (await loadVoiceStyleDefaults(database, kind))[
         version.locale
       ],
