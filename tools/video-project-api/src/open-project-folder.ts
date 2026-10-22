@@ -13,6 +13,24 @@ const finderScript = `on assertProjectWindow(projectWindow, projectFolder)
   end tell
 end assertProjectWindow
 
+on projectNameHeader(projectWindow, projectFolder)
+  my assertProjectWindow(projectWindow, projectFolder)
+  tell application "System Events"
+    tell process "Finder"
+      if not frontmost then error "Finder is no longer in front."
+      set windowElements to entire contents of front window
+      -- Name is the first column in Finder's list view. Use its accessibility
+      -- role instead of its title so this also works with localized Finder.
+      repeat with windowElement in windowElements
+        if role of windowElement is "AXButton" then
+          if subrole of windowElement is "AXSortButton" then return contents of windowElement
+        end if
+      end repeat
+    end tell
+  end tell
+  error "Could not find the project folder Name column."
+end projectNameHeader
+
 on run argv
   set folderPath to item 1 of argv
   tell application "Finder"
@@ -42,13 +60,17 @@ on run argv
         keystroke "1" using {control down, option down, command down}
       end tell
     end tell
-    -- The native command can toggle an already selected Name column. Apply
-    -- ascending direction after it settles so it cannot reverse our setting.
+    -- The native command can leave Name descending. Read the visible header,
+    -- since setting AppleScript's direction can leave the displayed rows stale.
     delay 0.2
+    set nameHeader to my projectNameHeader(projectWindow, projectFolder)
     my assertProjectWindow(projectWindow, projectFolder)
-    tell application "Finder"
-      tell list view options of projectWindow
-        set sort direction of column id name column to normal
+    tell application "System Events"
+      tell process "Finder"
+        if not frontmost then error "Finder is no longer in front."
+        if value of attribute "AXSortDirection" of nameHeader is "AXDescendingSortDirection" then
+          click nameHeader
+        end if
       end tell
     end tell
     -- Observe without writes so a delayed restoration triggers another native
@@ -61,6 +83,15 @@ on run argv
         if current view of projectWindow is not list view then error "Project folder view changed."
         tell list view options of projectWindow
           if (name of sort column is not name column) or (sort direction of column id name column is not normal) then
+            set sortRestored to false
+            exit repeat
+          end if
+        end tell
+      end tell
+      tell application "System Events"
+        tell process "Finder"
+          if not frontmost then error "Finder is no longer in front."
+          if value of attribute "AXSortDirection" of nameHeader is not "AXAscendingSortDirection" then
             set sortRestored to false
             exit repeat
           end if

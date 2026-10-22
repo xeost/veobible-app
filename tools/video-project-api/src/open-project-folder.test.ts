@@ -88,20 +88,35 @@ test("Finder targets the project folder in list view sorted by name ascending an
         assert.match(script, /set projectWindow to Finder window id/);
         assert.match(script, /set current view of projectWindow to list view/);
         assert.match(script, /set sort column to column id name column/);
-        assert.match(
-          script,
-          /set sort direction of column id name column to normal/,
-        );
         // Script property readbacks can be stale. Sorting must also use the
         // native command, with all three modifiers (without Option it groups).
         const nativeSort = script.indexOf('keystroke "1"');
         assert.ok(nativeSort > script.indexOf("set sort column"));
-        const ascendingSort = script.indexOf("set sort direction");
+        const ascendingSort = script.indexOf("click nameHeader");
         assert.ok(ascendingSort > nativeSort);
         assert.match(script.slice(nativeSort, ascendingSort), /delay 0\.2/);
         assert.match(
           script.slice(nativeSort, ascendingSort),
           /my assertProjectWindow\(projectWindow, projectFolder\)/,
+        );
+        // Only toggle a visibly descending header. Repeating an already
+        // ascending open must not reverse it, even if script readbacks are stale.
+        assert.match(
+          script,
+          /if value of attribute "AXSortDirection" of nameHeader is "AXDescendingSortDirection" then\s+click nameHeader\s+end if/,
+        );
+        assert.doesNotMatch(script, /set sort direction/);
+        assert.match(
+          script,
+          /set nameHeader to my projectNameHeader\(projectWindow, projectFolder\)/,
+        );
+        assert.match(
+          script,
+          /set windowElements to entire contents of front window/,
+        );
+        assert.match(
+          script,
+          /if subrole of windowElement is "AXSortButton" then return contents of windowElement/,
         );
         assert.match(
           script.slice(nativeSort),
@@ -126,14 +141,21 @@ test("Finder targets the project folder in list view sorted by name ascending an
         const success = script.indexOf("if sortRestored then return", observe);
         assert.ok(observe > ascendingSort && success > observe);
         assert.match(script.slice(observe, success), /delay 0\.1/);
-        assert.match(script.slice(observe, success), /set sortRestored to false/);
+        assert.match(
+          script.slice(observe, success),
+          /set sortRestored to false/,
+        );
         assert.match(
           script.slice(observe, success),
           /name of sort column is not name column/,
         );
+        assert.match(
+          script.slice(observe, success),
+          /value of attribute "AXSortDirection" of nameHeader is not "AXAscendingSortDirection" then\s+set sortRestored to false\s+exit repeat/,
+        );
         assert.doesNotMatch(
           script.slice(observe, success),
-          /then return|set sort column|keystroke/,
+          /then return|set sort column|keystroke|click nameHeader/,
         );
         assert.match(script, /repeat 3 times/);
         assert.match(

@@ -3,11 +3,18 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
-from cli import tokens, validate, word_units, windows, align_chapter, detect_heading
+from cli import tokens, validate, word_units, windows, align_chapter, detect_heading, recording_transcript
 from headings import spoken_prefix
 
 
 class AlignmentTests(unittest.TestCase):
+    def test_external_psalm_performance_marks_do_not_replace_bible_content(self):
+        chapter = {"segments": [{"id": "Salmos 46:3", "text": "Bramarán sus aguas. (Selah.)"}]}
+        prepared = recording_transcript(chapter)
+        self.assertEqual(prepared["segments"][0]["text"].strip(), "Bramarán sus aguas.")
+        self.assertEqual(chapter["segments"][0]["text"], "Bramarán sus aguas. (Selah.)")
+        self.assertEqual(tokens(chapter["segments"][0]["text"])[-1], "Selah")
+
     def test_spoken_headings_and_numbers_are_separate_from_bible_text(self):
         examples = [
             ("Capítulo 4. Y conoció Adán a su mujer Eva la cual concibió",
@@ -40,6 +47,28 @@ class AlignmentTests(unittest.TestCase):
         with patch("cli.subprocess.run") as convert, self.assertRaisesRegex(ValueError, "chapter opening"):
             detect_heading(chapter, model, "es", "ffmpeg")
         self.assertEqual(convert.call_count, 2)
+
+    def test_psalm_superscription_is_excluded_only_when_recording_omits_it(self):
+        title = "Al Músico principal: de los hijos de Coré: Salmo sobre Alamoth. "
+        verse = "Dios es nuestro amparo y fortaleza Nuestro pronto auxilio en las tribulaciones"
+        for spoken in ("Salmo cuarenta y seis " + verse, title + verse):
+            chapter = {"audio": "audio.mp3", "duration": 80, "segments": [
+                {"id": "Salmos 46:1", "text": title + verse, "start": 0, "end": 20}]}
+            model = SimpleNamespace(generate=lambda **kwargs: SimpleNamespace(text=spoken))
+            with patch("cli.subprocess.run"):
+                prefix = detect_heading(chapter, model, "es", "ffmpeg")
+            if spoken.startswith("Salmo cuarenta"):
+                self.assertEqual(prefix, tokens("Salmo cuarenta y seis"))
+                self.assertEqual(chapter["segments"][0]["text"], verse)
+                self.assertEqual(chapter["omittedOpening"], "Salmos 46:1")
+            else:
+                self.assertEqual(prefix, [])
+                self.assertEqual(chapter["segments"][0]["text"], title + verse)
+                self.assertNotIn("omittedOpening", chapter)
+
+        model = SimpleNamespace(generate=lambda **kwargs: SimpleNamespace(text="Otro texto sin coincidencia"))
+        with patch("cli.subprocess.run"), self.assertRaisesRegex(ValueError, "chapter opening"):
+            detect_heading(chapter, model, "es", "ffmpeg")
 
     def test_alignment_discards_heading_words_and_keeps_source_coordinates(self):
         chapter = {"index": 0, "audio": "audio.mp3", "duration": 20, "segments": [

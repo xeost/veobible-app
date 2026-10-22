@@ -25,6 +25,17 @@ def tokens(text):
         ch for ch in word if ch == "'" or unicodedata.category(ch)[0] in "LN"))]
 
 
+def recording_transcript(chapter):
+    """Exclude parenthetical Psalm performance marks from external speech.
+
+    Keep generated transcripts exact: synthesized voices may read these marks.
+    The Bible content supplied by the caller is never changed.
+    """
+    return {**chapter, "segments": [
+        {**segment, "text": re.sub(r"\(Selah[.,;:]?\)", "", segment["text"], flags=re.IGNORECASE)}
+        for segment in chapter["segments"]]}
+
+
 def validate(request):
     if request.get("language") not in LANGUAGES:
         raise ValueError("Unsupported language")
@@ -93,6 +104,12 @@ def windows(units, duration):
 
 def detect_heading(chapter, model, language, ffmpeg):
     bible_words = [word for segment in chapter["segments"] for word in tokens(segment["text"])]
+    # Some Psalm recordings omit the superscription printed inside verse 1.
+    # Only try a clearly labelled title, and require the same acoustic opening
+    # match as usual before excluding it from the alignment transcript.
+    first = chapter["segments"][0]
+    title = (re.match(r"^Al Músico principal\b[^.]*\.\s*(.+)$", first["text"], re.IGNORECASE)
+             if language == "es" else None)
     with tempfile.TemporaryDirectory(prefix="veobible-heading-") as directory:
         wav = str(Path(directory) / "opening.wav")
         for limit in (30, 60):
@@ -107,6 +124,12 @@ def detect_heading(chapter, model, language, ffmpeg):
             prefix = spoken_prefix(tokens(text), bible_words)
             if prefix is not None:
                 return prefix
+            if title:
+                prefix = spoken_prefix(tokens(text), tokens(title[1]))
+                if prefix is not None:
+                    chapter["segments"] = [{**first, "text": title[1]}, *chapter["segments"][1:]]
+                    chapter["omittedOpening"] = first["id"]
+                    return prefix
             if duration >= chapter["duration"]:
                 break
     # Do not save guessed boundaries when an introduction cannot be separated.
@@ -227,7 +250,8 @@ def align_chapter(chapter, model, language, ffmpeg, progress, prefix=(), refine=
             raise ValueError(f"{error}: {segment['id']}")
         # A long internal gap may be a spoken heading matched to a verse's first word.
         # Flag it for listening rather than reporting a calibrated confidence score.
-        needs_review = (sum(word["end"] <= word["start"] for word in words) > max(1, len(words) * 0.2)
+        needs_review = (chapter.get("omittedOpening") == segment["id"]
+                        or sum(word["end"] <= word["start"] for word in words) > max(1, len(words) * 0.2)
                         or any(b["start"] - a["end"] > 2.0 for a, b in zip(words, words[1:])))
         segments.append({"id": segment["id"], "words": words, "needsReview": needs_review})
     return {"index": chapter["index"], "segments": segments}
@@ -260,6 +284,7 @@ def main():
     # Only external chapter recordings need recognition of untranscribed headings.
     prefixes = [[] for _ in request["chapters"]]
     if request.get("detectHeadings", True):
+        request["chapters"] = [recording_transcript(chapter) for chapter in request["chapters"]]
         with contextlib.redirect_stdout(sys.stderr):
             recognizer = load(args.asr_model)
         for index, chapter in enumerate(request["chapters"]):

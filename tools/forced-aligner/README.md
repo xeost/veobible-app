@@ -25,6 +25,8 @@ Before alignment, the worker transcribes only the first 30 seconds of each chapt
 
 ## Worker contract
 
+External Psalm recordings may omit performance marks printed in the Bible text. Parenthetical `(Selah.)` marks are excluded from their alignment transcript. A Spanish superscription beginning `Al Músico principal` and ending with a period is excluded only when recognition cannot match it but reliably matches the following verse opening. The affected opening verse is flagged for review. These adjustments retain verse identifiers and source coordinates, leave Bible display text unchanged, and do not apply to generated recordings (`detectHeadings: false`).
+
 ```sh
 tools/forced-aligner/.venv/bin/python tools/forced-aligner/cli.py \
   --request /path/to/request.json --output /path/to/result.json
