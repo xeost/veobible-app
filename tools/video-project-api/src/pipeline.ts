@@ -490,7 +490,12 @@ export async function analyze(
           input.settings.readingVoices?.[index]?.verseOffsets ?? [],
           track.duration,
         );
-        nextSections.push({ file: track.file, start: 0, end: track.duration });
+        nextSections.push({
+          file: track.file,
+          start: 0,
+          end: track.duration,
+          generatedVoice: true,
+        });
         nextCues.push(
           ...adjusted.map((cue) => ({
             ...cue,

@@ -5,6 +5,7 @@ import type { ChapterTrack } from "../../../chapter-introductions";
 
 export interface AudioSection {
   file: string;
+  generatedVoice?: boolean;
   /** Reading timeline start, excluding leading scene silence. */
   timelineStart?: number;
   start: number;
@@ -74,7 +75,7 @@ export interface ShortCompositionProps {
   sections: AudioSection[];
   /** Optional voice-over tracks. */
   voices?: VoiceTracks;
-  /** Volume multiplier for the Bible reading audio (1 = original). */
+  /** Volume multiplier for original Bible recordings; generated reading voices stay at 1. */
   volumeMultiplier: number;
 
   // Design data

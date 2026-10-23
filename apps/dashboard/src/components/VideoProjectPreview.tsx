@@ -236,7 +236,7 @@ export function VideoProjectPreview({
         ? {
             ...preview.props,
             // Prepared cues use the same cut-and-transition timeline as final rendering.
-            // Only ReadingScene consumes this gain; narration keeps its original volume.
+            // Only original reading sources consume this gain; generated voices keep their own volume.
             volumeMultiplier: readingVolume,
             introVideoPath: media(preview.props.introVideoPath),
             boomerangVideoPath: media(preview.props.boomerangVideoPath),

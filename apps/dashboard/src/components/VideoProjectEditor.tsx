@@ -47,6 +47,7 @@ import {
   CircleCheck,
   ScanText,
   UnfoldHorizontal,
+  Volume2,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
@@ -1201,7 +1202,7 @@ export function VideoProjectEditor({
             sourceDuration={track.duration}
             timelineStart={0}
             onExpand={() => {}}
-            volumeMultiplier={readingVolumeValue}
+            volumeMultiplier={1}
             cues={generatedCues}
             disabled={voiceLocked || analyzing}
             onRegenerate={() =>
@@ -2183,6 +2184,22 @@ export function VideoProjectEditor({
                             section.originalAvailable === false,
                           )}
                           textOnly={section.originalAvailable === false}
+                          toolbarActions={
+                            <>
+                              <span
+                                className="waveform-volume-indicator"
+                                data-tooltip={`${t("Original recording volume")}: ${readingVolumeValue.toFixed(2)}×`}
+                                aria-label={`${t("Original recording volume")}: ${readingVolumeValue.toFixed(2)}×`}
+                              >
+                                <Volume2 size={16} aria-hidden="true" />
+                                {readingVolumeValue.toFixed(2)}×
+                              </span>
+                              <span
+                                className="section-action-separator"
+                                aria-hidden="true"
+                              />
+                            </>
+                          }
                           resourceKey={`${base}:${id}`}
                           onPrepared={onWaveformPrepared}
                           expanded={expanded.has(id)}
@@ -2224,7 +2241,10 @@ export function VideoProjectEditor({
                             )
                           }
                         </VerseWaveform>
-                        {readingVolume}
+                        {!(
+                          settings.readingVoices?.[section.index]?.enabled ||
+                          section.originalAvailable === false
+                        ) && readingVolume}
                       </div>
                     </section>
                   </div>

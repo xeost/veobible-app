@@ -2,6 +2,7 @@ import { verseAnimationSpans } from "./verse-animation";
 
 interface AudioSection {
   file: string;
+  generatedVoice?: boolean;
   start: number;
   end: number;
 }
@@ -40,6 +41,7 @@ export function buildVerseReading<T extends { start: number; end: number }>(
       if (to <= from) continue;
       scheduled.push({
         file: source.file,
+        ...(source.generatedVoice ? { generatedVoice: true } : {}),
         start: source.start + from - source.offset,
         end: source.start + to - source.offset,
         timelineStart: elapsed,

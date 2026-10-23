@@ -800,6 +800,7 @@ for (const [kind, outputEnvironment] of [
     );
     const effective = await analyze(generatedInput);
     assert.equal(effective.sections[0].file, generatedPath);
+    assert.equal(effective.sections[0].generatedVoice, true);
     const original = await analyze({
       ...generatedInput,
       settings: {
@@ -846,7 +847,7 @@ for (const [kind, outputEnvironment] of [
     };
     assert.ok(
       readingPreview.props.sections.every(
-        (section) => previewAsset(section.file, previewScope) === generatedPath,
+        (section) => previewAsset(section.file, previewScope) === generatedPath && section.generatedVoice === true,
       ),
     );
     // Text analysis and generation remain available without an external recording.

@@ -12,6 +12,7 @@
  */
 
 import React from "react";
+import { readingSourceVolume } from "../../../reading-volume";
 import { Video } from "@remotion/media";
 import { useCurrentFrame, useVideoConfig, Audio, Sequence } from "remotion";
 import {
@@ -144,11 +145,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
             trimAfter={section.end * fps}
             // Delay into this segment: scheduleStart frames from the start of the reading scene
             // Remotion offsets are controlled via Sequence wrapper in the root composition.
-            volume={
-              volumeMultiplier > 1
-                ? Math.min(volumeMultiplier, 4)
-                : volumeMultiplier
-            }
+            volume={readingSourceVolume(section, volumeMultiplier)}
           />
         </Sequence>
       ))}

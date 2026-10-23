@@ -5,6 +5,7 @@ import { Video } from "@remotion/media";
 import { useCurrentFrame, useVideoConfig, Audio, Sequence } from "remotion";
 import { layoutVerse, verseTextPhases, phaseAlpha, phaseY } from "./animation";
 import type { VerseCue, AudioSection, VoiceTracks, RGB } from "./types";
+import { readingSourceVolume } from "../../../reading-volume";
 import { AnimatedText } from "./AnimatedText";
 
 const paper = {
@@ -123,7 +124,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
             crossOrigin="anonymous"
             trimBefore={section.start * fps}
             trimAfter={section.end * fps}
-            volume={Math.min(volumeMultiplier, 4)}
+            volume={readingSourceVolume(section, volumeMultiplier)}
           />
         </Sequence>
       ))}

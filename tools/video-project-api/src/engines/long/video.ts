@@ -49,6 +49,7 @@ const execFileAsync = promisify(execFile);
 // ─── types (re-exported for callers) ─────────────────────────────────────────
 export interface AudioSection {
   file: string;
+  generatedVoice?: boolean;
   start: number;
   end: number;
 }

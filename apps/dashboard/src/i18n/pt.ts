@@ -830,6 +830,7 @@ export const portuguese: Record<string, string> = {
   "Reading audio · section": "Áudio de leitura · seção",
   "Reading plan · 365 days": "Plano de leitura · 365 dias",
   "Reading volume": "Volume de leitura",
+  "Original recording volume": "Volume da gravação original",
   "Reading volume must be between 0 and 4.":
     "O volume de leitura deve estar entre 0 e 4.",
   "Reading volume:": "Volume de leitura:",
