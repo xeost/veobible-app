@@ -1,3 +1,7 @@
+import {
+  audioVerseApproval,
+  isAudioVerseApproved,
+} from "../../../../tools/video-project-api/src/audio-approvals";
 import { withAudioVersePause } from "./audio-settings";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -477,6 +481,96 @@ test("global audio pause overrides legacy verse pauses and is frozen in the queu
         .settings,
       job.project.settings,
     );
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("verse approvals persist without invalidating completed chapter audio and follow recording revisions", async () => {
+  const { sqlite, database, project } = fixture();
+  try {
+    project.recordings["1:1"] = {
+      file: "jude/one.wav",
+      duration: 2,
+      revision: "first",
+    };
+    project.settings.trims["1:1"] = { startSeconds: 0.2, endSeconds: 1.8 };
+    project.chapters["1"] = { file: "65-jude-1.mp3", revision: "final" };
+    project.status = "done";
+    await insertAudioProjects(database, [project]);
+    const approval = audioVerseApproval(project, project.settings, "1:1")!;
+    const saved = await saveAudioProject(
+      database,
+      project.edition,
+      project.book,
+      {
+        revision: project.revision,
+        settings: { ...project.settings, approvals: { "1:1": approval } },
+      },
+    );
+    assert.equal(saved.status, "done");
+    assert.deepEqual(saved.chapters, project.chapters);
+    const reloaded = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.equal(
+      isAudioVerseApproved(reloaded, reloaded.settings, "1:1"),
+      true,
+    );
+    const unapproved = await saveAudioProject(
+      database,
+      project.edition,
+      project.book,
+      {
+        revision: saved.revision,
+        settings: { ...saved.settings, approvals: {} },
+      },
+    );
+    assert.deepEqual(unapproved.chapters, project.chapters);
+    assert.equal(
+      isAudioVerseApproved(unapproved, unapproved.settings, "1:1"),
+      false,
+    );
+    const again = await saveAudioProject(
+      database,
+      project.edition,
+      project.book,
+      {
+        revision: unapproved.revision,
+        settings: saved.settings,
+      },
+    );
+    const changed = await saveAudioProject(
+      database,
+      project.edition,
+      project.book,
+      {
+        revision: again.revision,
+        settings: {
+          ...again.settings,
+          trims: { "1:1": { startSeconds: 0.3, endSeconds: 1.8 } },
+        },
+      },
+    );
+    assert.equal(isAudioVerseApproved(changed, changed.settings, "1:1"), false);
+    assert.deepEqual(changed.chapters, {});
+    const job = await beginAudioJob(database, project.edition, project.book);
+    assert.deepEqual(job.project.settings.approvals, saved.settings.approvals);
+    const updated: AudioProject = structuredClone(job.project);
+    updated.status = "draft";
+    updated.recordings["1:1"].revision = "regenerated";
+    await applyAudioEvent(
+      database,
+      job.id,
+      job.jobId,
+      { sequence: 1, project: updated },
+      job.token,
+    );
+    const after = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.deepEqual(after.settings.approvals, saved.settings.approvals);
+    assert.equal(isAudioVerseApproved(after, after.settings, "1:1"), false);
   } finally {
     sqlite.close();
   }

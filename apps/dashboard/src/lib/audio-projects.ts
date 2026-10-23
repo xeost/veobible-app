@@ -1,4 +1,5 @@
 import { withAudioVersePause } from "./audio-settings";
+import { audioMixSettingsChanged } from "../../../../tools/video-project-api/src/audio-approvals";
 import {
   audioProjectSchema,
   audioSaveSchema,
@@ -178,6 +179,7 @@ function validateSettings(project: AudioProject) {
   for (const ref of [
     ...Object.keys(project.settings.trims),
     ...Object.keys(project.settings.pauses),
+    ...Object.keys(project.settings.approvals ?? {}),
     ...Object.keys(project.recordings),
   ])
     if (!refs.has(ref)) throw new AudioDatabaseError("Verse not found.", 400);
@@ -209,8 +211,7 @@ export async function saveAudioProject(
     throw new AudioDatabaseError("Wait for audio generation to finish.");
   const updated = { ...project, settings: input.settings };
   validateSettings(updated);
-  const changed =
-    JSON.stringify(project.settings) !== JSON.stringify(input.settings);
+  const changed = audioMixSettingsChanged(project.settings, input.settings);
   const result = await database
     .prepare(
       `UPDATE audio_projects SET settings=?,chapters=?,status=?,revision=revision+1,active_job_id=NULL,callback_hash=NULL,job_sequence=0,updated_at=? WHERE id=? AND revision=? AND status NOT IN ('queued','running')`,

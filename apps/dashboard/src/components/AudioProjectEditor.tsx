@@ -23,6 +23,10 @@ import { queueChangedEvent } from "../lib/generation-queue";
 import { useProjectBreadcrumb } from "./ProjectBreadcrumb";
 import { useToast } from "./ToastProvider";
 import { pollWhileVisible } from "../lib/visible-polling";
+import {
+  audioVerseApproval,
+  isAudioVerseApproved,
+} from "../../../../tools/video-project-api/src/audio-approvals";
 export function AudioProjectEditor({
   edition,
   book,
@@ -96,16 +100,38 @@ export function AudioProjectEditor({
     setDirty(true);
     dirtyRef.current = true;
   };
-  const save = async () => {
-    if (!project || !settings) return;
+  const save = async (nextSettings = settings) => {
+    if (!project || !nextSettings) return;
     const saved = await api<AudioProjectDetail>(endpoint, {
       method: "PUT",
-      body: JSON.stringify({ revision: project.revision, settings }),
+      body: JSON.stringify({
+        revision: project.revision,
+        settings: nextSettings,
+      }),
     });
     setProject({ ...project, ...saved });
     setSettings(saved.settings);
     setDirty(false);
     dirtyRef.current = false;
+  };
+  const toggleApproval = async (reference: string) => {
+    if (!project || !settings || busyRef.current || pendingRef.current) return;
+    const approval = audioVerseApproval(project, settings, reference);
+    if (!approval) return;
+    const approvals = { ...settings.approvals };
+    if (isAudioVerseApproved(project, settings, reference))
+      delete approvals[reference];
+    else approvals[reference] = approval;
+    setBusy(true);
+    busyRef.current = true;
+    try {
+      await save({ ...settings, approvals });
+    } catch {
+      notify("Could not save the verse approval. Try again.", "error");
+    } finally {
+      setBusy(false);
+      busyRef.current = false;
+    }
   };
   const generate = async (
     scope: {
@@ -303,6 +329,7 @@ export function AudioProjectEditor({
               }
               change={change}
               generate={generate}
+              onToggleApproval={toggleApproval}
               media={media}
               onPlay={(audio) => {
                 Object.values(players.current).forEach((other) => {

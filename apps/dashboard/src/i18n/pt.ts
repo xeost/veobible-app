@@ -87,6 +87,13 @@ export const portuguese: Record<string, string> = {
     "Analisa as vozes geradas com IA. Atualiza os cortes de todos os versículos gravados deste capítulo.",
   "Analyzing verse audio…": "Analisando áudio do versículo…",
   "Generate all verse voices": "Gerar as vozes de todos os versículos",
+  "Approve verse": "Aprovar versículo",
+  Approved: "Aprovado",
+  "Remove verse approval": "Remover aprovação do versículo",
+  "{total} verses · {generated} generated · {approved} approved":
+    "{total} versículos · {generated} gerados · {approved} aprovados",
+  "Could not save the verse approval. Try again.":
+    "Não foi possível salvar a aprovação do versículo. Tente novamente.",
   "Use full recordings": "Usar gravações completas",
   "Analyze this verse audio with AI": "Analisar o áudio deste versículo com IA",
   "These voices are saved with this project. Changing the defaults does not change these selections.":

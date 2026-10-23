@@ -35,6 +35,12 @@ export const audioSettingsSchema = z.object({
   baseVoice: baseVoiceSchema,
   narrationPreset: narrationPresetSelectionSchema.optional(),
   trims: z.record(z.string().regex(/^\d+:\d+$/), audioTrimSchema).default({}),
+  approvals: z
+    .record(
+      z.string().regex(/^\d+:\d+$/),
+      z.object({ recordingRevision: z.string(), trim: audioTrimSchema }),
+    )
+    .optional(),
   pauses: z
     .record(z.string().regex(/^\d+:\d+$/), z.number().finite().min(0).max(10))
     .default({}),

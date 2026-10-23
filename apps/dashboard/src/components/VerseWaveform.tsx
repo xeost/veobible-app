@@ -59,6 +59,7 @@ export function VerseWaveform({
   onSelectReference,
   toolbarLeading,
   toolbarActions,
+  playbackActions,
   regenerateLabel = "Regenerate reading voice",
   children,
   versePicker,
@@ -101,6 +102,7 @@ export function VerseWaveform({
   onSelectReference?: (reference: string) => void;
   toolbarLeading?: ReactNode;
   toolbarActions?: ReactNode;
+  playbackActions?: ReactNode;
   regenerateLabel?: string;
   children?:
     | ReactNode
@@ -773,6 +775,7 @@ export function VerseWaveform({
                       </button>
                     </>
                   )}
+                  {playbackActions}
                 </div>
               )}
             </>

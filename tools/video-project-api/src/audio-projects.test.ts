@@ -1,3 +1,4 @@
+import { audioVerseApproval, isAudioVerseApproved } from "./audio-approvals.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
@@ -961,6 +962,63 @@ test("chapter analysis realigns only existing voices, preserves recordings and s
     assert.deepEqual(
       failed.settings.trims["1:3"],
       aligned.settings.trims["1:3"],
+    );
+  } finally {
+    await clean();
+  }
+});
+
+test("approving saved voices preserves final audio and regenerated voices need review again", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    const generated = generation();
+    let run!: () => Promise<void>;
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      {},
+      (task) => {
+        run = task;
+      },
+      generated.dependencies,
+    );
+    await run();
+    const before = await projects.read("rv1909-v2", "jude");
+    assert.equal(before.status, "done");
+    const approved = await projects.save("rv1909-v2", "jude", {
+      revision: before.revision,
+      settings: {
+        ...before.settings,
+        approvals: {
+          "1:1": audioVerseApproval(before, before.settings, "1:1")!,
+        },
+      },
+    });
+    assert.equal(approved.status, "done");
+    assert.deepEqual(approved.chapters, before.chapters);
+    assert.equal(
+      isAudioVerseApproved(approved, approved.settings, "1:1"),
+      true,
+    );
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 1, regenerate: true },
+      (task) => {
+        run = task;
+      },
+      generated.dependencies,
+    );
+    await run();
+    const regenerated = await projects.read("rv1909-v2", "jude");
+    assert.equal(
+      isAudioVerseApproved(regenerated, regenerated.settings, "1:1"),
+      false,
+    );
+    assert.deepEqual(
+      regenerated.settings.approvals,
+      approved.settings.approvals,
     );
   } finally {
     await clean();

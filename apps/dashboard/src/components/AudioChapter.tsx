@@ -5,12 +5,13 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
-  Mic,
   Combine,
   RotateCcw,
   WandSparkles,
   ScanText,
+  CircleCheck,
 } from "lucide-react";
+import { isAudioVerseApproved } from "../../../../tools/video-project-api/src/audio-approvals";
 import type {
   AudioProjectDetail,
   AudioSettings,
@@ -34,6 +35,7 @@ export function AudioChapter({
   generate,
   media,
   onPlay,
+  onToggleApproval,
 }: {
   chapter: AudioProjectDetail["content"][number];
   project: AudioProjectDetail;
@@ -54,6 +56,7 @@ export function AudioChapter({
   }) => Promise<void>;
   media: (chapter: number, verse?: number, revision?: string) => string;
   onPlay: (audio: HTMLAudioElement) => void;
+  onToggleApproval: (reference: string) => Promise<void>;
 }) {
   const { t } = useI18n();
   const activeTask =
@@ -64,6 +67,7 @@ export function AudioChapter({
   const verse = chapter.verses[selection.index] ?? chapter.verses[0];
   const reference = `${chapter.chapter}:${verse.verse}`;
   const recording = project.recordings[reference];
+  const approved = isAudioVerseApproved(project, settings, reference);
   const generationLocked =
     submitting ||
     tasks.some((task) => !task.verse || task.verse === verse.verse);
@@ -75,6 +79,9 @@ export function AudioChapter({
   const collapseTop = useRef<number | null>(null);
   const completed = chapter.verses.filter(
     (v) => project.recordings[`${chapter.chapter}:${v.verse}`],
+  ).length;
+  const approvedCount = chapter.verses.filter((v) =>
+    isAudioVerseApproved(project, settings, `${chapter.chapter}:${v.verse}`),
   ).length;
   const references = chapter.verses.map((v) => `${chapter.chapter}:${v.verse}`);
   const hasCuts = references.some((ref) => settings.trims[ref]);
@@ -141,7 +148,12 @@ export function AudioChapter({
             aria-pressed={selection.index === index}
             onClick={() => selectVerse(index)}
           >
-            <span>{ref}</span>
+            <span className="audio-verse-label">
+              {ref}
+              {isAudioVerseApproved(project, settings, ref) && (
+                <CircleCheck size={13} aria-label={t("Approved")} role="img" />
+              )}
+            </span>
             <small>
               {audio
                 ? `${(trim?.startSeconds ?? 0).toFixed(2)}–${(trim?.endSeconds ?? audio.duration).toFixed(2)} s`
@@ -182,7 +194,10 @@ export function AudioChapter({
           <span className="section-heading-text">
             <strong>{title}</strong>
             <small>
-              {completed} / {chapter.verses.length} {t("verses")}
+              {t("{total} verses · {generated} generated · {approved} approved")
+                .replace("{total}", String(chapter.verses.length))
+                .replace("{generated}", String(completed))
+                .replace("{approved}", String(approvedCount))}
             </small>
           </span>
         </button>
@@ -314,6 +329,29 @@ export function AudioChapter({
               resetRevision={resetRevision + project.revision}
               preservedReferences={[reference]}
               versePicker={versePicker}
+              playbackActions={
+                <>
+                  <span
+                    className="section-action-separator"
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    className="icon-button verse-playback-icon audio-verse-approval"
+                    aria-pressed={approved}
+                    aria-label={t(
+                      approved ? "Remove verse approval" : "Approve verse",
+                    )}
+                    data-tooltip={t(
+                      approved ? "Remove verse approval" : "Approve verse",
+                    )}
+                    disabled={locked}
+                    onClick={() => void onToggleApproval(reference)}
+                  >
+                    <CircleCheck size={16} aria-hidden="true" />
+                  </button>
+                </>
+              }
               toolbarActions={
                 <>
                   <button
@@ -415,7 +453,7 @@ export function AudioChapter({
                     })
                   }
                 >
-                  <Mic size={15} />
+                  <WandSparkles size={15} aria-hidden="true" />
                   {t("Generate verse audio")}
                 </button>
                 <div className="verse-preview">

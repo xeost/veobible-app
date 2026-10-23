@@ -2359,6 +2359,18 @@ audio {
 .verse-playback .section-action-separator {
   align-self: center;
 }
+.audio-verse-approval[aria-pressed="true"],
+.audio-verse-label svg {
+  color: #83d6a2;
+}
+.audio-verse-approval[aria-pressed="true"] {
+  border-color: #83d6a2;
+}
+.audio-verse-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 .trim-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;

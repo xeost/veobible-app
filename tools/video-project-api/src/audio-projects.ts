@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { audioMixSettingsChanged } from "./audio-approvals.js";
 import { sharedAudioDirectory } from "./working-directories.js";
 import { availableBibleBooks } from "./bible-versions.js";
 import { readBibleDataFile } from "./bible-data.js";
@@ -357,6 +358,7 @@ export class AudioProjects {
       for (const ref of [
         ...Object.keys(input.settings.trims),
         ...Object.keys(input.settings.pauses),
+        ...Object.keys(input.settings.approvals ?? {}),
       ])
         if (!refs.has(ref))
           throw new AudioProjectError("Verse not found.", 400);
@@ -371,7 +373,7 @@ export class AudioProjects {
           );
       const { content: _, ...stored } = project;
       // Changed settings make the existing chapter mix stale until assembled again.
-      if (JSON.stringify(stored.settings) !== JSON.stringify(input.settings)) {
+      if (audioMixSettingsChanged(stored.settings, input.settings)) {
         stored.status = "draft";
         stored.chapters = {};
       }
