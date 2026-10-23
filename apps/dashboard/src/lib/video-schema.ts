@@ -121,6 +121,8 @@ export const renderSchema = z.object({
   website: videoDomainSchema,
   socialAccounts: z
     .object({
+      shortTitle: z.string().trim().max(100).default(""),
+      title: z.string().trim().max(200).default(""),
       youtube: z.string().trim().max(100),
       x: z.string().trim().max(100),
       instagram: z.string().trim().max(100),

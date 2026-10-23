@@ -1,8 +1,7 @@
 import fs from "node:fs/promises";
 import { readBibleDataFile } from "../../bible-data.js";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { analyzeMedia, silenceDetectionEnabled } from "../../media-analysis.js";
 import { config, type Version } from "./config.js";
 import type { AudioSection, IntroTitle } from "./video.js";
 import type { VerseTimingInput } from "./verse-timing.js";
@@ -45,8 +44,6 @@ export interface PassageOffsets {
   endSeconds: number;
 }
 
-const execFileAsync = promisify(execFile);
-
 function wordCount(text: string): number {
   return text
     .replace(/\(H\d+-\d+\)/g, "")
@@ -57,7 +54,7 @@ function wordCount(text: string): number {
 export async function audioDurationSeconds(file: string): Promise<number> {
   let stdout: string;
   try {
-    ({ stdout } = await execFileAsync(config.ffprobeBin, [
+    ({ stdout } = await analyzeMedia(file, config.ffprobeBin, [
       "-v",
       "error",
       "-show_entries",
@@ -104,15 +101,23 @@ export async function refineAudioRange(
   estimate: { start: number; end: number },
   duration: number,
 ): Promise<{ start: number; end: number }> {
-  if (estimate.start === 0 && estimate.end === duration) return estimate;
+  if (
+    !silenceDetectionEnabled() ||
+    (estimate.start === 0 && estimate.end === duration)
+  ) return estimate;
   let stderr: string;
   try {
-    ({ stderr } = await execFileAsync(
+    ({ stderr } = await analyzeMedia(
+      source,
       config.ffmpegBin,
       [
         "-hide_banner",
         "-nostats",
         "-nostdin",
+        "-threads",
+        "1",
+        "-filter_threads",
+        "1",
         "-i",
         source,
         "-vn",
@@ -122,7 +127,7 @@ export async function refineAudioRange(
         "null",
         "-",
       ],
-      { maxBuffer: 4 * 1024 * 1024 },
+      4 * 1024 * 1024,
     ));
   } catch {
     console.log(

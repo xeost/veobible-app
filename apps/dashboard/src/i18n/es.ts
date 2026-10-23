@@ -1,4 +1,16 @@
 export const spanish: Record<string, string> = {
+  "Configure titles, domains and social media accounts for each language, and voice volume.":
+    "Configura los títulos, dominios y cuentas de redes sociales de cada idioma, y el volumen de las voces.",
+  "Titles, domains and social media accounts":
+    "Títulos, dominios y cuentas de redes sociales",
+  "Set the short title, full title and domain for each language, for use in videos and on websites. Titles start empty; the examples are only suggestions. Enter social media usernames with or without @, and leave any unused fields empty.":
+    "Define el título corto, el título completo y el dominio de cada idioma, para usarlos en videos y sitios web. Los títulos comienzan vacíos; los ejemplos son solo sugerencias. Introduce los usuarios de redes sociales con o sin @ y deja vacíos los campos que no uses.",
+  "Short title": "Título corto",
+  Title: "Título",
+  Domain: "Dominio",
+  "Use up to 100 characters for the short title and 200 for the title.":
+    "Usa hasta 100 caracteres para el título corto y 200 para el título.",
+
   Play: "Reproducir",
   Replay: "Repetir",
   "Use element": "Usar elemento",
@@ -782,6 +794,7 @@ export const spanish: Record<string, string> = {
     "Marcar publicado registra el estado en el dashboard. Sube el archivo a tus redes desde tu laptop.",
   "Minimum: 0×, muted. Original volume: 1× (100%), unchanged. Maximum: 4× (400% of the original level). Values between 0× and 1× reduce volume; values above 1× increase it.":
     "Mínimo: 0×, sin sonido. Volumen original: 1× (100 %), sin cambios. Máximo: 4× (400 % del nivel original). Los valores entre 0× y 1× reducen el volumen; los valores mayores que 1× lo aumentan.",
+  "Open user menu": "Abrir menú de usuario",
   "My profile": "Mi perfil",
   "My projects": "Mis proyectos",
   Name: "Nombre",

@@ -75,6 +75,7 @@ function SectionPreview(
         introDuration={props.introVideoDuration}
         introLength={props.introLength}
         title={props.introTitle}
+        shortTitle={props.outroTitle.shortTitle}
         voices={props.voices}
       />
     );

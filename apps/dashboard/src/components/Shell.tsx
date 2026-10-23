@@ -52,6 +52,33 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
     useState<ProjectBreadcrumb | null>(null);
   const [open, setOpen] = useState(false),
     [profile, setProfile] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const userButtonRef = useRef<HTMLButtonElement>(null);
+  const closeUserMenu = () => {
+    setUserMenuOpen(false);
+    userButtonRef.current?.focus();
+  };
+  useEffect(() => {
+    setUserMenuOpen(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    userMenuRef.current
+      ?.querySelector<HTMLElement>('[role="menuitem"]')
+      ?.focus();
+    const dismiss = (event: Event) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("focusin", dismiss);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("focusin", dismiss);
+    };
+  }, [userMenuOpen]);
   const [queueOpen, setQueueOpen] = useState(false);
   const queueOpenRef = useRef(false);
   const [queue, setQueue] = useState<GenerationQueueState>({
@@ -159,9 +186,9 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
             {items
               .filter(
                 ([href]) =>
-                  !["/deployments", "/settings", "/bible-versions"].includes(
-                    href,
-                  ) || user.role === "admin",
+                  !["/settings", "/admin-tools"].includes(href) &&
+                  (!["/deployments", "/bible-versions"].includes(href) ||
+                    user.role === "admin"),
               )
               .map(([href, label, Icon]) => (
                 <Link
@@ -267,13 +294,57 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
                 </b>
               )}
             </nav>
-            <div className="header-actions">
+            <div
+              className="header-actions user-menu-container"
+              ref={userMenuRef}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && userMenuOpen) {
+                  event.preventDefault();
+                  closeUserMenu();
+                }
+                if (
+                  !userMenuOpen ||
+                  !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)
+                )
+                  return;
+                event.preventDefault();
+                const entries = Array.from(
+                  userMenuRef.current?.querySelectorAll<HTMLElement>(
+                    '[role="menuitem"]',
+                  ) ?? [],
+                );
+                const current = entries.indexOf(
+                  document.activeElement as HTMLElement,
+                );
+                const next =
+                  event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? entries.length - 1
+                      : (current +
+                          (event.key === "ArrowDown" ? 1 : -1) +
+                          entries.length) %
+                        entries.length;
+                entries[next]?.focus();
+              }}
+            >
               <button
                 type="button"
                 className="user-button"
-                aria-label={t("Open my profile")}
-                data-tooltip={t("My profile")}
-                onClick={() => setProfile(true)}
+                ref={userButtonRef}
+                id="user-menu-button"
+                aria-label={t("Open user menu")}
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                aria-controls={userMenuOpen ? "user-menu" : undefined}
+                onClick={() => setUserMenuOpen((current) => !current)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setUserMenuOpen(true);
+                  }
+                }}
               >
                 <span className="profile-avatar">
                   <span>
@@ -289,16 +360,58 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
                   </small>
                 </span>
               </button>
-              <button
-                className="icon-button"
-                aria-label={t("Sign out")}
-                onClick={async () => {
-                  await api("auth/logout", { method: "POST" });
-                  window.location.assign("/login");
-                }}
-              >
-                <LogOut size={17} />
-              </button>
+              {userMenuOpen && (
+                <div
+                  id="user-menu"
+                  className="user-menu"
+                  role="menu"
+                  aria-labelledby="user-menu-button"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      closeUserMenu();
+                      setProfile(true);
+                    }}
+                  >
+                    <UserRound size={17} aria-hidden="true" />
+                    {t("My profile")}
+                  </button>
+                  <div className="user-menu-separator" role="separator" />
+                  {user.role === "admin" && (
+                    <Link
+                      href="/settings"
+                      role="menuitem"
+                      onClick={closeUserMenu}
+                    >
+                      <Settings size={17} aria-hidden="true" />
+                      {t("Settings")}
+                    </Link>
+                  )}
+                  <Link
+                    href="/admin-tools"
+                    role="menuitem"
+                    onClick={closeUserMenu}
+                  >
+                    <Wrench size={17} aria-hidden="true" />
+                    {t("Admin Tools")}
+                  </Link>
+                  <div className="user-menu-separator" role="separator" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="user-menu-signout"
+                    onClick={async () => {
+                      await api("auth/logout", { method: "POST" });
+                      window.location.assign("/login");
+                    }}
+                  >
+                    <LogOut size={17} aria-hidden="true" />
+                    {t("Sign out")}
+                  </button>
+                </div>
+              )}
             </div>
           </header>
           <main className={isProjectEditor ? "video-editor-main" : undefined}>

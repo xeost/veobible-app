@@ -43,3 +43,67 @@ test("both video formats show only the explicitly configured domain", async () =
     }
   }
 });
+
+test("configured language titles survive both request boundaries and replace branding in all formats", async () => {
+  const { renderSchema: dashboardSchema } =
+    await import("../../../apps/dashboard/src/lib/video-schema");
+  const { renderSchema, previewSchema } = await import("./protocol");
+  const settings = {
+    es: { shortTitle: "VeoBiblia", title: "VeoBiblia en Español" },
+    en: { shortTitle: "English name", title: "A custom English title" },
+    pt: { shortTitle: "Bíblia", title: "Bíblia em Português" },
+  };
+  for (const kind of ["short", "long", "book"] as const) {
+    for (const locale of ["es", "en", "pt"] as const) {
+      const accounts = settings[locale];
+      const transported = dashboardSchema.parse({
+        id: "00000000-0000-4000-8000-000000000001",
+        projectId: 1,
+        kind,
+        version: { id: "example", locale, label: "Example" },
+        passage: {
+          id: "john-1",
+          book: "john",
+          start: { chapter: 1, verse: 1 },
+          end: { chapter: 1, verse: 2 },
+        },
+        settings: {},
+        socialAccounts: {
+          ...accounts,
+          youtube: "",
+          x: "",
+          instagram: "",
+          tiktok: "",
+          facebook: "",
+        },
+      });
+      for (const schema of [renderSchema, previewSchema]) {
+        const received = schema.parse(transported).socialAccounts;
+        const outro = await (kind === "short" ? shortOutro : longOutro)(
+          locale,
+          received,
+        );
+        assert.equal(outro.shortTitle, accounts.shortTitle.toUpperCase());
+        assert.equal(outro.channel, accounts.title);
+        assert.deepEqual(outro.social, []);
+      }
+    }
+  }
+});
+
+test("missing or cleared language titles stay empty instead of using brand defaults", async () => {
+  const { renderSchema } = await import("./protocol");
+  for (const outro of [shortOutro, longOutro]) {
+    for (const locale of ["es", "en", "pt"] as const) {
+      for (const accounts of [
+        undefined,
+        renderSchema.shape.socialAccounts.parse(undefined),
+        { shortTitle: "  ", title: "  " },
+      ]) {
+        const result = await outro(locale, accounts);
+        assert.equal(result.shortTitle, "");
+        assert.equal(result.channel, "");
+      }
+    }
+  }
+});

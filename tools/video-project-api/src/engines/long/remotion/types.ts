@@ -34,6 +34,7 @@ export interface OutroSocialRow {
 }
 
 export interface OutroTitle {
+  shortTitle?: string;
   title: string;
   highlight: string;
   channel: string;

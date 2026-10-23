@@ -35,7 +35,8 @@ const DEFAULT_PROPS: EpisodeCompositionProps = {
   outroTitle: {
     title: "Síguenos",
     highlight: "para escuchar más",
-    channel: "VeoBible en Español",
+    shortTitle: "",
+    channel: "",
     social: [],
     website: "",
   },

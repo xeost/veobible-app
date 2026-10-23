@@ -36,6 +36,7 @@ import {
   alignmentIsPending,
 } from "./alignment-job-store.js";
 import type { AlignmentJob } from "./forced-alignment-result.js";
+import { ProcessTasks } from "./process-tasks.js";
 import { GenerationQueue } from "./generation-queue.js";
 import { clampProgress } from "./generation-progress.js";
 import { generationFailureReason } from "./generation-failure.js";
@@ -66,12 +67,9 @@ if (fs.existsSync(envFile))
     if (!proxyOnlySettings.has(key) && process.env[key] === undefined)
       process.env[key] = value;
 const {
-  render,
-  inspection,
   projectDir,
   sourceDir,
   voiceFilename,
-  generateProjectVoice,
   existingProjectVoices,
   chapterVoicesAvailable,
   projectChapterVoiceFiles,
@@ -82,8 +80,7 @@ const { config: longAudioConfig } = await import("./engines/long/config.js");
 const { audioProjectHttp } = await import("./audio-project-http.js");
 const { listBaseVoices, queueVoiceSample, sampleFile, sampleRequestSchema } =
   await import("./voice-samples.js");
-const { alignProjectReading, stopAlignmentWorkers } =
-  await import("./forced-alignment.js");
+const { stopAlignmentWorkers } = await import("./forced-alignment.js");
 const { createPreview, previewAsset } = await import("./preview.js");
 const origins = new Set(
   (
@@ -166,6 +163,27 @@ const readingSources = new Map<
 const jobs = new Map<string, Job>();
 const voiceJobs = new Map<string, Partial<Record<VoicePart, Job>>>();
 const generationQueue = new GenerationQueue();
+const generationTasks = new ProcessTasks();
+const analysisTasks = new ProcessTasks();
+// Share only in-flight inspections; completed results may become stale after voice generation.
+const inspections = new Map<string, ReturnType<typeof inspectProject>>();
+function inspectProject(input: Parameters<typeof import("./pipeline.js").inspection>[0]) {
+  return analysisTasks.run("inspection", [input]);
+}
+function sharedInspection(input: Parameters<typeof inspectProject>[0]) {
+  const key = JSON.stringify(input);
+  const existing = inspections.get(key);
+  if (existing) return existing;
+  const task = inspectProject(input);
+  inspections.set(key, task);
+  void task.finally(() => inspections.delete(key)).catch(() => {});
+  return task;
+}
+process.once("exit", () => {
+  stopAlignmentWorkers();
+  generationTasks.stop();
+  analysisTasks.stop();
+});
 let localModelsInventory: ReturnType<typeof loadLocalModels> | null = null;
 let localModelsExpiresAt = 0;
 const modelUpdateChecks = new Map<
@@ -589,7 +607,7 @@ const server = http.createServer(async (req, res) => {
             try {
               job.stage = "Aligning";
               await alignmentJobs.save(file, job);
-              job.result = await alignProjectReading(input, (progress) => {
+              job.result = await generationTasks.run("alignment", [input], (progress) => {
                 job.progress = Math.max(job.progress, progress);
               });
               job.status = "done";
@@ -609,7 +627,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/v1/analyze" && req.method === "POST") {
       const input = analysisSchema.parse(await body(req));
-      const result = await inspection(input);
+      const result = await sharedInspection(input);
       readingSources.set(`${input.outputEnvironment}:${input.projectId}`, {
         kind: input.kind,
         sections: result.sections,
@@ -821,7 +839,7 @@ const server = http.createServer(async (req, res) => {
           async () => {
             job.status = "running";
             try {
-              await generateProjectVoice(input, input.part, (progress) => {
+              await generationTasks.run("voice", [input, input.part], (progress) => {
                 job.progress = Math.max(
                   job.progress ?? 0,
                   clampProgress(progress),
@@ -956,7 +974,7 @@ const server = http.createServer(async (req, res) => {
           job.stage = "Starting";
           void notify();
           try {
-            job.result = await render(input, (stage, progress) => {
+            job.result = await generationTasks.run("render", [input], (stage, progress) => {
               const stageChanged = job.stage !== stage;
               job.stage = stage;
               if (progress !== undefined)
@@ -1139,12 +1157,3 @@ for (const signal of ["SIGINT", "SIGTERM"] as const)
     server.close();
     process.exit(0);
   });
-
-// A detached alignment process group must not survive an API restart.
-process.once("exit", stopAlignmentWorkers);
-for (const signal of ["SIGTERM", "SIGINT"] as const) {
-  process.once(signal, () => {
-    stopAlignmentWorkers();
-    process.exit(0);
-  });
-}

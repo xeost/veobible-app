@@ -13,3 +13,9 @@ Include `https://dash.veobible.com` in `DASHBOARD_ORIGINS` alongside the local o
 See [the dashboard README](../../apps/dashboard/README.md). `pnpm --dir tools/api-proxy test` verifies authentication, routing, forwarding, and upstream disconnection handling.
 
 Both tokens are read exclusively from `tools/api-proxy/.env`. Environment overrides, the legacy `TUNNEL_TOKEN` alias, and tunnel command-line options are not supported. The child API ignores local credential settings and requires startup through the proxy.
+
+`VIDEO_SILENCE_DETECTION=0` disables optional FFmpeg silence searches for estimated passage and verse cut boundaries (the default). Set it to `1` to enable them. ForcedAligner analysis is independent and remains available with silence detection disabled. Restart the proxy after changing the variable.
+
+The video API keeps video renders, project narration, and project alignment execution in a separate task process; the generation queue and job state stay in the HTTP process. Editor inspections use another process, so neither rendering nor analysis blocks the HTTP event loop. Audio probes and optional silence analyses are limited to two concurrent subprocesses per process, deduplicated and cached by source file identity. Playback normalization has its own two slots in the HTTP process, independent of render normalization. Cold audio still requires normalization before streaming; this is not a guarantee of constant latency under machine-wide resource exhaustion.
+
+Silence detection changes the baseline estimates used by relative waveform offsets. After changing this setting, rerun ForcedAligner and review existing manual cuts before rendering projects whose offsets were saved with the previous setting. Saved settings are never discarded automatically.

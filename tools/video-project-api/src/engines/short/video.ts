@@ -65,6 +65,7 @@ export interface IntroTitle {
   version: string;
 }
 export interface OutroTitle {
+  shortTitle?: string;
   title: string;
   highlight: string;
   channel: string;

@@ -3,30 +3,28 @@ import type { Version } from "./config.js";
 import type { OutroTitle } from "./video.js";
 
 const platforms = ["youtube", "x", "instagram", "tiktok", "facebook"] as const;
-const labels: Record<
-  Version["locale"],
-  { title: string; highlight: string; channel: string }
-> = {
-  es: {
-    title: "Síguenos",
-    highlight: "para escuchar más",
-    channel: "VeoBible en Español",
-  },
-  en: {
-    title: "Follow us",
-    highlight: "to hear more",
-    channel: "VeoBible in English",
-  },
-  pt: {
-    title: "Siga-nos",
-    highlight: "para ouvir mais",
-    channel: "VeoBible em Português",
-  },
-};
+const labels: Record<Version["locale"], { title: string; highlight: string }> =
+  {
+    es: {
+      title: "Síguenos",
+      highlight: "para escuchar más",
+    },
+    en: {
+      title: "Follow us",
+      highlight: "to hear more",
+    },
+    pt: {
+      title: "Siga-nos",
+      highlight: "para ouvir mais",
+    },
+  };
 
 export async function outroTitle(
   locale: Version["locale"],
-  configuredAccounts: Partial<Record<(typeof platforms)[number], string>> = {},
+  configuredAccounts: Partial<Record<(typeof platforms)[number], string>> & {
+    shortTitle?: string;
+    title?: string;
+  } = {},
   website = "",
 ): Promise<OutroTitle> {
   const social: OutroTitle["social"] = [];
@@ -53,6 +51,8 @@ export async function outroTitle(
   }
   return {
     ...labels[locale],
+    shortTitle: (configuredAccounts.shortTitle ?? "").trim().toUpperCase(),
+    channel: (configuredAccounts.title ?? "").trim(),
     social,
     website: videoDomainSchema.parse(website),
   };

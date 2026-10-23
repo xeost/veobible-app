@@ -154,6 +154,7 @@ export const VeoBibleShort: React.FC<ShortCompositionProps> = (props) => {
             introDuration={introVideoDuration}
             introLength={introLength}
             title={introTitle}
+            shortTitle={outroTitle.shortTitle}
             voices={voices}
           />
         </FadeWrapper>

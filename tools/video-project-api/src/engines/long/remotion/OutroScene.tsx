@@ -58,7 +58,7 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
   // Build text elements
   const fixedElements = [
     {
-      text: "V E O B I B L E",
+      text: Array.from((outro.shortTitle ?? "").toUpperCase()).join(" "),
       delay: 0.02,
       font: "Avenir",
       size: 25,

@@ -41,6 +41,7 @@ interface IntroSceneProps {
   introDuration: number; // actual clip duration in seconds
   introLength: number; // desired padded segment length in seconds
   title: IntroTitle;
+  shortTitle?: string;
   voices?: VoiceTracks;
   introAudioPath?: string; // original clip audio (when mode==="mix")
 }
@@ -50,6 +51,7 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
   introDuration,
   introLength,
   title,
+  shortTitle = "",
   voices,
   introAudioPath,
 }) => {
@@ -89,7 +91,7 @@ export const IntroScene: React.FC<IntroSceneProps> = ({
     hide?: boolean;
   }> = [
     {
-      text: "V E O B I B L E",
+      text: Array.from(shortTitle.toUpperCase()).join(" "),
       delay: 0.05,
       exitOrder: 0.04,
       font: "Avenir",

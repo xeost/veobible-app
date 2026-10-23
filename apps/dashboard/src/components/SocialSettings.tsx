@@ -72,10 +72,18 @@ export function SocialSettings() {
         (account) =>
           !socialAccountsSchema.shape.domain.safeParse(account.domain).success,
       );
+      const invalidTitle = Object.values(accounts).some(
+        (account) =>
+          !socialAccountsSchema.shape.shortTitle.safeParse(account.shortTitle)
+            .success ||
+          !socialAccountsSchema.shape.title.safeParse(account.title).success,
+      );
       setError(
         invalidDomain
           ? "Enter a domain such as veobible.com, without https://, paths or spaces."
-          : "Enter usernames, without links or spaces, up to 100 characters.",
+          : invalidTitle
+            ? "Use up to 100 characters for the short title and 200 for the title."
+            : "Enter usernames, without links or spaces, up to 100 characters.",
       );
       return;
     }
@@ -111,7 +119,7 @@ export function SocialSettings() {
           <h1>{t("Settings")}</h1>
           <p className="muted">
             {t(
-              "Configure voice volume, video domain and social media accounts for each language.",
+              "Configure titles, domains and social media accounts for each language, and voice volume.",
             )}
           </p>
         </div>
@@ -125,17 +133,12 @@ export function SocialSettings() {
               {t(error)}
             </p>
           )}
-          <LoudnessSettingsPanel
-            settings={loudness}
-            onChange={setLoudness}
-            disabled={busy || loadFailed}
-          />
           <div className="social-settings-intro">
             <div>
-              <h2>{t("Video domain and social media accounts")}</h2>
+              <h2>{t("Titles, domains and social media accounts")}</h2>
               <p className="muted">
                 {t(
-                  "For each language, enter the domain to display at the end of videos (for example, veobible.com) and social media usernames, with or without @. Leave a field empty to hide that domain or social network in the video.",
+                  "Set the short title, full title and domain for each language, for use in videos and on websites. Titles start empty; the examples are only suggestions. Enter social media usernames with or without @, and leave any unused fields empty.",
                 )}
               </p>
             </div>
@@ -152,8 +155,45 @@ export function SocialSettings() {
                   {t(label)}
                   <small>{locale.toUpperCase()}</small>
                 </legend>
+                {(
+                  [
+                    ["shortTitle", "Short title", "VeoBible", 100],
+                    [
+                      "title",
+                      "Title",
+                      locale === "es"
+                        ? "VeoBible en Español"
+                        : locale === "en"
+                          ? "VeoBible in English"
+                          : "VeoBible em Português",
+                      200,
+                    ],
+                  ] as const
+                ).map(([field, fieldLabel, example, maxLength]) => (
+                  <label key={field} htmlFor={`${field}-${locale}`}>
+                    {t(fieldLabel)}
+                    <input
+                      id={`${field}-${locale}`}
+                      type="text"
+                      autoComplete="off"
+                      placeholder={example}
+                      maxLength={maxLength}
+                      value={accounts[locale][field]}
+                      aria-label={`${t(fieldLabel)} · ${t(label)}`}
+                      onChange={(event) => {
+                        setAccounts((current) => ({
+                          ...current,
+                          [locale]: {
+                            ...current[locale],
+                            [field]: event.target.value,
+                          },
+                        }));
+                      }}
+                    />
+                  </label>
+                ))}
                 <label htmlFor={`domain-${locale}`}>
-                  {t("Video domain")}
+                  {t("Domain")}
                   <input
                     id={`domain-${locale}`}
                     type="text"
@@ -163,7 +203,7 @@ export function SocialSettings() {
                     placeholder="veobible.com"
                     maxLength={253}
                     value={accounts[locale].domain}
-                    aria-label={`${t("Video domain")} · ${t(label)}`}
+                    aria-label={`${t("Domain")} · ${t(label)}`}
                     onChange={(event) => {
                       setAccounts((current) => ({
                         ...current,
@@ -205,6 +245,11 @@ export function SocialSettings() {
               </fieldset>
             ))}
           </div>
+          <LoudnessSettingsPanel
+            settings={loudness}
+            onChange={setLoudness}
+            disabled={busy || loadFailed}
+          />
           <div className="social-settings-footer">
             <p className="muted">
               {t(

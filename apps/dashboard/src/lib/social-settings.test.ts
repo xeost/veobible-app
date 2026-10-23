@@ -34,6 +34,10 @@ test("social settings start empty without inserting rows and persist all languag
       )
       .run();
     const accounts = emptySocialSettings();
+    accounts.es.shortTitle = " VeoBiblia ";
+    accounts.es.title = " VeoBiblia en Español ";
+    accounts.en.shortTitle = "VeoBible";
+    accounts.en.title = "VeoBible in English";
     accounts.es.domain = " VEOBIBLE.COM ";
     accounts.en.domain = "en.example.org";
     accounts.es.youtube = " @canal_es ";
@@ -41,6 +45,12 @@ test("social settings start empty without inserting rows and persist all languag
     accounts.pt.facebook = "pagina.pt";
     await saveSocialSettings(database, accounts);
     const stored = await loadSocialSettings(database);
+    assert.equal(stored.es.shortTitle, "VeoBiblia");
+    assert.equal(stored.es.title, "VeoBiblia en Español");
+    assert.equal(stored.en.shortTitle, "VeoBible");
+    assert.equal(stored.en.title, "VeoBible in English");
+    assert.equal(stored.pt.shortTitle, "");
+    assert.equal(stored.pt.title, "");
     assert.equal(stored.es.domain, "veobible.com");
     assert.equal(stored.en.domain, "en.example.org");
     assert.equal(stored.pt.domain, "");
@@ -98,6 +108,8 @@ test("existing accounts load with empty domains and keep their usernames", () =>
   );
   const settings = socialSettingsSchema.parse(legacy);
   for (const locale of ["es", "en", "pt"] as const) {
+    assert.equal(settings[locale].shortTitle, "");
+    assert.equal(settings[locale].title, "");
     assert.equal(settings[locale].domain, "");
     assert.equal(settings[locale].youtube, "@existing");
   }
@@ -119,4 +131,27 @@ test("video domains allow bare hostnames or empty values and reject URLs", () =>
   ]) {
     assert.equal(domain.safeParse(value).success, false, value);
   }
+});
+
+test("language titles accept custom names, remain empty when omitted and enforce length limits", () => {
+  const schema = socialSettingsSchema.shape.es;
+  const accounts = {
+    ...emptySocialSettings().es,
+    shortTitle: "VeoBiblia",
+    title: "VeoBiblia en Español",
+  };
+  assert.equal(schema.parse(accounts).shortTitle, "VeoBiblia");
+  assert.equal(schema.parse(accounts).title, "VeoBiblia en Español");
+  assert.equal(
+    schema.safeParse({ ...accounts, shortTitle: "a".repeat(101) }).success,
+    false,
+  );
+  assert.equal(
+    schema.safeParse({ ...accounts, title: "a".repeat(201) }).success,
+    false,
+  );
+  assert.equal(
+    schema.parse({ ...accounts, shortTitle: " ", title: " " }).title,
+    "",
+  );
 });

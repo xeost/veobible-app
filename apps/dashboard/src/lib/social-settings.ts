@@ -7,6 +7,8 @@ const handle = z
   .regex(/^(?:@?[\p{L}\p{N}_.-]+)?$/u);
 export const socialAccountsSchema = z.object({
   domain: videoDomainSchema,
+  shortTitle: z.string().trim().max(100).default(""),
+  title: z.string().trim().max(200).default(""),
   youtube: handle,
   x: handle,
   instagram: handle,
@@ -23,6 +25,8 @@ export const socialSettingsKey = "social_accounts";
 export function emptySocialSettings(): SocialSettings {
   const blank = () => ({
     domain: "",
+    shortTitle: "",
+    title: "",
     youtube: "",
     x: "",
     instagram: "",
