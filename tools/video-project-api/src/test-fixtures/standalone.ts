@@ -4,6 +4,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { finderPython } from "../finder-view.js";
 const execute = promisify(execFile);
 const working = process.cwd();
 process.env.WORKING_DIR = path.join(working, "work");
@@ -303,6 +305,18 @@ for (const [kind, outputEnvironment] of [
     await assert.rejects(fs.stat(output), { code: "ENOENT" });
     const progress: number[] = [];
     await generateProjectVoice(fresh, part, (value) => progress.push(value));
+    const finderStores = [output, sources].map((directory) =>
+      path.join(directory, ".DS_Store"),
+    );
+    const savedFinderStores = await Promise.all(
+      finderStores.map((file) => fs.readFile(file)),
+    );
+    if (process.platform === "darwin")
+      await execute(await finderPython(), [
+        "-I",
+        fileURLToPath(new URL("./finder-view.py", import.meta.url)),
+        "--check", output, sources,
+      ]);
     if (process.env.VIDEO_SMOKE_PREVIEW === "1") {
       const { createPreview, previewAsset } = await import("../preview.js");
       // Preview each narration scene while the other voice is still absent.
@@ -348,6 +362,7 @@ for (const [kind, outputEnvironment] of [
     assert.deepEqual(
       (await fs.readdir(sources)).sort(),
       [
+        ".DS_Store",
         voiceFilename(part, "txt"),
         voiceFilename(part, "wav.json"),
         voiceFilename(part),
@@ -373,9 +388,12 @@ for (const [kind, outputEnvironment] of [
       delete process.env.ALIGNMENT_TEST_FAILURE;
     }
     await generateProjectVoice(fresh, part);
+    for (const [index, finderStore] of finderStores.entries())
+      assert.deepEqual(await fs.readFile(finderStore), savedFinderStores[index]);
     assert.deepEqual(
       (await fs.readdir(sources)).sort(),
       [
+        ".DS_Store",
         voiceFilename(part, "txt"),
         voiceFilename(part, "wav.json"),
         voiceFilename(part),
@@ -703,6 +721,7 @@ for (const [kind, outputEnvironment] of [
     assert.deepEqual(
       (await fs.readdir(path.dirname(result.video))).sort(),
       [
+        ".DS_Store",
         "_internal",
         "2-facebook.txt",
         ...(kind === "short" ? ["1-instagram.txt"] : []),
@@ -715,6 +734,7 @@ for (const [kind, outputEnvironment] of [
       ].sort(),
     );
     assert.deepEqual((await fs.readdir(voices)).sort(), [
+      ".DS_Store",
       "0-metadata.txt",
       "1-intro.txt",
       "1-intro.wav",

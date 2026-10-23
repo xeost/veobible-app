@@ -30,6 +30,7 @@ import {
   type ChapterIntroduction,
 } from "./chapter-introductions.js";
 import { applyReadingCuts, expandReadingContext } from "./reading-timeline.js";
+import { initializeFinderView } from "./finder-view.js";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -142,7 +143,11 @@ async function prepareProjectDirectories(
     input.passage.id,
     input.outputEnvironment,
   );
-  await fs.mkdir(sources, { recursive: true });
+  const outputCreated = await fs.mkdir(output, { recursive: true });
+  const sourcesCreated = await fs.mkdir(sources, { recursive: true });
+  // A deleted/recreated folder must not inherit stale preferences under its old name.
+  await initializeFinderView(output, { created: !!outputCreated });
+  await initializeFinderView(sources, { created: !!sourcesCreated });
   return { output, sources };
 }
 async function generateNamedVoice(
