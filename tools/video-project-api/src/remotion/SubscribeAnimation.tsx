@@ -1,3 +1,4 @@
+import { SocialButtonAnimation } from "./SocialButtonAnimation";
 import React from "react";
 import {
   AbsoluteFill,
@@ -13,7 +14,6 @@ import {
   type SocialVariant,
   type VideoLocale,
   type SocialButtonElement,
-  socialButtonText,
   verticalPositionFraction,
 } from "../visual-elements";
 import type { ShortCompositionProps } from "../engines/short/remotion/types";
@@ -224,17 +224,11 @@ export function VisualElementAnimation({
       <SubscribeAnimation element={element} durationSeconds={durationSeconds} />
     );
   return (
-    <SubscribeAnimation
-      element={{
-        template: "youtube-subscribe",
-        startSeconds: 0,
-        durationSeconds,
-        hidden: element.hidden,
-        ...socialButtonText(locale, variant),
-      }}
+    <SocialButtonAnimation
+      element={element}
       durationSeconds={durationSeconds}
+      locale={locale}
       variant={variant}
-      verticalPosition={element.verticalPosition}
     />
   );
 }
