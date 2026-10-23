@@ -1,3 +1,4 @@
+import { loudnessTargetSchema } from "./loudness-schema.js";
 import { narrationTextAdaptationsSchema } from "./narration-text-adaptations.js";
 import { videoDomainSchema } from "./domain.js";
 import { voiceStylePresetsSchema } from "./narration-preset-selection.js";
@@ -46,6 +47,7 @@ export const settingsSchema = z.object({
       z.string().trim().min(1).max(10000),
     )
     .optional(),
+  loudnessTarget: loudnessTargetSchema.default(-14),
   volumeMultiplier: z.number().min(0).max(4).default(1),
   passageOffsets: z
     .object({

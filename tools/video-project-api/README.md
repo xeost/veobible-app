@@ -73,6 +73,12 @@ Each format has a list in `<WORKING_DIR>/<SHORTS_DIR_NAME|LONGS_DIR_NAME>/materi
 
 The presets preserve the curated 100 short passages and 365 long episodes in their original order, including the 40 episodes that cross book boundaries. These lists reside in the respective working directories and remain available independently of the repository's former generation tools. The generator re-reads the respective list on each request. Short Videos and Long Videos menus in the dashboard synchronize these proposals per Bible version, inserting only missing slugs. Starting and ending books are preserved when converting the proposal to the render contract; longs include the episode number.
 
+## Narration loudness
+
+Dashboard `/settings` stores one target per language in `site_settings` under the `video_loudness` key: −14 LUFS (default) or −16 LUFS. The dashboard resolves the current language target into `settings.loudnessTarget` for every preview and queued render, and signs the same target into waveform media URLs. Legacy manual reading gains are ignored for video projects.
+
+Intro, outro, chapter introductions, original readings and generated readings use the same two-pass FFmpeg normalization with a −1 dBTP ceiling. Normalization works per source recording, before timeline cuts, so individual verses retain their natural dynamics and all playback paths share the same result. Derivatives are lossless stereo 48 kHz FLAC (24-bit), cached under the system temporary directory by source identity, timestamps and target; originals and source timestamps remain unchanged. Concurrent requests share processing, with at most two analyses running at once. Silent or too-short recordings with no measurable integrated loudness retain their signal. Already exported videos require a new render to adopt a changed target.
+
 ## Verification
 
 Reading playback uses each verse's independent waveform cut, skipping unselected audio between cuts and preserving intentional overlaps as separate excerpts. A shared timeline schedules silence for the outgoing text animation and the incoming verse entrance, based on their line counts and reading lengths. Text finishes entering before narration starts and remains visible until narration ends. Both formats, composition previews, and final rendering use this timeline; saved offsets retain their original source-audio coordinates.

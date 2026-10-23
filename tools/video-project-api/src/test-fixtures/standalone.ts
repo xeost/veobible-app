@@ -1,3 +1,4 @@
+import { normalizeAudio } from "../audio-loudness.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -112,6 +113,8 @@ const {
 } = await import("../pipeline.js");
 const { renderSchema } = await import("../protocol.js");
 const { audioDurationSeconds } = await import("../engines/short/shorts.js");
+const { config: shortConfig } = await import("../engines/short/config.js");
+const { config: longConfig } = await import("../engines/long/config.js");
 for (const [kind, outputEnvironment] of [
   ["short", "production"],
   ["long", "production"],
@@ -638,13 +641,20 @@ for (const [kind, outputEnvironment] of [
       })),
       input.readingCuts,
     );
-    // Full previews and rendering read directly from the waveform's original sources.
-    prepared.props.sections.forEach((section, index) => {
+    // Previews, waveforms and rendering share normalized source derivatives.
+    for (const [index, section] of prepared.props.sections.entries()) {
       const original = preview.sections[index];
       const offset = preview.sections
         .slice(0, index)
         .reduce((sum, value) => sum + value.end - value.start, 0);
-      assert.equal(previewAsset(section.file, scope), original.file);
+      assert.equal(
+        previewAsset(section.file, scope),
+        await normalizeAudio(
+          original.file,
+          input.settings.loudnessTarget,
+          (kind === "short" ? shortConfig : longConfig).ffmpegBin,
+        ),
+      );
       assert.ok(
         Math.abs(
           section.start -
@@ -657,7 +667,7 @@ for (const [kind, outputEnvironment] of [
             (original.start + input.readingCuts![index].end - offset),
         ) < 1e-6,
       );
-    });
+    }
     if (process.env.VIDEO_SMOKE_RENDER !== "1")
       await assert.rejects(
         fs.stat(
@@ -743,16 +753,19 @@ for (const [kind, outputEnvironment] of [
       "0-metadata.txt",
       "1-intro.txt",
       "1-intro.wav",
+      "1-intro.wav.json",
       ...preview.chapterIntroductions
         .filter((chapter) => !chapter.complete)
         .flatMap((chapter) => [
           voiceFilename(chapter.part, "txt"),
           voiceFilename(chapter.part),
+          voiceFilename(chapter.part) + ".json",
         ]),
       "2-passage-audio-offsets.json",
       "2-versiculos.txt",
       "3-outro.txt",
       "3-outro.wav",
+      "3-outro.wav.json",
       "README.md",
       "render-result.json",
     ]);
@@ -845,9 +858,16 @@ for (const [kind, outputEnvironment] of [
       version: input.version.id,
       passage: input.passage.id,
     };
+    const normalizedGenerated = await normalizeAudio(
+      generatedPath,
+      input.settings.loudnessTarget,
+      (kind === "short" ? shortConfig : longConfig).ffmpegBin,
+    );
     assert.ok(
       readingPreview.props.sections.every(
-        (section) => previewAsset(section.file, previewScope) === generatedPath && section.generatedVoice === true,
+        (section) =>
+          previewAsset(section.file, previewScope) === normalizedGenerated &&
+          section.generatedVoice === true,
       ),
     );
     // Text analysis and generation remain available without an external recording.

@@ -1,4 +1,8 @@
 import {
+  loadLoudnessSettings,
+  saveLoudnessSettings,
+} from "../../../lib/loudness-settings";
+import {
   loadVoiceStyleDefaults,
   voiceStyleDefaultsSchema,
 } from "../../../lib/voice-style-presets";
@@ -479,6 +483,16 @@ async function handle(req: Request, lang: Language) {
       admin();
       return json({
         settings: await saveProjectSettings(database, kind, await body()),
+      });
+    }
+  }
+  if (parts.join("/") === "settings/video-loudness") {
+    if (method === "GET")
+      return json({ settings: await loadLoudnessSettings(database) });
+    if (method === "PUT") {
+      admin();
+      return json({
+        settings: await saveLoudnessSettings(database, await body()),
       });
     }
   }

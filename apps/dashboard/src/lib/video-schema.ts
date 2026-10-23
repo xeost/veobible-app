@@ -1,3 +1,4 @@
+import { loudnessTargetSchema } from "../../../../tools/video-project-api/src/loudness-schema";
 import { videoDomainSchema } from "../../../../tools/video-project-api/src/domain";
 import { voiceStylePresetsSchema } from "../../../../tools/video-project-api/src/narration-preset-selection";
 import { readingVoiceSettingsSchema } from "../../../../tools/video-project-api/src/reading-voice-settings";
@@ -44,6 +45,7 @@ export const settingsSchema = z.object({
       z.string().trim().min(1).max(10000),
     )
     .optional(),
+  loudnessTarget: loudnessTargetSchema.default(-14),
   volumeMultiplier: z.number().min(0).max(4).default(1),
   overrideReadingVolume: z.boolean().default(false),
   passageOffsets: z

@@ -18,11 +18,6 @@ import { X, Save, Settings } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import {
-  emptyProjectSettings,
-  projectSettingsSchema,
-  type ProjectSettings,
-} from "../lib/project-settings";
-import {
   emptyVoiceSettings,
   voiceSettingsSchema,
   type VoiceSettings,
@@ -56,9 +51,9 @@ export function VoiceSettingsModal({
   const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
   const [templates, setTemplates] = useState<VoiceSettings>(emptyVoiceSettings);
-  const [tab, setTab] = useState<
-    "voice" | "projects" | "publication" | "baseVoices"
-  >(audioOnly ? "baseVoices" : "voice");
+  const [tab, setTab] = useState<"voice" | "publication" | "baseVoices">(
+    audioOnly ? "baseVoices" : "voice",
+  );
   const [baseVoiceLocale, setBaseVoiceLocale] = useState<"es" | "en" | "pt">(
     "en",
   );
@@ -76,11 +71,6 @@ export function VoiceSettingsModal({
   const [publicationLocale, setPublicationLocale] = useState<
     "en" | "es" | "pt"
   >("en");
-  const [projectSettings, setProjectSettings] =
-    useState<ProjectSettings>(emptyProjectSettings);
-  const [versions, setVersions] = useState<
-    { id: number | null; code: string; locale: string; label: string }[]
-  >([]);
   const [loading, setLoading] = useState(true),
     [loadFailed, setLoadFailed] = useState(false),
     [busy, setBusy] = useState(false),
@@ -106,23 +96,8 @@ export function VoiceSettingsModal({
         : api<{ templates: VoiceSettings }>(
             `settings/voice-templates?kind=${kind}`,
           ),
-      audioOnly
-        ? Promise.resolve(null)
-        : api<{ settings: ProjectSettings }>(
-            `settings/project-settings?kind=${kind}`,
-          ),
-      audioOnly
-        ? Promise.resolve(null)
-        : api<{
-            versions: {
-              id: number | null;
-              code: string;
-              locale: string;
-              label: string;
-            }[];
-          }>("versions/options"),
     ])
-      .then(([voices, publication, voice, projects, catalog]) => {
+      .then(([voices, publication, voice]) => {
         if (live) {
           setBaseVoices(voices.defaults);
           setVersePauseSeconds(
@@ -131,8 +106,6 @@ export function VoiceSettingsModal({
           setStylePresets(voices.stylePresets);
           if (publication) setPublication(publication.templates);
           if (voice) setTemplates(voice.templates);
-          if (projects) setProjectSettings(projects.settings);
-          if (catalog) setVersions(catalog.versions);
         }
       })
       .catch(() => {
@@ -192,28 +165,6 @@ export function VoiceSettingsModal({
         close();
       } catch {
         setError("Could not save publication templates. Try again.");
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    if (tab === "projects") {
-      const parsed = projectSettingsSchema.safeParse(projectSettings);
-      if (!parsed.success) {
-        setError("Reading volume must be between 0 and 4.");
-        return;
-      }
-      setBusy(true);
-      setError("");
-      try {
-        await api(`settings/project-settings?kind=${kind}`, {
-          method: "PUT",
-          body: JSON.stringify(parsed.data),
-        });
-        notify("Settings saved.");
-        close();
-      } catch {
-        setError("Could not save settings. Try again.");
       } finally {
         setBusy(false);
       }
@@ -308,18 +259,6 @@ export function VoiceSettingsModal({
             <>
               <button
                 type="button"
-                className={tab === "projects" ? "active" : ""}
-                aria-pressed={tab === "projects"}
-                disabled={busy}
-                onClick={() => {
-                  setTab("projects");
-                  setError("");
-                }}
-              >
-                {t("Reading (original audio)")}
-              </button>
-              <button
-                type="button"
                 className={tab === "publication" ? "active" : ""}
                 aria-pressed={tab === "publication"}
                 disabled={busy}
@@ -393,20 +332,7 @@ export function VoiceSettingsModal({
               ))}
             </div>
           </>
-        ) : (
-          <p className="muted">
-            {t(
-              "Configure reading volume for new projects in each language and version. Existing projects keep their settings.",
-            )}
-          </p>
-        )}
-        {tab === "projects" && (
-          <p className="notice" id="project-volume-help">
-            {t(
-              "Minimum: 0×, muted. Original volume: 1× (100%), unchanged. Maximum: 4× (400% of the original level). Values between 0× and 1× reduce volume; values above 1× increase it.",
-            )}
-          </p>
-        )}
+        ) : null}
         {tab === "voice" && (
           <p className="notice">
             {t(
@@ -556,87 +482,27 @@ export function VoiceSettingsModal({
                           />
                         </label>
                       ))
-                    : tab === "projects"
-                      ? versions
-                          .filter((version) => version.locale === locale)
-                          .map((version) => (
-                            <label
-                              key={`${locale}/${version.code}`}
-                              htmlFor={`project-volume-${locale}-${version.code}`}
-                            >
-                              {version.label} · {t("Reading volume")}
-                              <div className="volume-control">
-                                <input
-                                  id={`project-volume-${locale}-${version.code}`}
-                                  type="range"
-                                  min={0}
-                                  max={4}
-                                  step={0.1}
-                                  aria-describedby="project-volume-help"
-                                  onDoubleClick={() =>
-                                    setProjectSettings((current) => ({
-                                      ...current,
-                                      [locale]: {
-                                        ...current[locale],
-                                        [version.code]: { volumeMultiplier: 1 },
-                                      },
-                                    }))
-                                  }
-                                  value={
-                                    projectSettings[locale][version.code]
-                                      ?.volumeMultiplier ?? 1
-                                  }
-                                  onChange={(event) =>
-                                    setProjectSettings((current) => ({
-                                      ...current,
-                                      [locale]: {
-                                        ...current[locale],
-                                        [version.code]: {
-                                          volumeMultiplier:
-                                            event.target.valueAsNumber,
-                                        },
-                                      },
-                                    }))
-                                  }
-                                />
-                                <output
-                                  htmlFor={`project-volume-${locale}-${version.code}`}
-                                >
-                                  {(
-                                    projectSettings[locale][version.code]
-                                      ?.volumeMultiplier ?? 1
-                                  ).toFixed(2)}
-                                  ×
-                                </output>
-                              </div>
-                              <span className="muted">
-                                {t("0× · Muted — 1× · Original — 4× · Maximum")}
-                              </span>
-                            </label>
-                          ))
-                      : (["intro", "outro"] as const).map((part) => (
-                          <label key={part} htmlFor={`voice-${locale}-${part}`}>
-                            {part === "intro"
-                              ? t("Introduction")
-                              : t("Closing")}
-                            <textarea
-                              id={`voice-${locale}-${part}`}
-                              aria-label={`${part === "intro" ? t("Introduction") : t("Closing")} · ${t(label)}`}
-                              value={templates[locale][part]}
-                              maxLength={10000}
-                              rows={4}
-                              onChange={(event) =>
-                                setTemplates((current) => ({
-                                  ...current,
-                                  [locale]: {
-                                    ...current[locale],
-                                    [part]: event.target.value,
-                                  },
-                                }))
-                              }
-                            />
-                          </label>
-                        ))}
+                    : (["intro", "outro"] as const).map((part) => (
+                        <label key={part} htmlFor={`voice-${locale}-${part}`}>
+                          {part === "intro" ? t("Introduction") : t("Closing")}
+                          <textarea
+                            id={`voice-${locale}-${part}`}
+                            aria-label={`${part === "intro" ? t("Introduction") : t("Closing")} · ${t(label)}`}
+                            value={templates[locale][part]}
+                            maxLength={10000}
+                            rows={4}
+                            onChange={(event) =>
+                              setTemplates((current) => ({
+                                ...current,
+                                [locale]: {
+                                  ...current[locale],
+                                  [part]: event.target.value,
+                                },
+                              }))
+                            }
+                          />
+                        </label>
+                      ))}
                 </section>
               ))}
           </fieldset>

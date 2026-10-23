@@ -113,7 +113,6 @@ export function VideoProjectPreview({
   endpoint,
   media,
   settings,
-  readingVolume,
   readingReferences,
   readingCues,
   readingSources,
@@ -128,7 +127,6 @@ export function VideoProjectPreview({
   endpoint: (action?: string) => string;
   media: (asset: string) => string;
   settings: RenderRequest["settings"];
-  readingVolume: number;
   readingReferences?: string[];
   readingCues?: VerseCue[];
   readingSources?: ReadingSection[];
@@ -175,6 +173,7 @@ export function VideoProjectPreview({
     video.current = next;
   }, []);
   const signature = JSON.stringify({
+    loudnessTarget: settings.loudnessTarget,
     passageOffsets: settings.passageOffsets,
     background: settings.background,
     readingVoices: settings.readingVoices,
@@ -236,8 +235,8 @@ export function VideoProjectPreview({
         ? {
             ...preview.props,
             // Prepared cues use the same cut-and-transition timeline as final rendering.
-            // Only original reading sources consume this gain; generated voices keep their own volume.
-            volumeMultiplier: readingVolume,
+            // All narration sources are already normalized to the language target.
+            volumeMultiplier: 1,
             introVideoPath: media(preview.props.introVideoPath),
             boomerangVideoPath: media(preview.props.boomerangVideoPath),
             outroVideoPath: media(preview.props.outroVideoPath),
@@ -267,7 +266,7 @@ export function VideoProjectPreview({
               : undefined,
           }
         : null,
-    [preview, reading, readingVolume, media],
+    [preview, reading, media],
   );
   const load = async () => {
     request.current?.abort();
@@ -292,6 +291,7 @@ export function VideoProjectPreview({
       });
       if (controller.signal.aborted) return;
       preparedSignature.current = JSON.stringify({
+        loudnessTarget: settings.loudnessTarget,
         passageOffsets: settings.passageOffsets,
         background: data.background,
         readingVoices: settings.readingVoices,
@@ -307,7 +307,7 @@ export function VideoProjectPreview({
   };
   useEffect(() => {
     if (!ready) return;
-    // Prepare cuts and transition timings on opening; volume changes update the player directly.
+    // Rebuild prepared assets when cuts, voices or the language loudness target change.
     void load();
     return () => request.current?.abort();
   }, [ready, endpoint, signature]);

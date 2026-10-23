@@ -1,3 +1,4 @@
+import { normalizeSections } from "./audio-loudness.js";
 import {
   adaptNarrationText,
   type NarrationTextAdaptations,
@@ -1052,14 +1053,14 @@ export async function render(
         input.settings.voiceTrims?.intro,
         work,
         "intro",
-        m.config,
+        { ...m.config, loudnessTarget: input.settings.loudnessTarget },
       ),
       outro: await prepareTrimmedVoice(
         voices.outro,
         input.settings.voiceTrims?.outro,
         work,
         "outro",
-        m.config,
+        { ...m.config, loudnessTarget: input.settings.loudnessTarget },
       ),
     };
     const trimmedChapters = await Promise.all(
@@ -1070,21 +1071,25 @@ export async function render(
           input.settings.voiceTrims?.[chapter.part],
           work,
           chapter.part,
-          m.config,
+          { ...m.config, loudnessTarget: input.settings.loudnessTarget },
         ),
       })),
     );
     const final = path.join(work, "video.mp4");
     const result = await renderer(
       final,
-      sections,
+      await normalizeSections(
+        sections,
+        input.settings.loudnessTarget,
+        m.config.ffmpegBin,
+      ),
       m.config.videosDir,
       title,
       await m.outro(version.locale, input.socialAccounts, input.website),
       cues,
       trimmedVoices,
       work,
-      input.settings.volumeMultiplier,
+      1,
       {
         bibleVersionTitle: input.version.label,
         background: input.settings.background,
@@ -1141,7 +1146,7 @@ export async function render(
         `Thumbnail: ../${thumbnailName} (frame at ${result.thumbnailTime.toFixed(6)} s)`,
         `Background: ${result.background}`,
         "Narration mode: voice",
-        `Reading volume: ${input.settings.volumeMultiplier}x`,
+        `Narration loudness target: ${input.settings.loudnessTarget} LUFS`,
         `Reading duration: ${result.readingDuration.toFixed(2)} s`,
         `Video duration: ${result.duration.toFixed(2)} s`,
         `Bible audio: ${sections.map((section) => `${section.file} [${section.start.toFixed(6)}–${section.end.toFixed(6)} s]`).join(", ")}`,

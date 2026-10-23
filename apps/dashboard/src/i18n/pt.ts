@@ -1,4 +1,9 @@
 export const portuguese: Record<string, string> = {
+  "Automatic voice volume": "Volume automático das vozes",
+  "Automatic volume": "Volume automático",
+  "Balance all video voices to the selected loudness for each language. Applies to waveform playback, previews and new video renders, including existing projects.":
+    "Equilibre todas as vozes do vídeo com a sonoridade escolhida para cada idioma. Aplica-se à reprodução nas formas de onda, às pré-visualizações e aos novos vídeos gerados, incluindo projetos existentes.",
+
   "versions · page": "versões · página",
   "No Bible versions match these filters.":
     "Nenhuma versão da Bíblia corresponde a estes filtros.",

@@ -1,3 +1,4 @@
+import { normalizeAudio } from "./audio-loudness.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
@@ -43,10 +44,16 @@ export async function prepareTrimmedVoice(
   trim: VoiceTrim | undefined,
   directory: string,
   part: string,
-  binaries: { ffmpegBin: string; ffprobeBin: string },
+  binaries: { ffmpegBin: string; ffprobeBin: string; loudnessTarget?: number },
 ) {
   if (!trim && (part === "intro" || part === "outro"))
     trim = await automaticVoiceTrim(file);
+  if (binaries.loudnessTarget !== undefined)
+    file = await normalizeAudio(
+      file,
+      binaries.loudnessTarget,
+      binaries.ffmpegBin,
+    );
   if (!trim) return file;
   const { stdout } = await run(binaries.ffprobeBin, [
     "-v",

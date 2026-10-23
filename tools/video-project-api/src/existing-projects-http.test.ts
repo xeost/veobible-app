@@ -4,7 +4,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import net from "node:net";
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { once } from "node:events";
 
 test(
@@ -223,9 +224,17 @@ test(
       ).versesPerChapter[0];
       const cache = path.join(directory, "long/cache/chapter-voices/es");
       await fs.mkdir(cache, { recursive: true });
-      await fs.writeFile(
+      await promisify(execFile)("ffmpeg", [
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:duration=4",
         path.join(cache, "chapter-1.wav"),
-        "cached chapter one",
+      ]);
+      const originalChapter = await fs.readFile(
+        path.join(cache, "chapter-1.wav"),
       );
       const savedRange = {
         id: "cached-first-chapter",
@@ -254,7 +263,53 @@ test(
         { headers },
       );
       assert.equal(cachedAudio.status, 200);
-      assert.equal(await cachedAudio.text(), "cached chapter one");
+      const defaultAudio = Buffer.from(await cachedAudio.arrayBuffer());
+      assert.equal(cachedAudio.headers.get("content-type"), "audio/flac");
+      assert.equal(defaultAudio.toString("ascii", 0, 4), "fLaC");
+      assert.notDeepEqual(defaultAudio, originalChapter);
+      const ranged = await fetch(
+        `${base}/v1/projects/7/media/chapter-0?${longQuery}`,
+        { headers: { ...headers, Range: "bytes=0-31" } },
+      );
+      assert.equal(ranged.status, 206);
+      assert.deepEqual(
+        Buffer.from(await ranged.arrayBuffer()),
+        defaultAudio.subarray(0, 32),
+      );
+      longQuery.set("loudnessTarget", "-16");
+      const quieter = await fetch(
+        `${base}/v1/projects/7/media/chapter-0?${longQuery}`,
+        { headers },
+      );
+      assert.equal(quieter.status, 200);
+      const quietAudio = Buffer.from(await quieter.arrayBuffer());
+      assert.notDeepEqual(quietAudio, defaultAudio);
+      for (const [target, bytes] of [
+        [-14, defaultAudio],
+        [-16, quietAudio],
+      ] as const) {
+        const measuredFile = path.join(directory, `measured-${target}.wav`);
+        await fs.writeFile(measuredFile, bytes);
+        const { stderr } = await promisify(execFile)("ffmpeg", [
+          "-hide_banner",
+          "-i",
+          measuredFile,
+          "-af",
+          "loudnorm=print_format=json",
+          "-f",
+          "null",
+          "-",
+        ]);
+        const measured = JSON.parse(
+          stderr.match(/\{[^{}]*"input_i"[^{}]*\}/s)![0],
+        );
+        assert.ok(Math.abs(Number(measured.input_i) - target) < 0.2);
+        assert.ok(Number(measured.input_tp) <= -0.9);
+      }
+      assert.deepEqual(
+        await fs.readFile(path.join(cache, "chapter-1.wav")),
+        originalChapter,
+      );
       await assert.rejects(
         fs.stat(
           path.join(directory, "long/outputs-dev/rv1909/cached-first-chapter"),
@@ -360,7 +415,10 @@ test(
       const developmentData = await development.json();
       assert.equal(developmentData.status, "draft");
       assert.equal(developmentData.progress, 0);
-      const devOutput = path.join(directory, "short/outputs-dev/rv1909/john-3-16");
+      const devOutput = path.join(
+        directory,
+        "short/outputs-dev/rv1909/john-3-16",
+      );
       await fs.mkdir(path.join(devOutput, "_internal"), { recursive: true });
       await fs.copyFile(
         path.join(output, "_internal/0-metadata.txt"),

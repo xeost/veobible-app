@@ -89,6 +89,7 @@ test("project sync only adds missing slugs within a format and Bible version, re
       baseVoices: { intro: "es-1", outro: "es-1", reading: "es-1" },
       inheritedBaseVoiceRoles: ["intro", "reading", "outro"],
       voiceStylePresets: {},
+      loudnessTarget: -14,
       volumeMultiplier: 1.5,
       overrideReadingVolume: false,
       passageOffsets: { startSeconds: 0, endSeconds: 0 },

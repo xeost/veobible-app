@@ -1,3 +1,4 @@
+import { normalizeSections } from "./audio-loudness.js";
 import { prepareTrimmedVoice } from "./voice-trim.js";
 import type { VoicePart } from "./chapter-introductions.js";
 import fs from "node:fs/promises";
@@ -102,7 +103,13 @@ export async function createPreview(
               : input.settings.voiceTrims?.intro,
             directory,
             "intro",
-            m.config,
+            {
+              ...m.config,
+              loudnessTarget:
+                input.voicePart === "outro"
+                  ? undefined
+                  : input.settings.loudnessTarget,
+            },
           ),
           outro: await prepareTrimmedVoice(
             path.join(voices, voiceFilename("outro")),
@@ -111,7 +118,13 @@ export async function createPreview(
               : input.settings.voiceTrims?.outro,
             directory,
             "outro",
-            m.config,
+            {
+              ...m.config,
+              loudnessTarget:
+                input.voicePart === "intro"
+                  ? undefined
+                  : input.settings.loudnessTarget,
+            },
           ),
           mode: "voice" as const,
         };
@@ -127,14 +140,18 @@ export async function createPreview(
             input.settings.voiceTrims?.[chapter.part],
             directory,
             chapter.part,
-            m.config,
+            { ...m.config, loudnessTarget: input.settings.loudnessTarget },
           ),
         })),
     );
     const prepare = input.kind === "short" ? shortComposition : longComposition;
-    // Keep the prepared reading audio at its original volume so the Player can adjust it live.
+    // Share normalized derivatives with waveform playback and final rendering.
     const composition = await prepare(
-      sections,
+      await normalizeSections(
+        sections,
+        input.settings.loudnessTarget,
+        m.config.ffmpegBin,
+      ),
       m.config.videosDir,
       title,
       await m.outro(version.locale, input.socialAccounts, input.website),
@@ -170,7 +187,7 @@ export async function createPreview(
     };
     const props = {
       ...composition.props,
-      volumeMultiplier: input.settings.volumeMultiplier,
+      volumeMultiplier: 1,
       introVideoPath: asset(composition.props.introVideoPath),
       boomerangVideoPath: asset(composition.props.boomerangVideoPath),
       outroVideoPath: asset(composition.props.outroVideoPath),

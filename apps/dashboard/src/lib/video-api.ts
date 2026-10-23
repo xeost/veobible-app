@@ -1,3 +1,4 @@
+import { loadLoudnessSettings } from "./loudness-settings";
 import {
   loadVoiceStyleDefaults,
   selectedVoiceStyleParameters,
@@ -51,7 +52,6 @@ import { loadQueueView } from "./queue-projects";
 import { signMediaAccess } from "../../../../tools/api-proxy/src/media-access.mjs";
 import {
   loadProjectSettings,
-  effectiveReadingVolume,
   versionProjectSettings,
 } from "./project-settings";
 import { loadVoiceSettings } from "./voice-settings";
@@ -482,7 +482,9 @@ export async function videoApi(
     JSON.parse(project.settings).voiceStylePresets,
     "intro",
   );
+  const loudnessTarget = (await loadLoudnessSettings(database))[project.locale];
   const query = new URLSearchParams({
+    loudnessTarget: String(loudnessTarget),
     kind: project.kind,
     version: project.version_code,
     passage: project.slug,
@@ -539,13 +541,7 @@ export async function videoApi(
       },
       mediaAccess: await mediaAccess(),
       baseVoiceDefaults,
-      defaults: settingsSchema.parse(
-        versionProjectSettings(
-          await loadProjectSettings(database, project.kind),
-          project.locale,
-          project.version_code,
-        ),
-      ),
+      defaults: settingsSchema.parse({ loudnessTarget, volumeMultiplier: 1 }),
     });
   }
   if (!parts[2] && method === "PATCH") {
@@ -696,17 +692,11 @@ export async function videoApi(
         ),
       ),
     );
-    const defaults = versionProjectSettings(
-      await loadProjectSettings(database, project.kind),
-      project.locale,
-      project.version_code,
-    );
     const generationSettings = {
       ...settings,
-      volumeMultiplier: effectiveReadingVolume(
-        settings,
-        defaults.volumeMultiplier,
-      ),
+      loudnessTarget,
+      volumeMultiplier: 1,
+      overrideReadingVolume: false,
     };
     const voiceTemplates = (await loadVoiceSettings(database, project.kind))[
       project.locale

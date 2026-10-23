@@ -1,3 +1,5 @@
+import { normalizeAudio } from "./audio-loudness.js";
+import { loudnessTargetSchema } from "./loudness-schema.js";
 import { baseVoiceSchema } from "./base-voice-schema.js";
 import { automaticVoiceTrim } from "./voice-trim.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
@@ -75,6 +77,8 @@ const {
   projectChapterVoiceFiles,
 } = await import("./pipeline.js");
 const { outputRoot } = await import("./working-directories.js");
+const { config: shortAudioConfig } = await import("./engines/short/config.js");
+const { config: longAudioConfig } = await import("./engines/long/config.js");
 const { audioProjectHttp } = await import("./audio-project-http.js");
 const { listBaseVoices, queueVoiceSample, sampleFile, sampleRequestSchema } =
   await import("./voice-samples.js");
@@ -1022,7 +1026,7 @@ const server = http.createServer(async (req, res) => {
       const reading = readingSources.get(`${environment}:${id}`);
       if (asset.startsWith("reading-") && reading?.kind !== kind)
         return json(res, 404, { error: "Analyze the passage first" });
-      const file = asset.startsWith("preview-")
+      let file = asset.startsWith("preview-")
         ? previewAsset(asset, {
             projectId: id,
             kind,
@@ -1059,6 +1063,21 @@ const server = http.createServer(async (req, res) => {
           error: "Media not found. Regenerate from saved D1 settings.",
         });
       }
+      if (
+        !asset.startsWith("preview-") &&
+        asset !== "video" &&
+        asset !== "thumbnail"
+      ) {
+        const target = loudnessTargetSchema.parse(
+          Number(url.searchParams.get("loudnessTarget") ?? -14),
+        );
+        file = await normalizeAudio(
+          file,
+          target,
+          (kind === "short" ? shortAudioConfig : longAudioConfig).ffmpegBin,
+        );
+        stat = await fsp.stat(file);
+      }
       const range = req.headers.range;
       let start = 0,
         end = stat.size - 1;
@@ -1077,9 +1096,11 @@ const server = http.createServer(async (req, res) => {
           ? "video/mp4"
           : asset === "thumbnail"
             ? "image/jpeg"
-            : file.endsWith(".mp3")
-              ? "audio/mpeg"
-              : "audio/wav",
+            : file.endsWith(".flac")
+              ? "audio/flac"
+              : file.endsWith(".mp3")
+                ? "audio/mpeg"
+                : "audio/wav",
         "Content-Length": end - start + 1,
         "Accept-Ranges": "bytes",
         ...(range

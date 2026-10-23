@@ -1,4 +1,5 @@
 "use client";
+import { LoudnessSettingsPanel } from "./LoudnessSettingsPanel";
 import { useToast } from "./ToastProvider";
 import { useEffect, useState } from "react";
 import { Save, Globe, AtSign } from "lucide-react";
@@ -89,6 +90,7 @@ export function SocialSettings() {
           </p>
         </div>
       </div>
+      <LoudnessSettingsPanel />
       {loading ? (
         <p className="empty">{t("Loading settings…")}</p>
       ) : (

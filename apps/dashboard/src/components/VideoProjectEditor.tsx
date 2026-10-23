@@ -56,7 +56,6 @@ import {
   generationStage,
   voiceFailureMessage,
 } from "../lib/presentation";
-import { effectiveReadingVolume } from "../lib/project-settings";
 import { settingsSchema, type RenderRequest } from "../lib/video-schema";
 import { type VideoRow, type VideoKind } from "./video-project";
 import {
@@ -115,11 +114,10 @@ export function VideoProjectEditor({
   const { t } = useI18n();
   const [project, setProject] = useState<EditorProject | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
-  const [versionVolume, setVersionVolume] = useState(1);
+  const [loudnessTarget, setLoudnessTarget] = useState<-14 | -16>(-14);
   const [baseVoiceDefaults, setBaseVoiceDefaults] = useState<
     BaseVoiceDefaults["es"]
   >(defaultBaseVoices().es);
-  const readingVolumeValue = effectiveReadingVolume(settings, versionVolume);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const [analysis, setAnalysis] = useState<Inspection | null>(null);
@@ -319,11 +317,14 @@ export function VideoProjectEditor({
         }>(base);
         if (!live) return;
         setMediaAccess((current) =>
-          current && current.expiresAt > Date.now() + 15 * 60 * 1000
+          current &&
+          new URLSearchParams(current.query).get("loudnessTarget") ===
+            new URLSearchParams(data.mediaAccess.query).get("loudnessTarget") &&
+          current.expiresAt > Date.now() + 15 * 60 * 1000
             ? current
             : data.mediaAccess,
         );
-        setVersionVolume(data.defaults.volumeMultiplier);
+        setLoudnessTarget(data.defaults.loudnessTarget);
         setBaseVoiceDefaults(data.baseVoiceDefaults);
         if (!initialized) {
           const values = settingsSchema.parse(
@@ -619,7 +620,7 @@ export function VideoProjectEditor({
   const waveformKeys = [
     ...timeline
       .filter((section) => section.originalAvailable !== false)
-      .map((section) => `${base}:reading-${section.index}`),
+      .map((section) => `${base}:${loudnessTarget}:reading-${section.index}`),
     ...narrationParts
       .filter(
         (part) =>
@@ -627,7 +628,7 @@ export function VideoProjectEditor({
           voices[part]?.available &&
           !["queued", "running"].includes(voices[part]?.status ?? ""),
       )
-      .map((part) => `${base}:${part}:${voiceRevision}`),
+      .map((part) => `${base}:${loudnessTarget}:${part}:${voiceRevision}`),
   ];
   const preparedCount = waveformKeys.filter(
     (key) => key in preparedWaveforms,
@@ -1193,7 +1194,7 @@ export function VideoProjectEditor({
             onSelectReference={selectReference}
             key={`${index}:${track.revision}`}
             onPrepared={onWaveformPrepared}
-            resourceKey={`${base}:generated-${index}:${track.revision}`}
+            resourceKey={`${base}:${loudnessTarget}:generated-${index}:${track.revision}`}
             expanded={expanded.has(`reading-${index}`)}
             locale={project?.locale ?? "en"}
             src={`${media(`generated-reading-${index}`)}&revision=${track.revision}`}
@@ -1635,7 +1636,7 @@ export function VideoProjectEditor({
             <h3>{t("Narration preview")}</h3>
             {voice.available && !pending ? (
               <VoiceWaveform
-                resourceKey={`${base}:${part}:${voiceRevision}`}
+                resourceKey={`${base}:${loudnessTarget}:${part}:${voiceRevision}`}
                 onPrepared={onWaveformPrepared}
                 generateAction={generateAction}
                 audioRef={(player) => {
@@ -1697,54 +1698,6 @@ export function VideoProjectEditor({
       </section>
     );
   };
-  const readingVolume = (
-    <div className="reading-volume-settings">
-      <hr className="reading-settings-divider" />
-      <label>
-        {t("Reading volume")}
-        <div className="volume-control">
-          <input
-            type="range"
-            min={0}
-            max={4}
-            step={0.1}
-            value={readingVolumeValue}
-            disabled={locked || !settings.overrideReadingVolume}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                volumeMultiplier: Number(e.target.value),
-              })
-            }
-          />
-          <output>{readingVolumeValue.toFixed(2)}×</output>
-        </div>
-      </label>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={settings.overrideReadingVolume}
-          disabled={locked}
-          onChange={(event) =>
-            setSettings((current) => ({
-              ...current,
-              overrideReadingVolume: event.target.checked,
-            }))
-          }
-        />
-        {t("Use a custom reading volume for this project")}
-      </label>
-      <p className="muted">
-        {t(
-          "Unchecked: uses the default reading volume for this Bible version.",
-        )}
-      </p>
-      <hr className="reading-settings-divider" />
-      <p className="muted">
-        {t("Save synchronization changes before leaving.")}
-      </p>
-    </div>
-  );
   if (!project)
     return (
       <>
@@ -2188,11 +2141,11 @@ export function VideoProjectEditor({
                             <>
                               <span
                                 className="waveform-volume-indicator"
-                                data-tooltip={`${t("Original recording volume")}: ${readingVolumeValue.toFixed(2)}×`}
-                                aria-label={`${t("Original recording volume")}: ${readingVolumeValue.toFixed(2)}×`}
+                                data-tooltip={`${t("Automatic volume")}: ${loudnessTarget} LUFS`}
+                                aria-label={`${t("Automatic volume")}: ${loudnessTarget} LUFS`}
                               >
                                 <Volume2 size={16} aria-hidden="true" />
-                                {readingVolumeValue.toFixed(2)}×
+                                {loudnessTarget} LUFS
                               </span>
                               <span
                                 className="section-action-separator"
@@ -2200,7 +2153,7 @@ export function VideoProjectEditor({
                               />
                             </>
                           }
-                          resourceKey={`${base}:${id}`}
+                          resourceKey={`${base}:${loudnessTarget}:${id}`}
                           onPrepared={onWaveformPrepared}
                           expanded={expanded.has(id)}
                           resetRevision={readingResetRevisions[id] ?? 0}
@@ -2213,7 +2166,7 @@ export function VideoProjectEditor({
                             expandSection(section.index, edge)
                           }
                           timelineStart={section.timelineStart}
-                          volumeMultiplier={readingVolumeValue}
+                          volumeMultiplier={1}
                           cues={verses}
                           disabled={
                             readingLocks(section.index).editingLocked ||
@@ -2241,10 +2194,6 @@ export function VideoProjectEditor({
                             )
                           }
                         </VerseWaveform>
-                        {!(
-                          settings.readingVoices?.[section.index]?.enabled ||
-                          section.originalAvailable === false
-                        ) && readingVolume}
                       </div>
                     </section>
                   </div>
@@ -2278,7 +2227,6 @@ export function VideoProjectEditor({
                       )}
                     </p>
                   </div>
-                  {readingVolume}
                 </div>
               </section>
             )}
@@ -2358,12 +2306,11 @@ export function VideoProjectEditor({
               kind={kind}
               endpoint={endpoint}
               media={media}
-              settings={settings}
+              settings={{ ...settings, loudnessTarget }}
               readingReferences={previewReading?.references}
               readingSources={analysis?.sections}
               readingCues={cues}
               voicePart={previewVoice ?? undefined}
-              readingVolume={readingVolumeValue}
               ready={Boolean(
                 analysis &&
                 !analyzing &&
