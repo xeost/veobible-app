@@ -1,3 +1,4 @@
+import type { VisualElements, SocialVariant, VideoLocale } from "../../visual-elements";
 import { createBoomerang } from "../../boomerang.js";
 import { READING_END_SILENCE, OUTRO_NARRATION_DELAY } from "../../composition-timing.js";
 /**
@@ -244,6 +245,9 @@ export async function prepareVideoComposition(
   workDir = videosDir,
   volumeMultiplier = 1,
   renderOptions: {
+    visualElements?: VisualElements;
+    videoLocale?: VideoLocale;
+    socialVariant?: SocialVariant;
     concurrency?: number;
     background?: string;
     readingOnly?: boolean;
@@ -366,6 +370,9 @@ export async function prepareVideoComposition(
 
     // Build Remotion props
     const compositionProps: ShortCompositionProps = {
+      visualElements: renderOptions.visualElements,
+      videoLocale: renderOptions.videoLocale,
+      socialVariant: renderOptions.socialVariant,
       introLength,
       introVideoDuration: introDuration * 2,
       outroVideoDuration: outroDuration * 2,
@@ -417,6 +424,9 @@ export async function renderShortVideo(
   workDir = path.dirname(output),
   volumeMultiplier = 1,
   renderOptions: {
+    visualElements?: VisualElements;
+    videoLocale?: VideoLocale;
+    socialVariant?: SocialVariant;
     concurrency?: number;
     background?: string;
     readingOnly?: boolean;

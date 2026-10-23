@@ -1014,7 +1014,14 @@ const server = http.createServer(async (req, res) => {
       );
       const asset = z
         .union([
-          z.enum(["video", "thumbnail", "intro", "outro"]),
+          z.enum([
+            "video",
+            "video-follow",
+            "video-subscribe",
+            "thumbnail",
+            "intro",
+            "outro",
+          ]),
           z.string().regex(/^(?:chapter|reading)-\d+$/),
           z.string().regex(/^(?:generated-)?reading-\d+$/),
           z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),
@@ -1052,7 +1059,8 @@ const server = http.createServer(async (req, res) => {
               : await existingOutputMedia(
                   projectDir(kind, version, passage, environment),
                   kind,
-                  asset as "video" | "thumbnail",
+                  asset as
+                    "video" | "video-follow" | "video-subscribe" | "thumbnail",
                 );
       if (!file) return json(res, 404, { error: "Audio section not found" });
       let stat;
@@ -1066,6 +1074,8 @@ const server = http.createServer(async (req, res) => {
       if (
         !asset.startsWith("preview-") &&
         asset !== "video" &&
+        asset !== "video-follow" &&
+        asset !== "video-subscribe" &&
         asset !== "thumbnail"
       ) {
         const target = loudnessTargetSchema.parse(

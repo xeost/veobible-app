@@ -1,3 +1,4 @@
+import { visualElementsSchema } from "./visual-elements";
 import { loudnessTargetSchema } from "./loudness-schema.js";
 import { narrationTextAdaptationsSchema } from "./narration-text-adaptations.js";
 import { videoDomainSchema } from "./domain.js";
@@ -18,6 +19,7 @@ const point = z.object({
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  visualElements: visualElementsSchema.optional(),
   audioEdition: audioEditionSchema.optional(),
   baseVoice: baseVoiceSchema.optional(),
   baseVoices: voiceRolesSchema.optional(),
@@ -147,6 +149,9 @@ export const renderSchema = z.object({
 export const resultSchema = z.object({
   output: z.string(),
   video: z.string(),
+  videoVariants: z
+    .object({ follow: z.string(), subscribe: z.string() })
+    .optional(),
   thumbnail: z.string(),
   background: z.string(),
   duration: z.number(),

@@ -14,6 +14,13 @@ import {
   type CSSProperties,
   type Ref,
 } from "react";
+import { Sequence, useVideoConfig } from "remotion";
+import { VisualElementAnimation } from "../../../../tools/video-project-api/src/remotion/SubscribeAnimation";
+import {
+  elementTiming,
+  type VisualElement,
+  type VideoLocale,
+} from "../../../../tools/video-project-api/src/visual-elements";
 import { Player, type PlayerRef } from "@remotion/player";
 import {
   previewDurationInFrames,
@@ -100,6 +107,58 @@ function SectionPreview(
   );
 }
 
+function SectionWithVisuals(
+  props: ShortCompositionProps & {
+    previewKind?: "short" | "long" | "book";
+    previewVoicePart?: VoicePart;
+    previewElement?: VisualElement;
+  },
+) {
+  const { fps, durationInFrames } = useVideoConfig();
+  const element = props.previewElement;
+  const sectionStart =
+    props.previewVoicePart === "intro" || props.previewVoicePart === "outro"
+      ? 0
+      : props.readingSilence +
+        (props.previewVoicePart?.startsWith("chapter-")
+          ? (props.chapterIntroductions?.[0]?.start ?? 0)
+          : props.verseCues.length
+            ? Math.min(...props.verseCues.map((cue) => cue.start))
+            : 0);
+  const sectionEnd =
+    props.previewVoicePart === "intro" || props.previewVoicePart === "outro"
+      ? durationInFrames / fps
+      : props.previewVoicePart?.startsWith("chapter-")
+        ? sectionStart + (props.chapterIntroductions?.[0]?.duration ?? 0)
+        : props.readingSilence +
+          (props.verseCues.length
+            ? Math.max(...props.verseCues.map((cue) => cue.end))
+            : 0);
+  const timing = element
+    ? elementTiming(element, sectionEnd - sectionStart)
+    : { start: 0, duration: 0 };
+  const start = Math.round((sectionStart + timing.start) * fps);
+  const frames = Math.min(
+    Math.round(timing.duration * fps),
+    durationInFrames - start,
+  );
+  return (
+    <>
+      <SectionPreview {...props} />
+      {element && !element.hidden && frames > 0 && (
+        <Sequence from={start} durationInFrames={frames} layout="none">
+          <VisualElementAnimation
+            element={element}
+            durationSeconds={frames / fps}
+            locale={props.videoLocale}
+            variant="subscribe"
+          />
+        </Sequence>
+      )}
+    </>
+  );
+}
+
 type Preview = {
   props: ShortCompositionProps;
   background: string;
@@ -113,6 +172,8 @@ export function VideoProjectPreview({
   endpoint,
   media,
   settings,
+  videoLocale = "en",
+  visualSectionId,
   readingReferences,
   readingCues,
   readingSources,
@@ -127,6 +188,8 @@ export function VideoProjectPreview({
   endpoint: (action?: string) => string;
   media: (asset: string) => string;
   settings: RenderRequest["settings"];
+  videoLocale?: VideoLocale;
+  visualSectionId?: string;
   readingReferences?: string[];
   readingCues?: VerseCue[];
   readingSources?: ReadingSection[];
@@ -234,6 +297,9 @@ export function VideoProjectPreview({
       preview
         ? {
             ...preview.props,
+            visualElements: settings.visualElements,
+            videoLocale,
+            socialVariant: "subscribe" as const,
             // Prepared cues use the same cut-and-transition timeline as final rendering.
             // All narration sources are already normalized to the language target.
             volumeMultiplier: 1,
@@ -266,7 +332,7 @@ export function VideoProjectPreview({
               : undefined,
           }
         : null,
-    [preview, reading, media],
+    [preview, reading, media, settings.visualElements, videoLocale],
   );
   const load = async () => {
     request.current?.abort();
@@ -327,13 +393,16 @@ export function VideoProjectPreview({
             ref={attachPlayer}
             component={
               readingReferences || voicePart
-                ? SectionPreview
+                ? SectionWithVisuals
                 : kind === "short"
                   ? VeoBibleShort
                   : VeoBibleEpisode
             }
             inputProps={{
               ...props,
+              previewElement: visualSectionId
+                ? settings.visualElements?.[visualSectionId]
+                : undefined,
               previewKind: kind,
               previewVoicePart: voicePart,
             }}

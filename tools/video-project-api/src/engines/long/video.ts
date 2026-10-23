@@ -1,3 +1,4 @@
+import type { VisualElements, SocialVariant, VideoLocale } from "../../visual-elements";
 import {
   insertChapterIntroductions,
   type ChapterIntroduction,
@@ -254,6 +255,9 @@ export async function prepareVideoComposition(
   renderOptions: {
     bibleVersionTitle?: string;
     chapterIntroductions?: Array<ChapterIntroduction & { file: string }>;
+    visualElements?: VisualElements;
+    videoLocale?: VideoLocale;
+    socialVariant?: SocialVariant;
     concurrency?: number;
     background?: string;
     readingOnly?: boolean;
@@ -426,6 +430,9 @@ export async function prepareVideoComposition(
     const compositionProps: EpisodeCompositionProps = {
       bibleVersionTitle: renderOptions.bibleVersionTitle ?? title.version,
       chapterIntroductions: reading.chapters,
+      visualElements: renderOptions.visualElements,
+      videoLocale: renderOptions.videoLocale,
+      socialVariant: renderOptions.socialVariant,
       introLength,
       introVideoDuration: introDuration * 2,
       outroVideoDuration: outroLoopDuration * 2,
@@ -479,6 +486,9 @@ export async function renderEpisodeVideo(
   renderOptions: {
     bibleVersionTitle?: string;
     chapterIntroductions?: Array<ChapterIntroduction & { file: string }>;
+    visualElements?: VisualElements;
+    videoLocale?: VideoLocale;
+    socialVariant?: SocialVariant;
     concurrency?: number;
     background?: string;
     readingOnly?: boolean;

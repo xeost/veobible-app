@@ -1,4 +1,6 @@
 "use client";
+import { SectionVisualElements } from "./SectionVisualElements";
+import type { VisualElement } from "../../../../tools/video-project-api/src/visual-elements";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import { AudioLibrarySelector } from "./AudioLibrarySelector";
 import {
@@ -176,6 +178,7 @@ export function VideoProjectEditor({
   const [previewReading, setPreviewReading] = useState<{
     references: string[];
     title: string;
+    sectionId: string;
   } | null>(null);
   const previewPlayback = useRef<PreviewPlaybackHandle | null>(null);
   const [previewView, setPreviewView] =
@@ -1448,7 +1451,11 @@ export function VideoProjectEditor({
               !voices[id as VoicePart]?.available)
           }
           onClick={() => {
-            setPreviewReading({ references: readingReferences, title });
+            setPreviewReading({
+              references: readingReferences,
+              title,
+              sectionId: id,
+            });
             Object.values(voicePlayers.current).forEach((player) =>
               player?.pause(),
             );
@@ -1472,6 +1479,54 @@ export function VideoProjectEditor({
       </div>
     );
   };
+  const sectionVisuals = (id: string, references?: string[]) => (
+    <SectionVisualElements
+      key={`visuals-${base}-${id}`}
+      kind={kind}
+      locale={project?.locale ?? "en"}
+      previewDisabled={
+        !analysis ||
+        analyzing ||
+        (id.startsWith("reading-")
+          ? !references?.length ||
+            ((settings.readingVoices?.[Number(id.slice(8))]?.enabled ||
+              analysis.sections[Number(id.slice(8))]?.originalAvailable ===
+                false) &&
+              !voices[id as VoicePart]?.available)
+          : !voices[id as VoicePart]?.available)
+      }
+      onPreview={() => {
+        Object.values(voicePlayers.current).forEach((player) =>
+          player?.pause(),
+        );
+        setPreviewReading(
+          id.startsWith("reading-")
+            ? {
+                references: references ?? [],
+                title: t("Passage reading"),
+                sectionId: id,
+              }
+            : null,
+        );
+        setPreviewVoice(id.startsWith("reading-") ? null : (id as VoicePart));
+        setPreviewView("composition");
+        setPreviewOpen(true);
+      }}
+      element={settings.visualElements?.[id]}
+      references={references}
+      disabled={
+        taskQueueLocked || (id.startsWith("reading-") && !references?.length)
+      }
+      onChange={(element?: VisualElement) =>
+        setSettings((current) => {
+          const visualElements = { ...current.visualElements };
+          if (element) visualElements[id] = element;
+          else delete visualElements[id];
+          return { ...current, visualElements };
+        })
+      }
+    />
+  );
   const voiceSection = (part: VoicePart, number: number) => {
     const voice = voices[part] ?? { available: false, status: "idle" };
     const pending =
@@ -1694,6 +1749,7 @@ export function VideoProjectEditor({
             )}
             {(!voice.available || pending) && generateAction}
           </div>
+          {sectionVisuals(part)}
         </div>
       </section>
     );
@@ -2194,6 +2250,10 @@ export function VideoProjectEditor({
                             )
                           }
                         </VerseWaveform>
+                        {sectionVisuals(
+                          id,
+                          verses.map((cue) => cue.reference),
+                        )}
                       </div>
                     </section>
                   </div>
@@ -2227,6 +2287,7 @@ export function VideoProjectEditor({
                       )}
                     </p>
                   </div>
+                  {sectionVisuals("reading-0")}
                 </div>
               </section>
             )}
@@ -2241,6 +2302,13 @@ export function VideoProjectEditor({
             <div className="project-studio-details">
               <details className="panel studio-history">
                 <summary>{t("Publication texts")}</summary>
+                {!Object.keys(result.descriptions).length && (
+                  <p className="muted">
+                    {t(
+                      "No publication texts were generated because this environment has no publication templates for this format and language. Add them in Settings before generating the video again.",
+                    )}
+                  </p>
+                )}
                 {Object.entries(result.descriptions)
                   .sort(([left], [right]) => {
                     const order = [
@@ -2307,6 +2375,8 @@ export function VideoProjectEditor({
               endpoint={endpoint}
               media={media}
               settings={{ ...settings, loudnessTarget }}
+              videoLocale={project.locale as "en" | "es" | "pt"}
+              visualSectionId={previewVoice ?? previewReading?.sectionId}
               readingReferences={previewReading?.references}
               readingSources={analysis?.sections}
               readingCues={cues}
@@ -2332,10 +2402,29 @@ export function VideoProjectEditor({
             />
             {result && !previewReading && !previewVoice && (
               <div className="preview-actions">
-                <a className="button" href={`${media("video")}&download=1`}>
-                  <Download size={15} />
-                  {t("Video")}
-                </a>
+                {result.videoVariants ? (
+                  <>
+                    <a
+                      className="button"
+                      href={`${media("video-subscribe")}&download=1`}
+                    >
+                      <Download size={15} />
+                      {t("YouTube video · Subscribe")}
+                    </a>
+                    <a
+                      className="button"
+                      href={`${media("video-follow")}&download=1`}
+                    >
+                      <Download size={15} />
+                      {t("Other social networks · Follow")}
+                    </a>
+                  </>
+                ) : (
+                  <a className="button" href={`${media("video")}&download=1`}>
+                    <Download size={15} />
+                    {t("Video")}
+                  </a>
+                )}
                 <a className="button" href={`${media("thumbnail")}&download=1`}>
                   <Download size={15} />
                   {t("Thumbnail")}

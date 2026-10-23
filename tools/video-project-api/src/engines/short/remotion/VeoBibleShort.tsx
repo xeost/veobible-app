@@ -1,3 +1,4 @@
+import { VisualElementsOverlay } from "../../../remotion/SubscribeAnimation";
 import { readingPadding } from "../../../composition-timing";
 /**
  * VeoBibleShort – root Remotion composition.
@@ -196,6 +197,7 @@ export const VeoBibleShort: React.FC<ShortCompositionProps> = (props) => {
           />
         </FadeWrapper>
       </Sequence>
+      <VisualElementsOverlay props={props} />
     </AbsoluteFill>
   );
 };

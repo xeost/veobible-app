@@ -1,5 +1,7 @@
 import {
   videoFilename,
+  videoVariantFilename,
+  legacyVideoVariantFilename,
   thumbnailFilename,
   publicationFilenames,
   isPublicationFilename,
@@ -291,24 +293,39 @@ export async function discoverExistingProjects(
 export async function existingOutputMedia(
   directory: string,
   kind: "short" | "long" | "book",
-  asset: "video" | "thumbnail",
+  asset: "video" | "video-follow" | "video-subscribe" | "thumbnail",
 ) {
   const filename = videoFilename(kind);
   const candidates =
-    asset === "video"
-      ? [filename, filename.slice(2)]
-      : [
-          ...(
-            await fs.readdir(directory).catch((error) => {
-              if (error.code === "ENOENT") return [];
-              throw error;
-            })
-          )
-            .filter(isNumberedThumbnailFilename)
-            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
-          "0-thumbnail.jpg",
-          "thumbnail.jpg",
-        ];
+    asset === "video-subscribe"
+      ? [
+          videoVariantFilename(kind, "subscribe"),
+          legacyVideoVariantFilename(kind),
+        ]
+      : asset === "video-follow"
+        ? [videoVariantFilename(kind, "follow"), filename]
+        : asset === "video"
+          ? [
+              videoVariantFilename(kind, "subscribe"),
+              legacyVideoVariantFilename(kind),
+              videoVariantFilename(kind, "follow"),
+              filename,
+              filename.slice(2),
+            ]
+          : [
+              ...(
+                await fs.readdir(directory).catch((error) => {
+                  if (error.code === "ENOENT") return [];
+                  throw error;
+                })
+              )
+                .filter(isNumberedThumbnailFilename)
+                .sort((a, b) =>
+                  a.localeCompare(b, undefined, { numeric: true }),
+                ),
+              "0-thumbnail.jpg",
+              "thumbnail.jpg",
+            ];
   for (const name of candidates) {
     const file = path.join(directory, name);
     if ((await fs.stat(file).catch(() => null))?.isFile()) return file;
@@ -339,8 +356,17 @@ export async function existingRenderResult(
       "utf8",
     );
   }
+  const subscribe = await existingOutputMedia(
+    directory,
+    kind,
+    "video-subscribe",
+  );
+  const follow = subscribe
+    ? await existingOutputMedia(directory, kind, "video-follow")
+    : null;
   return {
     video,
+    ...(subscribe && follow ? { videoVariants: { follow, subscribe } } : {}),
     thumbnail:
       (await existingOutputMedia(directory, kind, "thumbnail")) ??
       path.join(directory, thumbnailFilename(descriptions)),

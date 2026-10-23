@@ -582,7 +582,14 @@ export async function videoApi(
   if (parts[2] === "media" && method === "GET") {
     const asset = z
       .union([
-        z.enum(["video", "thumbnail", "intro", "outro"]),
+        z.enum([
+          "video",
+          "video-follow",
+          "video-subscribe",
+          "thumbnail",
+          "intro",
+          "outro",
+        ]),
         z.string().regex(/^(?:chapter|reading)-\d+$/),
         z.string().regex(/^(?:generated-)?reading-\d+$/),
         z.string().regex(/^preview-[0-9a-f-]{36}-\d+$/),

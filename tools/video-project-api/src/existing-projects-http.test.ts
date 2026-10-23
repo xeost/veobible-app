@@ -386,6 +386,22 @@ test(
       );
       assert.equal(numberedMedia.status, 206);
       assert.equal(await numberedMedia.text(), "numbered");
+      await fs.writeFile(
+        path.join(output, "0-short-subscribe.mp4"),
+        "subscribe video",
+      );
+      for (const [asset, expected] of [
+        ["video-follow", "numbered video"],
+        ["video-subscribe", "subscribe video"],
+      ]) {
+        const variant = await fetch(
+          `${base}/v1/projects/1/media/${asset}?${query}`,
+          { headers },
+        );
+        assert.equal(variant.status, 200);
+        assert.equal(variant.headers.get("content-type"), "video/mp4");
+        assert.equal(await variant.text(), expected);
+      }
       await fs.unlink(path.join(output, "short.mp4"));
       assert.equal(
         (await finalVideos("production")).projects[0].rendered,
@@ -403,7 +419,14 @@ test(
         { headers },
       );
       const numberedResult = (await numberedState.json()).result;
-      assert.equal(numberedResult.video, path.join(output, "0-short.mp4"));
+      assert.equal(
+        numberedResult.video,
+        path.join(output, "0-short-subscribe.mp4"),
+      );
+      assert.deepEqual(numberedResult.videoVariants, {
+        follow: path.join(output, "0-short.mp4"),
+        subscribe: path.join(output, "0-short-subscribe.mp4"),
+      });
       assert.equal(
         numberedResult.descriptions["3-youtube.txt"],
         "Updated caption",

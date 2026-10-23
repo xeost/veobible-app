@@ -191,13 +191,62 @@ test("numbered final files are preferred for both formats and legacy texts retai
         "2-facebook.txt": "Facebook",
         "3-youtube.txt": "new description",
       });
-      await fs.writeFile(path.join(project, "3.3-thumbnail.jpg"), "YouTube thumbnail");
+      await fs.writeFile(
+        path.join(project, "3.3-thumbnail.jpg"),
+        "YouTube thumbnail",
+      );
       await fs.writeFile(path.join(project, "3.1-youtube.txt"), "Title");
       await fs.writeFile(path.join(project, "3.2-youtube.txt"), "Description");
       const updated = await existingRenderResult(project, kind);
       assert.equal(updated?.thumbnail, path.join(project, "3.3-thumbnail.jpg"));
       assert.equal(updated?.descriptions["3.1-youtube.txt"], "Title");
       assert.equal(updated?.descriptions["3.2-youtube.txt"], "Description");
+    }
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("social variants remain discoverable and select the matching output for downloads after restart", async () => {
+  const { existingOutputMedia } = await import("./existing-projects");
+  const { videoVariantFilename } = await import("./output-files");
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "social-outputs-"));
+  try {
+    for (const kind of ["short", "long", "book"] as const) {
+      const project = path.join(directory, kind);
+      await fs.mkdir(project);
+      const follow = path.join(project, videoVariantFilename(kind, "follow"));
+      const subscribe = path.join(
+        project,
+        videoVariantFilename(kind, "subscribe"),
+      );
+      await fs.writeFile(follow, "follow frames");
+      await fs.writeFile(subscribe, "subscribe frames");
+      assert.equal(
+        await existingOutputMedia(project, kind, "video"),
+        subscribe,
+      );
+      assert.equal(
+        await existingOutputMedia(project, kind, "video-follow"),
+        follow,
+      );
+      assert.equal(
+        await existingOutputMedia(project, kind, "video-subscribe"),
+        subscribe,
+      );
+      assert.deepEqual(
+        (await existingRenderResult(project, kind))?.videoVariants,
+        { follow, subscribe },
+      );
+      await fs.rm(subscribe);
+      assert.equal(
+        (await existingRenderResult(project, kind))?.videoVariants,
+        undefined,
+      );
+      assert.equal(
+        await existingOutputMedia(project, kind, "video-subscribe"),
+        null,
+      );
     }
   } finally {
     await fs.rm(directory, { recursive: true, force: true });

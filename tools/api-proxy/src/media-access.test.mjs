@@ -88,6 +88,20 @@ test("browser media grants preserve streaming, ranges and downloads without gran
       /attachment; filename="john-3-16.mp4"/,
     );
     await download.text();
+    for (const variant of ["subscribe", "follow"]) {
+      const variantUrl =
+        url.replace("/media/video?", `/media/video-${variant}?`) +
+        "&download=1";
+      const response = await fetch(variantUrl, {
+        headers: { Origin: origin, Range: "bytes=0-3" },
+      });
+      assert.equal(response.status, 206);
+      assert.equal(
+        response.headers.get("content-disposition"),
+        `attachment; filename="john-3-16-${variant}.mp4"`,
+      );
+      assert.equal(await response.text(), "test");
+    }
     const chapterDownload = await fetch(
       url.replace("/media/video?", "/media/chapter-0?") + "&download=1",
       { headers: { Origin: origin } },

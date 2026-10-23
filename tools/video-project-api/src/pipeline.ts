@@ -1,3 +1,4 @@
+import { renderVideoVariants } from "./render-variants.js";
 import { normalizeSections } from "./audio-loudness.js";
 import {
   adaptNarrationText,
@@ -19,6 +20,9 @@ import {
 } from "./reading-voice-files.js";
 import {
   videoFilename,
+  videoVariantFilename,
+  renderedVideoFilename,
+  generatedVideoFilenames,
   thumbnailFilename,
   publicationFilenames,
   isPublicationFilename,
@@ -1075,29 +1079,51 @@ export async function render(
         ),
       })),
     );
-    const final = path.join(work, "video.mp4");
-    const result = await renderer(
-      final,
-      await normalizeSections(
-        sections,
-        input.settings.loudnessTarget,
-        m.config.ffmpegBin,
-      ),
-      m.config.videosDir,
-      title,
-      await m.outro(version.locale, input.socialAccounts, input.website),
-      cues,
-      trimmedVoices,
-      work,
-      1,
-      {
-        bibleVersionTitle: input.version.label,
-        background: input.settings.background,
-        chapterIntroductions: trimmedChapters,
-        onProgress: (progress) =>
-          update("Renderizando con Remotion", 45 + progress * 50),
-      },
+    const normalizedSections = await normalizeSections(
+      sections,
+      input.settings.loudnessTarget,
+      m.config.ffmpegBin,
     );
+    const outro = await m.outro(
+      version.locale,
+      input.socialAccounts,
+      input.website,
+    );
+    const outputs = await renderVideoVariants(
+      input.settings.visualElements,
+      (variant, index, count, background) =>
+        renderer(
+          path.join(work, renderedVideoFilename(input.kind, variant, count)),
+          normalizedSections,
+          m.config.videosDir,
+          title,
+          outro,
+          cues,
+          trimmedVoices,
+          work,
+          1,
+          {
+            bibleVersionTitle: input.version.label,
+            background: background ?? input.settings.background,
+            visualElements: input.settings.visualElements,
+            videoLocale: version.locale,
+            socialVariant: variant,
+            chapterIntroductions: trimmedChapters,
+            onProgress: (progress) =>
+              update(
+                "Renderizando con Remotion",
+                45 + ((index + progress) / count) * 50,
+              ),
+          },
+        ),
+    );
+    const result = outputs[0].result;
+    const primaryName = renderedVideoFilename(
+      input.kind,
+      outputs[0].variant,
+      outputs.length,
+    );
+    const final = path.join(work, primaryName);
     update("Generando miniatura", 96);
     await m.video.generateThumbnail(
       final,
@@ -1121,7 +1147,19 @@ export async function render(
       )
         await fs.rm(path.join(output, name), { force: true });
     }
-    await fs.rename(final, path.join(output, videoFilename(input.kind)));
+    for (const { variant } of outputs) {
+      const name = renderedVideoFilename(input.kind, variant, outputs.length);
+      await fs.rename(path.join(work, name), path.join(output, name));
+    }
+    const publishedVideoNames = new Set(
+      outputs.map(({ variant }) =>
+        renderedVideoFilename(input.kind, variant, outputs.length),
+      ),
+    );
+    for (const name of generatedVideoFilenames(input.kind)) {
+      if (!publishedVideoNames.has(name))
+        await fs.rm(path.join(output, name), { force: true });
+    }
     await fs.rename(
       path.join(work, "thumbnail.jpg"),
       path.join(output, thumbnailName),
@@ -1142,7 +1180,13 @@ export async function render(
         `Book: ${data.book.name} (${data.book.id})`,
         `Start: ${input.passage.start.chapter}:${input.passage.start.verse}`,
         `End: ${input.passage.end.chapter}:${input.passage.end.verse}`,
-        `Final video: ../${videoFilename(input.kind)}`,
+        `Final video: ../${primaryName}`,
+        ...(outputs.length === 2
+          ? [
+              `YouTube video: ../${videoVariantFilename(input.kind, "subscribe")}`,
+              `Other social networks video: ../${videoVariantFilename(input.kind, "follow")}`,
+            ]
+          : []),
         `Thumbnail: ../${thumbnailName} (frame at ${result.thumbnailTime.toFixed(6)} s)`,
         `Background: ${result.background}`,
         "Narration mode: voice",
@@ -1161,7 +1205,21 @@ export async function render(
     const savedResult = {
       ...result,
       output,
-      video: path.join(output, videoFilename(input.kind)),
+      video: path.join(output, primaryName),
+      ...(outputs.length === 2
+        ? {
+            videoVariants: {
+              follow: path.join(
+                output,
+                videoVariantFilename(input.kind, "follow"),
+              ),
+              subscribe: path.join(
+                output,
+                videoVariantFilename(input.kind, "subscribe"),
+              ),
+            },
+          }
+        : {}),
       thumbnail: path.join(output, thumbnailName),
       descriptions,
       voiceScripts: scripts,

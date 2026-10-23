@@ -1,4 +1,60 @@
 export const portuguese: Record<string, string> = {
+  "No publication texts were generated because this environment has no publication templates for this format and language. Add them in Settings before generating the video again.":
+    "Não foram gerados textos de publicação porque este ambiente não tem modelos para este formato e idioma. Adicione-os em Configurações antes de gerar o vídeo novamente.",
+  "Lower intermediate": "Inferior intermediária",
+  "Social media button": "Botão para redes sociais",
+  "Subscribe for YouTube, follow for other social networks. Text follows the video language.":
+    "Inscrever-se no YouTube, seguir nas outras redes. Os textos usam o idioma do vídeo.",
+  "Preview case": "Caso de pré-visualização",
+  "Subscribe \u00b7 YouTube": "Inscrever-se · YouTube",
+  "Follow \u00b7 Other social networks": "Seguir · Outras redes sociais",
+  "Editor previews use subscribe. Generating this video creates subscribe and follow versions.":
+    "As pré-visualizações do editor usam inscrever-se. Ao gerar o vídeo, são criadas as versões inscrever-se e seguir.",
+  "Add an animated social media button over this section.":
+    "Adicione um botão animado para redes sociais sobre esta seção.",
+  "Vertical position": "Posição vertical",
+  "Appearance in this section": "Momento de aparição nesta seção",
+  Top: "Acima",
+  "Upper third": "Terço superior",
+  Center: "Centro",
+  "Lower third": "Terço inferior",
+  Bottom: "Abaixo",
+  "Early third": "Terço inicial",
+  Middle: "Meio",
+  "Final third": "Terço final",
+  "Section end": "Final",
+  "YouTube video \u00b7 Subscribe": "Vídeo para YouTube · Inscrever-se",
+  "Other social networks \u00b7 Follow": "Outras redes sociais · Seguir",
+
+  "Pause animation": "Pausar animação",
+  "Play animation": "Reproduzir animação",
+  "Replay animation": "Repetir animação",
+
+  "Choose a visual element": "Escolha um elemento visual",
+  "The animation is ready. You only need to personalize the content.":
+    "A animação está pronta. Você só precisa personalizar o conteúdo.",
+  "YouTube subscribe button": "Botão de inscrição do YouTube",
+  "An animated click turns the subscribe button into a subscribed button and activates the bell.":
+    "Um clique animado muda o botão para inscrito e ativa o sino.",
+  "Use this element": "Usar este elemento",
+  "Sample text. You can change it after adding the element.":
+    "Texto de exemplo. Você pode alterá-lo depois de adicionar o elemento.",
+  "Visual elements": "Elementos visuais",
+  "Add an animated subscribe button over this section.":
+    "Adicione um botão de inscrição animado sobre esta seção.",
+  "Add element": "Adicionar elemento",
+  "No visual elements in this section.":
+    "Não há elementos visuais nesta seção.",
+  "Show element": "Mostrar elemento",
+  "Hide element": "Ocultar elemento",
+  "Remove element": "Remover elemento",
+  "Button text": "Texto do botão",
+  "Subscribed text": "Texto após a inscrição",
+  "Start in section (seconds)": "Início na seção (segundos)",
+  "Animation duration (seconds)": "Duração da animação (segundos)",
+  "The animation ends with the section. Save changes to include it in the video.":
+    "A animação termina com a seção. Salve as alterações para incluí-la no vídeo.",
+
   "For each language, enter the domain to display at the end of videos (for example, veobible.com) and social media usernames, with or without @. Leave a field empty to hide that domain or social network in the video.":
     "Para cada idioma, informe o domínio que será exibido no final dos vídeos (por exemplo, veobible.com) e os nomes de usuário das redes sociais, com ou sem @. Deixe um campo vazio para ocultar esse domínio ou rede social no vídeo.",
 
