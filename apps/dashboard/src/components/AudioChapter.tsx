@@ -1,12 +1,18 @@
 "use client";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useReducer,
+} from "react";
 import {
   AudioLines,
   ChevronDown,
   ChevronRight,
   Download,
   Combine,
-  RotateCcw,
+  UnfoldHorizontal,
   WandSparkles,
   ScanText,
   CircleCheck,
@@ -20,7 +26,13 @@ import { useI18n } from "../i18n/context";
 import type { GenerationQueueItem } from "../lib/generation-queue";
 import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
+import { VersePronunciationEditor } from "./VersePronunciationEditor";
 import { OriginalVerseAudio } from "./OriginalVerseAudio";
+import {
+  initialVerseText,
+  temporaryVerseText,
+  verseTextOverride,
+} from "../lib/temporary-verse-text";
 
 export function AudioChapter({
   chapter,
@@ -36,6 +48,8 @@ export function AudioChapter({
   media,
   onPlay,
   onToggleApproval,
+  selectedVerse,
+  onSelectVerse,
 }: {
   chapter: AudioProjectDetail["content"][number];
   project: AudioProjectDetail;
@@ -53,19 +67,52 @@ export function AudioChapter({
     assembleOnly?: boolean;
     voicesOnly?: boolean;
     alignOnly?: boolean;
-  }) => Promise<void>;
+    textOverride?: string;
+  }) => Promise<boolean>;
   media: (chapter: number, verse?: number, revision?: string) => string;
   onPlay: (audio: HTMLAudioElement) => void;
   onToggleApproval: (reference: string) => Promise<void>;
+  selectedVerse?: number;
+  onSelectVerse: (verse: number) => void;
 }) {
   const { t } = useI18n();
   const activeTask =
     tasks.find((task) => task.status === "running") ?? tasks[0];
   const [selection, setSelection] = useState({ index: 0, play: false });
+  useEffect(() => {
+    if (selectedVerse === undefined) return;
+    const index = chapter.verses.findIndex(
+      (verse) => verse.verse === selectedVerse,
+    );
+    if (index < 0) return;
+    setSelection((current) =>
+      current.index === index ? current : { index, play: false },
+    );
+  }, [selectedVerse, chapter.verses]);
   const [resetRevision, setResetRevision] = useState(0);
   const [listenToOriginal, setListenToOriginal] = useState(false);
   const verse = chapter.verses[selection.index] ?? chapter.verses[0];
   const reference = `${chapter.chapter}:${verse.verse}`;
+  const speechScope = `${project.edition}/${project.book}/${reference}`;
+  const [speechState, dispatchSpeech] = useReducer(
+    temporaryVerseText,
+    initialVerseText(speechScope, verse.text),
+  );
+  const speech =
+    speechState.scope === speechScope && speechState.original === verse.text
+      ? speechState
+      : initialVerseText(speechScope, verse.text);
+  const editingSpeech = speech.draft !== null;
+  useEffect(() => {
+    dispatchSpeech({
+      type: "select",
+      scope: speechScope,
+      original: verse.text,
+    });
+  }, [speechScope, verse.text]);
+  useEffect(() => {
+    if (selectedVerse === undefined) dispatchSpeech({ type: "discard" });
+  }, [selectedVerse]);
   const recording = project.recordings[reference];
   const approved = isAudioVerseApproved(project, settings, reference);
   const generationLocked =
@@ -86,6 +133,7 @@ export function AudioChapter({
   const references = chapter.verses.map((v) => `${chapter.chapter}:${v.verse}`);
   const hasCuts = references.some((ref) => settings.trims[ref]);
   const toggleSection = () => {
+    if (!open) onSelectVerse(verse.verse);
     if (open)
       collapseTop.current =
         heading.current?.getBoundingClientRect().top ?? null;
@@ -121,8 +169,11 @@ export function AudioChapter({
       list.scrollLeft += item.right - viewport.right + 4;
   }, [selection.index, open]);
   const selectVerse = (index: number, play = false) => {
+    const verse = chapter.verses[index];
+    if (!verse) return;
     body.current?.querySelectorAll("audio").forEach((audio) => audio.pause());
     setSelection({ index, play });
+    onSelectVerse(verse.verse);
   };
   const original = project.originalChapters?.includes(chapter.chapter) ? (
     <OriginalVerseAudio
@@ -134,6 +185,26 @@ export function AudioChapter({
       onChange={setListenToOriginal}
     />
   ) : null;
+  const generateCurrentVerse = async () => {
+    if (editingSpeech) return;
+    await generate({
+      chapter: chapter.chapter,
+      verse: verse.verse,
+      regenerate: Boolean(recording),
+      textOverride: verseTextOverride(speech),
+    });
+  };
+  const versePreview = (
+    <VersePronunciationEditor
+      reference={reference}
+      speech={speech}
+      disabled={locked}
+      dispatch={(action) => {
+        if (action.type === "edit") onSelectVerse(verse.verse);
+        dispatchSpeech(action);
+      }}
+    />
+  );
   const versePicker = (
     <div className="verse-picker" ref={picker} aria-label={t("Verses")}>
       {chapter.verses.map((v, index) => {
@@ -169,7 +240,10 @@ export function AudioChapter({
       selectVerse(selection.index + 1, play);
   };
   return (
-    <section className="section-card">
+    <section
+      className="section-card"
+      id={`audio-chapter-block-${chapter.chapter}`}
+    >
       <div
         ref={heading}
         className="reading-section-heading"
@@ -241,7 +315,7 @@ export function AudioChapter({
             setResetRevision((current) => current + 1);
           }}
         >
-          <RotateCcw size={17} aria-hidden="true" />
+          <UnfoldHorizontal size={17} aria-hidden="true" />
         </button>
         <span className="section-action-separator" aria-hidden="true" />
         <button
@@ -297,7 +371,10 @@ export function AudioChapter({
           className="section-body"
           id={`audio-chapter-${chapter.chapter}`}
           onPlayCapture={(event) => {
-            if (event.target instanceof HTMLAudioElement) onPlay(event.target);
+            if (event.target instanceof HTMLAudioElement) {
+              onSelectVerse(verse.verse);
+              onPlay(event.target);
+            }
           }}
         >
           {recording ? (
@@ -329,6 +406,7 @@ export function AudioChapter({
               resetRevision={resetRevision + project.revision}
               preservedReferences={[reference]}
               versePicker={versePicker}
+              versePreview={versePreview}
               playbackActions={
                 <>
                   <span
@@ -383,19 +461,14 @@ export function AudioChapter({
                       setResetRevision((current) => current + 1);
                     }}
                   >
-                    <RotateCcw size={16} aria-hidden="true" />
+                    <UnfoldHorizontal size={16} aria-hidden="true" />
                   </button>
                 </>
               }
-              onRegenerate={() =>
-                void generate({
-                  chapter: chapter.chapter,
-                  verse: verse.verse,
-                  regenerate: true,
-                })
-              }
-              regenerationDisabled={generationLocked}
+              onRegenerate={() => void generateCurrentVerse()}
+              regenerationDisabled={generationLocked || editingSpeech}
               regenerateLabel="Regenerate this verse"
+              regenerateIcon={<WandSparkles size={16} aria-hidden="true" />}
               onTrim={(_, edge, value) =>
                 change({
                   ...settings,
@@ -445,21 +518,13 @@ export function AudioChapter({
                 <button
                   type="button"
                   className="primary audio-verse-generate"
-                  disabled={generationLocked}
-                  onClick={() =>
-                    void generate({
-                      chapter: chapter.chapter,
-                      verse: verse.verse,
-                    })
-                  }
+                  disabled={generationLocked || editingSpeech}
+                  onClick={() => void generateCurrentVerse()}
                 >
                   <WandSparkles size={15} aria-hidden="true" />
                   {t("Generate verse audio")}
                 </button>
-                <div className="verse-preview">
-                  <span className="eyebrow">{reference}</span>
-                  <p>{verse.text}</p>
-                </div>
+                {versePreview}
                 {original}
               </div>
             </div>

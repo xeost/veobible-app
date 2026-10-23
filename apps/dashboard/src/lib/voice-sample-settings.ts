@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   narrationModelsSchema,
   selectedNarrationDecoder,
+  selectedNarrationTextAdaptations,
 } from "./narration-models";
 import {
   narrationStylesSchema,
@@ -35,8 +36,13 @@ export function resolveVoiceSampleSettings(
   settings: VoiceSampleSettings,
   readingOverride: ReadingNarrationParameters | null = null,
 ) {
+  const voiceTextAdaptations = selectedNarrationTextAdaptations(
+    settings.models,
+    locale,
+  );
   return {
     voiceModel: settings.models[locale],
+    ...(voiceTextAdaptations ? { voiceTextAdaptations } : {}),
     voiceDecoder: selectedNarrationDecoder(settings.models, locale),
     voiceParameters: resolveReadingNarrationParameters(
       resolveNarrationStyle(settings.styles[locale]),

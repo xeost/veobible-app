@@ -31,7 +31,7 @@ test("both video engines pass the selected per-language model to the worker with
     const worker = path.join(root, "worker.mjs");
     await fs.writeFile(
       worker,
-      `import fs from 'node:fs/promises'; import path from 'node:path'; const args=process.argv.slice(2); const output=args[args.indexOf('--output-dir')+1]; await fs.writeFile(path.join(output,'args.json'),JSON.stringify(args));`,
+      `import fs from 'node:fs/promises'; import path from 'node:path'; const args=process.argv.slice(2); const output=args[args.indexOf('--output-dir')+1]; await fs.writeFile(path.join(output,'args.json'),JSON.stringify(args)); await fs.copyFile(args[args.indexOf('--scripts')+1],path.join(output,'spoken-scripts.json'));`,
     );
     const script = `
       import assert from 'node:assert/strict'; import fs from 'node:fs/promises'; import path from 'node:path';
@@ -40,7 +40,9 @@ test("both video engines pass the selected per-language model to the worker with
       import { narrationPresets } from './src/narration-parameters.ts';
       for(const [kind, engine] of Object.entries({short,long})) for(const locale of ['en','es','pt']) for(const {value} of narrationModelOptions[locale]) for(const decoder of ['general','v3']) {
         const out=path.join(process.env.MODEL_TEST_DIR,kind+'-'+locale+'-'+value+'-'+decoder);
-        await engine.generateVoice(out,{locale,voiceModel:value,voiceDecoder:decoder,voiceParameters:narrationPresets.expressive,reference:'John',version:'Bible',book:'John',start:'1:1',end:'1:2',passage_id:'john-1-1',templates:{intro:'Hello',outro:'Goodbye'}},true,'intro');
+        await engine.generateVoice(out,{locale,voiceModel:value,voiceDecoder:decoder,voiceParameters:narrationPresets.expressive,voiceTextAdaptations:{reinforceSpanishRs:true},reference:'John',version:'Bible',book:'John',start:'1:1',end:'1:2',passage_id:'john-1-1',templates:{intro:'Rosa corre rápido.',outro:'Goodbye'}},true,'intro');
+        const spoken=JSON.parse(await fs.readFile(path.join(out,'spoken-scripts.json'),'utf8'));
+        assert.equal(spoken.intro,locale==='es'?'Rrosa corrre rrápido.':'Rosa corre rápido.');
         const args=JSON.parse(await fs.readFile(path.join(out,'args.json'),'utf8'));
         for(const [key, parameter] of Object.entries(narrationPresets.expressive)) assert.equal(args[args.indexOf('--'+key.replaceAll('_','-'))+1],String(parameter));
         if(decoder) assert.equal(args[args.indexOf('--audio-decoder')+1],decoder); else assert.equal(args.includes('--audio-decoder'),false);

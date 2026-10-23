@@ -2334,6 +2334,27 @@ audio {
   font-size: 9px;
   color: #bba1da;
 }
+.audio-verse-text-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.audio-verse-text-heading .icon-button {
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+}
+.audio-verse-text-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.verse-preview textarea {
+  width: 100%;
+  margin-top: 8px;
+  resize: vertical;
+}
 .verse-preview p {
   font-size: 12px;
   line-height: 1.8;
@@ -2366,9 +2387,11 @@ audio {
 .audio-verse-approval[aria-pressed="true"] {
   border-color: #83d6a2;
 }
-.audio-verse-label {
+.verse-picker .audio-verse-label {
   display: inline-flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   gap: 5px;
 }
 .trim-fields {
@@ -3036,6 +3059,12 @@ audio {
 .voice-generation-languages label {
   display: block;
   margin-bottom: 8px;
+}
+.voice-generation-languages label.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
 }
 .voice-generation-languages select {
   width: 100%;

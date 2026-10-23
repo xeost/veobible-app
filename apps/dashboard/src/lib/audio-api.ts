@@ -18,6 +18,7 @@ import { loadBaseVoiceDefaults } from "./base-voices";
 import {
   loadNarrationModels,
   selectedNarrationDecoder,
+  selectedNarrationTextAdaptations,
 } from "./narration-models";
 import {
   loadNarrationStyles,
@@ -208,6 +209,10 @@ export async function audioApi(
           input: {
             ...input,
             voiceModel: models[project.version.locale],
+            voiceTextAdaptations: selectedNarrationTextAdaptations(
+              models,
+              project.version.locale,
+            ),
             voiceDecoder: selectedNarrationDecoder(
               models,
               project.version.locale,

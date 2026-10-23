@@ -86,6 +86,7 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
             VIDEO_LONG_TTS_PYTHON: process.execPath,
             AUDIO_TEST_LOG: path.join(root, "calls.log"),
             AUDIO_TEST_FFMPEG: config.ffmpegBin,
+            AUDIO_TEST_OVERRIDE: "Rrosa corrre rrápido.",
             VIDEO_ALIGNER_PYTHON: process.execPath,
             VIDEO_ALIGNER_SCRIPT: path.join(root, "align.mjs"),
           },
@@ -117,7 +118,10 @@ const arg = key => process.argv[process.argv.indexOf(key) + 1];
 const request = JSON.parse(await fs.readFile(arg('--request'), 'utf8'));
 if (request.language !== 'es' || request.detectHeadings !== false) throw new Error('Invalid alignment request');
 const chapter = request.chapters[0];
-const text = await fs.readFile(chapter.audio.slice(0, -4) + '.txt', 'utf8');
+const text = await fs.readFile(chapter.audio.slice(0, -4) + '.txt', 'utf8').catch(error => {
+  if (error.code !== 'ENOENT') throw error;
+  return process.env.AUDIO_TEST_OVERRIDE;
+});
 if (chapter.segments.length !== 1 || chapter.segments[0].text.trim() !== text.trim()) throw new Error('Wrong verse transcript');
 await fs.appendFile(process.env.AUDIO_TEST_LOG + '.alignment', chapter.audio + '\\n');
 await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: [{index: 0, segments: chapter.segments.map(segment => ({id: segment.id, words: [{text: segment.text, start: 0.06, end: 0.12}]}))}]}));`,
@@ -412,6 +416,62 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
           (item: any) => item.kind === "audio" && item.type === "alignment",
         ).length,
         2,
+      );
+      const previousRecordings = structuredClone(state.recordings);
+      const adapted = "Rosa corre rápido.";
+      const pronunciation = await fetch(`${project}/generate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          ...snapshot(),
+          callback: {
+            url: `${callbackOrigin}/api/audio-project-events/1/${jobId}`,
+            token: callbackToken,
+          },
+          input: {
+            chapter: 1,
+            verse: 1,
+            regenerate: true,
+            textOverride: adapted,
+            voiceTextAdaptations: { reinforceSpanishRs: true },
+          },
+        }),
+      });
+      assert.equal(pronunciation.status, 202, await pronunciation.text());
+      for (let attempt = 0; attempt < 150; attempt++) {
+        state = await (
+          await fetch(project, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(snapshot()),
+          })
+        ).json();
+        if (!["queued", "running"].includes(state.status)) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      assert.equal(state.status, "draft", diagnostics);
+      assert.notEqual(
+        state.recordings["1:1"].revision,
+        previousRecordings["1:1"].revision,
+      );
+      assert.deepEqual(state.recordings["1:2"], previousRecordings["1:2"]);
+      assert.equal(JSON.stringify(state).includes(adapted), false);
+      assert.ok(
+        (await fs.readFile(path.join(root, "calls.log"), "utf8")).includes(
+          "Rrosa corrre rrápido.",
+        ),
+      );
+      assert.deepEqual(
+        await fs.readdir(
+          path.dirname(
+            path.join(
+              root,
+              "material/audios/rv1909-v2_internal",
+              state.recordings["1:1"].file,
+            ),
+          ),
+        ),
+        ["intro.wav"],
       );
       await stop();
     } finally {

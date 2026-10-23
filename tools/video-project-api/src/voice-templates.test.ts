@@ -68,6 +68,7 @@ test("custom narration is used literally in both formats without changing the ot
   for (const engine of [short, long]) {
     const scripts = await engine.renderVoiceScripts({
       ...context,
+      voiceTextAdaptations: { reinforceSpanishRs: true },
       scriptOverrides: {
         intro: "  Texto manual con {reference}, sin sustitución.  ",
       },

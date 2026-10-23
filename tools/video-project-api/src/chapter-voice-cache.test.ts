@@ -152,4 +152,16 @@ test("Latam chapter caches isolate audio decoders while legacy selections defaul
   const v3 = chapterSynthesis("es", "latam", undefined, "es-1", "v3");
   assert.notEqual(general, v3);
   assert.equal(general, chapterSynthesis("es", "latam", undefined, "es-1"));
+  assert.notEqual(
+    general,
+    chapterSynthesis("es", "latam", undefined, "es-1", "general", {
+      reinforceSpanishRs: true,
+    }),
+  );
+  assert.equal(
+    general,
+    chapterSynthesis("es", "latam", undefined, "es-1", "general", {
+      reinforceSpanishRs: false,
+    }),
+  );
 });

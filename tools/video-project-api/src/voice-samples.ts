@@ -1,3 +1,4 @@
+import { narrationTextAdaptationsSchema } from "./narration-text-adaptations.js";
 import { randomUUID } from "node:crypto";
 import type { GenerationQueue, QueueJob } from "./generation-queue.js";
 import fs from "node:fs/promises";
@@ -20,6 +21,7 @@ export const sampleRequestSchema = z
     voiceModel: narrationModelSchema,
     voiceDecoder: narrationDecoderSchema.optional(),
     voiceParameters: narrationParametersSchema,
+    voiceTextAdaptations: narrationTextAdaptationsSchema.optional(),
     outputEnvironment: z
       .enum(["production", "development"])
       .default("production"),
@@ -106,6 +108,7 @@ export async function queueVoiceSample(
             voiceModel: input.voiceModel,
             voiceDecoder: input.voiceDecoder,
             voiceParameters: input.voiceParameters,
+            voiceTextAdaptations: input.voiceTextAdaptations,
             reference: "",
             version: "",
             book: "",

@@ -92,7 +92,7 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
         <h2 id="voice-generation-title">{t("Voice generation settings")}</h2>
         <p className="muted">
           {t(
-            "Choose the narration model for each Bible language. Applies to new voice generations in Short Videos and Long Videos. Multilingual options use V3.",
+            "Choose the narration model for each Bible language. Applies to new voices in video and audio projects. Multilingual options use V3.",
           )}
         </p>
         {error && (
@@ -141,6 +141,47 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
                       </option>
                     ))}
                   </select>
+                  {locale === "es" && (
+                    <details>
+                      <summary>
+                        {t("Text adaptations for this voice model")}
+                      </summary>
+                      <label
+                        className="checkbox"
+                        data-tooltip={t(
+                          "Before generating speech, rr becomes rrr, and r or R at the start of a word becomes rr or Rr. Applies only to this Spanish voice model; the original text stays unchanged.",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            models.textAdaptations?.es?.[models.es]
+                              ?.reinforceSpanishRs ?? false
+                          }
+                          onChange={(event) =>
+                            setModels(
+                              narrationModelsSchema.parse({
+                                ...models,
+                                textAdaptations: {
+                                  ...models.textAdaptations,
+                                  es: {
+                                    ...models.textAdaptations?.es,
+                                    [models.es]: {
+                                      ...models.textAdaptations?.es?.[
+                                        models.es
+                                      ],
+                                      reinforceSpanishRs: event.target.checked,
+                                    },
+                                  },
+                                },
+                              }),
+                            )
+                          }
+                        />
+                        {t("Reinforce the Spanish R sound")}
+                      </label>
+                    </details>
+                  )}
                   <label
                     className="narration-style-label"
                     htmlFor={`narration-style-${locale}`}

@@ -197,7 +197,7 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
     with staging_context as staging_name:
         staging = Path(staging_name)
         for track, script in scripts.items():
-            print(f"Stage: Generating {track}", flush=True)
+            print("Stage: Generating voice", flush=True)
             voice_prompt = voice_prompt_for_track(track, voice_prompts, args.voice_prompt)
             kwargs = {
                 "audio_prompt_path": str(voice_prompt) if voice_prompt else None,
@@ -210,7 +210,8 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
             chunks = [script] if getattr(args, "single_utterance", False) else speech_chunks(script)
             native_chunks = []
             for index, chunk in enumerate(chunks):
-                print(f"Stage: Generating {track} fragment {index + 1}/{len(chunks)}", flush=True)
+                print(f"Stage: Generating voice fragment {index + 1}/{len(chunks)}", flush=True)
+                print(f"Voice text: {json.dumps(chunk, ensure_ascii=False)}", flush=True)
                 waveform = model.generate(text=chunk, **kwargs)
                 # Never treat a capped output as a complete rendition of the transcript.
                 if waveform.shape[-1] / model.sr >= 39.96:
@@ -219,7 +220,7 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
                 torchaudio.save(str(native), waveform.cpu(), model.sr)
                 native_chunks.append(native)
                 del waveform
-            print(f"Stage: Converting {track}", flush=True)
+            print("Stage: Converting voice", flush=True)
             if len(native_chunks) == 1:
                 convert_audio(native_chunks[0], staging / f"{track}.wav", "pcm_s24le")
             else:

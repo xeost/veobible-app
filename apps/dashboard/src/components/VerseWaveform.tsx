@@ -1,5 +1,18 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { VersePronunciationEditor } from "./VersePronunciationEditor";
+import {
+  initialVerseText,
+  temporaryVerseText,
+  verseTextOverride,
+} from "../lib/temporary-verse-text";
 import {
   Play,
   Pause,
@@ -61,6 +74,9 @@ export function VerseWaveform({
   toolbarActions,
   playbackActions,
   regenerateLabel = "Regenerate reading voice",
+  regenerateIcon,
+  versePreview,
+  editableVerseText = false,
   children,
   versePicker,
   onNextVerse,
@@ -104,11 +120,15 @@ export function VerseWaveform({
   toolbarActions?: ReactNode;
   playbackActions?: ReactNode;
   regenerateLabel?: string;
+  regenerateIcon?: ReactNode;
+  versePreview?: ReactNode;
+  editableVerseText?: boolean;
   children?:
     | ReactNode
     | ((
         cue: VerseCue,
         selectReference: (reference: string) => void,
+        pronunciation: { textOverride?: string; editing: boolean },
       ) => ReactNode);
 }) {
   const { t } = useI18n();
@@ -191,6 +211,26 @@ export function VerseWaveform({
       ? controlledIndex
       : Math.min(selected, Math.max(0, cues.length - 1));
   const cue = cues[index];
+  const speechScope = `${resourceKey}:${cue?.reference}`;
+  const originalText = cue?.text ?? "";
+  const [speechState, dispatchSpeech] = useReducer(
+    temporaryVerseText,
+    initialVerseText(speechScope, originalText),
+  );
+  const speech =
+    speechState.scope === speechScope && speechState.original === originalText
+      ? speechState
+      : initialVerseText(speechScope, originalText);
+  useEffect(() => {
+    dispatchSpeech({
+      type: "select",
+      scope: speechScope,
+      original: originalText,
+    });
+  }, [speechScope, originalText]);
+  useEffect(() => {
+    if (!editableVerseText) dispatchSpeech({ type: "discard" });
+  }, [editableVerseText]);
   useEffect(() => {
     const list = picker.current;
     const active = list?.querySelector<HTMLElement>('[aria-pressed="true"]');
@@ -727,7 +767,9 @@ export function VerseWaveform({
                         }
                       >
                         {onRegenerate ? (
-                          <RotateCcw size={16} aria-hidden="true" />
+                          (regenerateIcon ?? (
+                            <RotateCcw size={16} aria-hidden="true" />
+                          ))
                         ) : (
                           <AlignStartVertical size={16} aria-hidden="true" />
                         )}
@@ -780,19 +822,38 @@ export function VerseWaveform({
               )}
             </>
           )}
-          {!compact && (
-            <div className="verse-preview">
-              <span className="eyebrow">{cue.reference}</span>
-              <p>{cue.text}</p>
-            </div>
-          )}
+          {!compact &&
+            (versePreview ??
+              (editableVerseText ? (
+                <VersePronunciationEditor
+                  reference={cue.reference}
+                  speech={speech}
+                  dispatch={dispatchSpeech}
+                  disabled={disabled}
+                />
+              ) : (
+                <div className="verse-preview">
+                  <span className="eyebrow">{cue.reference}</span>
+                  <p>{cue.text}</p>
+                </div>
+              )))}
           {typeof children === "function"
-            ? children(cue, (reference) => {
-                const next = latest.current.findIndex(
-                  (verse) => verse.reference === reference,
-                );
-                if (next >= 0) setSelected(next);
-              })
+            ? children(
+                cue,
+                (reference) => {
+                  const next = latest.current.findIndex(
+                    (verse) => verse.reference === reference,
+                  );
+                  if (next >= 0) setSelected(next);
+                  if (next >= 0) onSelectReference?.(reference);
+                },
+                {
+                  textOverride: editableVerseText
+                    ? verseTextOverride(speech)
+                    : undefined,
+                  editing: editableVerseText && speech.draft !== null,
+                },
+              )
             : children}
           {!textOnly && (
             <audio
@@ -812,6 +873,7 @@ export function VerseWaveform({
                 }
               }}
               onPlay={(event) => {
+                if (cue) onSelectReference?.(cue.reference);
                 applyVolume();
                 applyReadingPlaybackSpeed(
                   event.currentTarget,

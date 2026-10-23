@@ -123,6 +123,11 @@ async function chapterFilesFromQuery(url: URL) {
           JSON.parse(url.searchParams.get("voiceParameters")!),
         )
       : undefined,
+    voiceTextAdaptations: url.searchParams.has("voiceTextAdaptations")
+      ? renderSchema.shape.voiceTextAdaptations.parse(
+          JSON.parse(url.searchParams.get("voiceTextAdaptations")!),
+        )
+      : undefined,
     voiceDecoder: renderSchema.shape.voiceDecoder.parse(
       url.searchParams.get("voiceDecoder") ?? undefined,
     ),
@@ -231,6 +236,7 @@ const analysisSchema = renderSchema
     voiceModel: true,
     voiceDecoder: true,
     voiceParameters: true,
+    voiceTextAdaptations: true,
   })
   .extend({ projectId: z.number().int().positive() });
 const idSchema = z.string().uuid();
@@ -749,11 +755,17 @@ const server = http.createServer(async (req, res) => {
                 .transform((value) => value as VoicePart),
             ]),
             verseReference: z.string().trim().min(1).max(300).optional(),
+            textOverride: z.string().trim().min(1).max(5000).optional(),
           })
           .parse(await body(req));
         if (input.voiceModel)
           narrationModelForLocale(input.voiceModel, input.version.locale);
         if (input.verseReference && !input.part.startsWith("reading-"))
+          return json(res, 400, { error: "Invalid reading verse" });
+        if (
+          input.textOverride !== undefined &&
+          (!input.verseReference || !input.part.startsWith("reading-"))
+        )
           return json(res, 400, { error: "Invalid reading verse" });
         if (
           input.part.startsWith("reading-") &&

@@ -315,7 +315,9 @@ for (const [kind, outputEnvironment] of [
       await execute(await finderPython(), [
         "-I",
         fileURLToPath(new URL("./finder-view.py", import.meta.url)),
-        "--check", output, sources,
+        "--check",
+        output,
+        sources,
       ]);
     if (process.env.VIDEO_SMOKE_PREVIEW === "1") {
       const { createPreview, previewAsset } = await import("../preview.js");
@@ -389,7 +391,10 @@ for (const [kind, outputEnvironment] of [
     }
     await generateProjectVoice(fresh, part);
     for (const [index, finderStore] of finderStores.entries())
-      assert.deepEqual(await fs.readFile(finderStore), savedFinderStores[index]);
+      assert.deepEqual(
+        await fs.readFile(finderStore),
+        savedFinderStores[index],
+      );
     assert.deepEqual(
       (await fs.readdir(sources)).sort(),
       [
@@ -1007,6 +1012,72 @@ try {
     /Invalid reading verse/,
   );
   assert.equal((await readRequests()).length, 4);
+  await fs.writeFile(
+    path.join(data, "genesis/1.json"),
+    JSON.stringify([
+      { verse: 1, text: "Rosa corre rápido." },
+      { verse: 2, text: "Segundo versículo." },
+    ]),
+  );
+  await generateProjectVoice(
+    {
+      ...twoVerses,
+      verseReference: "Génesis 1:1",
+      voiceTextAdaptations: { reinforceSpanishRs: true },
+    },
+    "reading-0",
+  );
+  assert.deepEqual((await readRequests()).at(-1).scripts, {
+    intro: "Rrosa corrre rrápido.",
+  });
+  inspected = await inspection(twoVerses);
+  assert.equal(
+    inspected.generatedReadings[0].cues[0].text,
+    "Rosa corre rápido.",
+  );
+  const secondAudio = await fs.readFile(
+    path.join(sources, "reading-0/verse-2.wav"),
+  );
+  await generateProjectVoice(
+    {
+      ...twoVerses,
+      verseReference: "Génesis 1:1",
+      textOverride: "Rita corre.",
+      voiceTextAdaptations: { reinforceSpanishRs: true },
+    },
+    "reading-0",
+  );
+  assert.deepEqual((await readRequests()).at(-1).scripts, {
+    intro: "Rrita corrre.",
+  });
+  assert.deepEqual(
+    await fs.readFile(path.join(sources, "reading-0/verse-2.wav")),
+    secondAudio,
+  );
+  assert.equal(
+    await fs.readFile(first.replace(/\.wav$/, ".txt"), "utf8"),
+    "Rosa corre rápido.\n",
+  );
+  inspected = await inspection(twoVerses);
+  assert.equal(
+    inspected.generatedReadings[0].cues[0].text,
+    "Rosa corre rápido.",
+  );
+  assert.doesNotMatch(await fs.readFile(first + ".json", "utf8"), /Rita|Rrita/);
+  await generateProjectVoice(
+    { ...twoVerses, verseReference: "Génesis 1:1" },
+    "reading-0",
+  );
+  assert.deepEqual((await readRequests()).at(-1).scripts, {
+    intro: "Rosa corre rápido.",
+  });
+  await assert.rejects(
+    generateProjectVoice(
+      { ...twoVerses, textOverride: "Invalid scope" },
+      "reading-0",
+    ),
+    /Invalid reading verse/,
+  );
 } finally {
   delete process.env.VOICE_TEST_REQUEST_LOG;
   delete process.env.VOICE_TEST_DURATION;

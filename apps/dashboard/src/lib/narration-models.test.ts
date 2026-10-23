@@ -8,6 +8,7 @@ import {
   narrationModelsSchema,
   applyNarrationSelection,
   selectedNarrationDecoder,
+  selectedNarrationTextAdaptations,
 } from "./narration-models";
 import { localModelsSchema } from "./local-models";
 test("voice models persist in one site setting independently of templates and enforce language compatibility", async () => {
@@ -35,11 +36,30 @@ test("voice models persist in one site setting independently of templates and en
     const chosen = { en: "chatterbox", es: "latam", pt: "pt-br" };
     await saveNarrationModels(db, chosen);
     assert.deepEqual(await loadNarrationModels(db), chosen);
-    const configured = { ...chosen, decoders: { es: { latam: "v3" } } };
+    const configured = {
+      ...chosen,
+      decoders: { es: { latam: "v3" } },
+      textAdaptations: {
+        es: {
+          latam: { reinforceSpanishRs: true },
+          "multilingual-v3": { reinforceSpanishRs: false },
+        },
+      },
+    };
     await saveNarrationModels(db, configured);
     const loaded = await loadNarrationModels(db);
     assert.deepEqual(loaded, configured);
     assert.equal(selectedNarrationDecoder(loaded, "es"), "v3");
+    assert.deepEqual(selectedNarrationTextAdaptations(loaded, "es"), {
+      reinforceSpanishRs: true,
+    });
+    assert.equal(
+      selectedNarrationTextAdaptations(
+        { ...loaded, es: "multilingual-v3" },
+        "es",
+      ),
+      undefined,
+    );
     assert.equal(selectedNarrationDecoder(loaded, "en"), "general");
     assert.equal(
       selectedNarrationDecoder(narrationModelsSchema.parse(chosen), "es"),

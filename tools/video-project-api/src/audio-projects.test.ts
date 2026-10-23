@@ -1024,3 +1024,72 @@ test("approving saved voices preserves final audio and regenerated voices need r
     await clean();
   }
 });
+
+test("pronunciation adaptations affect one synthesis and alignment without changing saved Bible text", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    const before = await projects.detail("rv1909-v2", "jude");
+    const adapted = "Texto temporal para pronunciar mejor.";
+    const spoken: string[] = [];
+    const aligned: string[] = [];
+    const generated = generation();
+    const dependencies: AudioGenerationDependencies = {
+      ...generated.dependencies,
+      synthesize: async (directory, text, ...args) => {
+        spoken.push(text);
+        await generated.dependencies.synthesize(directory, text, ...args);
+      },
+      align: async (file, duration, text, ...args) => {
+        aligned.push(text);
+        return generated.dependencies.align(file, duration, text, ...args);
+      },
+    };
+    let run!: () => Promise<void>;
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 1, textOverride: adapted },
+      (task) => {
+        run = task;
+      },
+      dependencies,
+    );
+    await run();
+    const adaptedProject = await projects.detail("rv1909-v2", "jude");
+    assert.deepEqual(adaptedProject.content, before.content);
+    assert.deepEqual(spoken, [adapted]);
+    assert.deepEqual(aligned, [adapted]);
+    assert.equal(JSON.stringify(adaptedProject).includes(adapted), false);
+    const adaptedRevision = adaptedProject.recordings["1:1"].revision;
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 1, regenerate: true, textOverride: adapted },
+      (task) => {
+        run = task;
+      },
+      dependencies,
+    );
+    await run();
+    assert.deepEqual(spoken, [adapted, adapted]);
+    assert.deepEqual(aligned, [adapted, adapted]);
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 1, regenerate: true },
+      (task) => {
+        run = task;
+      },
+      dependencies,
+    );
+    await run();
+    const originalAgain = await projects.detail("rv1909-v2", "jude");
+    assert.equal(spoken[2], before.content[0].verses[0].text);
+    assert.equal(aligned[2], before.content[0].verses[0].text);
+    assert.notEqual(originalAgain.recordings["1:1"].revision, adaptedRevision);
+    assert.deepEqual(originalAgain.content, before.content);
+  } finally {
+    await clean();
+  }
+});

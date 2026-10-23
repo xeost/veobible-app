@@ -1,3 +1,4 @@
+import { narrationTextAdaptationsSchema } from "./narration-text-adaptations.js";
 import { videoDomainSchema } from "./domain.js";
 import { voiceStylePresetsSchema } from "./narration-preset-selection.js";
 import { readingVoiceSettingsSchema } from "./reading-voice-settings.js";
@@ -119,6 +120,7 @@ export const renderSchema = z.object({
   voiceModel: narrationModelSchema.optional(),
   voiceDecoder: narrationDecoderSchema.optional(),
   voiceParameters: narrationParametersSchema.optional(),
+  voiceTextAdaptations: narrationTextAdaptationsSchema.optional(),
   voiceTemplates: z
     .object({
       intro: z.string().trim().max(10000),

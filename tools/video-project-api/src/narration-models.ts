@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  narrationTextAdaptationsSchema,
+  type NarrationTextAdaptations,
+} from "./narration-text-adaptations.js";
 
 export const narrationModelSchema = z.enum([
   "chatterbox",
@@ -14,6 +18,18 @@ export const narrationModelsSchema = z
     en: z.enum(["chatterbox", "multilingual-v3"]),
     es: z.enum(["multilingual-v3", "latam"]),
     pt: z.enum(["multilingual-v3", "pt-br"]),
+    textAdaptations: z
+      .object({
+        es: z
+          .object({
+            "multilingual-v3": narrationTextAdaptationsSchema.optional(),
+            latam: narrationTextAdaptationsSchema.optional(),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
     decoders: z
       .object({
         en: z
@@ -62,6 +78,14 @@ export function narrationModelForLocale(
   locale: "en" | "es" | "pt",
 ): NarrationModel {
   return narrationModelsSchema.shape[locale].parse(model);
+}
+export function selectedNarrationTextAdaptations(
+  models: NarrationModels,
+  locale: "en" | "es" | "pt",
+): NarrationTextAdaptations | undefined {
+  if (locale !== "es") return undefined;
+  const selected = models.textAdaptations?.es?.[models.es];
+  return selected?.reinforceSpanishRs ? selected : undefined;
 }
 export const narrationModelOptions = {
   en: [

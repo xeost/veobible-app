@@ -1,4 +1,9 @@
 export const spanish: Record<string, string> = {
+  "versions · page": "versiones · página",
+  "No Bible versions match these filters.":
+    "No hay versiones de la Biblia que coincidan con estos filtros.",
+  "All languages": "Todos los idiomas",
+  "Search versions": "Buscar versiones",
   "Project configuration": "Configuración del proyecto",
 
   "Reading (original audio)": "Lectura (audios originales)",
@@ -97,6 +102,11 @@ export const spanish: Record<string, string> = {
     "{total} versículos · {generated} generados · {approved} aprobados",
   "Could not save the verse approval. Try again.":
     "No se pudo guardar la aprobación del versículo. Inténtalo de nuevo.",
+  "Edit text for pronunciation": "Editar texto para la pronunciación",
+  "Cancel text editing": "Cancelar edición del texto",
+  "Accept temporary text": "Aceptar texto temporal",
+  "Restore original verse text": "Restablecer texto original del versículo",
+  "Text for this audio only": "Texto solo para este audio",
   "Use full recordings": "Usar grabaciones completas",
   "Analyze this verse audio with AI":
     "Analizar el audio de este versículo con IA",
@@ -175,10 +185,15 @@ export const spanish: Record<string, string> = {
   "Project created.": "Proyecto creado.",
   "Variant: Multilingual V3": "Variante: Multilingual V3",
   "Variant: Multilingual V2": "Variante: Multilingual V2",
+  "Text adaptations for this voice model":
+    "Adaptaciones del texto para este modelo de voz",
+  "Reinforce the Spanish R sound": "Reforzar la pronunciación de la erre",
+  "Before generating speech, rr becomes rrr, and r or R at the start of a word becomes rr or Rr. Applies only to this Spanish voice model; the original text stays unchanged.":
+    "Antes de generar la voz, rr pasa a rrr, y r o R al inicio de una palabra pasa a rr o Rr. Se aplica solo a este modelo de voz en español; el texto original se conserva.",
   "Voice generation settings": "Configuración de generación de voces",
   "Voice model": "Modelo de voz",
-  "Choose the narration model for each Bible language. Applies to new voice generations in Short Videos and Long Videos. Multilingual options use V3.":
-    "Elige el modelo de narración para cada idioma bíblico. Se aplica a las nuevas generaciones de voz en videos cortos y largos. Las opciones multilingües usan V3.",
+  "Choose the narration model for each Bible language. Applies to new voices in video and audio projects. Multilingual options use V3.":
+    "Elige el modelo de narración para cada idioma bíblico. Se aplica a las nuevas voces en proyectos de video y audio. Las opciones multilingües usan V3.",
   "Loading voice generation settings…": "Cargando la configuración de voces…",
   "Could not load voice generation settings. Reload the page to try again.":
     "No se pudo cargar la configuración de voces. Recarga la página para volver a intentarlo.",

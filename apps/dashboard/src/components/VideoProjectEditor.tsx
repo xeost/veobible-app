@@ -22,6 +22,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent,
@@ -45,7 +46,7 @@ import {
   Clapperboard,
   CircleCheck,
   ScanText,
-  RotateCcw,
+  UnfoldHorizontal,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
@@ -82,6 +83,11 @@ import { VerseWaveform } from "./VerseWaveform";
 import { queueChangedEvent } from "../lib/generation-queue";
 import { editorActivityLocks, editorBlockLocks } from "../lib/editor-activity";
 import { createEditorTaskQueue } from "../lib/editor-task-queue";
+import {
+  parseVideoVerseFragment,
+  videoVerseFragment,
+  type VideoVerseTarget,
+} from "../lib/video-verse-fragment";
 type Settings = RenderRequest["settings"];
 type EditorProject = VideoRow & { passage: string };
 type VoiceState = {
@@ -188,6 +194,9 @@ export function VideoProjectEditor({
   const queuingVoices = pendingTasks.has("voices");
   const [voiceRevision, setVoiceRevision] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [activeVerse, setActiveVerse] = useState<
+    (VideoVerseTarget & { project: string }) | null
+  >(null);
   const collapseAnchor = useRef<{ id: string; top: number } | null>(null);
   const collapseSpace = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -263,6 +272,7 @@ export function VideoProjectEditor({
     setApplyingAlignment(null);
     applyingAlignmentRef.current = false;
     setExpanded(new Set());
+    setActiveVerse(null);
     setReadingResetRevisions({});
     setPreviewOpen(false);
     setPreviewReading(null);
@@ -556,6 +566,55 @@ export function VideoProjectEditor({
   const locked = editingLocked;
   const timeline = readingTimeline(analysis?.sections ?? []);
   const cues = adjustedCues(analysis?.cues ?? [], settings.verseOffsets);
+  const verseTargets = useMemo(() => {
+    const sections = readingTimeline(analysis?.sections ?? []);
+    return (analysis?.cues ?? []).flatMap((cue) => {
+      const section = sections.find(
+        (section) =>
+          cue.start >= section.timelineStart - 0.0001 &&
+          cue.start < section.timelineEnd - 0.0001,
+      );
+      return section
+        ? [{ reference: cue.reference, section: section.index }]
+        : [];
+    });
+  }, [analysis]);
+  const verseTargetsKey = JSON.stringify(verseTargets);
+  const selectVerse = (target: VideoVerseTarget) => {
+    setActiveVerse({ ...target, project: base });
+    const fragment = videoVerseFragment(target, verseTargets);
+    if (fragment && window.location.hash !== fragment)
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}${fragment}`,
+      );
+  };
+  useEffect(() => {
+    const targets: VideoVerseTarget[] = JSON.parse(verseTargetsKey);
+    if (!targets.length || String(project?.project_id) !== projectId) return;
+    let frame: number | undefined;
+    const restore = () => {
+      const target = parseVideoVerseFragment(window.location.hash, targets);
+      if (!target) return;
+      setActiveVerse({ ...target, project: base });
+      setExpanded(
+        (current) => new Set([...current, `reading-${target.section}`]),
+      );
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() =>
+        document
+          .getElementById(`heading-reading-${target.section}`)
+          ?.scrollIntoView({ block: "start" }),
+      );
+    };
+    restore();
+    window.addEventListener("hashchange", restore);
+    return () => {
+      window.removeEventListener("hashchange", restore);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, [base, verseTargetsKey, project?.project_id, projectId]);
   const waveformKeys = [
     ...timeline
       .filter((section) => section.originalAvailable !== false)
@@ -817,7 +876,11 @@ export function VideoProjectEditor({
     trim(cue.reference, "end", cue.end, manuallyAdjusted);
     return true;
   };
-  const queueVoice = async (part: VoicePart, verseReference?: string) => {
+  const queueVoice = async (
+    part: VoicePart,
+    verseReference?: string,
+    textOverride?: string,
+  ) => {
     const requestedScope = base;
     const generationSettings = part.startsWith("reading-")
       ? settingsSchema.parse(settingsRef.current)
@@ -831,6 +894,7 @@ export function VideoProjectEditor({
       body: JSON.stringify({
         part,
         verseReference,
+        textOverride,
         settings: { ...generationSettings, voiceTrims: trims },
       }),
     });
@@ -886,7 +950,11 @@ export function VideoProjectEditor({
     for (const player of Object.values(voicePlayers.current)) player?.pause();
     setPlayingVoice(null);
   };
-  const generateVoice = (part: VoicePart, verseReference?: string) => {
+  const generateVoice = (
+    part: VoicePart,
+    verseReference?: string,
+    textOverride?: string,
+  ) => {
     if (
       taskQueueLocked ||
       busyRef.current ||
@@ -895,7 +963,7 @@ export function VideoProjectEditor({
       return;
     return submitTask([`voice:${part}`], async () => {
       stopVoicePlayback();
-      await queueVoice(part, verseReference);
+      await queueVoice(part, verseReference, textOverride);
     });
   };
   const generateMissingVoices = () => {
@@ -1014,6 +1082,7 @@ export function VideoProjectEditor({
     index: number,
     reference: string,
     selectReference: (reference: string) => void,
+    pronunciation: { textOverride?: string; editing: boolean },
   ) => {
     const voiceLocked = voiceLocks(`reading-${index}`).editingLocked;
     const original = analysis?.sections[index];
@@ -1106,16 +1175,19 @@ export function VideoProjectEditor({
               <button
                 type="button"
                 className="icon-button"
-                disabled={voiceLocked || analyzing}
+                disabled={voiceLocked || analyzing || pronunciation.editing}
                 aria-label={t("Regenerate all reading verses")}
                 data-tooltip={t("Regenerate all reading verses")}
                 onClick={() => void generateVoice(`reading-${index}`)}
               >
-                <RotateCcw size={16} aria-hidden="true" />
+                <WandSparkles size={16} aria-hidden="true" />
               </button>
             }
             regenerateLabel="Regenerate this verse"
-            regenerationDisabled={taskQueueLocked || pending || analyzing}
+            regenerateIcon={<WandSparkles size={16} aria-hidden="true" />}
+            regenerationDisabled={
+              taskQueueLocked || pending || analyzing || pronunciation.editing
+            }
             selectedReference={reference}
             onSelectReference={selectReference}
             key={`${index}:${track.revision}`}
@@ -1133,7 +1205,11 @@ export function VideoProjectEditor({
             cues={generatedCues}
             disabled={voiceLocked || analyzing}
             onRegenerate={() =>
-              void generateVoice(`reading-${index}`, reference)
+              void generateVoice(
+                `reading-${index}`,
+                reference,
+                pronunciation.textOverride,
+              )
             }
             onTrim={trimGenerated}
             onShift={(cue) => {
@@ -1149,9 +1225,18 @@ export function VideoProjectEditor({
           !pending && (
             <button
               type="button"
-              disabled={taskQueueLocked || analyzing}
-              onClick={() => void generateVoice(`reading-${index}`)}
+              disabled={taskQueueLocked || analyzing || pronunciation.editing}
+              onClick={() =>
+                void generateVoice(
+                  `reading-${index}`,
+                  pronunciation.textOverride === undefined
+                    ? undefined
+                    : reference,
+                  pronunciation.textOverride,
+                )
+              }
             >
+              <WandSparkles size={16} aria-hidden="true" />
               {t("Generate voice")}
             </button>
           )
@@ -1163,6 +1248,17 @@ export function VideoProjectEditor({
     const heading = document.getElementById(`heading-${id}`);
     if (expanded.has(id) && heading)
       collapseAnchor.current = { id, top: heading.getBoundingClientRect().top };
+    if (!expanded.has(id) && id.startsWith("reading-")) {
+      const section = Number(id.slice(8));
+      const target = verseTargets.find(
+        (target) =>
+          target.section === section &&
+          (activeVerse?.project !== base ||
+            activeVerse.section !== section ||
+            target.reference === activeVerse.reference),
+      );
+      if (target) selectVerse(target);
+    }
     setExpanded((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -1258,7 +1354,7 @@ export function VideoProjectEditor({
           }
           onClick={() => void generateVoice(id as VoicePart)}
         >
-          <Mic size={17} />
+          <WandSparkles size={17} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -1332,7 +1428,7 @@ export function VideoProjectEditor({
             }));
           }}
         >
-          <RotateCcw size={17} />
+          <UnfoldHorizontal size={17} aria-hidden="true" />
         </button>
         <span className="section-action-separator" aria-hidden="true" />
         <button
@@ -2073,6 +2169,19 @@ export function VideoProjectEditor({
                           </p>
                         )}
                         <VerseWaveform
+                          selectedReference={
+                            activeVerse?.project === base &&
+                            activeVerse.section === section.index
+                              ? activeVerse.reference
+                              : undefined
+                          }
+                          onSelectReference={(reference) =>
+                            selectVerse({ section: section.index, reference })
+                          }
+                          editableVerseText={Boolean(
+                            settings.readingVoices?.[section.index]?.enabled ||
+                            section.originalAvailable === false,
+                          )}
                           textOnly={section.originalAvailable === false}
                           resourceKey={`${base}:${id}`}
                           onPrepared={onWaveformPrepared}
@@ -2106,11 +2215,12 @@ export function VideoProjectEditor({
                             shiftVerse(section.index, cue, manuallyAdjusted)
                           }
                         >
-                          {(cue, selectReference) =>
+                          {(cue, selectReference, pronunciation) =>
                             generatedReading(
                               section.index,
                               cue.reference,
                               selectReference,
+                              pronunciation,
                             )
                           }
                         </VerseWaveform>

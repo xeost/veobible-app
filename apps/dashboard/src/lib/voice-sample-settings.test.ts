@@ -131,3 +131,23 @@ test("sample previews reject unsupported language models and invalid preset para
     false,
   );
 });
+
+test("voice samples forward the current Spanish model's text adaptations", () => {
+  const settings = {
+    models: {
+      ...defaultNarrationModels(),
+      textAdaptations: {
+        es: { "multilingual-v3": { reinforceSpanishRs: true } },
+      },
+    },
+    styles: defaultNarrationStyles(),
+  };
+  assert.deepEqual(
+    resolveVoiceSampleSettings("es", settings).voiceTextAdaptations,
+    { reinforceSpanishRs: true },
+  );
+  assert.equal(
+    resolveVoiceSampleSettings("en", settings).voiceTextAdaptations,
+    undefined,
+  );
+});

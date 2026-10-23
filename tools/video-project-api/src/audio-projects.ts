@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { adaptNarrationText } from "./narration-text-adaptations.js";
 import { audioMixSettingsChanged } from "./audio-approvals.js";
 import { sharedAudioDirectory } from "./working-directories.js";
 import { availableBibleBooks } from "./bible-versions.js";
@@ -108,6 +109,7 @@ export function audioTasks(
             (input.alignOnly
               ? Boolean(project.recordings[`${c.chapter}:${v.verse}`])
               : input.regenerate ||
+                input.textOverride !== undefined ||
                 !project.recordings[`${c.chapter}:${v.verse}`]),
         )
         .map((v) => ({ chapter: c.chapter, verse: v.verse })),
@@ -524,7 +526,10 @@ export class AudioProjects {
     for (const [index, verse] of verses.entries()) {
       const ref = `${verse.chapter}:${verse.verse}`;
       const needsGeneration =
-        !input.alignOnly && (input.regenerate || !project.recordings[ref]);
+        !input.alignOnly &&
+        (input.regenerate ||
+          input.textOverride !== undefined ||
+          !project.recordings[ref]);
       if (input.alignOnly) {
         const recording = project.recordings[ref];
         const task = { chapter: verse.chapter, verse: verse.verse };
@@ -544,6 +549,7 @@ export class AudioProjects {
         delete project.chapters[String(verse.chapter)];
       }
       if (needsGeneration) {
+        const speechText = input.textOverride ?? verse.text;
         const revision = randomUUID();
         const relative = `${project.book}/${verse.chapter}-${verse.verse}-${revision}`;
         const directory = await safeFile(internal, relative);
@@ -552,7 +558,7 @@ export class AudioProjects {
         taskReporter?.(task, "running", 0);
         await dependencies.synthesize(
           directory,
-          verse.text,
+          speechText,
           project,
           input,
           (progress) =>
@@ -568,7 +574,11 @@ export class AudioProjects {
           await dependencies.align(
             wav,
             duration,
-            verse.text,
+            adaptNarrationText(
+              speechText,
+              project.version.locale,
+              input.voiceTextAdaptations,
+            ),
             project.version.locale,
             (progress) =>
               taskReporter?.(
@@ -795,29 +805,46 @@ const productionDependencies: AudioGenerationDependencies = {
     );
     return { startSeconds: cue.start, endSeconds: cue.end };
   },
-  synthesize: (directory, text, project, input, onProgress) =>
-    generateVoice(
-      directory,
-      {
-        templates: { intro: "", outro: "" },
-        scriptOverrides: { intro: text },
-        locale: project.version.locale,
-        baseVoice: project.settings.baseVoice,
-        voiceModel: input.voiceModel,
-        voiceDecoder: input.voiceDecoder,
-        voiceParameters: input.voiceParameters,
-        singleUtterance: true,
-        reference: "",
-        version: project.version.label,
-        book: project.title,
-        start: "",
-        end: "",
-        passage_id: project.book,
-      },
-      true,
-      "intro",
-      onProgress,
-    ),
+  synthesize: async (directory, text, project, input, onProgress) => {
+    // Adapted pronunciation text is a one-off request, never a saved transcript.
+    const staging =
+      input.textOverride === undefined
+        ? directory
+        : await fs.mkdtemp(path.join(directory, ".speech-"));
+    try {
+      await generateVoice(
+        staging,
+        {
+          templates: { intro: "", outro: "" },
+          scriptOverrides: { intro: text },
+          locale: project.version.locale,
+          baseVoice: project.settings.baseVoice,
+          voiceModel: input.voiceModel,
+          voiceDecoder: input.voiceDecoder,
+          voiceParameters: input.voiceParameters,
+          singleUtterance: true,
+          voiceTextAdaptations: input.voiceTextAdaptations,
+          reference: "",
+          version: project.version.label,
+          book: project.title,
+          start: "",
+          end: "",
+          passage_id: project.book,
+        },
+        true,
+        "intro",
+        onProgress,
+      );
+      if (staging !== directory)
+        await fs.rename(
+          path.join(staging, "intro.wav"),
+          path.join(directory, "intro.wav"),
+        );
+    } finally {
+      if (staging !== directory)
+        await fs.rm(staging, { recursive: true, force: true });
+    }
+  },
   duration: async (file) =>
     Number(
       (

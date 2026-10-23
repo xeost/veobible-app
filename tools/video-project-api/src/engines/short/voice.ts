@@ -1,3 +1,7 @@
+import {
+  adaptNarrationText,
+  type NarrationTextAdaptations,
+} from "../../narration-text-adaptations.js";
 import { resolveBaseVoicePrompts as resolveVoicePrompts } from "../../base-voice.js";
 import {
   narrationParameterArgs,
@@ -212,6 +216,7 @@ export interface VoiceContext {
   voiceModel?: NarrationModel;
   voiceDecoder?: NarrationDecoder;
   voiceParameters?: NarrationParameters;
+  voiceTextAdaptations?: NarrationTextAdaptations;
   scriptOverrides?: Partial<Record<"intro" | "outro", string>>;
   templates: { intro: string; outro: string };
   locale: Version["locale"];
@@ -375,6 +380,7 @@ async function generateElevenLabsVoice(
   const staging = await fs.mkdtemp(path.join(outputDir, ".voice-elevenlabs-"));
   try {
     for (const part of parts) {
+      console.log(`Voice text: ${JSON.stringify(scripts[part])}`);
       const response = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
         {
@@ -438,7 +444,14 @@ export async function generateVoice(
       throw new Error(`Missing voice template ${context.locale}.${name}`);
   }
   const scripts = Object.fromEntries(
-    parts.map((name) => [name, rendered[name]]),
+    parts.map((name) => [
+      name,
+      adaptNarrationText(
+        rendered[name],
+        context.locale,
+        context.voiceTextAdaptations,
+      ),
+    ]),
   );
   const provider = context.voiceModel ? "chatterbox" : config.ttsProvider;
   if (provider === "elevenlabs") {
@@ -538,8 +551,13 @@ export async function generateVoice(
         stdoutTail = (stdoutTail + chunk.toString()).slice(-6000);
         stdoutBuffer += chunk.toString();
         const lines = stdoutBuffer.split("\n");
-        stdoutBuffer = lines.pop()!.slice(-6000);
+        stdoutBuffer = lines.pop()!;
         for (const line of lines) {
+          if (line.startsWith("Voice text: ")) {
+            if (tty) process.stdout.write("\r\x1b[2K");
+            console.log(line);
+            continue;
+          }
           const match = /Stage: (.+)$/.exec(line.trim());
           if (match) changeStage(match[1]);
         }

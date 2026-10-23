@@ -24,6 +24,12 @@ import { useProjectBreadcrumb } from "./ProjectBreadcrumb";
 import { useToast } from "./ToastProvider";
 import { pollWhileVisible } from "../lib/visible-polling";
 import {
+  audioVerseFragment,
+  restoreAudioVerseSelection,
+  rememberAudioVerseSelection,
+  type AudioVerseSelection,
+} from "../lib/audio-verse-fragment";
+import {
   audioVerseApproval,
   isAudioVerseApproved,
 } from "../../../../tools/video-project-api/src/audio-approvals";
@@ -48,6 +54,9 @@ export function AudioProjectEditor({
   const [project, setProject] = useState<AudioProjectDetail | null>(null),
     [settings, setSettings] = useState<AudioSettings | null>(null);
   const [expanded, setExpanded] = useState(new Set([1]));
+  const [activeVerse, setActiveVerse] = useState<AudioVerseSelection | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false),
     [error, setError] = useState("");
@@ -55,6 +64,61 @@ export function AudioProjectEditor({
     busyRef = useRef(false),
     pendingRef = useRef(false);
   const players = useRef<Record<string, HTMLAudioElement>>({});
+  const verseCountsKey = project?.verseCounts.join(",");
+  useEffect(() => {
+    if (
+      !verseCountsKey ||
+      project?.edition !== edition ||
+      project?.book !== book
+    )
+      return;
+    let frame: number | undefined;
+    const restore = () => {
+      const selected = restoreAudioVerseSelection(
+        edition,
+        book,
+        window.location.hash,
+        verseCountsKey.split(",").map(Number),
+      );
+      if (!selected) return;
+      rememberAudioVerseSelection(edition, book, selected);
+      const fragment = audioVerseFragment(selected);
+      if (window.location.hash !== fragment) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${window.location.pathname}${window.location.search}${fragment}`,
+        );
+      }
+      Object.values(players.current).forEach((player) => player.pause());
+      setActiveVerse(selected);
+      setExpanded((current) => new Set([...current, selected.chapter]));
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        document
+          .getElementById(`audio-chapter-block-${selected.chapter}`)
+          ?.scrollIntoView({ block: "start" });
+      });
+    };
+    restore();
+    window.addEventListener("hashchange", restore);
+    return () => {
+      window.removeEventListener("hashchange", restore);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, [verseCountsKey, project?.edition, project?.book, edition, book]);
+  const selectVerse = (selected: AudioVerseSelection) => {
+    setActiveVerse(selected);
+    rememberAudioVerseSelection(edition, book, selected);
+    const fragment = audioVerseFragment(selected);
+    if (window.location.hash !== fragment) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}${fragment}`,
+      );
+    }
+  };
   const pending =
       queueTasks.length > 0 ||
       (!!project && ["queued", "running"].includes(project.status)),
@@ -141,19 +205,22 @@ export function AudioProjectEditor({
       assembleOnly?: boolean;
       voicesOnly?: boolean;
       alignOnly?: boolean;
+      textOverride?: string;
     } = {},
   ) => {
-    if (busyRef.current) return;
+    if (busyRef.current) return false;
     setBusy(true);
     busyRef.current = true;
     setError("");
     Object.values(players.current).forEach((player) => player.pause());
+    let queued = false;
     try {
       if (dirtyRef.current) await save();
       await api(`${endpoint}/generate`, {
         method: "POST",
         body: JSON.stringify(scope),
       });
+      queued = true;
       window.dispatchEvent(new Event(queueChangedEvent));
       const value = await api<AudioProjectDetail>(endpoint);
       setProject(value);
@@ -167,6 +234,7 @@ export function AudioProjectEditor({
       setBusy(false);
       busyRef.current = false;
     }
+    return queued;
   };
   const media = (chapter: number, verse?: number, revision = "") =>
     `/api/${endpoint}/media?chapter=${chapter}${verse ? `&verse=${verse}` : ""}&revision=${encodeURIComponent(revision)}`;
@@ -230,7 +298,10 @@ export function AudioProjectEditor({
           data-tooltip={t("Create all final audios")}
           onClick={() => void generate({ assembleOnly: true })}
         >
-          {locked ? (
+          {queueTasks.some(
+            (task) =>
+              task.type === "audio-chapter" && task.status === "running",
+          ) ? (
             <LoaderCircle className="voice-spinner" size={16} />
           ) : (
             <Combine size={16} />
@@ -313,6 +384,14 @@ export function AudioProjectEditor({
               chapter={chapter}
               project={project}
               settings={settings}
+              selectedVerse={
+                activeVerse?.chapter === chapter.chapter
+                  ? activeVerse.verse
+                  : undefined
+              }
+              onSelectVerse={(verse) =>
+                selectVerse({ chapter: chapter.chapter, verse })
+              }
               locked={locked}
               submitting={busy}
               tasks={queueTasks.filter(

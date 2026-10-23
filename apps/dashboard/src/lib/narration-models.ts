@@ -7,6 +7,7 @@ export {
   defaultNarrationModels,
   narrationModelOptions,
   selectedNarrationDecoder,
+  selectedNarrationTextAdaptations,
   type NarrationModels,
 } from "../../../../tools/video-project-api/src/narration-models";
 const key = "voice_generation_models";

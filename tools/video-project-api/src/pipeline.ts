@@ -1,3 +1,7 @@
+import {
+  adaptNarrationText,
+  type NarrationTextAdaptations,
+} from "./narration-text-adaptations.js";
 import { selectedRoleVoice } from "./base-voice-schema.js";
 import { AudioProjects } from "./audio-projects.js";
 import { baseVoiceSample } from "./base-voice.js";
@@ -63,6 +67,7 @@ export function chapterSynthesis(
   parameters?: NarrationParameters,
   baseVoice?: string,
   decoder?: "general" | "v3",
+  textAdaptations?: NarrationTextAdaptations,
 ) {
   const model = selected ?? longConfig.ttsModels[locale];
   // Every local model must isolate recordings made with the shared base sample.
@@ -84,6 +89,9 @@ export function chapterSynthesis(
             : longConfig.elevenLabsVoices[locale],
         script: longConfig.ttsScript,
         ...(parameters ? { parameters } : {}),
+        ...(locale === "es" && textAdaptations?.reinforceSpanishRs
+          ? { textAdaptations }
+          : {}),
         decoder:
           decoder ??
           (model === "latam"
@@ -129,6 +137,7 @@ async function prepareProjectDirectories(
     | "voiceModel"
     | "voiceDecoder"
     | "voiceParameters"
+    | "voiceTextAdaptations"
   >,
 ) {
   const output = projectDir(
@@ -362,6 +371,7 @@ export async function analyze(
     | "voiceModel"
     | "voiceDecoder"
     | "voiceParameters"
+    | "voiceTextAdaptations"
     | "readingCuts"
   > & { outputEnvironment?: OutputEnvironment },
   options: { originalOnly?: boolean } = {},
@@ -521,6 +531,7 @@ export async function analyze(
     input.voiceTemplates,
   );
   context.voiceParameters = input.voiceParameters;
+  context.voiceTextAdaptations = input.voiceTextAdaptations;
   context.voiceDecoder = input.voiceDecoder;
   context.baseVoice = input.settings.baseVoice;
   context.scriptOverrides = input.settings.voiceScriptOverrides;
@@ -587,6 +598,7 @@ export async function inspection(
     | "voiceModel"
     | "voiceDecoder"
     | "voiceParameters"
+    | "voiceTextAdaptations"
   > & { outputEnvironment?: OutputEnvironment },
 ) {
   const {
@@ -639,12 +651,18 @@ export async function generateProjectVoice(
     | "voiceModel"
     | "voiceDecoder"
     | "voiceParameters"
+    | "voiceTextAdaptations"
     | "projectId"
     | "outputEnvironment"
-  > & { verseReference?: string },
+  > & { verseReference?: string; textOverride?: string },
   part: VoicePart,
   update: (progress: number) => void = () => {},
 ) {
+  if (
+    input.textOverride !== undefined &&
+    (!input.verseReference || !part.startsWith("reading-"))
+  )
+    throw new Error("Invalid reading verse");
   update(5);
   const { sources } = await prepareProjectDirectories(input);
   const { context, m, data, chapterIntroductions } = await analyze(
@@ -688,6 +706,7 @@ export async function generateProjectVoice(
       input.settings.readingVoices?.[index]?.verseOffsets,
     );
     for (const [position, verse] of selected.entries()) {
+      const speechText = input.textOverride ?? verse.text;
       const staging = await fs.mkdtemp(path.join(sources, part, ".voice-"));
       const progress = (value: number) =>
         update(10 + (88 * (position + value / 100)) / selected.length);
@@ -698,7 +717,7 @@ export async function generateProjectVoice(
           {
             ...context,
             singleUtterance: true,
-            scriptOverrides: { intro: verse.text },
+            scriptOverrides: { intro: speechText },
           },
           true,
           "intro",
@@ -707,11 +726,22 @@ export async function generateProjectVoice(
         const generated = path.join(staging, "intro.wav");
         const duration = await m.passages.audioDurationSeconds(generated);
         const { alignGeneratedSpeech } = await import("./forced-alignment.js");
-        const { cues, model } = await alignGeneratedSpeech(
+        const { cues: spokenCues, model } = await alignGeneratedSpeech(
           generated,
           duration,
           input.version.locale,
-          [{ id: verse.reference, text: verse.text, start: 0, end: duration }],
+          [
+            {
+              id: verse.reference,
+              text: adaptNarrationText(
+                speechText,
+                input.version.locale,
+                input.voiceTextAdaptations,
+              ),
+              start: 0,
+              end: duration,
+            },
+          ],
           m.config.ffmpegBin,
           (value) => progress(70 + value * 0.3),
         );
@@ -720,7 +750,7 @@ export async function generateProjectVoice(
           generated + ".json",
           JSON.stringify({
             duration,
-            cues,
+            cues: spokenCues.map((cue) => ({ ...cue, text: verse.text })),
             alignment: { method: "forced", model, version: 1 },
             synthesis: {
               model: context.voiceModel,
@@ -737,9 +767,11 @@ export async function generateProjectVoice(
         );
         await fs.rename(generated, target);
         await fs.rename(generated + ".json", target + ".json");
-        await fs.rename(
-          path.join(staging, "intro.txt"),
+        // Keep the canonical transcript on disk; pronunciation edits belong only to this request.
+        await fs.writeFile(
           target.replace(/\.wav$/, ".txt"),
+          verse.text + "\n",
+          "utf8",
         );
       } finally {
         await fs.rm(staging, { recursive: true, force: true });
@@ -781,6 +813,7 @@ export async function generateProjectVoice(
               input.voiceParameters,
               selectedRoleVoice(input.settings, input.version.locale, "intro"),
               input.voiceDecoder,
+              input.voiceTextAdaptations,
             ),
             complete: true,
             locale: input.version.locale,
@@ -828,6 +861,7 @@ export async function projectChapterVoiceFiles(
     | "voiceModel"
     | "voiceDecoder"
     | "voiceParameters"
+    | "voiceTextAdaptations"
   > & {
     settings?: {
       baseVoice?: string;
@@ -865,6 +899,7 @@ export async function projectChapterVoiceFiles(
               "intro",
             ),
             input.voiceDecoder,
+            input.voiceTextAdaptations,
           ),
           locale: version.locale,
           complete:
@@ -912,6 +947,7 @@ export async function chapterVoicesAvailable(
     | "voiceModel"
     | "voiceDecoder"
     | "voiceParameters"
+    | "voiceTextAdaptations"
   >,
 ) {
   return (await projectChapterVoiceFiles(input)).every(
@@ -930,6 +966,7 @@ export async function existingProjectVoices(
     | "voiceModel"
     | "voiceDecoder"
     | "voiceParameters"
+    | "voiceTextAdaptations"
   >,
 ) {
   const sources = sourceDir(

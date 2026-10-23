@@ -1,3 +1,4 @@
+import { narrationTextAdaptationsSchema } from "./narration-text-adaptations.js";
 import { narrationPresetSelectionSchema } from "./narration-preset-selection.js";
 import { z } from "zod";
 import { baseVoiceSchema } from "./base-voice-schema.js";
@@ -57,9 +58,11 @@ export const audioGenerateSchema = z
     assembleOnly: z.boolean().default(false),
     voicesOnly: z.boolean().default(false),
     alignOnly: z.boolean().default(false),
+    textOverride: z.string().trim().min(1).max(5000).optional(),
     voiceModel: narrationModelSchema.optional(),
     voiceDecoder: narrationDecoderSchema.optional(),
     voiceParameters: narrationParametersSchema.optional(),
+    voiceTextAdaptations: narrationTextAdaptationsSchema.optional(),
   })
   .refine((v) => !v.verse || !!v.chapter)
   .refine(
@@ -67,6 +70,11 @@ export const audioGenerateSchema = z
   )
   .refine(
     (v) => !v.alignOnly || (!v.assembleOnly && !v.voicesOnly && !v.regenerate),
+  )
+  .refine(
+    (v) =>
+      v.textOverride === undefined ||
+      (Boolean(v.verse) && !v.assembleOnly && !v.alignOnly),
   );
 export type AudioVersion = z.infer<typeof audioVersionSchema>;
 export type AudioSettings = z.infer<typeof audioSettingsSchema>;

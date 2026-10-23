@@ -16,6 +16,12 @@ import {
   Clapperboard,
   Film,
   Pin,
+  BookOpen,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
@@ -28,7 +34,28 @@ export function BibleVersions() {
   const { t } = useI18n();
   const [versions, setVersions] = useState<BibleVersion[]>([]);
   const { isPinned, orderVersions, togglePin } = usePinnedBibleVersions();
-  const displayedVersions = orderVersions(versions);
+  const [query, setQuery] = useState("");
+  const [locale, setLocale] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const search = query.trim().toLocaleLowerCase();
+  const filteredVersions = orderVersions(versions).filter(
+    (version) =>
+      (locale === "all" || version.locale === locale) &&
+      (!search ||
+        `${version.label} ${version.code} ${version.locale} ${t(languages[version.locale])}`
+          .toLocaleLowerCase()
+          .includes(search)),
+  );
+  const pages = Math.max(1, Math.ceil(filteredVersions.length / pageSize));
+  const currentPage = Math.min(page, pages);
+  const displayedVersions = filteredVersions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  useEffect(() => {
+    setPage((value) => Math.min(value, pages));
+  }, [pages]);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -39,6 +66,7 @@ export function BibleVersions() {
   const [editing, setEditing] = useState<BibleVersion | "new" | null>(null);
   const [deleting, setDeleting] = useState<BibleVersion | null>(null);
   const load = useCallback(async () => {
+    setLoading(true);
     setError("");
     try {
       setVersions(
@@ -167,29 +195,86 @@ export function BibleVersions() {
           </div>
         </div>
       </div>
+      <div className="video-summary">
+        <div>
+          <BookOpen size={21} />
+          <strong>{versions.length}</strong>
+          <span>{t("Bible versions")}</span>
+        </div>
+        <div>
+          <Pin size={17} />
+          <strong>{versions.filter(isPinned).length}</strong>
+          <span>{t("Pinned versions")}</span>
+        </div>
+        <div>
+          <Clapperboard size={17} />
+          <strong>
+            {versions.reduce(
+              (total, version) => total + version.project_count,
+              0,
+            )}
+          </strong>
+          <span>{t("Projects")}</span>
+        </div>
+      </div>
       {error && (
         <p className="error" role="alert">
-          {t(error)}
+          {t(error)}{" "}
+          <button type="button" onClick={() => void load()}>
+            {t("Retry")}
+          </button>
         </p>
       )}
-      <section className="panel">
+      <section className="panel catalog-panel" aria-busy={loading}>
+        <div className="catalog-toolbar">
+          <div className="search">
+            <Search size={17} aria-hidden="true" />
+            <input
+              aria-label={t("Search versions")}
+              placeholder={t("Search versions")}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <select
+            aria-label={t("Language")}
+            value={locale}
+            onChange={(event) => {
+              setLocale(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="all">{t("All languages")}</option>
+            {Object.entries(languages).map(([value, label]) => (
+              <option key={value} value={value}>
+                {t(label)}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="table-wrap">
-          <table className="bible-versions-table">
+          <table className="catalog bible-versions-table">
             <thead>
               <tr>
                 <th
+                  scope="col"
                   className="version-pin-column"
                   aria-label={t("Pinned versions")}
                   data-tooltip={t("Pinned versions")}
                 >
                   <Pin size={15} aria-hidden="true" />
                 </th>
-                <th>{t("Name")}</th>
-                <th className="version-videos-column">{t("Videos")}</th>
-                <th>{t("Language")}</th>
-                <th>{t("Version code")}</th>
-                <th>{t("Projects")}</th>
-                <th>{t("Actions")}</th>
+                <th scope="col">{t("Name")}</th>
+                <th scope="col" className="version-videos-column">
+                  {t("Videos")}
+                </th>
+                <th scope="col">{t("Language")}</th>
+                <th scope="col">{t("Version code")}</th>
+                <th scope="col">{t("Projects")}</th>
+                <th scope="col">{t("Actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -199,8 +284,13 @@ export function BibleVersions() {
                   className="bible-version-row"
                   tabIndex={0}
                   aria-label={`${t("Edit version")}: ${version.label}`}
-                  onClick={() => {
-                    setEditing(version);
+                  onClick={(event) => {
+                    if (
+                      !(event.target as Element).closest(
+                        "a,button,input,label,select",
+                      )
+                    )
+                      setEditing(version);
                   }}
                   onKeyDown={(event) => {
                     if (event.target !== event.currentTarget) return;
@@ -227,7 +317,25 @@ export function BibleVersions() {
                       <Pin size={16} aria-hidden="true" />
                     </button>
                   </td>
-                  <td>{version.label}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="project-name"
+                      aria-label={`${t("Edit version")}: ${version.label}`}
+                      onClick={() => setEditing(version)}
+                    >
+                      <span className="video-icon">
+                        <BookOpen size={19} aria-hidden="true" />
+                      </span>
+                      <span>
+                        {version.label}
+                        <small className="muted">
+                          {version.locale.toUpperCase()} ·{" "}
+                          {version.code.toUpperCase()}
+                        </small>
+                      </span>
+                    </button>
+                  </td>
                   <td className="version-videos-column">
                     <div className="version-video-links">
                       <Link
@@ -250,15 +358,20 @@ export function BibleVersions() {
                       </Link>
                     </div>
                   </td>
-                  <td>{t(languages[version.locale])}</td>
-                  <td>{version.code}</td>
-                  <td>{version.project_count}</td>
+                  <td>
+                    <span className="badge">
+                      {t(languages[version.locale])}
+                    </span>
+                  </td>
+                  <td className="muted">{version.code.toUpperCase()}</td>
+                  <td className="muted">{version.project_count}</td>
                   <td>
                     <div className="project-top-actions">
                       <button
                         type="button"
                         className="icon-button"
                         aria-label={`${t("Edit version")}: ${version.label}`}
+                        data-tooltip={t("Edit version")}
                         onClick={(event) => {
                           event.stopPropagation();
                           setEditing(version);
@@ -289,17 +402,78 @@ export function BibleVersions() {
               ))}
             </tbody>
           </table>
-          {loading ? (
-            <p className="empty">{t("Loading versions…")}</p>
-          ) : (
-            !versions.length && (
-              <p className="empty">
-                {t(
-                  "There are no versions yet. Add one to start creating projects.",
-                )}
-              </p>
-            )
+          {loading && <div className="empty">{t("Loading versions…")}</div>}
+          {!loading && !displayedVersions.length && !error && (
+            <div className="empty">
+              {versions.length
+                ? t("No Bible versions match these filters.")
+                : t(
+                    "There are no versions yet. Add one to start creating projects.",
+                  )}
+            </div>
           )}
+        </div>
+        <div className="pagination">
+          <span>
+            {filteredVersions.length} {t("versions · page")} {currentPage}{" "}
+            {t("of")} {pages}
+          </span>
+          <div>
+            <label className="pagination-page-size">
+              {t("Items per page")}
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setPage(1);
+                }}
+              >
+                {[10, 20, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("First page")}
+              data-tooltip={t("First page")}
+              disabled={loading || currentPage === 1}
+              onClick={() => setPage(1)}
+            >
+              <ChevronsLeft size={17} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("Previous page")}
+              disabled={loading || currentPage === 1}
+              onClick={() => setPage(Math.max(1, currentPage - 1))}
+            >
+              <ChevronLeft size={17} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("Next page")}
+              disabled={loading || currentPage >= pages}
+              onClick={() => setPage(Math.min(pages, currentPage + 1))}
+            >
+              <ChevronRight size={17} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("Last page")}
+              data-tooltip={t("Last page")}
+              disabled={loading || currentPage >= pages}
+              onClick={() => setPage(pages)}
+            >
+              <ChevronsRight size={17} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </section>
       {editing && (

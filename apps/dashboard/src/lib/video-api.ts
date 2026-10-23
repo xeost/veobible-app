@@ -15,6 +15,7 @@ import {
 import {
   loadNarrationModels,
   selectedNarrationDecoder,
+  selectedNarrationTextAdaptations,
 } from "./narration-models";
 import { loadDashboardSummary } from "./dashboard-summary";
 import {
@@ -467,6 +468,10 @@ export async function videoApi(
   )[project.locale];
   const voiceModel = models[project.locale];
   const voiceDecoder = selectedNarrationDecoder(models, project.locale);
+  const voiceTextAdaptations = selectedNarrationTextAdaptations(
+    models,
+    project.locale,
+  );
   const styleDefaults = (await loadVoiceStyleDefaults(database, project.kind))[
     project.locale
   ];
@@ -484,6 +489,9 @@ export async function videoApi(
     locale: project.locale,
     passageRange: project.passage,
     voiceModel,
+    ...(voiceTextAdaptations
+      ? { voiceTextAdaptations: JSON.stringify(voiceTextAdaptations) }
+      : {}),
     ...(voiceDecoder ? { voiceDecoder } : {}),
     voiceParameters: JSON.stringify(voiceParameters),
     baseVoice: projectBaseVoice(
@@ -713,6 +721,7 @@ export async function videoApi(
       voiceTemplates,
       voiceModel,
       voiceDecoder,
+      voiceTextAdaptations,
       voiceParameters,
     };
     if (parts[2] === "voices") {
@@ -723,6 +732,13 @@ export async function videoApi(
         .max(300)
         .optional()
         .parse(values.verseReference);
+      const textOverride = z
+        .string()
+        .trim()
+        .min(1)
+        .max(5000)
+        .optional()
+        .parse(values.textOverride);
       const part = z
         .union([
           z.enum(["intro", "outro"]),
@@ -730,6 +746,11 @@ export async function videoApi(
         ])
         .parse(values.part);
       if (verseReference && !part.startsWith("reading-"))
+        return json({ error: "Invalid reading verse" }, 400);
+      if (
+        textOverride !== undefined &&
+        (!verseReference || !part.startsWith("reading-"))
+      )
         return json({ error: "Invalid reading verse" }, 400);
       common.voiceParameters = selectedVoiceStyleParameters(
         generalVoiceParameters,
@@ -771,7 +792,7 @@ export async function videoApi(
       const response = await videoFetch(`/v1/projects/${id}/voices`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...common, part, verseReference }),
+        body: JSON.stringify({ ...common, part, verseReference, textOverride }),
       });
       if (response.ok) {
         const stored = settingsSchema.parse(JSON.parse(project.settings));
