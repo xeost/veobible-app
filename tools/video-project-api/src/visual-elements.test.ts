@@ -25,7 +25,9 @@ const timeline = {
 test("visual elements survive settings validation and older projects need no elements", () => {
   assert.equal(settingsSchema.parse({}).visualElements, undefined);
   const saved = settingsSchema.parse({ visualElements: { intro: element } });
-  assert.deepEqual(saved.visualElements?.intro, element);
+  assert.deepEqual(saved.visualElements?.intro, [
+    { ...element, id: "legacy-0" },
+  ]);
   assert.deepEqual(
     dashboardSettingsSchema.parse(saved).visualElements,
     saved.visualElements,
@@ -171,4 +173,80 @@ test("social button moments distribute five seconds within each section and fit 
       { id: "outro", start: 51, duration: 5 },
     ],
   );
+});
+
+test("old section elements migrate to a list and multiple saved elements retain identity, settings and order", async () => {
+  const { socialButtonElementSchema } = await import("./visual-elements");
+  const social = socialButtonElementSchema.parse({
+    template: "social-button",
+    id: "second",
+    moment: "end",
+    verticalPosition: "top",
+  });
+  const migrated = settingsSchema.parse({ visualElements: { intro: element } });
+  const saved = settingsSchema.parse({
+    visualElements: { intro: [...migrated.visualElements!.intro, social] },
+  });
+  const restored = dashboardSettingsSchema.parse(
+    JSON.parse(JSON.stringify(saved)),
+  );
+  assert.deepEqual(restored.visualElements?.intro, [
+    { ...element, id: "legacy-0" },
+    social,
+  ]);
+  const remaining = settingsSchema.parse({
+    ...restored,
+    visualElements: {
+      intro: restored.visualElements!.intro.filter(
+        (item) => item.id !== "legacy-0",
+      ),
+    },
+  });
+  assert.deepEqual(remaining.visualElements?.intro, [social]);
+  assert.deepEqual(
+    settingsSchema.parse({ visualElements: { intro: [] } }).visualElements
+      ?.intro,
+    [],
+  );
+});
+
+test("every element in a section has its own render timing and key, and hidden elements do not suppress siblings", async () => {
+  const { socialButtonElementSchema } = await import("./visual-elements");
+  const social = socialButtonElementSchema.parse({
+    template: "social-button",
+    id: "social",
+    moment: "end",
+  });
+  const values = {
+    intro: [
+      { ...element, id: "first" },
+      social,
+      { ...element, id: "hidden", hidden: true },
+    ],
+    "reading-0": [
+      {
+        ...element,
+        id: "reading-first",
+        references: ["John 1:1"],
+        startSeconds: 0,
+      },
+      {
+        ...element,
+        id: "reading-second",
+        references: ["John 1:1"],
+        startSeconds: 2,
+      },
+    ],
+  };
+  const ranges = visualElementRanges(timeline, values);
+  assert.deepEqual(
+    ranges.map(({ key, start, duration }) => ({ key, start, duration })),
+    [
+      { key: "intro:first", start: 0, duration: 5 },
+      { key: "intro:social", start: 5, duration: 5 },
+      { key: "reading-0:reading-first", start: 17, duration: 5 },
+      { key: "reading-0:reading-second", start: 19, duration: 4 },
+    ],
+  );
+  assert.equal(new Set(ranges.map((item) => item.key)).size, ranges.length);
 });

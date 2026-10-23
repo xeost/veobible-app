@@ -112,3 +112,24 @@ test("multiple final files explicitly name both variants for short, long and boo
     );
   }
 });
+
+test("generic elements anywhere in a section list trigger one pair of variants, including alongside legacy elements", async () => {
+  const legacy = subscribeElementSchema.parse({
+    template: "youtube-subscribe",
+    label: "Subscribe",
+    subscribedLabel: "Subscribed",
+  });
+  const outputs = await renderVideoVariants(
+    { intro: [legacy, { ...social, hidden: true }, social], outro: [social] },
+    async (variant) => ({ background: "same.mp4", variant }),
+  );
+  assert.deepEqual(
+    outputs.map((item) => item.variant),
+    ["subscribe", "follow"],
+  );
+  const single = await renderVideoVariants(
+    { intro: [legacy, { ...social, hidden: true }], outro: [] },
+    async () => ({ background: "same.mp4" }),
+  );
+  assert.equal(single.length, 1);
+});

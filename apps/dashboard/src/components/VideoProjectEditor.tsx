@@ -1512,15 +1512,19 @@ export function VideoProjectEditor({
         setPreviewView("composition");
         setPreviewOpen(true);
       }}
-      element={settings.visualElements?.[id]}
+      elements={settings.visualElements?.[id] ?? []}
       references={references}
       disabled={
         taskQueueLocked || (id.startsWith("reading-") && !references?.length)
       }
-      onChange={(element?: VisualElement) =>
+      onChange={(elements: VisualElement[]) =>
         setSettings((current) => {
           const visualElements = { ...current.visualElements };
-          if (element) visualElements[id] = element;
+          if (elements.length)
+            visualElements[id] = elements.map((element) => ({
+              ...element,
+              id: element.id ?? crypto.randomUUID(),
+            }));
           else delete visualElements[id];
           return { ...current, visualElements };
         })

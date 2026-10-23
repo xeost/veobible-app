@@ -109,51 +109,58 @@ function ElementPicker({
       <div className="visual-picker-grid">
         <div>
           {(["social-button", "youtube-subscribe"] as const).map((option) => (
-            <button
+            <div
               key={option}
-              type="button"
               className={`visual-template ${template === option ? "selected" : ""}`}
-              aria-pressed={template === option}
-              onClick={() => {
-                setTemplate(option);
-                setPlaying(true);
-              }}
             >
-              <strong>
-                {t(
-                  option === "social-button"
-                    ? "Social media button"
-                    : "YouTube subscribe button",
-                )}
-              </strong>
-              <span>
-                {t(
-                  option === "social-button"
-                    ? "Subscribe for YouTube, follow for other social networks. Text follows the video language."
-                    : "An animated click turns the subscribe button into a subscribed button and activates the bell.",
-                )}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="visual-picker-preview">
-          {template === "social-button" && (
-            <label>
-              {t("Preview case")}
-              <select
-                value={variant}
-                onChange={(event) => {
-                  setVariant(event.target.value as SocialVariant);
+              <button
+                type="button"
+                className="visual-template-choice"
+                aria-pressed={template === option}
+                onClick={() => {
+                  setTemplate(option);
                   setPlaying(true);
                 }}
               >
-                <option value="subscribe">{t("Subscribe · YouTube")}</option>
-                <option value="follow">
-                  {t("Follow · Other social networks")}
-                </option>
-              </select>
-            </label>
-          )}
+                <strong>
+                  {t(
+                    option === "social-button"
+                      ? "Social media button"
+                      : "YouTube subscribe button",
+                  )}
+                </strong>
+                <span>
+                  {t(
+                    option === "social-button"
+                      ? "Subscribe for YouTube, follow for other social networks. Text follows the video language."
+                      : "An animated click turns the subscribe button into a subscribed button and activates the bell.",
+                  )}
+                </span>
+              </button>
+              {option === "social-button" && (
+                <label className="visual-template-case">
+                  {t("Preview case")}
+                  <select
+                    value={variant}
+                    onChange={(event) => {
+                      setVariant(event.target.value as SocialVariant);
+                      setTemplate("social-button");
+                      setPlaying(true);
+                    }}
+                  >
+                    <option value="subscribe">
+                      {t("Subscribe · YouTube")}
+                    </option>
+                    <option value="follow">
+                      {t("Follow · Other social networks")}
+                    </option>
+                  </select>
+                </label>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="visual-picker-preview">
           <div
             className={
               kind === "short" ? "visual-demo portrait" : "visual-demo"
@@ -180,7 +187,14 @@ function ElementPicker({
               autoPlay
               loop
               initiallyMuted
-              style={{ width: "100%", background: "#182331", borderRadius: 12 }}
+              style={{
+                width:
+                  kind === "short"
+                    ? "min(100cqw, calc(100cqh * 9 / 16))"
+                    : "min(100cqw, calc(100cqh * 16 / 9))",
+                background: "#182331",
+                borderRadius: 12,
+              }}
             />
           </div>
           <div className="visual-demo-controls">
@@ -193,7 +207,7 @@ function ElementPicker({
               }}
             >
               {playing ? <Pause size={16} /> : <Play size={16} />}{" "}
-              {t(playing ? "Pause animation" : "Play animation")}
+              {t(playing ? "Pause" : "Play")}
             </button>
             <button
               type="button"
@@ -203,17 +217,17 @@ function ElementPicker({
                 setPlaying(true);
               }}
             >
-              <RotateCcw size={16} /> {t("Replay animation")}
+              <RotateCcw size={16} /> {t("Replay")}
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => select(selected)}
+            >
+              <Plus size={16} />
+              {t("Use element")}
             </button>
           </div>
-          <button
-            type="button"
-            className="primary"
-            onClick={() => select(selected)}
-          >
-            <Plus size={16} />
-            {t("Use this element")}
-          </button>
           <p className="muted">
             {t(
               template === "social-button"
@@ -230,7 +244,7 @@ function ElementPicker({
 export function SectionVisualElements({
   kind,
   locale,
-  element,
+  elements,
   references,
   disabled,
   previewDisabled,
@@ -239,12 +253,12 @@ export function SectionVisualElements({
 }: {
   kind: string;
   locale: string;
-  element?: VisualElement;
+  elements: VisualElement[];
   references?: string[];
   disabled: boolean;
   previewDisabled: boolean;
   onPreview: () => void;
-  onChange: (element?: VisualElement) => void;
+  onChange: (elements: VisualElement[]) => void;
 }) {
   const { t } = useI18n();
   const id = useId();
@@ -269,13 +283,18 @@ export function SectionVisualElements({
           : "Subscribed",
     references,
   };
-  const patch = (change: Partial<VisualElement>) =>
-    element &&
-    onChange({
-      ...element,
-      ...change,
-      references: references ?? element.references,
-    } as VisualElement);
+  const patch = (index: number, change: Partial<VisualElement>) =>
+    onChange(
+      elements.map((element, itemIndex) =>
+        itemIndex === index
+          ? ({
+              ...element,
+              ...change,
+              references: references ?? element.references,
+            } as VisualElement)
+          : element,
+      ),
+    );
   return (
     <section className="section-visual-elements">
       <div className="visual-panel-header">
@@ -288,7 +307,7 @@ export function SectionVisualElements({
         >
           <Layers size={18} />
           <strong>{t("Visual elements")}</strong>
-          <span className="muted">{element ? "1" : "0"}</span>
+          <span className="muted">{elements.length}</span>
         </button>
         <button
           type="button"
@@ -317,154 +336,175 @@ export function SectionVisualElements({
           </p>
           <button
             type="button"
-            disabled={disabled || !!element}
+            disabled={disabled}
             onClick={() => setPicker(true)}
           >
             <Plus size={16} />
             {t("Add element")}
           </button>
         </div>
-        {!element ? (
+        {!elements.length ? (
           <p className="visual-empty muted">
             {t("No visual elements in this section.")}
           </p>
         ) : (
-          <div className="visual-element-card">
-            <details open>
-              <summary>{t(elementTitle(element))}</summary>
-              <fieldset disabled={disabled} className="visual-element-fields">
-                {element.template === "social-button" ? (
-                  <>
-                    <label>
-                      {t("Vertical position")}
-                      <select
-                        value={element.verticalPosition}
-                        onChange={(event) =>
-                          patch({
-                            verticalPosition: event.target
-                              .value as typeof element.verticalPosition,
-                          })
-                        }
-                      >
-                        {verticalPositions.map((position) => (
-                          <option key={position} value={position}>
-                            {t(positionLabels[position])}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      {t("Appearance in this section")}
-                      <select
-                        value={element.moment}
-                        onChange={(event) =>
-                          patch({
-                            moment: event.target.value as typeof element.moment,
-                          })
-                        }
-                      >
-                        {elementMoments.map((moment) => (
-                          <option key={moment} value={moment}>
-                            {t(momentLabels[moment])}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </>
-                ) : (
-                  <>
-                    <label>
-                      {t("Button text")}
-                      <input
-                        maxLength={40}
-                        value={element.label}
-                        onBlur={() => {
-                          if (!element.label.trim())
-                            patch({ label: sample.label });
-                        }}
-                        onChange={(event) =>
-                          patch({ label: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      {t("Subscribed text")}
-                      <input
-                        maxLength={40}
-                        value={element.subscribedLabel}
-                        onBlur={() => {
-                          if (!element.subscribedLabel.trim())
-                            patch({ subscribedLabel: sample.subscribedLabel });
-                        }}
-                        onChange={(event) =>
-                          patch({ subscribedLabel: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      {t("Start in section (seconds)")}
-                      <input
-                        type="number"
-                        min={0}
-                        max={86400}
-                        step="0.1"
-                        value={element.startSeconds}
-                        onChange={(event) => {
-                          const value = event.target.valueAsNumber;
-                          if (Number.isFinite(value))
-                            patch({
-                              startSeconds: Math.min(86400, Math.max(0, value)),
-                            });
-                        }}
-                      />
-                    </label>
-                    <label>
-                      {t("Animation duration (seconds)")}
-                      <input
-                        type="number"
-                        min={1}
-                        max={60}
-                        step="0.1"
-                        value={element.durationSeconds}
-                        onChange={(event) => {
-                          const value = event.target.valueAsNumber;
-                          if (Number.isFinite(value))
-                            patch({
-                              durationSeconds: Math.min(60, Math.max(1, value)),
-                            });
-                        }}
-                      />
-                    </label>
-                  </>
-                )}
-              </fieldset>
-              <p className="muted">
-                {t(
-                  "The animation ends with the section. Save changes to include it in the video.",
-                )}
-              </p>
-            </details>
-            <div className="visual-element-actions">
-              <button
-                type="button"
-                className="icon-button"
-                disabled={disabled}
-                aria-label={t(element.hidden ? "Show element" : "Hide element")}
-                onClick={() => patch({ hidden: !element.hidden })}
-              >
-                {element.hidden ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-              <button
-                type="button"
-                className="icon-button"
-                disabled={disabled}
-                aria-label={t("Remove element")}
-                onClick={() => onChange(undefined)}
-              >
-                <Trash2 size={17} />
-              </button>
+          elements.map((element, index) => (
+            <div className="visual-element-card" key={element.id ?? index}>
+              <details open>
+                <summary>
+                  {index + 1}. {t(elementTitle(element))}
+                </summary>
+                <fieldset disabled={disabled} className="visual-element-fields">
+                  {element.template === "social-button" ? (
+                    <>
+                      <label>
+                        {t("Vertical position")}
+                        <select
+                          value={element.verticalPosition}
+                          onChange={(event) =>
+                            patch(index, {
+                              verticalPosition: event.target
+                                .value as typeof element.verticalPosition,
+                            })
+                          }
+                        >
+                          {verticalPositions.map((position) => (
+                            <option key={position} value={position}>
+                              {t(positionLabels[position])}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        {t("Appearance in this section")}
+                        <select
+                          value={element.moment}
+                          onChange={(event) =>
+                            patch(index, {
+                              moment: event.target
+                                .value as typeof element.moment,
+                            })
+                          }
+                        >
+                          {elementMoments.map((moment) => (
+                            <option key={moment} value={moment}>
+                              {t(momentLabels[moment])}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <label>
+                        {t("Button text")}
+                        <input
+                          maxLength={40}
+                          value={element.label}
+                          onBlur={() => {
+                            if (!element.label.trim())
+                              patch(index, { label: sample.label });
+                          }}
+                          onChange={(event) =>
+                            patch(index, { label: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label>
+                        {t("Subscribed text")}
+                        <input
+                          maxLength={40}
+                          value={element.subscribedLabel}
+                          onBlur={() => {
+                            if (!element.subscribedLabel.trim())
+                              patch(index, {
+                                subscribedLabel: sample.subscribedLabel,
+                              });
+                          }}
+                          onChange={(event) =>
+                            patch(index, {
+                              subscribedLabel: event.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        {t("Start in section (seconds)")}
+                        <input
+                          type="number"
+                          min={0}
+                          max={86400}
+                          step="0.1"
+                          value={element.startSeconds}
+                          onChange={(event) => {
+                            const value = event.target.valueAsNumber;
+                            if (Number.isFinite(value))
+                              patch(index, {
+                                startSeconds: Math.min(
+                                  86400,
+                                  Math.max(0, value),
+                                ),
+                              });
+                          }}
+                        />
+                      </label>
+                      <label>
+                        {t("Animation duration (seconds)")}
+                        <input
+                          type="number"
+                          min={1}
+                          max={60}
+                          step="0.1"
+                          value={element.durationSeconds}
+                          onChange={(event) => {
+                            const value = event.target.valueAsNumber;
+                            if (Number.isFinite(value))
+                              patch(index, {
+                                durationSeconds: Math.min(
+                                  60,
+                                  Math.max(1, value),
+                                ),
+                              });
+                          }}
+                        />
+                      </label>
+                    </>
+                  )}
+                </fieldset>
+                <p className="muted">
+                  {t(
+                    "The animation ends with the section. Save changes to include it in the video.",
+                  )}
+                </p>
+              </details>
+              <div className="visual-element-actions">
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={disabled}
+                  aria-label={t(
+                    element.hidden ? "Show element" : "Hide element",
+                  )}
+                  onClick={() => patch(index, { hidden: !element.hidden })}
+                >
+                  {element.hidden ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={disabled}
+                  aria-label={t("Remove element")}
+                  onClick={() =>
+                    onChange(
+                      elements.filter((_, itemIndex) => itemIndex !== index),
+                    )
+                  }
+                >
+                  <Trash2 size={17} />
+                </button>
+              </div>
             </div>
-          </div>
+          ))
         )}
       </div>
       {picker && (
@@ -474,7 +514,7 @@ export function SectionVisualElements({
           locale={locale as VideoLocale}
           close={() => setPicker(false)}
           select={(selected) => {
-            onChange(selected);
+            onChange([...elements, { ...selected, id: crypto.randomUUID() }]);
             setPicker(false);
           }}
         />

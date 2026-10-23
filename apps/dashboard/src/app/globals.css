@@ -3509,22 +3509,54 @@ audio {
 }
 .visual-element-dialog {
   width: min(960px, calc(100vw - 32px));
-  max-height: 90dvh;
-  overflow: auto;
+  margin-block: auto;
+  height: min(760px, calc(100dvh - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: hidden;
+}
+.visual-element-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.visual-element-dialog > .generation-queue-heading,
+.visual-element-dialog > p {
+  flex-shrink: 0;
 }
 .visual-picker-grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
   margin-top: 24px;
 }
 .visual-template {
   width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #1d1d25;
+}
+.visual-template-choice {
+  width: 100%;
   text-align: left;
   display: grid;
+  justify-content: stretch;
   gap: 8px;
   padding: 16px;
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.visual-template-case {
+  display: grid;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+.visual-template-case select {
+  width: 100%;
+  min-width: 0;
 }
 .visual-template.selected {
   border-color: #bf8cff80;
@@ -3536,16 +3568,24 @@ audio {
   line-height: 1.6;
 }
 .visual-picker-preview {
-  display: grid;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   gap: 16px;
   text-align: center;
 }
-.visual-demo {
-  width: 100%;
-  margin: auto;
+.visual-picker-preview > p {
+  margin-block: 0;
 }
-.visual-demo.portrait {
-  max-width: clamp(140px, calc((90dvh - 340px) * 9 / 16), 245px);
+.visual-demo {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
 }
 @media (max-width: 640px) {
   .visual-picker-grid,
@@ -3582,15 +3622,62 @@ audio {
   display: flex;
   justify-content: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.visual-demo-controls > button {
+  white-space: nowrap;
 }
 .visual-picker-grid > div:first-child {
+  min-width: 0;
   display: grid;
   align-content: start;
   gap: 12px;
 }
-.visual-picker-preview > label {
-  display: grid;
-  gap: 8px;
-  text-align: left;
+@media (max-width: 640px) {
+  .visual-element-dialog {
+    padding: 16px;
+  }
+  .visual-picker-grid {
+    gap: 16px;
+    margin-top: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .visual-picker-grid > div:first-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .visual-template-choice {
+    padding: 10px;
+    gap: 6px;
+  }
+  .visual-template span {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .visual-template-case {
+    padding: 0 10px 10px;
+    gap: 4px;
+  }
+  .visual-picker-preview {
+    gap: 10px;
+  }
+  .visual-demo-controls {
+    gap: 4px;
+  }
+  .visual-demo-controls > button {
+    flex: 1;
+    min-width: 0;
+    font-size: clamp(10px, 3vw, 12px);
+    padding-inline: 4px;
+    gap: 4px;
+  }
+  .visual-demo-controls > .primary {
+    flex: 1.25;
+  }
+  .visual-demo-controls svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
 }

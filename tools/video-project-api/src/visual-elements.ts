@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const subscribeElementSchema = z.object({
+  id: z.string().min(1).max(100).optional(),
   template: z.literal("youtube-subscribe"),
   startSeconds: z.number().finite().min(0).max(86400).default(0),
   durationSeconds: z.number().finite().min(1).max(60).default(5),
@@ -10,6 +11,7 @@ export const subscribeElementSchema = z.object({
   references: z.array(z.string().min(1)).max(1000).optional(),
 });
 export const socialButtonElementSchema = z.object({
+  id: z.string().min(1).max(100).optional(),
   template: z.literal("social-button"),
   verticalPosition: z
     .enum([
@@ -100,19 +102,35 @@ export function elementTiming(element: VisualElement, sectionDuration: number) {
 export function socialRenderVariants(
   elements: VisualElements = {},
 ): SocialVariant[] {
-  return Object.values(elements).some(
-    (element) => element.template === "social-button" && !element.hidden,
+  return Object.values(elements).some((section) =>
+    sectionVisualElements(section).some(
+      (element) => element.template === "social-button" && !element.hidden,
+    ),
   )
     ? ["subscribe", "follow"]
     : ["subscribe"];
 }
 
+/** Older projects stored a single element per section. Normalize them when loaded. */
+export function sectionVisualElements(
+  value?: VisualElement | VisualElement[],
+): VisualElement[] {
+  return value === undefined ? [] : Array.isArray(value) ? value : [value];
+}
+
 export const visualElementsSchema = z.record(
   z.string().regex(/^(?:intro|outro|chapter-\d+|reading-\d+)$/),
-  visualElementSchema,
+  z
+    .union([visualElementSchema, z.array(visualElementSchema)])
+    .transform((value) =>
+      sectionVisualElements(value).map((element, index) => ({
+        ...element,
+        id: element.id ?? `legacy-${index}`,
+      })),
+    ),
 );
 export type SubscribeElement = z.infer<typeof subscribeElementSchema>;
-export type VisualElements = z.infer<typeof visualElementsSchema>;
+export type VisualElements = Record<string, VisualElement | VisualElement[]>;
 
 type Timeline = {
   introLength: number;
@@ -132,37 +150,49 @@ export function visualElementRanges(
   const readingStart = props.introLength - props.transitionDuration;
   const outroStart =
     readingStart + props.readingLength - props.transitionDuration;
-  return Object.entries(elements).flatMap(([id, element]) => {
-    if (element.hidden) return [];
-    let start = 0;
-    let end = props.introLength;
-    if (id === "outro") {
-      start = outroStart;
-      end = start + props.outroLength;
-    } else if (id.startsWith("chapter-")) {
-      const chapter = props.chapterIntroductions?.find(
-        (item) => item.part === id,
-      );
-      if (!chapter) return [];
-      start = readingStart + props.readingSilence + chapter.start;
-      end = start + chapter.duration;
-    } else if (id.startsWith("reading-")) {
-      const cues = props.verseCues.filter((cue) =>
-        element.references?.includes(cue.reference),
-      );
-      if (!cues.length) return [];
-      start =
-        readingStart +
-        props.readingSilence +
-        Math.min(...cues.map((cue) => cue.start));
-      end =
-        readingStart +
-        props.readingSilence +
-        Math.max(...cues.map((cue) => cue.end));
-    }
-    const timing = elementTiming(element, end - start);
-    start += timing.start;
-    const duration = timing.duration;
-    return duration > 0 ? [{ id, element, start, duration }] : [];
-  });
+  return Object.entries(elements).flatMap(([id, section]) =>
+    sectionVisualElements(section).flatMap((element, index) => {
+      if (element.hidden) return [];
+      let start = 0;
+      let end = props.introLength;
+      if (id === "outro") {
+        start = outroStart;
+        end = start + props.outroLength;
+      } else if (id.startsWith("chapter-")) {
+        const chapter = props.chapterIntroductions?.find(
+          (item) => item.part === id,
+        );
+        if (!chapter) return [];
+        start = readingStart + props.readingSilence + chapter.start;
+        end = start + chapter.duration;
+      } else if (id.startsWith("reading-")) {
+        const cues = props.verseCues.filter((cue) =>
+          element.references?.includes(cue.reference),
+        );
+        if (!cues.length) return [];
+        start =
+          readingStart +
+          props.readingSilence +
+          Math.min(...cues.map((cue) => cue.start));
+        end =
+          readingStart +
+          props.readingSilence +
+          Math.max(...cues.map((cue) => cue.end));
+      }
+      const timing = elementTiming(element, end - start);
+      start += timing.start;
+      const duration = timing.duration;
+      return duration > 0
+        ? [
+            {
+              id,
+              key: `${id}:${element.id ?? index}`,
+              element,
+              start,
+              duration,
+            },
+          ]
+        : [];
+    }),
+  );
 }

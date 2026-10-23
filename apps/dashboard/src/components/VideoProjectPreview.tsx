@@ -19,6 +19,7 @@ import { VisualElementAnimation } from "../../../../tools/video-project-api/src/
 import {
   elementTiming,
   type VisualElement,
+  sectionVisualElements,
   type VideoLocale,
 } from "../../../../tools/video-project-api/src/visual-elements";
 import { Player, type PlayerRef } from "@remotion/player";
@@ -111,11 +112,10 @@ function SectionWithVisuals(
   props: ShortCompositionProps & {
     previewKind?: "short" | "long" | "book";
     previewVoicePart?: VoicePart;
-    previewElement?: VisualElement;
+    previewElements?: VisualElement[];
   },
 ) {
   const { fps, durationInFrames } = useVideoConfig();
-  const element = props.previewElement;
   const sectionStart =
     props.previewVoicePart === "intro" || props.previewVoicePart === "outro"
       ? 0
@@ -134,27 +134,32 @@ function SectionWithVisuals(
           (props.verseCues.length
             ? Math.max(...props.verseCues.map((cue) => cue.end))
             : 0);
-  const timing = element
-    ? elementTiming(element, sectionEnd - sectionStart)
-    : { start: 0, duration: 0 };
-  const start = Math.round((sectionStart + timing.start) * fps);
-  const frames = Math.min(
-    Math.round(timing.duration * fps),
-    durationInFrames - start,
-  );
   return (
     <>
       <SectionPreview {...props} />
-      {element && !element.hidden && frames > 0 && (
-        <Sequence from={start} durationInFrames={frames} layout="none">
-          <VisualElementAnimation
-            element={element}
-            durationSeconds={frames / fps}
-            locale={props.videoLocale}
-            variant="subscribe"
-          />
-        </Sequence>
-      )}
+      {(props.previewElements ?? []).map((element, index) => {
+        const timing = elementTiming(element, sectionEnd - sectionStart);
+        const start = Math.round((sectionStart + timing.start) * fps);
+        const frames = Math.min(
+          Math.round(timing.duration * fps),
+          durationInFrames - start,
+        );
+        return !element.hidden && frames > 0 ? (
+          <Sequence
+            key={element.id ?? index}
+            from={start}
+            durationInFrames={frames}
+            layout="none"
+          >
+            <VisualElementAnimation
+              element={element}
+              durationSeconds={frames / fps}
+              locale={props.videoLocale}
+              variant="subscribe"
+            />
+          </Sequence>
+        ) : null;
+      })}
     </>
   );
 }
@@ -400,9 +405,11 @@ export function VideoProjectPreview({
             }
             inputProps={{
               ...props,
-              previewElement: visualSectionId
-                ? settings.visualElements?.[visualSectionId]
-                : undefined,
+              previewElements: visualSectionId
+                ? sectionVisualElements(
+                    settings.visualElements?.[visualSectionId],
+                  )
+                : [],
               previewKind: kind,
               previewVoicePart: voicePart,
             }}

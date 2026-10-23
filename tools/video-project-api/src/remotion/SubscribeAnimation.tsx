@@ -129,7 +129,12 @@ export function SubscribeAnimation({
               />
             </svg>
           )}
-          <span style={{ display: "inline-grid" }}>
+          <span
+            style={{
+              display: "inline-grid",
+              textAlign: variant === "follow" ? "center" : undefined,
+            }}
+          >
             <span
               aria-hidden={subscribed}
               style={{
@@ -243,9 +248,9 @@ export function VisualElementsOverlay({
   return (
     <>
       {visualElementRanges(props, props.visualElements).map(
-        ({ id, element, start, duration }) => (
+        ({ key, element, start, duration }) => (
           <Sequence
-            key={id}
+            key={key}
             from={Math.round(start * fps)}
             durationInFrames={Math.max(1, Math.round(duration * fps))}
             layout="none"

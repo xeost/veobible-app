@@ -1,4 +1,7 @@
 export const portuguese: Record<string, string> = {
+  Play: "Reproduzir",
+  Replay: "Repetir",
+  "Use element": "Usar elemento",
   "No publication texts were generated because this environment has no publication templates for this format and language. Add them in Settings before generating the video again.":
     "Não foram gerados textos de publicação porque este ambiente não tem modelos para este formato e idioma. Adicione-os em Configurações antes de gerar o vídeo novamente.",
   "Lower intermediate": "Inferior intermediária",
