@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { adaptNarrationText } from "./narration-text-adaptations.js";
+import {
+  adaptNarrationText,
+  cleanNarrationText,
+} from "./narration-text-adaptations.js";
 import {
   narrationModelsSchema,
   defaultNarrationModels,
@@ -65,4 +68,45 @@ test("adaptations follow the selected Spanish model without affecting other mode
       .success,
     false,
   );
+});
+
+test("speech cleanup removes only explicit editorial markers and preserves sentence punctuation", () => {
+  const original =
+    "¶ ‹Blessed› are ‹the poor in spirit: for theirs is the kingdom of heaven.›";
+  const spoken =
+    "Blessed are the poor in spirit: for theirs is the kingdom of heaven.";
+  for (const locale of ["en", "es", "pt"]) {
+    assert.equal(adaptNarrationText(original, locale), spoken);
+    assert.equal(
+      adaptNarrationText(original, locale, { reinforceSpanishRs: false }),
+      spoken,
+    );
+  }
+  assert.equal(cleanNarrationText("one¶two ¶ ¶ three"), "one two three");
+  assert.equal(
+    cleanNarrationText("‹Blessed.›\n¶ ‹Rejoice: always!›"),
+    "Blessed.\nRejoice: always!",
+  );
+  assert.equal(cleanNarrationText(spoken), spoken);
+  assert.equal(cleanNarrationText("¶ ‹›"), "");
+});
+
+test("speech cleanup preserves valuable punctuation, Unicode, spacing and unrecognized symbols", () => {
+  const valuable = `“Don't”—it's John's word; 3:16, 3.14… (yes!) [amen?] «Olá: ação e bênção.» ¿Quién? ¡Él! rock-solid −2 + 3 = 1 / 2 † ‡ § *`;
+  assert.equal(cleanNarrationText(valuable), valuable);
+  assert.equal(cleanNarrationText(`¶ ‹${valuable}›`), valuable);
+  assert.equal(
+    cleanNarrationText("  Keep\tspacing.\nNext line: yes.  "),
+    "  Keep\tspacing.\nNext line: yes.  ",
+  );
+  const decomposed = "bênção";
+  assert.equal(cleanNarrationText(`‹${decomposed}›`), decomposed);
+  assert.equal(
+    adaptNarrationText("¶ ‹Rosa› corre rápido.", "es", {
+      reinforceSpanishRs: true,
+    }),
+    "Rrosa corrre rrápido.",
+  );
+  const cleaned = cleanNarrationText("¶ ‹Blessed› are the poor: amen.");
+  assert.equal(cleanNarrationText(cleaned), cleaned);
 });

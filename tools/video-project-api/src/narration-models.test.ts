@@ -40,7 +40,7 @@ test("both video engines pass the selected per-language model to the worker with
       import { narrationPresets } from './src/narration-parameters.ts';
       for(const [kind, engine] of Object.entries({short,long})) for(const locale of ['en','es','pt']) for(const {value} of narrationModelOptions[locale]) for(const decoder of ['general','v3']) {
         const out=path.join(process.env.MODEL_TEST_DIR,kind+'-'+locale+'-'+value+'-'+decoder);
-        await engine.generateVoice(out,{locale,voiceModel:value,voiceDecoder:decoder,voiceParameters:narrationPresets.expressive,voiceTextAdaptations:{reinforceSpanishRs:true},reference:'John',version:'Bible',book:'John',start:'1:1',end:'1:2',passage_id:'john-1-1',templates:{intro:'Rosa corre rápido.',outro:'Goodbye'}},true,'intro');
+        await engine.generateVoice(out,{locale,voiceModel:value,voiceDecoder:decoder,voiceParameters:narrationPresets.expressive,voiceTextAdaptations:{reinforceSpanishRs:true},reference:'John',version:'Bible',book:'John',start:'1:1',end:'1:2',passage_id:'john-1-1',templates:{intro:'¶ ‹Rosa› corre ‹rápido.›',outro:'Goodbye'}},true,'intro');
         const spoken=JSON.parse(await fs.readFile(path.join(out,'spoken-scripts.json'),'utf8'));
         assert.equal(spoken.intro,locale==='es'?'Rrosa corrre rrápido.':'Rosa corre rápido.');
         const args=JSON.parse(await fs.readFile(path.join(out,'args.json'),'utf8'));

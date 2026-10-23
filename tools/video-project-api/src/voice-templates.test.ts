@@ -90,3 +90,16 @@ test("custom narration is used literally in both formats without changing the ot
     );
   }
 });
+
+test("editor scripts retain editorial marks; cleanup belongs only to the speech request", async () => {
+  const original =
+    "¶ ‹Blessed› are ‹the poor in spirit: for theirs is the kingdom of heaven.›";
+  for (const engine of [short, long]) {
+    const scripts = await engine.renderVoiceScripts({
+      ...context,
+      locale: "en",
+      scriptOverrides: { intro: original },
+    });
+    assert.equal(scripts.intro, original);
+  }
+});

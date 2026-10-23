@@ -260,30 +260,16 @@ a:focus-visible {
   min-height: 95px;
 }
 .social-settings-intro {
-  display: flex;
-  gap: 15px;
-  align-items: flex-start;
   margin: 22px 0;
-}
-.social-settings-intro > svg {
-  color: #bda0e9;
-  margin-top: 5px;
-  flex-shrink: 0;
 }
 .social-settings-intro h2 {
   margin: 0;
-  font-size: 19px;
+  font-size: 26px;
 }
 .social-settings-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
-}
-.loudness-settings-fields {
-  border: 0;
-  padding: 0;
-  margin: 0 0 16px;
-  min-width: 0;
 }
 .social-settings-language {
   min-width: 0;

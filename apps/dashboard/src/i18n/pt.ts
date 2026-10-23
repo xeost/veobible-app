@@ -1,4 +1,12 @@
 export const portuguese: Record<string, string> = {
+  "For each language, enter the domain to display at the end of videos (for example, veobible.com) and social media usernames, with or without @. Leave a field empty to hide that domain or social network in the video.":
+    "Para cada idioma, informe o domínio que será exibido no final dos vídeos (por exemplo, veobible.com) e os nomes de usuário das redes sociais, com ou sem @. Deixe um campo vazio para ocultar esse domínio ou rede social no vídeo.",
+
+  "Configure voice volume, video domain and social media accounts for each language.":
+    "Configure o volume das vozes, o domínio do vídeo e as contas de redes sociais para cada idioma.",
+  "Changes apply to audio playback, previews and the next videos you generate.":
+    "As alterações se aplicam à reprodução de áudio, às pré-visualizações e aos próximos vídeos que você gerar.",
+
   "Automatic voice volume": "Volume automático das vozes",
   "Automatic volume": "Volume automático",
   "Balance all video voices to the selected loudness for each language. Applies to waveform playback, previews and new video renders, including existing projects.":
