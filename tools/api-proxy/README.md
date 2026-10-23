@@ -8,6 +8,8 @@ In production, install `cloudflared`, configure a named tunnel pointing to `http
 
 Registered namespaces: `/v1/jobs`, `/v1/projects`, `/v1/analyze`, `/v1/queue`, `/v1/bible-versions`, `/v1/video-project-proposals`, and `/v1/local-models`. `/health` aggregates video availability. To add another API, register its process in `index.mjs` and its routes in `proxy.mjs`; the same tunnel serves both.
 
+Include `https://dash.veobible.com` in `DASHBOARD_ORIGINS` alongside the local origins, and restart `pnpm start:api-proxy` after changing this setting. Audio generation validates the dashboard callback origin against this list before queuing work; a missing production origin rejects generation even when listing and editing projects work.
+
 See [the dashboard README](../../apps/dashboard/README.md). `pnpm --dir tools/api-proxy test` verifies authentication, routing, forwarding, and upstream disconnection handling.
 
 Both tokens are read exclusively from `tools/api-proxy/.env`. Environment overrides, the legacy `TUNNEL_TOKEN` alias, and tunnel command-line options are not supported. The child API ignores local credential settings and requires startup through the proxy.

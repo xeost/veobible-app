@@ -3197,9 +3197,18 @@ audio {
   margin-top: 1.5rem;
 }
 /* Audio projects share the video editor's chapter cards and waveform controls. */
-.audio-project-settings { padding: 24px; display: grid; gap: 16px; }
-.audio-project-settings .base-voice-picker { max-width: 480px; }
-.audio-chapter-player { width: 100%; margin: 12px 0; }
+.audio-project-settings {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+.audio-project-settings .base-voice-picker {
+  max-width: 480px;
+}
+.audio-chapter-player {
+  width: 100%;
+  margin: 12px 0;
+}
 
 .narration-preset-actions {
   display: flex;
@@ -3371,4 +3380,9 @@ audio {
 
 .audio-verse-generate {
   margin-block: 24px;
+}
+.audio-chapter-generate {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 6px 10px;
 }

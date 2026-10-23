@@ -82,6 +82,13 @@ export const portuguese: Record<string, string> = {
   books: "livros",
   Book: "Livro",
   "Generate voice": "Gerar voz",
+  "Analyze generated verse voices with AI": "Analisar as vozes geradas com IA",
+  "Analyze generated verse voices with AI. Updates the cuts for all recorded verses in this chapter.":
+    "Analisa as vozes geradas com IA. Atualiza os cortes de todos os versículos gravados deste capítulo.",
+  "Analyzing verse audio…": "Analisando áudio do versículo…",
+  "Generate all verse voices": "Gerar as vozes de todos os versículos",
+  "Use full recordings": "Usar gravações completas",
+  "Analyze this verse audio with AI": "Analisar o áudio deste versículo com IA",
   "These voices are saved with this project. Changing the defaults does not change these selections.":
     "Estas vozes são salvas neste projeto. Alterar os padrões não muda estas seleções.",
   "Save changes to keep these voices. Existing narrations change only when you regenerate them.":
@@ -1635,9 +1642,12 @@ export const portuguese: Record<string, string> = {
     "Não foi possível concluir a solicitação de áudio. Verifique se a geração está disponível e tente novamente.",
   "This audio project changed. Reload it before saving.":
     "Este projeto de áudio mudou. Recarregue antes de salvar.",
-  "Generate audios": "Gerar áudios",
-  "Each verse has its own recording. Generate audios joins the saved verses into one audio file per chapter.":
-    "Cada versículo tem sua própria gravação. Gerar áudios une os versículos salvos em um arquivo de áudio por capítulo.",
+  "Create final audio": "Criar áudio final",
+  "Create all final audios": "Criar todos os áudios finais",
+  "Generate all verse voices before creating final audio.":
+    "Gere as vozes de todos os versículos antes de criar o áudio final.",
+  "Generate a voice for each verse, then create the final audio to join the saved voices into one file per chapter, applying your cuts and pauses.":
+    "Gere uma voz para cada versículo e depois crie o áudio final para unir as vozes salvas em um arquivo por capítulo, aplicando seus cortes e pausas.",
   "Waiting to generate audio": "Aguardando para gerar áudio",
   "Generating audios": "Gerando áudios",
   "Audio generation could not be completed. Completed verses are saved; try again to continue.":

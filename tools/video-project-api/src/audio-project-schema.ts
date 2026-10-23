@@ -48,11 +48,20 @@ export const audioGenerateSchema = z
     chapter: z.number().int().positive().optional(),
     verse: z.number().int().positive().optional(),
     regenerate: z.boolean().default(false),
+    assembleOnly: z.boolean().default(false),
+    voicesOnly: z.boolean().default(false),
+    alignOnly: z.boolean().default(false),
     voiceModel: narrationModelSchema.optional(),
     voiceDecoder: narrationDecoderSchema.optional(),
     voiceParameters: narrationParametersSchema.optional(),
   })
-  .refine((v) => !v.verse || !!v.chapter);
+  .refine((v) => !v.verse || !!v.chapter)
+  .refine(
+    (v) => !v.assembleOnly || (!v.verse && !v.regenerate && !v.voicesOnly),
+  )
+  .refine(
+    (v) => !v.alignOnly || (!v.assembleOnly && !v.voicesOnly && !v.regenerate),
+  );
 export type AudioVersion = z.infer<typeof audioVersionSchema>;
 export type AudioSettings = z.infer<typeof audioSettingsSchema>;
 export const audioEnvironmentSchema = z.enum(["production", "development"]);

@@ -108,7 +108,14 @@ export function AudioProjectEditor({
     dirtyRef.current = false;
   };
   const generate = async (
-    scope: { chapter?: number; verse?: number; regenerate?: boolean } = {},
+    scope: {
+      chapter?: number;
+      verse?: number;
+      regenerate?: boolean;
+      assembleOnly?: boolean;
+      voicesOnly?: boolean;
+      alignOnly?: boolean;
+    } = {},
   ) => {
     if (busyRef.current) return;
     setBusy(true);
@@ -157,6 +164,11 @@ export function AudioProjectEditor({
         )}
       </p>
     );
+  const allVoicesReady = project.content.every((chapter) =>
+    chapter.verses.every(
+      (verse) => project.recordings[`${chapter.chapter}:${verse.verse}`],
+    ),
+  );
   return (
     <>
       <ProjectEditorHeader
@@ -188,15 +200,16 @@ export function AudioProjectEditor({
         </button>
         <button
           className="primary"
-          disabled={locked}
-          onClick={() => void generate()}
+          disabled={locked || !allVoicesReady}
+          data-tooltip={t("Create all final audios")}
+          onClick={() => void generate({ assembleOnly: true })}
         >
           {locked ? (
             <LoaderCircle className="voice-spinner" size={16} />
           ) : (
             <Combine size={16} />
           )}
-          {t("Generate audios")}
+          {t("Create all final audios")}
         </button>
       </ProjectEditorHeader>
       <div className="project-studio-layout audio-editor">
@@ -221,7 +234,7 @@ export function AudioProjectEditor({
             />
             <p className="muted">
               {t(
-                "Each verse has its own recording. Generate audios joins the saved verses into one audio file per chapter.",
+                "Generate a voice for each verse, then create the final audio to join the saved voices into one file per chapter, applying your cuts and pauses.",
               )}
             </p>
             {dirty && <p className="notice">{t("Unsaved changes")}</p>}

@@ -170,7 +170,7 @@ export async function audioProjectHttp(
           throw new AudioProjectError("Origin not allowed", 403);
         if (!generation.append) session.callback = callbackSettings;
         const requestId = randomUUID();
-        audioGenerateSchema.parse(generation.input);
+        const generationInput = audioGenerateSchema.parse(generation.input);
         const projectId = Number(callback.pathname.split("/")[3]);
         const jobs = new Map<string, QueueJob>();
         const taskKey = (task: { chapter: number; verse?: number }) =>
@@ -185,7 +185,9 @@ export async function audioProjectHttp(
                 const job: QueueJob = {
                   id: `${generation.jobId}:${requestId}:${taskKey(task)}`,
                   status: "queued",
-                  stage: "Queued",
+                  stage: generationInput.alignOnly
+                    ? "Analyzing audio"
+                    : "Queued",
                   progress: 0,
                 };
                 jobs.set(taskKey(task), job);
@@ -193,9 +195,11 @@ export async function audioProjectHttp(
                   metadata: {
                     projectId,
                     kind: "audio" as const,
-                    type: task.verse
-                      ? ("audio-verse" as const)
-                      : ("audio-chapter" as const),
+                    type: generationInput.alignOnly
+                      ? ("alignment" as const)
+                      : task.verse
+                        ? ("audio-verse" as const)
+                        : ("audio-chapter" as const),
                     outputEnvironment: environment,
                     groupId: generation.jobId,
                     ...task,
@@ -218,7 +222,11 @@ export async function audioProjectHttp(
                 job.status = status;
                 job.progress = progress;
                 job.stage =
-                  status === "done" ? "Completed" : "Generating audio";
+                  status === "done"
+                    ? "Completed"
+                    : generationInput.alignOnly
+                      ? "Analyzing audio"
+                      : "Generating audio";
               }
             },
             generation.append,

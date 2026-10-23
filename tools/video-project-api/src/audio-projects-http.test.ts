@@ -70,6 +70,7 @@ test(
 const arg=k=>process.argv[process.argv.indexOf(k)+1];
 await new Promise(resolve=>setTimeout(resolve,800));
 await fs.appendFile(process.env.AUDIO_TEST_LOG,await fs.readFile(arg('--scripts'),'utf8')+'\\n');
+await fs.writeFile(path.join(arg('--output-dir'),'intro.txt'), JSON.parse(await fs.readFile(arg('--scripts'),'utf8')).intro);
 await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavfi','-i','sine=frequency=440:duration=0.2',path.join(arg('--output-dir'),'intro.wav')]);`,
       );
       const start = async () => {
@@ -85,6 +86,8 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
             VIDEO_LONG_TTS_PYTHON: process.execPath,
             AUDIO_TEST_LOG: path.join(root, "calls.log"),
             AUDIO_TEST_FFMPEG: config.ffmpegBin,
+            VIDEO_ALIGNER_PYTHON: process.execPath,
+            VIDEO_ALIGNER_SCRIPT: path.join(root, "align.mjs"),
           },
           stdio: ["ignore", "pipe", "pipe"],
         });
@@ -107,6 +110,18 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
         await exited;
         child = undefined;
       };
+      await fs.writeFile(
+        path.join(root, "align.mjs"),
+        `import fs from 'node:fs/promises';
+const arg = key => process.argv[process.argv.indexOf(key) + 1];
+const request = JSON.parse(await fs.readFile(arg('--request'), 'utf8'));
+if (request.language !== 'es' || request.detectHeadings !== false) throw new Error('Invalid alignment request');
+const chapter = request.chapters[0];
+const text = await fs.readFile(chapter.audio.slice(0, -4) + '.txt', 'utf8');
+if (chapter.segments.length !== 1 || chapter.segments[0].text.trim() !== text.trim()) throw new Error('Wrong verse transcript');
+await fs.appendFile(process.env.AUDIO_TEST_LOG + '.alignment', chapter.audio + '\\n');
+await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: [{index: 0, segments: chapter.segments.map(segment => ({id: segment.id, words: [{text: segment.text, start: 0.06, end: 0.12}]}))}]}));`,
+      );
       await start();
       assert.equal((await fetch(`${base}/v1/audio-projects`)).status, 401);
       const version = {
@@ -185,6 +200,21 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
         outputEnvironment: "production",
       });
       const project = `${base}/v1/audio-projects/rv1909-v2/jude`;
+      // Listing works without callback access; generation needs an allowed origin.
+      const denied = await fetch(`${project}/generate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          ...snapshot(),
+          callback: {
+            url: `https://unconfigured-dashboard.example/api/audio-project-events/1/${jobId}`,
+            token: callbackToken,
+          },
+          input: { chapter: 1, verse: 1, voiceModel: "multilingual-v3" },
+        }),
+      });
+      assert.equal(denied.status, 403);
+      assert.equal((await denied.json()).error, "Origin not allowed");
       const generated = await fetch(`${project}/generate`, {
         method: "POST",
         headers,
@@ -277,6 +307,12 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
       assert.equal(state.status, "draft", diagnostics);
       assert.ok(state.recordings["1:1"]);
       assert.ok(state.recordings["1:2"]);
+      for (const ref of ["1:1", "1:2"]) {
+        assert.ok(
+          Math.abs(state.settings.trims[ref].startSeconds - 0.03) < 1e-6,
+        );
+        assert.ok(Math.abs(state.settings.trims[ref].endSeconds - 0.17) < 1e-6);
+      }
       const media = await fetch(`${project}/media?chapter=1&verse=1`, {
         method: "POST",
         body: JSON.stringify(snapshot()),
@@ -329,6 +365,54 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
       );
       const log = await fs.readFile(path.join(root, "calls.log"), "utf8");
       assert.ok(log.includes("Judas"));
+      const analyze = await fetch(`${project}/generate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          ...snapshot(),
+          callback: {
+            url: `${callbackOrigin}/api/audio-project-events/1/${jobId}`,
+            token: callbackToken,
+          },
+          input: { chapter: 1, alignOnly: true },
+        }),
+      });
+      assert.equal(analyze.status, 202, await analyze.text());
+      for (let attempt = 0; attempt < 150; attempt++) {
+        state = await (
+          await fetch(project, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(snapshot()),
+          })
+        ).json();
+        if (!["queued", "running"].includes(state.status)) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      assert.equal(state.status, "draft", diagnostics);
+      assert.deepEqual(state.recordings, persisted.recordings);
+      assert.deepEqual(state.settings.trims, persisted.settings.trims);
+      assert.equal(
+        await fs.readFile(path.join(root, "calls.log"), "utf8"),
+        log,
+      );
+      assert.equal(
+        (await fs.readFile(path.join(root, "calls.log.alignment"), "utf8"))
+          .trim()
+          .split("\n").length,
+        4,
+      );
+      const analysisQueue = await (
+        await fetch(`${base}/v1/queue?outputEnvironment=production`, {
+          headers,
+        })
+      ).json();
+      assert.equal(
+        analysisQueue.items.filter(
+          (item: any) => item.kind === "audio" && item.type === "alignment",
+        ).length,
+        2,
+      );
       await stop();
     } finally {
       if (child) {

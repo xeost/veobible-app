@@ -16,6 +16,7 @@ import {
   audioBookSchema,
   audioSaveSchema,
   audioGenerateSchema,
+  audioTrimSchema,
   type AudioProject,
   type AudioProjectDetail,
   type AudioProjectSummary,
@@ -33,6 +34,12 @@ export class AudioProjectError extends Error {
 const execute = promisify(execFile);
 const markerName = ".audio-edition.json";
 const key = (edition: string, book: string) => `${edition}/${book}`;
+function validatedAudioTrim(value: unknown, duration: number) {
+  const aligned = audioTrimSchema.safeParse(value);
+  if (!aligned.success || aligned.data.endSeconds > duration)
+    throw new Error("Invalid generated audio alignment boundaries");
+  return aligned.data;
+}
 const missing = (error: unknown) =>
   (error as NodeJS.ErrnoException).code === "ENOENT";
 async function exists(file: string) {
@@ -95,13 +102,18 @@ export function audioTasks(
       c.verses
         .filter(
           (v) =>
+            !input.assembleOnly &&
             (!input.verse || input.verse === v.verse) &&
-            (input.regenerate ||
-              !project.recordings[`${c.chapter}:${v.verse}`]),
+            (input.alignOnly
+              ? Boolean(project.recordings[`${c.chapter}:${v.verse}`])
+              : input.regenerate ||
+                !project.recordings[`${c.chapter}:${v.verse}`]),
         )
         .map((v) => ({ chapter: c.chapter, verse: v.verse })),
     ),
-    ...(!input.verse ? chapters.map((c) => ({ chapter: c.chapter })) : []),
+    ...(!input.verse && !input.voicesOnly && !input.alignOnly
+      ? chapters.map((c) => ({ chapter: c.chapter }))
+      : []),
   ];
 }
 export class AudioProjects {
@@ -438,6 +450,19 @@ export class AudioProjects {
         )
       )
         throw new AudioProjectError("Verse not found.", 400);
+      if (
+        input.assembleOnly &&
+        project.content
+          .filter((c) => !input.chapter || c.chapter === input.chapter)
+          .some((c) =>
+            c.verses.some(
+              (v) => !project.recordings[`${c.chapter}:${v.verse}`],
+            ),
+          )
+      )
+        throw new AudioProjectError(
+          "Generate all verse voices before creating final audio.",
+        );
       if (first) {
         project.status = "queued";
         project.progress = 0;
@@ -482,16 +507,40 @@ export class AudioProjects {
     const chapters = content.filter(
       (c) => !input.chapter || c.chapter === input.chapter,
     );
-    const verses = chapters.flatMap((c) =>
+    const verses = (input.assembleOnly ? [] : chapters).flatMap((c) =>
       c.verses
-        .filter((v) => !input.verse || v.verse === input.verse)
+        .filter(
+          (v) =>
+            (!input.verse || v.verse === input.verse) &&
+            (!input.alignOnly ||
+              Boolean(project.recordings[`${c.chapter}:${v.verse}`])),
+        )
         .map((v) => ({ ...v, chapter: c.chapter })),
     );
     project.status = "running";
     await this.write(project);
     for (const [index, verse] of verses.entries()) {
       const ref = `${verse.chapter}:${verse.verse}`;
-      const needsGeneration = input.regenerate || !project.recordings[ref];
+      const needsGeneration =
+        !input.alignOnly && (input.regenerate || !project.recordings[ref]);
+      if (input.alignOnly) {
+        const recording = project.recordings[ref];
+        const task = { chapter: verse.chapter, verse: verse.verse };
+        taskReporter?.(task, "running", 0);
+        const trim = validatedAudioTrim(
+          await dependencies.align(
+            await safeFile(internal, recording.file),
+            recording.duration,
+            verse.text,
+            project.version.locale,
+            (progress) =>
+              taskReporter?.(task, "running", Math.min(99, progress)),
+          ),
+          recording.duration,
+        );
+        project.settings.trims[ref] = trim;
+        delete project.chapters[String(verse.chapter)];
+      }
       if (needsGeneration) {
         const revision = randomUUID();
         const relative = `${project.book}/${verse.chapter}-${verse.verse}-${revision}`;
@@ -504,12 +553,30 @@ export class AudioProjects {
           verse.text,
           project,
           input,
-          (progress) => taskReporter?.(task, "running", Math.min(99, progress)),
+          (progress) =>
+            taskReporter?.(task, "running", Math.min(70, progress * 0.7)),
         );
         const wav = path.join(directory, "intro.wav");
         const duration = await dependencies.duration(wav);
         if (!Number.isFinite(duration) || duration <= 0.02)
           throw new Error("Invalid generated audio duration");
+        // Publish the new recording only once its exact transcript is aligned.
+        // A failed regeneration must preserve the previous recording and trim.
+        const trim = validatedAudioTrim(
+          await dependencies.align(
+            wav,
+            duration,
+            verse.text,
+            project.version.locale,
+            (progress) =>
+              taskReporter?.(
+                task,
+                "running",
+                Math.min(99, 70 + progress * 0.3),
+              ),
+          ),
+          duration,
+        );
         project.recordings[ref] = {
           file: `${relative}/intro.wav`,
           duration,
@@ -526,22 +593,23 @@ export class AudioProjects {
             parameters: input.voiceParameters,
           },
         };
-        delete project.settings.trims[ref];
+        project.settings.trims[ref] = trim;
         delete project.chapters[String(verse.chapter)];
       }
       project.progress = Math.round(
-        ((index + 1) / verses.length) * (input.verse ? 100 : 85),
+        ((index + 1) / verses.length) *
+          (input.verse || input.voicesOnly || input.alignOnly ? 100 : 85),
       );
       project.revision++;
       await this.write(project);
-      if (needsGeneration)
+      if (needsGeneration || input.alignOnly)
         taskReporter?.(
           { chapter: verse.chapter, verse: verse.verse },
           "done",
           100,
         );
     }
-    if (!input.verse) {
+    if (!input.verse && !input.voicesOnly && !input.alignOnly) {
       for (const [index, chapter] of chapters.entries()) {
         taskReporter?.({ chapter: chapter.chapter }, "running", 0);
         const filename = `${String(project.order).padStart(2, "0")}-${project.book}-${chapter.chapter}.mp3`;
@@ -634,6 +702,13 @@ export type AudioGenerationDependencies = {
     onProgress?: (progress: number) => void,
   ) => Promise<void>;
   duration: (file: string) => Promise<number>;
+  align: (
+    file: string,
+    duration: number,
+    text: string,
+    language: string,
+    onProgress: (progress: number) => void,
+  ) => Promise<z.infer<typeof audioTrimSchema>>;
   assemble: (segments: AudioSegment[], output: string) => Promise<void>;
 };
 export async function assembleAudioChapter(
@@ -704,6 +779,20 @@ export async function assembleAudioChapter(
   }
 }
 const productionDependencies: AudioGenerationDependencies = {
+  align: async (file, duration, text, language, onProgress) => {
+    const { alignGeneratedSpeech } = await import("./forced-alignment.js");
+    const {
+      cues: [cue],
+    } = await alignGeneratedSpeech(
+      file,
+      duration,
+      language,
+      [{ id: "verse", text, start: 0, end: duration }],
+      config.ffmpegBin,
+      onProgress,
+    );
+    return { startSeconds: cue.start, endSeconds: cue.end };
+  },
   synthesize: (directory, text, project, input, onProgress) =>
     generateVoice(
       directory,

@@ -6,8 +6,10 @@ import {
   ChevronRight,
   Download,
   Mic,
+  Combine,
   RotateCcw,
   WandSparkles,
+  ScanText,
 } from "lucide-react";
 import type {
   AudioProjectDetail,
@@ -46,6 +48,9 @@ export function AudioChapter({
     chapter: number;
     verse?: number;
     regenerate?: boolean;
+    assembleOnly?: boolean;
+    voicesOnly?: boolean;
+    alignOnly?: boolean;
   }) => Promise<void>;
   media: (chapter: number, verse?: number, revision?: string) => string;
   onPlay: (audio: HTMLAudioElement) => void;
@@ -185,18 +190,35 @@ export function AudioChapter({
           type="button"
           className="icon-button section-action-button"
           disabled={submitting || tasks.length > 0}
-          aria-label={t("Generate all audio for this chapter")}
-          data-tooltip={t("Generate all audio for this chapter")}
-          onClick={() => void generate({ chapter: chapter.chapter })}
+          aria-label={`${t("Generate all verse voices")} · ${title}`}
+          data-tooltip={t("Generate all verse voices")}
+          onClick={() =>
+            void generate({ chapter: chapter.chapter, voicesOnly: true })
+          }
         >
           <WandSparkles size={17} aria-hidden="true" />
+        </button>
+        <span className="section-action-separator" aria-hidden="true" />
+        <button
+          type="button"
+          className="icon-button section-action-button"
+          disabled={submitting || tasks.length > 0 || completed === 0}
+          aria-label={`${t("Analyze generated verse voices with AI")} · ${title}`}
+          data-tooltip={t(
+            "Analyze generated verse voices with AI. Updates the cuts for all recorded verses in this chapter.",
+          )}
+          onClick={() =>
+            void generate({ chapter: chapter.chapter, alignOnly: true })
+          }
+        >
+          <ScanText size={17} aria-hidden="true" />
         </button>
         <button
           type="button"
           className="icon-button section-action-button"
           disabled={locked || !hasCuts}
-          aria-label={t("Reset manual verse cuts")}
-          data-tooltip={t("Reset manual verse cuts")}
+          aria-label={t("Use full recordings")}
+          data-tooltip={t("Use full recordings")}
           onClick={() => {
             const trims = { ...settings.trims };
             references.forEach((ref) => delete trims[ref]);
@@ -205,6 +227,24 @@ export function AudioChapter({
           }}
         >
           <RotateCcw size={17} aria-hidden="true" />
+        </button>
+        <span className="section-action-separator" aria-hidden="true" />
+        <button
+          type="button"
+          className="audio-chapter-generate"
+          disabled={
+            submitting ||
+            tasks.length > 0 ||
+            completed !== chapter.verses.length
+          }
+          aria-label={`${t("Create final audio")} · ${title}`}
+          data-tooltip={t("Create final audio")}
+          onClick={() =>
+            void generate({ chapter: chapter.chapter, assembleOnly: true })
+          }
+        >
+          <Combine size={17} aria-hidden="true" />
+          {t("Create final audio")}
         </button>
         {final && (
           <>
@@ -233,7 +273,7 @@ export function AudioChapter({
       {activeTask && (
         <GenerationProgress
           value={activeTask.progress}
-          label={`${t(activeTask.status === "queued" ? "Waiting to generate audio" : activeTask.verse ? "Generating verse audio…" : "Joining chapter audio…")}${activeTask.verse ? ` · ${chapter.chapter}:${activeTask.verse}` : ""}`}
+          label={`${t(activeTask.status === "queued" ? "Waiting to generate audio" : activeTask.stage === "Analyzing audio" ? "Analyzing verse audio…" : activeTask.verse ? "Generating verse audio…" : "Joining chapter audio…")}${activeTask.verse ? ` · ${chapter.chapter}:${activeTask.verse}` : ""}`}
         />
       )}
       {open && (
@@ -271,25 +311,43 @@ export function AudioChapter({
                 },
               ]}
               disabled={locked}
-              resetRevision={resetRevision}
+              resetRevision={resetRevision + project.revision}
               preservedReferences={[reference]}
               versePicker={versePicker}
               toolbarActions={
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={t("Use full recording")}
-                  data-tooltip={t("Use full recording")}
-                  disabled={locked || !settings.trims[reference]}
-                  onClick={() => {
-                    const trims = { ...settings.trims };
-                    delete trims[reference];
-                    change({ ...settings, trims });
-                    setResetRevision((current) => current + 1);
-                  }}
-                >
-                  <RotateCcw size={16} aria-hidden="true" />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={t("Analyze this verse audio with AI")}
+                    data-tooltip={t("Analyze this verse audio with AI")}
+                    disabled={locked}
+                    onClick={() =>
+                      void generate({
+                        chapter: chapter.chapter,
+                        verse: verse.verse,
+                        alignOnly: true,
+                      })
+                    }
+                  >
+                    <ScanText size={16} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={t("Use full recording")}
+                    data-tooltip={t("Use full recording")}
+                    disabled={locked || !settings.trims[reference]}
+                    onClick={() => {
+                      const trims = { ...settings.trims };
+                      delete trims[reference];
+                      change({ ...settings, trims });
+                      setResetRevision((current) => current + 1);
+                    }}
+                  >
+                    <RotateCcw size={16} aria-hidden="true" />
+                  </button>
+                </>
               }
               onRegenerate={() =>
                 void generate({
