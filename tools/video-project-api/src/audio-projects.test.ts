@@ -847,6 +847,55 @@ test("chapter voices generate missing verse recordings without assembling final 
   }
 });
 
+test("regenerating chapter voices replaces existing recordings and generates missing ones", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    const generated = generation();
+    let run!: () => Promise<void>;
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 1 },
+      (task) => {
+        run = task;
+      },
+      generated.dependencies,
+    );
+    await run();
+    const before = await projects.read("rv1909-v2", "jude");
+    assert.equal(generated.count(), 1);
+    let plan: { chapter: number; verse?: number }[] = [];
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, voicesOnly: true, regenerate: true },
+      (task, tasks) => {
+        run = task;
+        plan = tasks;
+      },
+      {
+        ...generated.dependencies,
+        assemble: async () => {
+          assert.fail("Must not create final audio");
+        },
+      },
+    );
+    await run();
+    const after = await projects.read("rv1909-v2", "jude");
+    assert.equal(plan.length, 25);
+    assert.equal(generated.count(), 26);
+    assert.equal(Object.keys(after.recordings).length, 25);
+    assert.notEqual(
+      after.recordings["1:1"].revision,
+      before.recordings["1:1"].revision,
+    );
+    assert.deepEqual(after.chapters, {});
+  } finally {
+    await clean();
+  }
+});
+
 test("chapter analysis realigns only existing voices, preserves recordings and saves completed cuts on failure", async () => {
   const { projects, clean } = await fixture();
   try {

@@ -279,10 +279,18 @@ export function AudioChapter({
           type="button"
           className="icon-button section-action-button"
           disabled={submitting || tasks.length > 0}
-          aria-label={`${t("Generate all verse voices")} · ${title}`}
-          data-tooltip={t("Generate all verse voices")}
+          aria-label={`${t(completed > 0 ? "Regenerate all verse voices" : "Generate all verse voices")} · ${title}`}
+          data-tooltip={t(
+            completed > 0
+              ? "Regenerate all verse voices"
+              : "Generate all verse voices",
+          )}
           onClick={() =>
-            void generate({ chapter: chapter.chapter, voicesOnly: true })
+            void generate({
+              chapter: chapter.chapter,
+              voicesOnly: true,
+              regenerate: completed > 0,
+            })
           }
         >
           <WandSparkles size={17} aria-hidden="true" />

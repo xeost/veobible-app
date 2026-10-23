@@ -95,6 +95,7 @@ export const spanish: Record<string, string> = {
     "Analiza las voces generadas con IA. Actualiza los recortes de todos los versículos grabados de este capítulo.",
   "Analyzing verse audio…": "Analizando audio del versículo…",
   "Generate all verse voices": "Generar las voces de todos los versículos",
+  "Regenerate all verse voices": "Regenerar las voces de todos los versículos",
   "Approve verse": "Aprobar versículo",
   Approved: "Aprobado",
   "Remove verse approval": "Quitar aprobación del versículo",
