@@ -122,6 +122,9 @@ const messages = new Set([
   "Reading volume must be between 0 and 4.",
   "Files needed to create this video are missing. Contact your administrator.",
   "Could not connect. Try again in a few moments.",
+  "This shortcut is no longer available. Reload the page to continue.",
+  "You can save up to 32 shortcuts per format. Remove a shortcut before adding another.",
+  "The shortcuts changed in another window. Reload the page before saving again.",
   "Review the information and settings you entered before continuing.",
   "Could not complete this action. Try again; if the problem continues, contact your administrator.",
 

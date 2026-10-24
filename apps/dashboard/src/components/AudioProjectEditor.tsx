@@ -20,6 +20,7 @@ import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import type { BaseVoiceDefaults } from "../lib/base-voices";
 import type { VoiceStylePresets } from "../lib/voice-style-presets";
 import { ProjectEditorHeader } from "./ProjectEditorHeader";
+import { scrollEditorSectionIntoView } from "../lib/editor-section-scroll";
 import { useGenerationQueue } from "./GenerationQueueContext";
 import { queueChangedEvent } from "../lib/generation-queue";
 import { useProjectBreadcrumb } from "./ProjectBreadcrumb";
@@ -101,9 +102,10 @@ export function AudioProjectEditor({
       setExpanded((current) => new Set([...current, selected.chapter]));
       if (frame !== undefined) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        document
-          .getElementById(`audio-chapter-block-${selected.chapter}`)
-          ?.scrollIntoView({ block: "start" });
+        const section = document.getElementById(
+          `audio-chapter-block-${selected.chapter}`,
+        );
+        if (section) scrollEditorSectionIntoView(section);
       });
     };
     restore();
@@ -278,6 +280,8 @@ export function AudioProjectEditor({
   return (
     <>
       <ProjectEditorHeader
+        eyebrow="AUDIO PROJECT EDITOR"
+        showDescription={false}
         title={project.title}
         version={`${project.version.label} · ${t("Audio version")} ${edition.match(/-v(\d+)$/)?.[1]}`}
         backHref="/audios"

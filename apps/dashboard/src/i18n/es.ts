@@ -1,4 +1,35 @@
 export const spanish: Record<string, string> = {
+  "Shortcut order saved.": "Orden de los atajos guardado.",
+  "Reorder shortcut: {name}": "Ordenar atajo: {name}",
+  "Move up: {name}": "Subir: {name}",
+  "Move down: {name}": "Bajar: {name}",
+  "Move up": "Subir",
+  "Move down": "Bajar",
+  "Save as shortcut": "Guardar como atajo",
+  "Visual element shortcuts": "Atajos de elementos visuales",
+  "Shortcut name": "Nombre del atajo",
+  "Save shortcut": "Guardar atajo",
+  "Remove shortcut": "Eliminar atajo",
+  "Add hidden": "Añadir oculto",
+  "Add: {name}": "Añadir: {name}",
+  "Visual elements: {count}": "Elementos visuales: {count}",
+  "Loading shortcuts…": "Cargando atajos…",
+  "Shortcut saved.": "Atajo guardado.",
+  "Shortcut removed.": "Atajo eliminado.",
+  "Could not load shortcuts. Reload the page to try again.":
+    "No se pudieron cargar los atajos. Recarga la página para intentarlo de nuevo.",
+  "Could not save shortcuts. Reload the page and try again.":
+    "No se pudieron guardar los atajos. Recarga la página e inténtalo de nuevo.",
+  "Shortcuts are shared by all projects of this format. Editing a shortcut only changes the elements you add next.":
+    "Los atajos están disponibles en todos los proyectos de este formato. Editar un atajo solo cambia los elementos que añadas a partir de ese momento.",
+  "No shortcuts yet. Configure an element and choose Save as shortcut.":
+    "Todavía no hay atajos. Configura un elemento y selecciona Guardar como atajo.",
+  "This shortcut is no longer available. Reload the page to continue.":
+    "Este atajo ya no está disponible. Recarga la página para continuar.",
+  "You can save up to 32 shortcuts per format. Remove a shortcut before adding another.":
+    "Puedes guardar hasta 32 atajos por formato. Elimina un atajo antes de añadir otro.",
+  "The shortcuts changed in another window. Reload the page before saving again.":
+    "Los atajos cambiaron en otra ventana. Recarga la página antes de volver a guardar.",
   General: "General",
   "System settings": "Ajustes del sistema",
   "Default ({value})": "Predeterminado ({value})",
@@ -913,6 +944,8 @@ export const spanish: Record<string, string> = {
   Progress: "Progreso",
   Project: "Proyecto",
   "PROJECT EDITOR": "EDITOR DE PROYECTO",
+  "VIDEO PROJECT EDITOR": "EDITOR DE PROYECTO DE VIDEO",
+  "AUDIO PROJECT EDITOR": "EDITOR DE PROYECTO DE AUDIO",
   "Project options": "Opciones de proyectos",
   "Project settings": "Settings de proyectos",
   "Project title": "Título del proyecto",

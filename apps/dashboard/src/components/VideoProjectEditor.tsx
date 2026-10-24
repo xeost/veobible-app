@@ -1,5 +1,6 @@
 "use client";
 import { SectionVisualElements } from "./SectionVisualElements";
+import { useVisualShortcuts } from "./useVisualShortcuts";
 import type { VisualElement } from "../../../../tools/video-project-api/src/visual-elements";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import type { VoiceStylePresets } from "../lib/voice-style-presets";
@@ -79,6 +80,7 @@ import {
   type PreviewPlaybackHandle,
 } from "./VideoProjectPreview";
 import { ProjectEditorHeader } from "./ProjectEditorHeader";
+import { scrollEditorSectionIntoView } from "../lib/editor-section-scroll";
 import { GenerationProgress } from "./GenerationProgress";
 import { expandReadingContext } from "../../../../tools/video-project-api/src/reading-timeline";
 import { VoiceWaveform } from "./VoiceWaveform";
@@ -114,6 +116,7 @@ export function VideoProjectEditor({
   projectId: string;
 }) {
   const notify = useToast();
+  const visualShortcuts = useVisualShortcuts(kind);
   const { t } = useI18n();
   const [project, setProject] = useState<EditorProject | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
@@ -611,12 +614,18 @@ export function VideoProjectEditor({
       setExpanded(
         (current) => new Set([...current, `reading-${target.section}`]),
       );
+      // Restore selection immediately, then align once the audio layout is ready.
+      if (preparedEditor !== base) return;
       if (frame !== undefined) cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() =>
-        document
-          .getElementById(`heading-reading-${target.section}`)
-          ?.scrollIntoView({ block: "start" }),
-      );
+      frame = requestAnimationFrame(() => {
+        const heading = document.getElementById(
+          `heading-reading-${target.section}`,
+        );
+        const section =
+          heading?.closest<HTMLElement>(".section-card") ?? heading;
+        if (!section) return;
+        scrollEditorSectionIntoView(section);
+      });
     };
     restore();
     window.addEventListener("hashchange", restore);
@@ -624,7 +633,7 @@ export function VideoProjectEditor({
       window.removeEventListener("hashchange", restore);
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
-  }, [base, verseTargetsKey, project?.project_id, projectId]);
+  }, [base, verseTargetsKey, project?.project_id, projectId, preparedEditor]);
   const waveformKeys = [
     ...timeline
       .filter((section) => section.originalAvailable !== false)
@@ -1486,6 +1495,7 @@ export function VideoProjectEditor({
   };
   const sectionVisuals = (id: string, references?: string[]) => (
     <SectionVisualElements
+      shortcuts={visualShortcuts}
       key={`visuals-${base}-${id}`}
       kind={kind}
       locale={project?.locale ?? "en"}
@@ -1797,6 +1807,8 @@ export function VideoProjectEditor({
           </p>
         )}
         <ProjectEditorHeader
+          eyebrow="VIDEO PROJECT EDITOR"
+          showDescription={false}
           title={project.title}
           version={project.version_code ?? ""}
           backHref={backHref}

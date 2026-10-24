@@ -3,6 +3,12 @@ import {
   saveLoudnessSettings,
 } from "../../../lib/loudness-settings";
 import {
+  loadVisualShortcuts,
+  changeVisualShortcut,
+  visualShortcutKindSchema,
+  VisualShortcutError,
+} from "../../../lib/visual-shortcuts";
+import {
   loadVoiceStyleDefaults,
   voiceStyleDefaultsSchema,
 } from "../../../lib/voice-style-presets";
@@ -158,6 +164,42 @@ async function handle(req: Request, lang: Language) {
   const admin = () => {
     if (user.role !== "admin") throw new Error("Administrator required");
   };
+  if (
+    parts[0] === "settings" &&
+    parts[1] === "visual-shortcuts" &&
+    parts.length <= 3
+  ) {
+    const kind = visualShortcutKindSchema.parse(url.searchParams.get("kind"));
+    if (parts.length === 2 && method === "GET")
+      return json({ shortcuts: await loadVisualShortcuts(database, kind) });
+    if (parts.length === 2 && method === "POST")
+      return json(
+        {
+          shortcuts: await changeVisualShortcut(
+            database,
+            kind,
+            "add",
+            await body(),
+          ),
+        },
+        201,
+      );
+    if (
+      parts.length === 3 &&
+      (method === "PUT" || method === "DELETE" || method === "PATCH")
+    ) {
+      const id = z.string().uuid().parse(parts[2]);
+      return json({
+        shortcuts: await changeVisualShortcut(
+          database,
+          kind,
+          method === "PATCH" ? "move" : method === "PUT" ? "update" : "remove",
+          method !== "DELETE" ? await body() : undefined,
+          id,
+        ),
+      });
+    }
+  }
   const audioResponse = await audioApi(req, database);
   if (audioResponse) return audioResponse;
   if (
@@ -770,7 +812,11 @@ async function route(req: Request) {
   try {
     return await handle(req, lang);
   } catch (error) {
-    if (error instanceof ProfileError || error instanceof BibleVersionError)
+    if (
+      error instanceof ProfileError ||
+      error instanceof BibleVersionError ||
+      error instanceof VisualShortcutError
+    )
       return json({ error: error.message }, error.status);
     if (error instanceof z.ZodError)
       return json(

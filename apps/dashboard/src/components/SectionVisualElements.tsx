@@ -2,6 +2,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import {
   ChevronDown,
+  Clapperboard,
   Eye,
   EyeOff,
   Layers,
@@ -11,74 +12,28 @@ import {
   Plus,
   Trash2,
   X,
+  BookmarkPlus,
+  MousePointerClick,
 } from "lucide-react";
 import { Player, type PlayerRef } from "@remotion/player";
+import { VisualElementFields } from "./VisualElementFields";
+import { VisualShortcutEditor } from "./VisualShortcutEditor";
+import type { VisualShortcutsState } from "./useVisualShortcuts";
+import { elementFromShortcut } from "../lib/visual-shortcuts";
 import { useI18n } from "../i18n/context";
 import { useModalDismiss } from "./useModalDismiss";
 import { VisualElementAnimation } from "../../../../tools/video-project-api/src/remotion/SubscribeAnimation";
 import {
-  verticalPositions,
-  horizontalPositions,
-  replacesDomain,
-  elementMoments,
   type SubscribeElement,
   type VisualElement,
   type SocialVariant,
   type VideoLocale,
 } from "../../../../tools/video-project-api/src/visual-elements";
 
-const positionLabels = {
-  top: "Top",
-  "upper-third": "Upper third",
-  center: "Center",
-  "lower-third": "Lower third",
-  bottom: "Bottom",
-};
-const horizontalPositionLabels = {
-  left: "Left",
-  "left-third": "Left third",
-  center: "Center",
-  "right-third": "Right third",
-  right: "Right",
-};
-const momentLabels = {
-  start: "Start",
-  early: "Early third",
-  middle: "Middle",
-  late: "Final third",
-  end: "Section end",
-};
 const elementTitle = (element: VisualElement) =>
   element.template === "social-button"
     ? "Social media button"
     : "YouTube subscribe button";
-
-function OffsetInput({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
-  return (
-    <input
-      type="number"
-      min={-100}
-      max={100}
-      step="0.1"
-      value={draft}
-      onChange={(event) => {
-        setDraft(event.target.value);
-        const next = event.target.valueAsNumber;
-        if (Number.isFinite(next))
-          onChange(Math.max(-100, Math.min(100, next)));
-      }}
-      onBlur={() => setDraft(String(value))}
-    />
-  );
-}
 
 function ElementPicker({
   kind,
@@ -287,6 +242,7 @@ export function SectionVisualElements({
   previewDisabled,
   onPreview,
   onChange,
+  shortcuts,
 }: {
   kind: string;
   locale: string;
@@ -296,11 +252,13 @@ export function SectionVisualElements({
   previewDisabled: boolean;
   onPreview: () => void;
   onChange: (elements: VisualElement[]) => void;
+  shortcuts: VisualShortcutsState;
 }) {
   const { t } = useI18n();
   const id = useId();
   const [open, setOpen] = useState(false);
   const [picker, setPicker] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const sample: SubscribeElement = {
     template: "youtube-subscribe",
     startSeconds: 0,
@@ -344,8 +302,48 @@ export function SectionVisualElements({
         >
           <Layers size={18} />
           <strong>{t("Visual elements")}</strong>
-          <span className="muted">{elements.length}</span>
         </button>
+        {shortcuts.items.length > 0 && (
+          <>
+            <div
+              className="visual-shortcut-buttons"
+              role="group"
+              aria-label={t("Visual element shortcuts")}
+            >
+              {shortcuts.items.map((shortcut) => {
+                const label = t("Add: {name}").replace("{name}", shortcut.name);
+                return (
+                  <button
+                    key={shortcut.id}
+                    type="button"
+                    className="icon-button visual-shortcut-button"
+                    aria-label={label}
+                    data-tooltip={label}
+                    disabled={disabled || shortcuts.loading}
+                    onClick={() =>
+                      onChange([
+                        ...elements,
+                        elementFromShortcut(shortcut, references),
+                      ])
+                    }
+                  >
+                    <MousePointerClick size={17} aria-hidden="true" />
+                  </button>
+                );
+              })}
+            </div>
+            <span className="visual-shortcut-divider" aria-hidden="true" />
+          </>
+        )}
+        <span
+          className="muted visual-element-count"
+          aria-label={t("Visual elements: {count}").replace(
+            "{count}",
+            String(elements.length),
+          )}
+        >
+          {elements.length}
+        </span>
         <button
           type="button"
           className="icon-button"
@@ -353,7 +351,7 @@ export function SectionVisualElements({
           aria-label={t("Preview")}
           onClick={onPreview}
         >
-          <Play size={17} />
+          <Clapperboard size={16} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -387,236 +385,41 @@ export function SectionVisualElements({
         ) : (
           elements.map((element, index) => (
             <div className="visual-element-card" key={element.id ?? index}>
-              <details open>
+              <details>
                 <summary>
                   {index + 1}. {t(elementTitle(element))}
                 </summary>
-                <fieldset disabled={disabled} className="visual-element-fields">
-                  {element.template === "social-button" ? (
-                    <>
-                      <label>
-                        {t("Appearance in this section")}
-                        <select
-                          value={element.moment}
-                          onChange={(event) =>
-                            patch(index, {
-                              moment: event.target
-                                .value as typeof element.moment,
-                            })
-                          }
-                        >
-                          {elementMoments.map((moment) => (
-                            <option key={moment} value={moment}>
-                              {t(momentLabels[moment])}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        {t("Position")}
-                        <select
-                          value={
-                            replacesDomain(element)
-                              ? "replace-domain"
-                              : "coordinates"
-                          }
-                          onChange={(event) =>
-                            patch(index, {
-                              positionMode: event.target.value as
-                                "coordinates" | "replace-domain",
-                              verticalPosition: verticalPositions.includes(
-                                element.verticalPosition as (typeof verticalPositions)[number],
-                              )
-                                ? element.verticalPosition
-                                : "lower-third",
-                            })
-                          }
-                        >
-                          <option value="coordinates">
-                            {t("Configure vertical and horizontal")}
-                          </option>
-                          <option value="replace-domain">
-                            {t("Replace domain")}
-                          </option>
-                        </select>
-                      </label>
-                      {!replacesDomain(element) && (
-                        <>
-                          <label>
-                            {t("Vertical position")}
-                            <select
-                              value={
-                                element.verticalPosition ===
-                                "upper-intermediate"
-                                  ? "upper-third"
-                                  : element.verticalPosition ===
-                                      "lower-intermediate"
-                                    ? "lower-third"
-                                    : element.verticalPosition === "custom"
-                                      ? "center"
-                                      : element.verticalPosition
-                              }
-                              onChange={(event) =>
-                                patch(index, {
-                                  verticalPosition: event.target
-                                    .value as typeof element.verticalPosition,
-                                })
-                              }
-                            >
-                              {verticalPositions.map((position) => (
-                                <option key={position} value={position}>
-                                  {t(positionLabels[position])}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label>
-                            {t("Horizontal position")}
-                            <select
-                              value={element.horizontalPosition ?? "center"}
-                              onChange={(event) =>
-                                patch(index, {
-                                  horizontalPosition: event.target
-                                    .value as typeof element.horizontalPosition,
-                                })
-                              }
-                            >
-                              {horizontalPositions.map((position) => (
-                                <option key={position} value={position}>
-                                  {t(horizontalPositionLabels[position])}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        </>
-                      )}
-                      <label className="visual-element-offset-toggle">
-                        <input
-                          type="checkbox"
-                          checked={element.offsetsEnabled ?? false}
-                          onChange={(event) =>
-                            patch(index, {
-                              offsetsEnabled: event.target.checked,
-                            })
-                          }
-                        />
-                        {t("Configure offsets")}
-                      </label>
-                      {element.offsetsEnabled && (
-                        <>
-                          <label>
-                            {t("Vertical offset (%)")}
-                            <OffsetInput
-                              value={element.verticalOffset ?? 0}
-                              onChange={(value) =>
-                                patch(index, { verticalOffset: value })
-                              }
-                            />
-                            <span className="muted">
-                              {t(
-                                "Positive values move down; negative values move up.",
-                              )}
-                            </span>
-                          </label>
-                          <label>
-                            {t("Horizontal offset (%)")}
-                            <OffsetInput
-                              value={element.horizontalOffset ?? 0}
-                              onChange={(value) =>
-                                patch(index, { horizontalOffset: value })
-                              }
-                            />
-                            <span className="muted">
-                              {t(
-                                "Positive values move right; negative values move left.",
-                              )}
-                            </span>
-                          </label>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <label>
-                        {t("Button text")}
-                        <input
-                          maxLength={40}
-                          value={element.label}
-                          onBlur={() => {
-                            if (!element.label.trim())
-                              patch(index, { label: sample.label });
-                          }}
-                          onChange={(event) =>
-                            patch(index, { label: event.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        {t("Subscribed text")}
-                        <input
-                          maxLength={40}
-                          value={element.subscribedLabel}
-                          onBlur={() => {
-                            if (!element.subscribedLabel.trim())
-                              patch(index, {
-                                subscribedLabel: sample.subscribedLabel,
-                              });
-                          }}
-                          onChange={(event) =>
-                            patch(index, {
-                              subscribedLabel: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        {t("Start in section (seconds)")}
-                        <input
-                          type="number"
-                          min={0}
-                          max={86400}
-                          step="0.1"
-                          value={element.startSeconds}
-                          onChange={(event) => {
-                            const value = event.target.valueAsNumber;
-                            if (Number.isFinite(value))
-                              patch(index, {
-                                startSeconds: Math.min(
-                                  86400,
-                                  Math.max(0, value),
-                                ),
-                              });
-                          }}
-                        />
-                      </label>
-                      <label>
-                        {t("Animation duration (seconds)")}
-                        <input
-                          type="number"
-                          min={1}
-                          max={60}
-                          step="0.1"
-                          value={element.durationSeconds}
-                          onChange={(event) => {
-                            const value = event.target.valueAsNumber;
-                            if (Number.isFinite(value))
-                              patch(index, {
-                                durationSeconds: Math.min(
-                                  60,
-                                  Math.max(1, value),
-                                ),
-                              });
-                          }}
-                        />
-                      </label>
-                    </>
-                  )}
-                </fieldset>
+                <VisualElementFields
+                  element={element}
+                  locale={locale}
+                  disabled={disabled}
+                  onChange={(change) => patch(index, change)}
+                />
                 <p className="muted">
                   {t(
                     "The animation ends with the section. Save changes to include it in the video.",
                   )}
                 </p>
+                <button
+                  type="button"
+                  disabled={
+                    disabled ||
+                    shortcuts.loading ||
+                    shortcuts.busy ||
+                    Boolean(shortcuts.error) ||
+                    shortcuts.items.length >= 32
+                  }
+                  onClick={async () => {
+                    const saved = await shortcuts.save(
+                      `${t(elementTitle(element))} ${shortcuts.items.length + 1}`,
+                      element,
+                    );
+                    if (saved) setShortcutsOpen(true);
+                  }}
+                >
+                  <BookmarkPlus size={16} />
+                  {t("Save as shortcut")}
+                </button>
               </details>
               <div className="visual-element-actions">
                 <button
@@ -647,6 +450,56 @@ export function SectionVisualElements({
             </div>
           ))
         )}
+        <details
+          className="visual-shortcuts-panel"
+          open={shortcutsOpen}
+          onToggle={(event) => setShortcutsOpen(event.currentTarget.open)}
+        >
+          <summary>
+            {t("Visual element shortcuts")}{" "}
+            <span className="muted">{shortcuts.items.length}</span>
+          </summary>
+          <p className="muted">
+            {t(
+              "Shortcuts are shared by all projects of this format. Editing a shortcut only changes the elements you add next.",
+            )}
+          </p>
+          {shortcuts.loading && (
+            <p role="status" className="muted">
+              {t("Loading shortcuts…")}
+            </p>
+          )}
+          {shortcuts.error && (
+            <p role="alert" className="error">
+              {t(shortcuts.error)}
+            </p>
+          )}
+          {!shortcuts.loading &&
+            !shortcuts.error &&
+            !shortcuts.items.length && (
+              <p className="muted">
+                {t(
+                  "No shortcuts yet. Configure an element and choose Save as shortcut.",
+                )}
+              </p>
+            )}
+          {shortcuts.items.length >= 32 && (
+            <p className="muted">
+              {t(
+                "You can save up to 32 shortcuts per format. Remove a shortcut before adding another.",
+              )}
+            </p>
+          )}
+          {shortcuts.items.map((shortcut) => (
+            <VisualShortcutEditor
+              key={shortcut.id}
+              shortcut={shortcut}
+              shortcuts={shortcuts}
+              locale={locale}
+              disabled={disabled}
+            />
+          ))}
+        </details>
       </div>
       {picker && (
         <ElementPicker

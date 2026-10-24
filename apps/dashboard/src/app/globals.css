@@ -1654,6 +1654,12 @@ audio {
 .editor-back:hover {
   color: var(--accent);
 }
+.project-studio-preamble {
+  padding-top: 16px;
+}
+.project-studio-preamble .eyebrow {
+  margin: 0;
+}
 .project-studio-heading {
   display: block;
   position: sticky;
@@ -1677,13 +1683,33 @@ audio {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.project-studio-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.project-studio-version {
+  flex-shrink: 0;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: #aaa4b7;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .project-studio-title-row .project-top-actions {
   width: auto;
   flex-shrink: 0;
   flex-wrap: nowrap;
 }
-.project-studio-heading .project-studio-description {
-  margin-top: 10px;
+.project-studio-description {
+  margin: -19px 0 29px;
 }
 .project-top-actions {
   display: flex;
@@ -2875,8 +2901,20 @@ audio {
     font-size: 22px;
     letter-spacing: -0.5px;
   }
-  .project-studio-heading .editor-back {
+  .project-studio-preamble .editor-back {
     margin-bottom: 8px;
+  }
+  .project-studio-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .project-studio-title h1 {
+    max-width: 100%;
+  }
+  .project-studio-version {
+    max-width: 100%;
+    font-size: 10px;
   }
 }
 @media (max-width: 400px) {
@@ -3686,6 +3724,102 @@ audio {
 .visual-panel-header .visual-panel-heading {
   flex: 1;
   width: auto;
+  min-width: 0;
+}
+.visual-shortcut-buttons {
+  display: flex;
+  gap: 6px;
+  max-width: 50%;
+  overflow-x: auto;
+  padding: 5px 2px;
+}
+.visual-shortcut-buttons .visual-shortcut-button {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff04;
+  color: var(--text);
+}
+.visual-shortcut-buttons .visual-shortcut-button:hover {
+  background: #c493ff18;
+  border-color: var(--purple);
+}
+.visual-shortcut-divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 12px;
+  background: var(--line);
+  flex-shrink: 0;
+}
+.visual-element-count {
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+.visual-shortcuts-panel {
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.visual-shortcuts-panel > summary,
+.visual-shortcut-card > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  overflow-wrap: anywhere;
+}
+.visual-shortcuts-panel > summary .muted {
+  margin-left: 8px;
+}
+.visual-shortcut-card {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.visual-shortcut-item {
+  position: relative;
+}
+.visual-shortcut-card > summary {
+  padding-right: 80px;
+  min-height: 30px;
+}
+.visual-shortcut-order {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+}
+.visual-shortcut-card > summary svg {
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.visual-shortcut-name {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.visual-shortcut-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+@media (max-width: 640px) {
+  .visual-panel-header {
+    flex-wrap: wrap;
+    padding-right: 8px;
+  }
+  .visual-panel-header .visual-panel-heading {
+    padding: 12px 8px;
+    gap: 6px;
+  }
+  .visual-shortcut-buttons {
+    max-width: 35%;
+  }
+  .visual-shortcut-divider {
+    margin: 0 6px;
+  }
 }
 .visual-demo-controls {
   display: flex;

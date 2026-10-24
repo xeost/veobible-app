@@ -1,4 +1,35 @@
 export const portuguese: Record<string, string> = {
+  "Shortcut order saved.": "Ordem dos atalhos salva.",
+  "Reorder shortcut: {name}": "Reordenar atalho: {name}",
+  "Move up: {name}": "Mover para cima: {name}",
+  "Move down: {name}": "Mover para baixo: {name}",
+  "Move up": "Mover para cima",
+  "Move down": "Mover para baixo",
+  "Save as shortcut": "Salvar como atalho",
+  "Visual element shortcuts": "Atalhos de elementos visuais",
+  "Shortcut name": "Nome do atalho",
+  "Save shortcut": "Salvar atalho",
+  "Remove shortcut": "Excluir atalho",
+  "Add hidden": "Adicionar oculto",
+  "Add: {name}": "Adicionar: {name}",
+  "Visual elements: {count}": "Elementos visuais: {count}",
+  "Loading shortcuts…": "Carregando atalhos…",
+  "Shortcut saved.": "Atalho salvo.",
+  "Shortcut removed.": "Atalho excluído.",
+  "Could not load shortcuts. Reload the page to try again.":
+    "Não foi possível carregar os atalhos. Recarregue a página para tentar novamente.",
+  "Could not save shortcuts. Reload the page and try again.":
+    "Não foi possível salvar os atalhos. Recarregue a página e tente novamente.",
+  "Shortcuts are shared by all projects of this format. Editing a shortcut only changes the elements you add next.":
+    "Os atalhos estão disponíveis em todos os projetos deste formato. Editar um atalho só altera os elementos que você adicionar a partir desse momento.",
+  "No shortcuts yet. Configure an element and choose Save as shortcut.":
+    "Ainda não há atalhos. Configure um elemento e selecione Salvar como atalho.",
+  "This shortcut is no longer available. Reload the page to continue.":
+    "Este atalho não está mais disponível. Recarregue a página para continuar.",
+  "You can save up to 32 shortcuts per format. Remove a shortcut before adding another.":
+    "Você pode salvar até 32 atalhos por formato. Exclua um atalho antes de adicionar outro.",
+  "The shortcuts changed in another window. Reload the page before saving again.":
+    "Os atalhos mudaram em outra janela. Recarregue a página antes de salvar novamente.",
   General: "Geral",
   "System settings": "Configurações do sistema",
   "Default ({value})": "Padrão ({value})",
@@ -908,6 +939,8 @@ export const portuguese: Record<string, string> = {
   Progress: "Progresso",
   Project: "Projeto",
   "PROJECT EDITOR": "EDITOR DE PROJETO",
+  "VIDEO PROJECT EDITOR": "EDITOR DE PROJETO DE VÍDEO",
+  "AUDIO PROJECT EDITOR": "EDITOR DE PROJETO DE ÁUDIO",
   "Project options": "Opções de projetos",
   "Project settings": "Configurações de projetos",
   "Project title": "Título do projeto",
