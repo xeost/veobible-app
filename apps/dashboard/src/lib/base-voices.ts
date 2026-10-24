@@ -42,6 +42,17 @@ export const defaultBaseVoices = (): BaseVoiceDefaults => ({
   en: inheritedVoiceRoles("en-1"),
   pt: inheritedVoiceRoles("pt-1"),
 });
+export function resolveAudioBaseVoice<
+  T extends { baseVoice: string; inheritBaseVoice?: boolean },
+>(settings: T, locale: "en" | "es" | "pt", defaults: BaseVoiceDefaults) {
+  return {
+    ...settings,
+    baseVoice: voiceForLocale(
+      locale,
+      settings.inheritBaseVoice ? defaults[locale].reading : settings.baseVoice,
+    ),
+  };
+}
 export {
   voiceRoles,
   roleLabels,

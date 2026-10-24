@@ -33,7 +33,9 @@ export const audioTrimSchema = z
   })
   .refine((v) => v.endSeconds - v.startSeconds >= 0.02);
 export const audioSettingsSchema = z.object({
+  voiceDefaultsVersion: z.literal(1).optional(),
   baseVoice: baseVoiceSchema,
+  inheritBaseVoice: z.boolean().optional(),
   narrationPreset: narrationPresetSelectionSchema.optional(),
   trims: z.record(z.string().regex(/^\d+:\d+$/), audioTrimSchema).default({}),
   approvals: z

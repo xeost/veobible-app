@@ -32,6 +32,9 @@ export function BaseVoiceSelector({
   narrationSettings,
   preset,
   onPresetChange,
+  inheritSystemSettings = false,
+  inheritFormatSettings = false,
+  defaultPreset,
 }: {
   locale: VoiceLocale;
   value: string;
@@ -42,6 +45,9 @@ export function BaseVoiceSelector({
   narrationSettings?: VoiceSampleSettings;
   preset?: NarrationPresetSelection;
   onPresetChange?: (preset: NarrationPresetSelection | undefined) => void;
+  inheritSystemSettings?: boolean;
+  inheritFormatSettings?: boolean;
+  defaultPreset?: NarrationPresetSelection;
 }) {
   const { t } = useI18n();
   const canGenerate = Boolean(narrationSettings);
@@ -94,7 +100,33 @@ export function BaseVoiceSelector({
     })();
   }, [locale]);
   const effectiveValue = value || defaultVoice || "";
+  const systemPreset = presets?.[locale];
+  const systemCustomPreset = systemPreset?.items.find(
+    (item) => item.id === systemPreset.selected,
+  );
+  const systemPresetLabel = systemPreset
+    ? Object.hasOwn(builtInNarrationLabels, systemPreset.selected)
+      ? t(
+          builtInNarrationLabels[
+            systemPreset.selected as keyof typeof builtInNarrationLabels
+          ],
+        )
+      : systemCustomPreset?.name === "Saved narration"
+        ? t("Saved narration")
+        : (systemCustomPreset?.name ?? "")
+    : "";
   const selected = voices.find((voice) => voice.id === effectiveValue);
+  const formatPresetLabel = defaultPreset
+    ? Object.hasOwn(builtInNarrationLabels, defaultPreset.id)
+      ? t(
+          builtInNarrationLabels[
+            defaultPreset.id as keyof typeof builtInNarrationLabels
+          ],
+        )
+      : defaultPreset.name === "Saved narration"
+        ? t("Saved narration")
+        : defaultPreset.name
+    : systemPresetLabel;
   useEffect(() => {
     setText(selected?.text || sampleTexts[locale]);
   }, [selected?.id, selected?.text, locale]);
@@ -193,8 +225,12 @@ export function BaseVoiceSelector({
         >
           {defaultVoice && (
             <option value="">
-              {t("Default ({voice})").replace(
-                "{voice}",
+              {t(
+                inheritFormatSettings
+                  ? "Default ({value})"
+                  : "Default ({voice})",
+              ).replace(
+                inheritFormatSettings ? "{value}" : "{voice}",
                 t("Voice {number}").replace(
                   "{number}",
                   defaultVoice.split("-")[1],
@@ -266,7 +302,16 @@ export function BaseVoiceSelector({
               }
             }}
           >
-            <option value="">{t("Use default narration style")}</option>
+            <option value="">
+              {inheritFormatSettings
+                ? t("Default ({value})").replace("{value}", formatPresetLabel)
+                : inheritSystemSettings
+                  ? t("Default from System settings ({value})").replace(
+                      "{value}",
+                      systemPresetLabel,
+                    )
+                  : t("Use default narration style")}
+            </option>
             {Object.entries(builtInNarrationLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {t(label)}

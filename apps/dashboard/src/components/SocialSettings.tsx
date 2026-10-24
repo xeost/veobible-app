@@ -34,6 +34,14 @@ export function SocialSettings() {
   const [loudness, setLoudness] = useState<LoudnessSettings>(
     defaultLoudnessSettings,
   );
+  const [saved, setSaved] = useState<{
+    accounts: Accounts;
+    loudness: LoudnessSettings;
+  } | null>(null);
+  const hasChanges =
+    saved !== null &&
+    (JSON.stringify(accounts) !== JSON.stringify(saved.accounts) ||
+      JSON.stringify(loudness) !== JSON.stringify(saved.loudness));
   const [loadFailed, setLoadFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -48,6 +56,7 @@ export function SocialSettings() {
         if (live) {
           setAccounts(social.accounts);
           setLoudness(volume.settings);
+          setSaved({ accounts: social.accounts, loudness: volume.settings });
         }
       })
       .catch(() => {
@@ -65,7 +74,7 @@ export function SocialSettings() {
   }, []);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (loading || loadFailed || busy) return;
+    if (loading || loadFailed || busy || !hasChanges) return;
     const parsed = socialSettingsSchema.safeParse(accounts);
     if (!parsed.success) {
       const invalidDomain = Object.values(accounts).some(
@@ -104,6 +113,10 @@ export function SocialSettings() {
         throw new Error("Could not save all settings");
       setAccounts(social.value.accounts);
       setLoudness(volume.value.settings);
+      setSaved({
+        accounts: social.value.accounts,
+        loudness: volume.value.settings,
+      });
       notify("Settings saved.");
     } catch {
       notify("Could not save settings. Try again.", "error");
@@ -113,17 +126,6 @@ export function SocialSettings() {
   };
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{t("SETTINGS")}</p>
-          <h1>{t("Settings")}</h1>
-          <p className="muted">
-            {t(
-              "Configure titles, domains and social media accounts for each language, and voice volume.",
-            )}
-          </p>
-        </div>
-      </div>
       {loading ? (
         <p className="empty">{t("Loading settings…")}</p>
       ) : (
@@ -259,7 +261,7 @@ export function SocialSettings() {
             <button
               type="submit"
               className="primary"
-              disabled={busy || loadFailed}
+              disabled={loading || busy || loadFailed || !hasChanges}
             >
               <Save size={16} />
               {busy ? t("Saving…") : t("Save changes")}

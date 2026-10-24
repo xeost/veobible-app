@@ -20,7 +20,7 @@ import {
   selectedNarrationDecoder,
   type NarrationModels,
 } from "../lib/narration-models";
-export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
+export function VoiceGenerationSettings() {
   const notify = useToast();
   const { t } = useI18n();
   const [models, setModels] = useState<NarrationModels | null>(null);
@@ -76,7 +76,6 @@ export function VoiceGenerationSettings({ onSaved }: { onSaved: () => void }) {
       setModels(value);
       setSaved(value);
       notify("Voice generation settings saved.");
-      onSaved();
     } catch {
       notify("Could not save voice generation settings. Try again.", "error");
     } finally {

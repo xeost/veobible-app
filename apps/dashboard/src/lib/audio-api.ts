@@ -14,7 +14,7 @@ import {
 } from "../../../../tools/video-project-api/src/audio-project-schema";
 import { videoFetch } from "./video-client";
 import { bibleVersionOptions } from "./bible-versions";
-import { loadBaseVoiceDefaults } from "./base-voices";
+import { loadBaseVoiceDefaults, resolveAudioBaseVoice } from "./base-voices";
 import {
   loadNarrationModels,
   selectedNarrationDecoder,
@@ -94,10 +94,7 @@ export async function audioApi(
         (v) => v.id === input.versionId,
       );
       if (!version) throw new AudioDatabaseError("Version not found", 404);
-      const [defaults, styleDefaults] = await Promise.all([
-        loadBaseVoiceDefaults(database, "audio"),
-        loadVoiceStyleDefaults(database, "audio"),
-      ]);
+      const defaults = await loadBaseVoiceDefaults(database, "audio");
       const response = await forward("/v1/audio-projects", {
         version,
         edition: input.edition,
@@ -116,7 +113,9 @@ export async function audioApi(
           settings: {
             ...project.settings,
             baseVoice: defaults[project.version.locale].reading,
-            narrationPreset: styleDefaults[project.version.locale].reading,
+            inheritBaseVoice: true,
+            voiceDefaultsVersion: 1,
+            narrationPreset: undefined,
           },
         };
       });
@@ -176,6 +175,12 @@ export async function audioApi(
         ...detail,
         ...(await findAudioProject(database, edition, book, outputEnvironment))
           .project,
+        baseVoiceDefaults: (await loadBaseVoiceDefaults(database, "audio"))[
+          project.version.locale
+        ],
+        voiceStyleDefaults: (await loadVoiceStyleDefaults(database, "audio"))[
+          project.version.locale
+        ],
       });
     }
     if (parts[3] === "generate" && req.method === "POST") {
@@ -201,8 +206,16 @@ export async function audioApi(
             await loadAudioVersePause(database),
           );
       try {
+        const generationProject = job?.project ?? project;
         const response = await forward(`${endpoint}/generate`, {
-          project: job?.project ?? project,
+          project: {
+            ...generationProject,
+            settings: resolveAudioBaseVoice(
+              generationProject.settings,
+              project.version.locale,
+              await loadBaseVoiceDefaults(database, "audio"),
+            ),
+          },
           jobId: job?.jobId ?? row.active_job_id,
           sequence: job ? 0 : row.job_sequence,
           append: Boolean(active),

@@ -1,4 +1,14 @@
 export const spanish: Record<string, string> = {
+  General: "General",
+  "System settings": "Ajustes del sistema",
+  "Default ({value})": "Predeterminado ({value})",
+  "“Default” uses the value configured in the Settings modal on the corresponding format page.":
+    "«Predeterminado» usa el valor configurado en el modal Ajustes de la página del formato correspondiente.",
+  "Default from System settings ({value})":
+    "Predeterminado desde Ajustes del sistema ({value})",
+  "Narration voices": "Voces de narración",
+  "Configure publishing, narration voices and voice volume.":
+    "Configura la publicación, las voces de narración y el volumen de las voces.",
   "Configure vertical and horizontal": "Configurar vertical y horizontal",
   "Horizontal position": "Posición horizontal",
   Left: "Izquierda",
@@ -115,12 +125,10 @@ export const spanish: Record<string, string> = {
 
   "Voice templates": "Plantillas de voz",
 
-  "Choose default voices and narration styles for each language. New projects use these choices; existing recordings stay unchanged.":
-    "Elige las voces y los estilos de narración predeterminados para cada idioma. Los proyectos nuevos usarán estas opciones; las grabaciones existentes se conservan.",
+  "Choose default voices and narration styles for each language. Projects that select “Default” will use these choices.":
+    "Elige las voces y los estilos de narración predeterminados para cada idioma. Los proyectos que seleccionen «Predeterminado» usarán estas opciones.",
   "Choose voices and narration styles for this project. Existing recordings stay unchanged until you regenerate them.":
     "Elige las voces y los estilos de narración para este proyecto. Las grabaciones existentes se conservan hasta que vuelvas a generarlas.",
-  "Save changes to keep these voices and narration styles. Existing narrations change only when you regenerate them.":
-    "Guarda los cambios para conservar estas voces y estilos de narración. Las narraciones existentes solo cambiarán cuando vuelvas a generarlas.",
 
   "Sets the expression and pacing of generated narration. The voice example may have been generated with a different style.":
     "Define la expresión y el ritmo de la narración generada. La muestra de voz puede haberse generado con un estilo diferente.",

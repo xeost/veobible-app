@@ -2,6 +2,7 @@
 import { SectionVisualElements } from "./SectionVisualElements";
 import type { VisualElement } from "../../../../tools/video-project-api/src/visual-elements";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
+import type { VoiceStylePresets } from "../lib/voice-style-presets";
 import { AudioLibrarySelector } from "./AudioLibrarySelector";
 import {
   projectBaseVoice,
@@ -120,6 +121,8 @@ export function VideoProjectEditor({
   const [baseVoiceDefaults, setBaseVoiceDefaults] = useState<
     BaseVoiceDefaults["es"]
   >(defaultBaseVoices().es);
+  const [voiceStyleDefaults, setVoiceStyleDefaults] =
+    useState<VoiceStylePresets>({});
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const [analysis, setAnalysis] = useState<Inspection | null>(null);
@@ -316,6 +319,7 @@ export function VideoProjectEditor({
           video: EditorProject;
           defaults: Settings;
           baseVoiceDefaults: BaseVoiceDefaults["es"];
+          voiceStyleDefaults: VoiceStylePresets;
           mediaAccess: NonNullable<typeof mediaAccess>;
         }>(base);
         if (!live) return;
@@ -329,6 +333,7 @@ export function VideoProjectEditor({
         );
         setLoudnessTarget(data.defaults.loudnessTarget);
         setBaseVoiceDefaults(data.baseVoiceDefaults);
+        setVoiceStyleDefaults(data.voiceStyleDefaults);
         if (!initialized) {
           const values = settingsSchema.parse(
             data.video.settings && data.video.settings !== "{}"
@@ -1914,6 +1919,8 @@ export function VideoProjectEditor({
                 {(["intro", "reading", "outro"] as const).map((role) => (
                   <BaseVoiceSelector
                     key={role}
+                    inheritFormatSettings
+                    defaultPreset={voiceStyleDefaults[role]}
                     label={roleLabels[role]}
                     preset={settings.voiceStylePresets?.[role]}
                     onPresetChange={(preset) =>
@@ -1972,7 +1979,7 @@ export function VideoProjectEditor({
               </div>
               <p className="muted">
                 {t(
-                  "Save changes to keep these voices and narration styles. Existing narrations change only when you regenerate them.",
+                  "“Default” uses the value configured in the Settings modal on the corresponding format page.",
                 )}
               </p>
             </section>

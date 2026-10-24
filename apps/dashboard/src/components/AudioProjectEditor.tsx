@@ -17,6 +17,8 @@ import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import { AudioChapter } from "./AudioChapter";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
+import type { BaseVoiceDefaults } from "../lib/base-voices";
+import type { VoiceStylePresets } from "../lib/voice-style-presets";
 import { ProjectEditorHeader } from "./ProjectEditorHeader";
 import { useGenerationQueue } from "./GenerationQueueContext";
 import { queueChangedEvent } from "../lib/generation-queue";
@@ -53,6 +55,10 @@ export function AudioProjectEditor({
   const endpoint = `audios/${encodeURIComponent(edition)}/${encodeURIComponent(book)}`;
   const [project, setProject] = useState<AudioProjectDetail | null>(null),
     [settings, setSettings] = useState<AudioSettings | null>(null);
+  const [formatDefaults, setFormatDefaults] = useState<{
+    baseVoiceDefaults: BaseVoiceDefaults["en"];
+    voiceStyleDefaults: VoiceStylePresets;
+  } | null>(null);
   const [expanded, setExpanded] = useState(new Set([1]));
   const [activeVerse, setActiveVerse] = useState<AudioVerseSelection | null>(
     null,
@@ -128,7 +134,13 @@ export function AudioProjectEditor({
   busyRef.current = busy;
   useProjectBreadcrumb(`/audios/${edition}/${book}`, project?.title);
   const refresh = useCallback(async () => {
-    const value = await api<AudioProjectDetail>(endpoint);
+    const value = await api<
+      AudioProjectDetail & NonNullable<typeof formatDefaults>
+    >(endpoint);
+    setFormatDefaults({
+      baseVoiceDefaults: value.baseVoiceDefaults,
+      voiceStyleDefaults: value.voiceStyleDefaults,
+    });
     if (!dirtyRef.current && !busyRef.current) {
       setProject(value);
       setSettings(value.settings);
@@ -320,15 +332,29 @@ export function AudioProjectEditor({
           </summary>
           <div className="project-configuration-content">
             <BaseVoiceSelector
+              inheritFormatSettings
+              defaultVoice={formatDefaults?.baseVoiceDefaults.reading}
+              defaultPreset={formatDefaults?.voiceStyleDefaults.reading}
               locale={project.version.locale}
-              value={settings.baseVoice}
+              value={settings.inheritBaseVoice ? "" : settings.baseVoice}
               preset={settings.narrationPreset}
               onPresetChange={(narrationPreset) =>
                 change({ ...settings, narrationPreset })
               }
               disabled={locked}
-              onChange={(baseVoice) => change({ ...settings, baseVoice })}
+              onChange={(baseVoice) =>
+                change({
+                  ...settings,
+                  baseVoice: baseVoice || settings.baseVoice,
+                  inheritBaseVoice: !baseVoice,
+                })
+              }
             />
+            <p className="muted">
+              {t(
+                "“Default” uses the value configured in the Settings modal on the corresponding format page.",
+              )}
+            </p>
             <p className="muted">
               {t(
                 "Generate a voice for each verse, then create the final audio to join the saved voices into one file per chapter, applying your cuts and pauses.",

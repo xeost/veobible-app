@@ -8,9 +8,39 @@ import {
   projectBaseVoice,
   resolveProjectBaseVoices,
   baseVoiceDefaultsSchema,
+  resolveAudioBaseVoice,
 } from "./base-voices";
 import { settingsSchema } from "./video-schema";
 import { settingsSchema as workerSettingsSchema } from "../../../../tools/video-project-api/src/protocol";
+import { audioSettingsSchema } from "../../../../tools/video-project-api/src/audio-project-schema";
+
+test("audio projects inherit the current reading voice only when explicitly selected", () => {
+  const defaults = defaultBaseVoices();
+  for (const locale of ["es", "en", "pt"] as const) {
+    const saved = audioSettingsSchema.parse({
+      baseVoice: `${locale}-2`,
+      inheritBaseVoice: true,
+    });
+    defaults[locale].reading = `${locale}-3`;
+    assert.equal(
+      resolveAudioBaseVoice(saved, locale, defaults).baseVoice,
+      `${locale}-3`,
+    );
+    defaults[locale].reading = `${locale}-4`;
+    assert.equal(
+      resolveAudioBaseVoice(saved, locale, defaults).baseVoice,
+      `${locale}-4`,
+    );
+    assert.equal(saved.baseVoice, `${locale}-2`);
+    for (const inheritBaseVoice of [false, undefined]) {
+      assert.equal(
+        resolveAudioBaseVoice({ ...saved, inheritBaseVoice }, locale, defaults)
+          .baseVoice,
+        `${locale}-2`,
+      );
+    }
+  }
+});
 
 test("voice defaults are separate per format and never resolve an existing project's voice", async () => {
   const sqlite = new DatabaseSync(":memory:");

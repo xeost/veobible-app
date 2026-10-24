@@ -17,6 +17,7 @@ const point = z.object({
   verse: z.number().int().positive(),
 });
 export const settingsSchema = z.object({
+  voiceDefaultsVersion: z.literal(1).optional(),
   visualElements: visualElementsSchema.optional(),
   audioEdition: audioEditionSchema.optional(),
   baseVoice: baseVoiceSchema.optional(),

@@ -1,4 +1,7 @@
 import { withAudioVersePause } from "./audio-settings";
+import { inheritAudioVoiceDefaults } from "./project-voice-defaults";
+import { loadBaseVoiceDefaults } from "./base-voices";
+import { loadVoiceStyleDefaults } from "./voice-style-presets";
 import { audioMixSettingsChanged } from "../../../../tools/video-project-api/src/audio-approvals";
 import {
   audioProjectSchema,
@@ -86,7 +89,30 @@ export async function findAudioProject(
     .bind(edition, book, environment)
     .first<Row>();
   if (!row) throw new AudioDatabaseError("Audio project not found.", 404);
-  return { row, project: audioProjectFromRow(row) };
+  const project = audioProjectFromRow(row);
+  if (project.settings.voiceDefaultsVersion !== 1) {
+    const [defaults, styles] = await Promise.all([
+      loadBaseVoiceDefaults(database, "audio"),
+      loadVoiceStyleDefaults(database, "audio"),
+    ]);
+    project.settings = inheritAudioVoiceDefaults(
+      project.settings,
+      project.version.locale,
+      defaults,
+      styles[project.version.locale],
+    );
+    const upgraded = JSON.stringify(project.settings);
+    const result = await database
+      .prepare("UPDATE audio_projects SET settings=? WHERE id=? AND settings=?")
+      .bind(upgraded, row.id, row.settings)
+      .run();
+    if (!result.meta.changes)
+      throw new AudioDatabaseError(
+        "This audio project changed. Reload it before saving.",
+      );
+    row.settings = upgraded;
+  }
+  return { row, project };
 }
 export async function listAudioProjects(
   database: D1Database,
@@ -209,6 +235,10 @@ export async function saveAudioProject(
     );
   if (["queued", "running"].includes(project.status))
     throw new AudioDatabaseError("Wait for audio generation to finish.");
+  input.settings.voiceDefaultsVersion = 1;
+  input.settings.inheritBaseVoice ??=
+    input.settings.baseVoice === project.settings.baseVoice &&
+    project.settings.inheritBaseVoice === true;
   const updated = { ...project, settings: input.settings };
   validateSettings(updated);
   const changed = audioMixSettingsChanged(project.settings, input.settings);

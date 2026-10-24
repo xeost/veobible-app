@@ -107,6 +107,73 @@ function fixture() {
   };
   return { sqlite, database, project };
 }
+test("audio projects retain the format voice selection when saved and reloaded", async () => {
+  const { sqlite, database, project } = fixture();
+  try {
+    await insertAudioProjects(database, [project]);
+    await saveAudioProject(database, project.edition, project.book, {
+      revision: 0,
+      settings: { ...project.settings, inheritBaseVoice: true },
+    });
+    const inherited = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.equal(inherited.settings.inheritBaseVoice, true);
+    assert.equal(inherited.settings.narrationPreset, undefined);
+    await saveAudioProject(database, project.edition, project.book, {
+      revision: inherited.revision,
+      settings: {
+        ...inherited.settings,
+        baseVoice: "es-3",
+        inheritBaseVoice: false,
+      },
+    });
+    const explicit = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.equal(explicit.settings.inheritBaseVoice, false);
+    assert.equal(explicit.settings.baseVoice, "es-3");
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("legacy audio defaults upgrade once without changing recordings or generation state", async () => {
+  const { sqlite, database, project } = fixture();
+  try {
+    project.status = "done";
+    project.revision = 7;
+    await insertAudioProjects(database, [project]);
+    const first = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.equal(first.settings.inheritBaseVoice, true);
+    assert.equal(first.settings.voiceDefaultsVersion, 1);
+    assert.equal(first.status, "done");
+    assert.equal(first.revision, 7);
+    assert.deepEqual(first.recordings, project.recordings);
+    assert.deepEqual(first.chapters, project.chapters);
+    const stored = sqlite.prepare("SELECT settings FROM audio_projects").get()!
+      .settings;
+    sqlite
+      .prepare("INSERT INTO site_settings(key,value) VALUES (?,?)")
+      .run(
+        "base_voice_defaults:audio",
+        JSON.stringify({ en: "en-1", es: "es-3", pt: "pt-1" }),
+      );
+    const again = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.equal(again.settings.inheritBaseVoice, true);
+    assert.equal(
+      sqlite.prepare("SELECT settings FROM audio_projects").get()!.settings,
+      stored,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
 test("audio projects persist independently of the worker and protect version identities", async () => {
   const { sqlite, database, project } = fixture();
   try {

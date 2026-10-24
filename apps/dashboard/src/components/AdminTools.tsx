@@ -3,7 +3,6 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { BrainCircuit, RefreshCw, ExternalLink } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
-import { VoiceGenerationSettings } from "./VoiceGenerationSettings";
 import {
   localModelsSchema,
   localModelUpdateSchema,
@@ -380,7 +379,6 @@ export function AdminTools() {
           </>
         )}
       </section>
-      <VoiceGenerationSettings onSaved={() => void refresh(true)} />
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { DashboardTooltips } from "../components/DashboardTooltips";
+import { DashboardPageTitle } from "../components/DashboardPageTitle";
 import { I18nProvider } from "../i18n/context";
 import type { ReactNode } from "react";
 import "./globals.css";
@@ -28,6 +29,7 @@ export default async function RootLayout({
     <html lang={language}>
       <body>
         <I18nProvider initialLanguage={language}>
+          <DashboardPageTitle />
           <DashboardTooltips />
           {children}
         </I18nProvider>

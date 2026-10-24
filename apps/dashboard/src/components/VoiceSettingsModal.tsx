@@ -275,7 +275,7 @@ export function VoiceSettingsModal({
         {tab === "baseVoices" ? (
           <p className="muted">
             {t(
-              "Choose default voices and narration styles for each language. New projects use these choices; existing recordings stay unchanged.",
+              "Choose default voices and narration styles for each language. Projects that select “Default” will use these choices.",
             )}
           </p>
         ) : tab === "voice" ? (
@@ -411,6 +411,7 @@ export function VoiceSettingsModal({
               >
                 {!audioOnly && <h3>{t(roleLabels[role])}</h3>}
                 <BaseVoiceSelector
+                  inheritSystemSettings
                   label={audioOnly ? roleLabels[role] : "Narration voice"}
                   locale={baseVoiceLocale}
                   value={baseVoices[baseVoiceLocale][role]}

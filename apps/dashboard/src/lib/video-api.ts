@@ -46,6 +46,7 @@ import {
 import { type BibleVersion } from "./bible-versions";
 import { z } from "zod";
 import { settingsSchema, renderSchema } from "./video-schema";
+import { inheritVideoVoiceDefaults } from "./project-voice-defaults";
 import { videoFetch } from "./video-client";
 import { bindings } from "./env";
 import { loadQueueView } from "./queue-projects";
@@ -327,12 +328,11 @@ export async function videoApi(
         version.code,
       ),
       inheritedBaseVoiceRoles: ["intro", "reading", "outro"],
+      voiceDefaultsVersion: 1,
       baseVoices: (await loadBaseVoiceDefaults(database, input.kind))[
         version.locale
       ],
-      voiceStylePresets: (await loadVoiceStyleDefaults(database, input.kind))[
-        version.locale
-      ],
+      voiceStylePresets: {},
     });
     const result = await database
       .prepare(
@@ -475,6 +475,26 @@ export async function videoApi(
   const styleDefaults = (await loadVoiceStyleDefaults(database, project.kind))[
     project.locale
   ];
+  const storedSettings = settingsSchema.parse(JSON.parse(project.settings));
+  if (storedSettings.voiceDefaultsVersion !== 1) {
+    const upgraded = JSON.stringify(
+      inheritVideoVoiceDefaults(
+        storedSettings,
+        baseVoiceDefaults,
+        styleDefaults,
+      ),
+    );
+    const result = await database
+      .prepare("UPDATE video_projects SET settings=? WHERE id=? AND settings=?")
+      .bind(upgraded, id, project.settings)
+      .run();
+    if (!result.meta.changes)
+      return json(
+        { error: "Could not load settings. Reload the page to try again." },
+        409,
+      );
+    project.settings = upgraded;
+  }
   const generalVoiceParameters = resolveNarrationStyle(styles[project.locale]);
   const voiceParameters = selectedVoiceStyleParameters(
     generalVoiceParameters,
@@ -542,6 +562,7 @@ export async function videoApi(
       mediaAccess: await mediaAccess(),
       baseVoiceDefaults,
       defaults: settingsSchema.parse({ loudnessTarget, volumeMultiplier: 1 }),
+      voiceStyleDefaults: styleDefaults,
     });
   }
   if (!parts[2] && method === "PATCH") {
@@ -554,6 +575,7 @@ export async function videoApi(
     if (["queued", "running"].includes((await state()).status))
       return json({ error: "Wait for generation to finish" }, 409);
     if (input.settings) {
+      input.settings.voiceDefaultsVersion = 1;
       if (input.settings.baseVoices)
         for (const role of voiceRoles)
           projectBaseVoice(input.settings, project.locale, role);
