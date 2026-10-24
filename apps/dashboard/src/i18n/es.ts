@@ -1,4 +1,18 @@
 export const spanish: Record<string, string> = {
+  "Configure vertical and horizontal": "Configurar vertical y horizontal",
+  "Horizontal position": "Posición horizontal",
+  Left: "Izquierda",
+  "Left third": "Tercio izquierdo",
+  "Right third": "Tercio derecho",
+  Right: "Derecha",
+  "Configure offsets": "Configurar offsets",
+  "Vertical offset (%)": "Offset vertical (%)",
+  "Horizontal offset (%)": "Offset horizontal (%)",
+  "Positive values move down; negative values move up.":
+    "Los valores positivos desplazan hacia abajo; los negativos, hacia arriba.",
+  "Positive values move right; negative values move left.":
+    "Los valores positivos desplazan hacia la derecha; los negativos, hacia la izquierda.",
+  "Replace domain": "Reemplazar dominio",
   "Position from left (%)": "Posición desde la izquierda (%)",
   "0% is the left and 100% is the right. The value sets the center of the element.":
     "0% es izquierda y 100% es derecha. El valor posiciona el centro del elemento.",

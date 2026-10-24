@@ -3566,6 +3566,16 @@ audio {
   display: grid;
   gap: 8px;
 }
+.visual-element-fields .visual-element-offset-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.visual-element-offset-toggle input {
+  width: auto;
+  margin: 0;
+}
 .visual-element-dialog {
   width: min(960px, calc(100vw - 32px));
   margin-block: auto;

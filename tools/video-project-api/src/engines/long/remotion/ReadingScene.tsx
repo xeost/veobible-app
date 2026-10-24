@@ -1,3 +1,4 @@
+import { useDomainOpacity } from "../../../remotion/DomainReplacement";
 import type { ChapterTrack } from "../../../chapter-introductions";
 /** Editorial reading card shared by episode previews and final rendering. */
 import React, { useMemo } from "react";
@@ -45,6 +46,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
   readingDuration,
 }) => {
   const { fps, width, height } = useVideoConfig();
+  const domainOpacity = useDomainOpacity("reading");
   const t = useCurrentFrame() / fps;
   const sx = (value: number) => (value * width) / 1920;
   const sy = (value: number) => (value * height) / 1080;
@@ -312,6 +314,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
             gap: sx(40),
             fontFamily: "Avenir, sans-serif",
             fontSize: sx(20),
+            lineHeight: 1.2,
             fontWeight: 500,
             color: "rgba(36, 58, 50, 0.58)",
           }}
@@ -332,6 +335,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
               style={{
                 flexShrink: 0,
                 letterSpacing: sx(4.5),
+                opacity: domainOpacity,
                 textAlign: "right",
               }}
             >

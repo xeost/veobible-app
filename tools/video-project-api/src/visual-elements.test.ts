@@ -88,7 +88,7 @@ test("clip elements at section end and omit hidden, unavailable or out-of-range 
   );
 });
 
-test("social buttons default to lower intermediate and early third, retain only their two controls and translate from video language", async () => {
+test("social buttons default to lower third and early third and translate from video language", async () => {
   const {
     socialButtonElementSchema,
     socialButtonText,
@@ -102,7 +102,7 @@ test("social buttons default to lower intermediate and early third, retain only 
   });
   assert.deepEqual(social, {
     template: "social-button",
-    verticalPosition: "lower-intermediate",
+    verticalPosition: "lower-third",
     moment: "early",
     hidden: false,
   });

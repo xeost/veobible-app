@@ -1,3 +1,4 @@
+import { useDomainOpacity } from "../../../remotion/DomainReplacement";
 import { OUTRO_NARRATION_DELAY } from "../../../composition-timing";
 /**
  * OutroScene – React component for the outro segment of a VeoBible Short.
@@ -46,6 +47,7 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
   voices,
 }) => {
   const { fps, width, height } = useVideoConfig();
+  const domainOpacity = useDomainOpacity("outro");
   const frame = useCurrentFrame();
   const t = frame / fps;
 
@@ -251,7 +253,7 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
             fontSize={Math.max(1, Math.round((54 * width) / 1080))}
             fontFamily="Georgia"
             color={palette.gold}
-            alpha={wAlpha}
+            alpha={wAlpha * domainOpacity}
             shadow={0.28}
             width={sx(800)}
           />

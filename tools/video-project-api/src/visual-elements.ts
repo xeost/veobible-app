@@ -23,8 +23,16 @@ export const socialButtonElementSchema = z.object({
       "lower-intermediate",
       "bottom",
       "custom",
+      "replace-domain",
     ])
-    .default("lower-intermediate"),
+    .default("lower-third"),
+  positionMode: z.enum(["coordinates", "replace-domain"]).optional(),
+  horizontalPosition: z
+    .enum(["left", "left-third", "center", "right-third", "right"])
+    .optional(),
+  offsetsEnabled: z.boolean().optional(),
+  verticalOffset: z.number().finite().min(-100).max(100).optional(),
+  horizontalOffset: z.number().finite().min(-100).max(100).optional(),
   customVerticalPosition: z.number().finite().min(0).max(100).optional(),
   customHorizontalPosition: z.number().finite().min(0).max(100).optional(),
   moment: z.enum(["start", "early", "middle", "late", "end"]).default("early"),
@@ -41,14 +49,28 @@ export type SocialVariant = "subscribe" | "follow";
 export type VideoLocale = "en" | "es" | "pt";
 export const verticalPositions = [
   "top",
-  "upper-intermediate",
   "upper-third",
   "center",
   "lower-third",
-  "lower-intermediate",
   "bottom",
-  "custom",
 ] as const;
+export const horizontalPositions = [
+  "left",
+  "left-third",
+  "center",
+  "right-third",
+  "right",
+] as const;
+export function replacesDomain(
+  element: Pick<SocialButtonElement, "positionMode" | "verticalPosition">,
+) {
+  return (
+    (element.positionMode ??
+      (element.verticalPosition === "replace-domain"
+        ? "replace-domain"
+        : "coordinates")) === "replace-domain"
+  );
+}
 export const elementMoments = [
   "start",
   "early",
@@ -74,19 +96,27 @@ export function socialVerticalPosition(
 ) {
   return element.verticalPosition === "custom"
     ? (element.customVerticalPosition ?? 50) / 100
-    : verticalPositionFraction[element.verticalPosition];
+    : element.verticalPosition === "replace-domain"
+      ? 0.5
+      : verticalPositionFraction[element.verticalPosition];
 }
 
-/** Horizontal position of the element's center, measured from the left of the frame. */
+/** Horizontal anchor from the left; outer presets align the corresponding button edge. */
 export function socialHorizontalPosition(
   element: Pick<
     SocialButtonElement,
-    "verticalPosition" | "customHorizontalPosition"
+    "verticalPosition" | "customHorizontalPosition" | "horizontalPosition"
   >,
 ) {
   return element.verticalPosition === "custom"
     ? (element.customHorizontalPosition ?? 50) / 100
-    : 0.5;
+    : {
+        left: 0,
+        "left-third": 1 / 3,
+        center: 0.5,
+        "right-third": 2 / 3,
+        right: 1,
+      }[element.horizontalPosition ?? "center"];
 }
 
 const momentFraction = {
@@ -116,6 +146,18 @@ export function socialButtonText(locale: VideoLocale, variant: SocialVariant) {
 }
 
 export function elementTiming(element: VisualElement, sectionDuration: number) {
+  if (element.template === "social-button" && replacesDomain(element)) {
+    const length = Math.max(0, sectionDuration);
+    const fade = Math.min(0.3, length / 4);
+    const available = Math.max(0, length - fade * 2);
+    const duration = Math.min(5, available);
+    return {
+      start:
+        fade +
+        Math.max(0, available - duration) * momentFraction[element.moment],
+      duration,
+    };
+  }
   const duration = Math.min(
     element.template === "social-button" ? 5 : element.durationSeconds,
     Math.max(0, sectionDuration),

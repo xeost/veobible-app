@@ -1,3 +1,4 @@
+import { socialButtonPlacement, type DomainScene } from "../domain-replacement";
 import React from "react";
 import {
   AbsoluteFill,
@@ -7,8 +8,7 @@ import {
 } from "remotion";
 import {
   socialButtonText,
-  socialVerticalPosition,
-  socialHorizontalPosition,
+  replacesDomain,
   type SocialButtonElement,
   type VideoLocale,
   type SocialVariant,
@@ -22,14 +22,25 @@ export function SocialButtonAnimation({
   locale,
   variant,
   durationSeconds,
+  domainScene = "reading",
+  website,
 }: {
   element: SocialButtonElement;
   locale: VideoLocale;
   variant: SocialVariant;
   durationSeconds: number;
+  domainScene?: DomainScene;
+  website?: string;
 }) {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
+  const anchor = socialButtonPlacement(
+    element,
+    width,
+    height,
+    domainScene,
+    website,
+  );
   const durationFrames = Math.max(1, Math.round(durationSeconds * fps));
   const progress = frame / Math.max(1, durationFrames - 1);
   const enter = interpolate(progress, [0, 0.12], [0, 1], clamp);
@@ -62,12 +73,12 @@ export function SocialButtonAnimation({
       <div
         style={{
           position: "absolute",
-          left: `${socialHorizontalPosition(element) * 100}%`,
-          top: `${socialVerticalPosition(element) * 100}%`,
-          transform: `translate(-50%, -50%) translateY(${(1 - enter) * 35}px) scale(${0.92 + enter * 0.08})`,
+          left: anchor.x,
+          top: anchor.y,
+          transform: `translate(${anchor.align === "right" ? "-100%" : anchor.align === "left" ? "0%" : "-50%"}, -50%) translateY(${(1 - enter) * 35}px) scale(${0.92 + enter * 0.08})`,
           opacity: enter * exit,
           width: 600,
-          height: 118,
+          height: replacesDomain(element) ? 116 : 118,
           fontFamily: "Arial, sans-serif",
         }}
       >

@@ -1,3 +1,4 @@
+import { domainSceneForSection, type DomainScene } from "../domain-replacement";
 import { SocialButtonAnimation } from "./SocialButtonAnimation";
 import React from "react";
 import {
@@ -212,11 +213,15 @@ export function VisualElementAnimation({
   durationSeconds,
   locale = "en",
   variant = "subscribe",
+  domainScene,
+  website,
 }: {
   element: VisualElement;
   durationSeconds: number;
   locale?: VideoLocale;
   variant?: SocialVariant;
+  domainScene?: DomainScene;
+  website?: string;
 }) {
   if (element.template === "youtube-subscribe")
     return (
@@ -228,6 +233,8 @@ export function VisualElementAnimation({
       durationSeconds={durationSeconds}
       locale={locale}
       variant={variant}
+      domainScene={domainScene}
+      website={website}
     />
   );
 }
@@ -241,7 +248,7 @@ export function VisualElementsOverlay({
   return (
     <>
       {visualElementRanges(props, props.visualElements).map(
-        ({ key, element, start, duration }) => (
+        ({ id, key, element, start, duration }) => (
           <Sequence
             key={key}
             from={Math.round(start * fps)}
@@ -253,6 +260,8 @@ export function VisualElementsOverlay({
               durationSeconds={duration}
               locale={props.videoLocale}
               variant={props.socialVariant}
+              domainScene={domainSceneForSection(id)}
+              website={props.outroTitle.website}
             />
           </Sequence>
         ),

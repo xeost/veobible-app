@@ -1,3 +1,4 @@
+import { useDomainOpacity } from "../../../remotion/DomainReplacement";
 import { OUTRO_NARRATION_DELAY } from "../../../composition-timing";
 /**
  * OutroScene – React component for the outro segment of a VeoBible long-form video.
@@ -17,7 +18,12 @@ import { OUTRO_NARRATION_DELAY } from "../../../composition-timing";
 import React from "react";
 import { BackgroundVideo } from "./BackgroundVideo";
 import { useCurrentFrame, useVideoConfig, Audio, Sequence } from "remotion";
-import { outroAnimationPhase, phaseAlpha, phaseY, positionY } from "./animation";
+import {
+  outroAnimationPhase,
+  phaseAlpha,
+  phaseY,
+  positionY,
+} from "./animation";
 import type { OutroTitle, VoiceTracks } from "./types";
 import { ScrimOverlay } from "./ScrimOverlay";
 import { AnimatedText } from "./AnimatedText";
@@ -46,14 +52,14 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
   voices,
 }) => {
   const { fps, width, height } = useVideoConfig();
+  const domainOpacity = useDomainOpacity("outro");
   const frame = useCurrentFrame();
   const t = frame / fps;
 
   const sx = (v: number) => Math.round((v * width) / 1920);
   const sy = (v: number) => Math.round((v * height) / 1080);
 
-  const outroPhase = (delay: number) =>
-    outroAnimationPhase(outroLength, delay);
+  const outroPhase = (delay: number) => outroAnimationPhase(outroLength, delay);
 
   // Build text elements
   const fixedElements = [
@@ -243,7 +249,7 @@ export const OutroScene: React.FC<OutroSceneProps> = ({
             fontSize={Math.max(1, Math.round((54 * width) / 1920))}
             fontFamily="Georgia"
             color={palette.gold}
-            alpha={wAlpha}
+            alpha={wAlpha * domainOpacity}
             shadow={0.28}
             width={sx(1600)}
           />

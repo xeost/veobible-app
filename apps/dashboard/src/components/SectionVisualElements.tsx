@@ -18,7 +18,8 @@ import { useModalDismiss } from "./useModalDismiss";
 import { VisualElementAnimation } from "../../../../tools/video-project-api/src/remotion/SubscribeAnimation";
 import {
   verticalPositions,
-  socialVerticalPosition,
+  horizontalPositions,
+  replacesDomain,
   elementMoments,
   type SubscribeElement,
   type VisualElement,
@@ -28,13 +29,17 @@ import {
 
 const positionLabels = {
   top: "Top",
-  "upper-intermediate": "Upper intermediate",
   "upper-third": "Upper third",
   center: "Center",
   "lower-third": "Lower third",
-  "lower-intermediate": "Lower intermediate",
   bottom: "Bottom",
-  custom: "Custom",
+};
+const horizontalPositionLabels = {
+  left: "Left",
+  "left-third": "Left third",
+  center: "Center",
+  "right-third": "Right third",
+  right: "Right",
 };
 const momentLabels = {
   start: "Start",
@@ -47,6 +52,33 @@ const elementTitle = (element: VisualElement) =>
   element.template === "social-button"
     ? "Social media button"
     : "YouTube subscribe button";
+
+function OffsetInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  return (
+    <input
+      type="number"
+      min={-100}
+      max={100}
+      step="0.1"
+      value={draft}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        const next = event.target.valueAsNumber;
+        if (Number.isFinite(next))
+          onChange(Math.max(-100, Math.min(100, next)));
+      }}
+      onBlur={() => setDraft(String(value))}
+    />
+  );
+}
 
 function ElementPicker({
   kind,
@@ -72,7 +104,9 @@ function ElementPicker({
     template === "social-button"
       ? {
           template,
-          verticalPosition: "lower-intermediate",
+          verticalPosition: "lower-third",
+          positionMode: "coordinates",
+          horizontalPosition: "center",
           moment: "early",
           hidden: false,
           references: element.references,
@@ -361,90 +395,6 @@ export function SectionVisualElements({
                   {element.template === "social-button" ? (
                     <>
                       <label>
-                        {t("Vertical position")}
-                        <select
-                          value={element.verticalPosition}
-                          onChange={(event) => {
-                            const verticalPosition = event.target
-                              .value as typeof element.verticalPosition;
-                            patch(index, {
-                              verticalPosition,
-                              ...(verticalPosition === "custom"
-                                ? {
-                                    customVerticalPosition:
-                                      element.customVerticalPosition ??
-                                      Number(
-                                        (
-                                          socialVerticalPosition(element) * 100
-                                        ).toFixed(2),
-                                      ),
-                                  }
-                                : {}),
-                            });
-                          }}
-                        >
-                          {verticalPositions.map((position) => (
-                            <option key={position} value={position}>
-                              {t(positionLabels[position])}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {element.verticalPosition === "custom" && (
-                        <>
-                          <label>
-                            {t("Height from top (%)")}
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step="0.01"
-                              value={element.customVerticalPosition ?? 50}
-                              onChange={(event) => {
-                                const value = event.target.valueAsNumber;
-                                if (Number.isFinite(value))
-                                  patch(index, {
-                                    customVerticalPosition: Math.min(
-                                      100,
-                                      Math.max(0, value),
-                                    ),
-                                  });
-                              }}
-                            />
-                            <span className="muted">
-                              {t(
-                                "0% is the top and 100% is the bottom. The value sets the center of the element.",
-                              )}
-                            </span>
-                          </label>
-                          <label>
-                            {t("Position from left (%)")}
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step="0.01"
-                              value={element.customHorizontalPosition ?? 50}
-                              onChange={(event) => {
-                                const value = event.target.valueAsNumber;
-                                if (Number.isFinite(value))
-                                  patch(index, {
-                                    customHorizontalPosition: Math.min(
-                                      100,
-                                      Math.max(0, value),
-                                    ),
-                                  });
-                              }}
-                            />
-                            <span className="muted">
-                              {t(
-                                "0% is the left and 100% is the right. The value sets the center of the element.",
-                              )}
-                            </span>
-                          </label>
-                        </>
-                      )}
-                      <label>
                         {t("Appearance in this section")}
                         <select
                           value={element.moment}
@@ -462,6 +412,128 @@ export function SectionVisualElements({
                           ))}
                         </select>
                       </label>
+                      <label>
+                        {t("Position")}
+                        <select
+                          value={
+                            replacesDomain(element)
+                              ? "replace-domain"
+                              : "coordinates"
+                          }
+                          onChange={(event) =>
+                            patch(index, {
+                              positionMode: event.target.value as
+                                "coordinates" | "replace-domain",
+                              verticalPosition: verticalPositions.includes(
+                                element.verticalPosition as (typeof verticalPositions)[number],
+                              )
+                                ? element.verticalPosition
+                                : "lower-third",
+                            })
+                          }
+                        >
+                          <option value="coordinates">
+                            {t("Configure vertical and horizontal")}
+                          </option>
+                          <option value="replace-domain">
+                            {t("Replace domain")}
+                          </option>
+                        </select>
+                      </label>
+                      {!replacesDomain(element) && (
+                        <>
+                          <label>
+                            {t("Vertical position")}
+                            <select
+                              value={
+                                element.verticalPosition ===
+                                "upper-intermediate"
+                                  ? "upper-third"
+                                  : element.verticalPosition ===
+                                      "lower-intermediate"
+                                    ? "lower-third"
+                                    : element.verticalPosition === "custom"
+                                      ? "center"
+                                      : element.verticalPosition
+                              }
+                              onChange={(event) =>
+                                patch(index, {
+                                  verticalPosition: event.target
+                                    .value as typeof element.verticalPosition,
+                                })
+                              }
+                            >
+                              {verticalPositions.map((position) => (
+                                <option key={position} value={position}>
+                                  {t(positionLabels[position])}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            {t("Horizontal position")}
+                            <select
+                              value={element.horizontalPosition ?? "center"}
+                              onChange={(event) =>
+                                patch(index, {
+                                  horizontalPosition: event.target
+                                    .value as typeof element.horizontalPosition,
+                                })
+                              }
+                            >
+                              {horizontalPositions.map((position) => (
+                                <option key={position} value={position}>
+                                  {t(horizontalPositionLabels[position])}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </>
+                      )}
+                      <label className="visual-element-offset-toggle">
+                        <input
+                          type="checkbox"
+                          checked={element.offsetsEnabled ?? false}
+                          onChange={(event) =>
+                            patch(index, {
+                              offsetsEnabled: event.target.checked,
+                            })
+                          }
+                        />
+                        {t("Configure offsets")}
+                      </label>
+                      {element.offsetsEnabled && (
+                        <>
+                          <label>
+                            {t("Vertical offset (%)")}
+                            <OffsetInput
+                              value={element.verticalOffset ?? 0}
+                              onChange={(value) =>
+                                patch(index, { verticalOffset: value })
+                              }
+                            />
+                            <span className="muted">
+                              {t(
+                                "Positive values move down; negative values move up.",
+                              )}
+                            </span>
+                          </label>
+                          <label>
+                            {t("Horizontal offset (%)")}
+                            <OffsetInput
+                              value={element.horizontalOffset ?? 0}
+                              onChange={(value) =>
+                                patch(index, { horizontalOffset: value })
+                              }
+                            />
+                            <span className="muted">
+                              {t(
+                                "Positive values move right; negative values move left.",
+                              )}
+                            </span>
+                          </label>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>

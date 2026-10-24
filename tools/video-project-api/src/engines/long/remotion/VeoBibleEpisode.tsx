@@ -1,3 +1,5 @@
+import { DomainReplacementProvider } from "../../../remotion/DomainReplacement";
+import { visualElementRanges } from "../../../visual-elements";
 import { VisualElementsOverlay } from "../../../remotion/SubscribeAnimation";
 import { readingPadding } from "../../../composition-timing";
 /**
@@ -141,68 +143,72 @@ export const VeoBibleEpisode: React.FC<EpisodeCompositionProps> = (props) => {
   const readingDuration = readingLength - readingPadding(props);
 
   return (
-    <AbsoluteFill style={{ background: "#000" }}>
-      {/* ── INTRO ─────────────────────────────────────────────────── */}
-      <Sequence from={introStart} durationInFrames={introFrames}>
-        <FadeWrapper
-          from="intro"
-          fadeDuration={transitionDuration}
-          totalFrames={introFrames}
-        >
-          <IntroScene
-            introVideoPath={introVideoPath}
-            introDuration={introVideoDuration}
-            introLength={introLength}
-            title={introTitle}
-            shortTitle={outroTitle.shortTitle}
-            voices={voices}
-          />
-        </FadeWrapper>
-      </Sequence>
+    <DomainReplacementProvider
+      ranges={visualElementRanges(props, props.visualElements)}
+    >
+      <AbsoluteFill style={{ background: "#000" }}>
+        {/* ── INTRO ─────────────────────────────────────────────────── */}
+        <Sequence from={introStart} durationInFrames={introFrames}>
+          <FadeWrapper
+            from="intro"
+            fadeDuration={transitionDuration}
+            totalFrames={introFrames}
+          >
+            <IntroScene
+              introVideoPath={introVideoPath}
+              introDuration={introVideoDuration}
+              introLength={introLength}
+              title={introTitle}
+              shortTitle={outroTitle.shortTitle}
+              voices={voices}
+            />
+          </FadeWrapper>
+        </Sequence>
 
-      {/* ── READING ───────────────────────────────────────────────── */}
-      <Sequence from={readingStart} durationInFrames={readingFrames}>
-        <FadeWrapper
-          from="reading"
-          fadeDuration={transitionDuration}
-          totalFrames={readingFrames}
-        >
-          <ReadingScene
-            website={outroTitle.website}
-            boomerangVideoPath={boomerangVideoPath}
-            sections={sections}
-            voices={voices}
-            volumeMultiplier={volumeMultiplier}
-            verseCues={verseCues}
-            readingLength={readingLength}
-            readingSilence={readingSilence}
-            readingPalette={readingPalette}
-            bibleVersionTitle={props.bibleVersionTitle}
-            readingDuration={readingDuration}
-            chapterIntroductions={props.chapterIntroductions?.map(
-              (chapter) => ({ ...chapter, file: resolveAsset(chapter.file) }),
-            )}
-          />
-        </FadeWrapper>
-      </Sequence>
+        {/* ── READING ───────────────────────────────────────────────── */}
+        <Sequence from={readingStart} durationInFrames={readingFrames}>
+          <FadeWrapper
+            from="reading"
+            fadeDuration={transitionDuration}
+            totalFrames={readingFrames}
+          >
+            <ReadingScene
+              website={outroTitle.website}
+              boomerangVideoPath={boomerangVideoPath}
+              sections={sections}
+              voices={voices}
+              volumeMultiplier={volumeMultiplier}
+              verseCues={verseCues}
+              readingLength={readingLength}
+              readingSilence={readingSilence}
+              readingPalette={readingPalette}
+              bibleVersionTitle={props.bibleVersionTitle}
+              readingDuration={readingDuration}
+              chapterIntroductions={props.chapterIntroductions?.map(
+                (chapter) => ({ ...chapter, file: resolveAsset(chapter.file) }),
+              )}
+            />
+          </FadeWrapper>
+        </Sequence>
 
-      {/* ── OUTRO ─────────────────────────────────────────────────── */}
-      <Sequence from={outroStart} durationInFrames={outroFrames}>
-        <FadeWrapper
-          from="outro"
-          fadeDuration={transitionDuration}
-          totalFrames={outroFrames}
-        >
-          <OutroScene
-            outroVideoPath={outroVideoPath}
-            outroDuration={outroVideoDuration}
-            outroLength={outroLength}
-            outro={outroTitle}
-            voices={voices}
-          />
-        </FadeWrapper>
-      </Sequence>
-      <VisualElementsOverlay props={props} />
-    </AbsoluteFill>
+        {/* ── OUTRO ─────────────────────────────────────────────────── */}
+        <Sequence from={outroStart} durationInFrames={outroFrames}>
+          <FadeWrapper
+            from="outro"
+            fadeDuration={transitionDuration}
+            totalFrames={outroFrames}
+          >
+            <OutroScene
+              outroVideoPath={outroVideoPath}
+              outroDuration={outroVideoDuration}
+              outroLength={outroLength}
+              outro={outroTitle}
+              voices={voices}
+            />
+          </FadeWrapper>
+        </Sequence>
+        <VisualElementsOverlay props={props} />
+      </AbsoluteFill>
+    </DomainReplacementProvider>
   );
 };

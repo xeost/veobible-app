@@ -1,4 +1,7 @@
 "use client";
+
+import { DomainReplacementProvider } from "../../../../tools/video-project-api/src/remotion/DomainReplacement";
+import { domainSceneForSection } from "../../../../tools/video-project-api/src/domain-replacement";
 import {
   insertChapterIntroductions,
   type VoicePart,
@@ -135,33 +138,46 @@ function SectionWithVisuals(
           (props.verseCues.length
             ? Math.max(...props.verseCues.map((cue) => cue.end))
             : 0);
+  const ranges = (props.previewElements ?? []).flatMap((element, index) => {
+    const timing = elementTiming(element, sectionEnd - sectionStart);
+    const start = Math.round((sectionStart + timing.start) * fps);
+    const frames = Math.min(
+      Math.round(timing.duration * fps),
+      durationInFrames - start,
+    );
+    return !element.hidden && frames > 0
+      ? [
+          {
+            id: props.previewVoicePart ?? "reading-0",
+            key: element.id ?? String(index),
+            element,
+            start: start / fps,
+            duration: frames / fps,
+          },
+        ]
+      : [];
+  });
   return (
-    <>
+    <DomainReplacementProvider ranges={ranges}>
       <SectionPreview {...props} />
-      {(props.previewElements ?? []).map((element, index) => {
-        const timing = elementTiming(element, sectionEnd - sectionStart);
-        const start = Math.round((sectionStart + timing.start) * fps);
-        const frames = Math.min(
-          Math.round(timing.duration * fps),
-          durationInFrames - start,
-        );
-        return !element.hidden && frames > 0 ? (
-          <Sequence
-            key={element.id ?? index}
-            from={start}
-            durationInFrames={frames}
-            layout="none"
-          >
-            <VisualElementAnimation
-              element={element}
-              durationSeconds={frames / fps}
-              locale={props.videoLocale}
-              variant="subscribe"
-            />
-          </Sequence>
-        ) : null;
-      })}
-    </>
+      {ranges.map(({ id, key, element, start, duration }) => (
+        <Sequence
+          key={key}
+          from={Math.round(start * fps)}
+          durationInFrames={Math.round(duration * fps)}
+          layout="none"
+        >
+          <VisualElementAnimation
+            element={element}
+            durationSeconds={duration}
+            locale={props.videoLocale}
+            variant="subscribe"
+            domainScene={domainSceneForSection(id)}
+            website={props.outroTitle.website}
+          />
+        </Sequence>
+      ))}
+    </DomainReplacementProvider>
   );
 }
 

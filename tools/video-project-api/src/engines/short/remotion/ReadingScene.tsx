@@ -1,3 +1,4 @@
+import { useDomainOpacity } from "../../../remotion/DomainReplacement";
 /**
  * ReadingScene – the "reading" segment of the VeoBible Short.
  *
@@ -63,6 +64,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
   readingDuration,
 }) => {
   const { fps, width, height } = useVideoConfig();
+  const domainOpacity = useDomainOpacity("reading");
   const frame = useCurrentFrame();
   const t = frame / fps;
 
@@ -87,7 +89,9 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
   // Schedule independent verse cuts, including silent text transitions.
   let sectionOffset = readingSilence;
   const sectionSchedule = sections.map((section) => {
-    const start = readingSilence + (section.timelineStart ?? sectionOffset - readingSilence);
+    const start =
+      readingSilence +
+      (section.timelineStart ?? sectionOffset - readingSilence);
     const dur = section.end - section.start;
     sectionOffset = start + dur;
     return { ...section, scheduleStart: start };
@@ -152,7 +156,12 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
 
       {/* Voice-over for reading segment if voices provided */}
       {voices && voices.mode === "mix" && (
-        <Audio src={voices.intro} useWebAudioApi crossOrigin="anonymous" volume={0.25} />
+        <Audio
+          src={voices.intro}
+          useWebAudioApi
+          crossOrigin="anonymous"
+          volume={0.25}
+        />
       )}
 
       {/* Gold rule at y=551 */}
@@ -262,7 +271,7 @@ export const ReadingScene: React.FC<ReadingSceneProps> = ({
             fontSize={Math.max(1, Math.round((24 * width) / 1080))}
             fontFamily="Avenir Next Demi Bold"
             color={readingInk.body}
-            alpha={wAlpha}
+            alpha={wAlpha * domainOpacity}
             shadow={0}
             width={sx(800)}
           />
