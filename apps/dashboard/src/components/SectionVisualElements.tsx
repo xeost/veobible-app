@@ -27,6 +27,7 @@ import {
 
 const positionLabels = {
   top: "Top",
+  "upper-intermediate": "Upper intermediate",
   "upper-third": "Upper third",
   center: "Center",
   "lower-third": "Lower third",

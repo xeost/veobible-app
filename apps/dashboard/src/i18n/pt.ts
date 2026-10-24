@@ -1,4 +1,5 @@
 export const portuguese: Record<string, string> = {
+  "Upper intermediate": "Superior intermediária",
   "Configure titles, domains and social media accounts for each language, and voice volume.":
     "Configure os títulos, domínios e contas de redes sociais de cada idioma e o volume das vozes.",
   "Titles, domains and social media accounts":

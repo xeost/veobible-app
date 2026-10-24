@@ -16,6 +16,7 @@ export const socialButtonElementSchema = z.object({
   verticalPosition: z
     .enum([
       "top",
+      "upper-intermediate",
       "upper-third",
       "center",
       "lower-third",
@@ -37,6 +38,7 @@ export type SocialVariant = "subscribe" | "follow";
 export type VideoLocale = "en" | "es" | "pt";
 export const verticalPositions = [
   "top",
+  "upper-intermediate",
   "upper-third",
   "center",
   "lower-third",
@@ -52,6 +54,7 @@ export const elementMoments = [
 ] as const;
 export const verticalPositionFraction = {
   top: 0.12,
+  "upper-intermediate": (0.12 + 1 / 3) / 2,
   "upper-third": 1 / 3,
   center: 0.5,
   "lower-third": 2 / 3,
