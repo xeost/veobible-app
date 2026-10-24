@@ -8,6 +8,7 @@ import {
 import {
   socialButtonText,
   socialVerticalPosition,
+  socialHorizontalPosition,
   type SocialButtonElement,
   type VideoLocale,
   type SocialVariant,
@@ -61,7 +62,7 @@ export function SocialButtonAnimation({
       <div
         style={{
           position: "absolute",
-          left: "50%",
+          left: `${socialHorizontalPosition(element) * 100}%`,
           top: `${socialVerticalPosition(element) * 100}%`,
           transform: `translate(-50%, -50%) translateY(${(1 - enter) * 35}px) scale(${0.92 + enter * 0.08})`,
           opacity: enter * exit,

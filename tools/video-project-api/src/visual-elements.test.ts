@@ -295,3 +295,47 @@ test("custom vertical positions preserve percentages through saving and use the 
     );
   }
 });
+
+test("custom horizontal positions persist independently of height, default to center and apply only in custom mode", async () => {
+  const {
+    socialButtonElementSchema,
+    socialHorizontalPosition,
+    socialVerticalPosition,
+  } = await import("./visual-elements");
+  for (const horizontal of [0, 25.5, 50, 83.75, 100]) {
+    const element = socialButtonElementSchema.parse({
+      template: "social-button",
+      verticalPosition: "custom",
+      customVerticalPosition: 30,
+      customHorizontalPosition: horizontal,
+    });
+    const saved = settingsSchema.parse({
+      visualElements: { intro: [element] },
+    });
+    const actual = dashboardSettingsSchema.parse(
+      JSON.parse(JSON.stringify(saved)),
+    ).visualElements!.intro[0];
+    if (actual.template !== "social-button")
+      throw new Error("Unexpected template");
+    assert.equal(actual.customHorizontalPosition, horizontal);
+    assert.equal(socialHorizontalPosition(actual), horizontal / 100);
+    assert.equal(socialVerticalPosition(actual), 0.3);
+  }
+  assert.equal(socialHorizontalPosition({ verticalPosition: "custom" }), 0.5);
+  assert.equal(
+    socialHorizontalPosition({
+      verticalPosition: "top",
+      customHorizontalPosition: 90,
+    }),
+    0.5,
+  );
+  for (const invalid of [-1, 101, NaN, Infinity]) {
+    assert.equal(
+      socialButtonElementSchema.safeParse({
+        template: "social-button",
+        customHorizontalPosition: invalid,
+      }).success,
+      false,
+    );
+  }
+});

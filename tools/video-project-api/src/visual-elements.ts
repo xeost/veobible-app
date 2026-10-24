@@ -26,6 +26,7 @@ export const socialButtonElementSchema = z.object({
     ])
     .default("lower-intermediate"),
   customVerticalPosition: z.number().finite().min(0).max(100).optional(),
+  customHorizontalPosition: z.number().finite().min(0).max(100).optional(),
   moment: z.enum(["start", "early", "middle", "late", "end"]).default("early"),
   hidden: z.boolean().default(false),
   references: z.array(z.string().min(1)).max(1000).optional(),
@@ -74,6 +75,18 @@ export function socialVerticalPosition(
   return element.verticalPosition === "custom"
     ? (element.customVerticalPosition ?? 50) / 100
     : verticalPositionFraction[element.verticalPosition];
+}
+
+/** Horizontal position of the element's center, measured from the left of the frame. */
+export function socialHorizontalPosition(
+  element: Pick<
+    SocialButtonElement,
+    "verticalPosition" | "customHorizontalPosition"
+  >,
+) {
+  return element.verticalPosition === "custom"
+    ? (element.customHorizontalPosition ?? 50) / 100
+    : 0.5;
 }
 
 const momentFraction = {

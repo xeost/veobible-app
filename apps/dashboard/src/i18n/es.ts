@@ -1,4 +1,7 @@
 export const spanish: Record<string, string> = {
+  "Position from left (%)": "Posición desde la izquierda (%)",
+  "0% is the left and 100% is the right. The value sets the center of the element.":
+    "0% es izquierda y 100% es derecha. El valor posiciona el centro del elemento.",
   "Height from top (%)": "Altura desde arriba (%)",
   "0% is the top and 100% is the bottom. The value sets the center of the element.":
     "0% es arriba y 100% es abajo. El valor posiciona el centro del elemento.",

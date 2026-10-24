@@ -391,31 +391,58 @@ export function SectionVisualElements({
                         </select>
                       </label>
                       {element.verticalPosition === "custom" && (
-                        <label>
-                          {t("Height from top (%)")}
-                          <input
-                            type="number"
-                            min={0}
-                            max={100}
-                            step="0.01"
-                            value={element.customVerticalPosition ?? 50}
-                            onChange={(event) => {
-                              const value = event.target.valueAsNumber;
-                              if (Number.isFinite(value))
-                                patch(index, {
-                                  customVerticalPosition: Math.min(
-                                    100,
-                                    Math.max(0, value),
-                                  ),
-                                });
-                            }}
-                          />
-                          <span className="muted">
-                            {t(
-                              "0% is the top and 100% is the bottom. The value sets the center of the element.",
-                            )}
-                          </span>
-                        </label>
+                        <>
+                          <label>
+                            {t("Height from top (%)")}
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.01"
+                              value={element.customVerticalPosition ?? 50}
+                              onChange={(event) => {
+                                const value = event.target.valueAsNumber;
+                                if (Number.isFinite(value))
+                                  patch(index, {
+                                    customVerticalPosition: Math.min(
+                                      100,
+                                      Math.max(0, value),
+                                    ),
+                                  });
+                              }}
+                            />
+                            <span className="muted">
+                              {t(
+                                "0% is the top and 100% is the bottom. The value sets the center of the element.",
+                              )}
+                            </span>
+                          </label>
+                          <label>
+                            {t("Position from left (%)")}
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.01"
+                              value={element.customHorizontalPosition ?? 50}
+                              onChange={(event) => {
+                                const value = event.target.valueAsNumber;
+                                if (Number.isFinite(value))
+                                  patch(index, {
+                                    customHorizontalPosition: Math.min(
+                                      100,
+                                      Math.max(0, value),
+                                    ),
+                                  });
+                              }}
+                            />
+                            <span className="muted">
+                              {t(
+                                "0% is the left and 100% is the right. The value sets the center of the element.",
+                              )}
+                            </span>
+                          </label>
+                        </>
                       )}
                       <label>
                         {t("Appearance in this section")}
