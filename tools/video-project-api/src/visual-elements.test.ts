@@ -250,3 +250,48 @@ test("every element in a section has its own render timing and key, and hidden e
   );
   assert.equal(new Set(ranges.map((item) => item.key)).size, ranges.length);
 });
+
+test("custom vertical positions preserve percentages through saving and use the same coordinates as named positions", async () => {
+  const {
+    socialButtonElementSchema,
+    socialVerticalPosition,
+    verticalPositionFraction,
+  } = await import("./visual-elements");
+  for (const height of [0, 22.5, 50, 77.33, 100]) {
+    const element = socialButtonElementSchema.parse({
+      template: "social-button",
+      verticalPosition: "custom",
+      customVerticalPosition: height,
+    });
+    const saved = settingsSchema.parse({
+      visualElements: { intro: [element] },
+    });
+    const restored = dashboardSettingsSchema.parse(
+      JSON.parse(JSON.stringify(saved)),
+    );
+    const actual = restored.visualElements!.intro[0];
+    assert.equal(actual.template, "social-button");
+    if (actual.template !== "social-button")
+      throw new Error("Unexpected template");
+    assert.equal(actual.customVerticalPosition, height);
+    assert.equal(socialVerticalPosition(actual), height / 100);
+  }
+  assert.equal(socialVerticalPosition({ verticalPosition: "custom" }), 0.5);
+  assert.equal(
+    socialVerticalPosition({
+      verticalPosition: "upper-intermediate",
+      customVerticalPosition: 90,
+    }),
+    verticalPositionFraction["upper-intermediate"],
+  );
+  for (const invalid of [-0.01, 100.01, NaN, Infinity]) {
+    assert.equal(
+      socialButtonElementSchema.safeParse({
+        template: "social-button",
+        verticalPosition: "custom",
+        customVerticalPosition: invalid,
+      }).success,
+      false,
+    );
+  }
+});

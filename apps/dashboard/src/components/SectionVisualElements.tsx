@@ -18,6 +18,7 @@ import { useModalDismiss } from "./useModalDismiss";
 import { VisualElementAnimation } from "../../../../tools/video-project-api/src/remotion/SubscribeAnimation";
 import {
   verticalPositions,
+  socialVerticalPosition,
   elementMoments,
   type SubscribeElement,
   type VisualElement,
@@ -33,6 +34,7 @@ const positionLabels = {
   "lower-third": "Lower third",
   "lower-intermediate": "Lower intermediate",
   bottom: "Bottom",
+  custom: "Custom",
 };
 const momentLabels = {
   start: "Start",
@@ -362,12 +364,24 @@ export function SectionVisualElements({
                         {t("Vertical position")}
                         <select
                           value={element.verticalPosition}
-                          onChange={(event) =>
+                          onChange={(event) => {
+                            const verticalPosition = event.target
+                              .value as typeof element.verticalPosition;
                             patch(index, {
-                              verticalPosition: event.target
-                                .value as typeof element.verticalPosition,
-                            })
-                          }
+                              verticalPosition,
+                              ...(verticalPosition === "custom"
+                                ? {
+                                    customVerticalPosition:
+                                      element.customVerticalPosition ??
+                                      Number(
+                                        (
+                                          socialVerticalPosition(element) * 100
+                                        ).toFixed(2),
+                                      ),
+                                  }
+                                : {}),
+                            });
+                          }}
                         >
                           {verticalPositions.map((position) => (
                             <option key={position} value={position}>
@@ -376,6 +390,33 @@ export function SectionVisualElements({
                           ))}
                         </select>
                       </label>
+                      {element.verticalPosition === "custom" && (
+                        <label>
+                          {t("Height from top (%)")}
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.01"
+                            value={element.customVerticalPosition ?? 50}
+                            onChange={(event) => {
+                              const value = event.target.valueAsNumber;
+                              if (Number.isFinite(value))
+                                patch(index, {
+                                  customVerticalPosition: Math.min(
+                                    100,
+                                    Math.max(0, value),
+                                  ),
+                                });
+                            }}
+                          />
+                          <span className="muted">
+                            {t(
+                              "0% is the top and 100% is the bottom. The value sets the center of the element.",
+                            )}
+                          </span>
+                        </label>
+                      )}
                       <label>
                         {t("Appearance in this section")}
                         <select

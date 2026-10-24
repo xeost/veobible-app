@@ -1,4 +1,7 @@
 export const portuguese: Record<string, string> = {
+  "Height from top (%)": "Altura a partir do topo (%)",
+  "0% is the top and 100% is the bottom. The value sets the center of the element.":
+    "0% é o topo e 100% é a parte inferior. O valor posiciona o centro do elemento.",
   "Upper intermediate": "Superior intermediária",
   "Configure titles, domains and social media accounts for each language, and voice volume.":
     "Configure os títulos, domínios e contas de redes sociais de cada idioma e o volume das vozes.",

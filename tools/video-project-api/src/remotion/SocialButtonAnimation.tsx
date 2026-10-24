@@ -7,7 +7,7 @@ import {
 } from "remotion";
 import {
   socialButtonText,
-  verticalPositionFraction,
+  socialVerticalPosition,
   type SocialButtonElement,
   type VideoLocale,
   type SocialVariant,
@@ -62,7 +62,7 @@ export function SocialButtonAnimation({
         style={{
           position: "absolute",
           left: "50%",
-          top: `${verticalPositionFraction[element.verticalPosition] * 100}%`,
+          top: `${socialVerticalPosition(element) * 100}%`,
           transform: `translate(-50%, -50%) translateY(${(1 - enter) * 35}px) scale(${0.92 + enter * 0.08})`,
           opacity: enter * exit,
           width: 600,

@@ -13,7 +13,6 @@ import {
   type VisualElement,
   type SocialVariant,
   type VideoLocale,
-  type SocialButtonElement,
   verticalPositionFraction,
 } from "../visual-elements";
 import type { ShortCompositionProps } from "../engines/short/remotion/types";
@@ -27,7 +26,7 @@ export function SubscribeAnimation({
   element: SubscribeElement;
   durationSeconds: number;
   variant?: SocialVariant;
-  verticalPosition?: SocialButtonElement["verticalPosition"];
+  verticalPosition?: keyof typeof verticalPositionFraction;
 }) {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
