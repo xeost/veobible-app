@@ -1309,10 +1309,21 @@ export function VideoProjectEditor({
       </div>
     );
   };
+  const clearVerseFragment = (section?: number) => {
+    const target = parseVideoVerseFragment(window.location.hash, verseTargets);
+    if (!target || (section !== undefined && target.section !== section)) return;
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${window.location.search}`,
+    );
+  };
   const toggle = (id: string) => {
     const heading = document.getElementById(`heading-${id}`);
     if (expanded.has(id) && heading)
       collapseAnchor.current = { id, top: heading.getBoundingClientRect().top };
+    if (expanded.has(id) && id.startsWith("reading-"))
+      clearVerseFragment(Number(id.slice(8)));
     if (!expanded.has(id) && id.startsWith("reading-")) {
       const section = Number(id.slice(8));
       const target = verseTargets.find(
@@ -2184,7 +2195,10 @@ export function VideoProjectEditor({
                 <button
                   type="button"
                   aria-label={t("Collapse all")}
-                  onClick={() => setExpanded(new Set())}
+                  onClick={() => {
+                    clearVerseFragment();
+                    setExpanded(new Set());
+                  }}
                 >
                   <ChevronsUp size={16} />
                 </button>
