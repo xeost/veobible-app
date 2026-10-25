@@ -113,3 +113,24 @@ test("recreated folders replace stale Date Added preferences in their parent", {
     await fs.rm(workspace, { recursive: true, force: true });
   }
 });
+
+test("post-render reset replaces existing sort preferences in both folder parents", {
+  skip: process.platform !== "darwin",
+}, async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "finder-rendered-"));
+  const output = path.join(workspace, "project");
+  const sources = path.join(output, "_internal");
+  const script = fileURLToPath(new URL("./test-fixtures/finder-view.py", import.meta.url));
+  try {
+    await fs.mkdir(sources, { recursive: true });
+    for (const directory of [output, sources]) {
+      await initializeFinderView(directory);
+      await promisify(execFile)(await finderPython(), ["-I", script, "--set-date-added", directory]);
+    }
+    for (const directory of [output, sources])
+      await initializeFinderView(directory, { reset: true });
+    await promisify(execFile)(await finderPython(), ["-I", script, "--check", output, sources]);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});

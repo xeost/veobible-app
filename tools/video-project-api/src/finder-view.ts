@@ -20,10 +20,10 @@ export async function finderPython() {
   return "python3";
 }
 
-/** New folders get fresh defaults; existing folders keep their saved view. */
+/** Preserve saved views during preparation; reset them after a successful render. */
 export async function initializeFinderView(
   directory: string,
-  options: { created?: boolean } = {},
+  options: { created?: boolean; reset?: boolean } = {},
 ) {
   try {
     await fs.copyFile(
@@ -38,7 +38,8 @@ export async function initializeFinderView(
     await run(await finderPython(), [
       "-I",
       fileURLToPath(new URL("./finder-view.py", import.meta.url)),
-      ...(options.created ? ["--force"] : []),
+      ...(options.created || options.reset ? ["--force"] : []),
+      ...(options.reset ? ["--reset-self"] : []),
       directory,
     ], { timeout: 15000 });
 }

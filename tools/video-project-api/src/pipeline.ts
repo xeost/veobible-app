@@ -1258,6 +1258,10 @@ export async function render(
       JSON.stringify(savedResult),
       "utf8",
     );
+    // Finder may have overwritten the defaults while the video was rendering.
+    // Refresh both self and parent records before reporting completion.
+    await initializeFinderView(output, { reset: true });
+    await initializeFinderView(sources, { reset: true });
     return savedResult;
   } finally {
     await fs.rm(work, { recursive: true, force: true });

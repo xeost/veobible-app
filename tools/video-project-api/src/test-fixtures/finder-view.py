@@ -14,12 +14,14 @@ finder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(finder)
 
 
-def check(directory):
+def check(directory, self_records=False):
     directory = Path(directory)
+    target = directory / ".DS_Store" if self_records else directory.parent / ".DS_Store"
+    name = "." if self_records else directory.name
     entries = {
         entry.code: entry
-        for entry in finder.records((directory.parent / ".DS_Store").read_bytes())
-        if entry.filename == directory.name
+        for entry in finder.records(target.read_bytes())
+        if entry.filename == name
     }
     assert entries[b"vstl"].value == b"Nlsv"
     assert entries[b"GRP0"].value == "None"
@@ -32,6 +34,32 @@ def check(directory):
 
 
 class FinderViewTests(unittest.TestCase):
+    def test_post_render_reset_repairs_self_and_parent_without_losing_neighbors(self):
+        with tempfile.TemporaryDirectory() as root:
+            project = Path(root) / "project"
+            internal = project / "_internal"
+            internal.mkdir(parents=True)
+            for target, names in (
+                (project.parent / ".DS_Store", [project.name]),
+                (project / ".DS_Store", [".", internal.name]),
+                (internal / ".DS_Store", ["."]),
+            ):
+                entries = [finder.DSStoreEntry("neighbor", b"zzzz", b"blob", b"preserve")]
+                entries.extend(
+                    finder.DSStoreEntry(name, b"lsvC", b"blob", plistlib.dumps({"sortColumn": "dateAdded"}))
+                    for name in names
+                )
+                finder.write_store(str(target), entries)
+            for directory in (project, internal):
+                finder.initialize(directory, force=True, reset_self=True)
+                check(directory)
+                check(directory, self_records=True)
+            # Resetting the project's own view must preserve _internal's named view.
+            check(internal)
+            for target in (project.parent / ".DS_Store", project / ".DS_Store", internal / ".DS_Store"):
+                entries = {(e.filename, e.code): e.value for e in finder.records(target.read_bytes())}
+                self.assertEqual(entries[("neighbor", b"zzzz")], b"preserve")
+
     def test_view_style_without_sort_preferences_does_not_skip_initialization(self):
         with tempfile.TemporaryDirectory() as root:
             project = Path(root) / "project"

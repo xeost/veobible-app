@@ -87,9 +87,7 @@ def write_store(filename, entries):
                         sum(len(level) for level in levels), page_size)
 
 
-def initialize(directory, force=False):
-    directory = Path(directory).resolve(strict=True)
-    target = directory.parent / ".DS_Store"
+def seed_store(target, name, force=False):
     # Lock a stable path outside the working directory across atomic replacements.
     locks = Path(tempfile.gettempdir()) / f"veobible-finder-{os.getuid()}"
     locks.mkdir(mode=0o700, exist_ok=True)
@@ -105,16 +103,16 @@ def initialize(directory, force=False):
                 mode = 0o644
             existing = records(original) if original is not None else []
             if not force and any(
-                entry.filename == directory.name and entry.code in VIEW_CODES
+                entry.filename == name and entry.code in VIEW_CODES
                 for entry in existing
             ):
                 return
             defaults = [
-                DSStoreEntry(directory.name, entry.code, entry.type, entry.value)
+                DSStoreEntry(name, entry.code, entry.type, entry.value)
                 for entry in records(TEMPLATE.read_bytes())
             ]
             # A flat Name ordering must not inherit a grouping such as Kind.
-            defaults.append(DSStoreEntry(directory.name, b"GRP0", b"ustr", "None"))
+            defaults.append(DSStoreEntry(name, b"GRP0", b"ustr", "None"))
             keys = {(entry.filename, entry.code) for entry in defaults}
             merged = [entry for entry in existing if (entry.filename, entry.code) not in keys]
             merged.extend(defaults)
@@ -143,8 +141,16 @@ def initialize(directory, force=False):
         raise RuntimeError(f"Finder preferences changed repeatedly: {target}")
 
 
+def initialize(directory, force=False, reset_self=False):
+    directory = Path(directory).resolve(strict=True)
+    seed_store(directory.parent / ".DS_Store", directory.name, force=force)
+    if reset_self:
+        seed_store(directory / ".DS_Store", ".", force=True)
+
+
 if __name__ == "__main__":
     force = "--force" in sys.argv[1:]
+    reset_self = "--reset-self" in sys.argv[1:]
     for argument in sys.argv[1:]:
-        if argument != "--force":
-            initialize(argument, force=force)
+        if argument not in ("--force", "--reset-self"):
+            initialize(argument, force=force, reset_self=reset_self)
