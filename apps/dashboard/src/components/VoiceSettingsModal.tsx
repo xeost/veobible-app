@@ -1,4 +1,11 @@
 "use client";
+import type { AudioProjectSummary } from "../../../../tools/video-project-api/src/audio-project-schema";
+import type { BibleVersionOption } from "../lib/bible-versions";
+import {
+  emptyChapterAudioSettings,
+  type ChapterAudioSettings,
+} from "../lib/chapter-audio-settings";
+import { AudioLibrarySelector } from "./AudioLibrarySelector";
 import { defaultAudioVersePause } from "../lib/audio-settings";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import {
@@ -50,10 +57,15 @@ export function VoiceSettingsModal({
   const { t } = useI18n();
   const dismiss = useModalDismiss(close);
   const dialog = useRef<HTMLDialogElement>(null);
-  const [templates, setTemplates] = useState<VoiceSettings>(emptyVoiceSettings);
-  const [tab, setTab] = useState<"voice" | "publication" | "baseVoices">(
-    audioOnly ? "baseVoices" : "voice",
+  const [chapterAudio, setChapterAudio] = useState<ChapterAudioSettings>(
+    emptyChapterAudioSettings,
   );
+  const [versions, setVersions] = useState<BibleVersionOption[]>([]);
+  const [audioProjects, setAudioProjects] = useState<AudioProjectSummary[]>([]);
+  const [templates, setTemplates] = useState<VoiceSettings>(emptyVoiceSettings);
+  const [tab, setTab] = useState<
+    "voice" | "publication" | "baseVoices" | "chapterAudio"
+  >(audioOnly ? "baseVoices" : "voice");
   const [baseVoiceLocale, setBaseVoiceLocale] = useState<"es" | "en" | "pt">(
     "en",
   );
@@ -96,8 +108,19 @@ export function VoiceSettingsModal({
         : api<{ templates: VoiceSettings }>(
             `settings/voice-templates?kind=${kind}`,
           ),
+      audioOnly
+        ? Promise.resolve(null)
+        : api<{ settings: ChapterAudioSettings }>(
+            `settings/chapter-audio?kind=${kind}`,
+          ),
+      audioOnly
+        ? Promise.resolve(null)
+        : api<{ versions: BibleVersionOption[] }>("versions/options"),
+      audioOnly
+        ? Promise.resolve(null)
+        : api<{ projects: AudioProjectSummary[] }>("audios"),
     ])
-      .then(([voices, publication, voice]) => {
+      .then(([voices, publication, voice, chapterAudio, versions, audios]) => {
         if (live) {
           setBaseVoices(voices.defaults);
           setVersePauseSeconds(
@@ -106,6 +129,9 @@ export function VoiceSettingsModal({
           setStylePresets(voices.stylePresets);
           if (publication) setPublication(publication.templates);
           if (voice) setTemplates(voice.templates);
+          if (chapterAudio) setChapterAudio(chapterAudio.settings);
+          if (versions) setVersions(versions.versions);
+          if (audios) setAudioProjects(audios.projects);
         }
       })
       .catch(() => {
@@ -124,6 +150,23 @@ export function VoiceSettingsModal({
   }, [kind, audioOnly]);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (tab === "chapterAudio") {
+      setBusy(true);
+      setError("");
+      try {
+        await api(`settings/chapter-audio?kind=${kind}`, {
+          method: "PUT",
+          body: JSON.stringify(chapterAudio),
+        });
+        notify("Settings saved.");
+        close();
+      } catch {
+        setError("Could not save settings. Try again.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (tab === "baseVoices") {
       setBusy(true);
       setError("");
@@ -259,6 +302,18 @@ export function VoiceSettingsModal({
             <>
               <button
                 type="button"
+                className={tab === "chapterAudio" ? "active" : ""}
+                aria-pressed={tab === "chapterAudio"}
+                disabled={busy}
+                onClick={() => {
+                  setTab("chapterAudio");
+                  setError("");
+                }}
+              >
+                {t("Audio versions")}
+              </button>
+              <button
+                type="button"
                 className={tab === "publication" ? "active" : ""}
                 aria-pressed={tab === "publication"}
                 disabled={busy}
@@ -272,6 +327,13 @@ export function VoiceSettingsModal({
             </>
           )}
         </div>
+        {tab === "chapterAudio" && (
+          <p className="muted">
+            {t(
+              "Choose the chapter audio for each Bible version. Projects that select “Default” will use these choices.",
+            )}
+          </p>
+        )}
         {tab === "baseVoices" ? (
           <p className="muted">
             {t(
@@ -352,6 +414,62 @@ export function VoiceSettingsModal({
         )}
         {loading ? (
           <p className="empty">{t("Loading settings…")}</p>
+        ) : tab === "chapterAudio" ? (
+          <fieldset
+            disabled={busy || loadFailed || !canEdit}
+            className="voice-settings-fields"
+          >
+            {!versions.length && !loadFailed && (
+              <p className="empty">
+                {t(
+                  "There are no versions yet. Add one to start creating projects.",
+                )}
+              </p>
+            )}
+            {versions.map((version) => (
+              <section className="voice-settings-language" key={version.id}>
+                <h3>
+                  {version.label} ·{" "}
+                  {t(
+                    version.locale === "es"
+                      ? "Spanish"
+                      : version.locale === "pt"
+                        ? "Portuguese"
+                        : "English",
+                  )}
+                </h3>
+                <AudioLibrarySelector
+                  label="Audio version"
+                  code={version.code}
+                  locale={version.locale}
+                  value={chapterAudio[version.locale][version.code]}
+                  availableEditions={[
+                    ...new Set(
+                      audioProjects
+                        .filter(
+                          (p) =>
+                            p.version.code === version.code &&
+                            p.version.locale === version.locale &&
+                            Object.keys(p.chapters).length > 0,
+                        )
+                        .map((p) => p.edition),
+                    ),
+                  ]}
+                  disabled={busy || loadFailed || !canEdit}
+                  showTimingHelp={false}
+                  onChange={(edition) =>
+                    setChapterAudio((current) => ({
+                      ...current,
+                      [version.locale]: {
+                        ...current[version.locale],
+                        [version.code]: edition ?? "",
+                      },
+                    }))
+                  }
+                />
+              </section>
+            ))}
+          </fieldset>
         ) : tab === "baseVoices" ? (
           <div className="voice-settings-fields">
             {audioOnly && (

@@ -1,4 +1,7 @@
 export const spanish: Record<string, string> = {
+  "Audio versions": "Versión de audios",
+  "Choose the chapter audio for each Bible version. Projects that select “Default” will use these choices.":
+    "Elige el audio de capítulos para cada versión bíblica. Los proyectos que seleccionen «Predeterminado» usarán estas opciones.",
   "Shortcut order saved.": "Orden de los atajos guardado.",
   "Reorder shortcut: {name}": "Ordenar atajo: {name}",
   "Move up: {name}": "Subir: {name}",

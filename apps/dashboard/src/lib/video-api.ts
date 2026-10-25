@@ -1,3 +1,7 @@
+import {
+  loadChapterAudioSettings,
+  resolveChapterAudio,
+} from "./chapter-audio-settings";
 import { loadLoudnessSettings } from "./loudness-settings";
 import {
   loadVoiceStyleDefaults,
@@ -475,6 +479,10 @@ export async function videoApi(
   const styleDefaults = (await loadVoiceStyleDefaults(database, project.kind))[
     project.locale
   ];
+  const defaultAudioEdition =
+    (await loadChapterAudioSettings(database, project.kind))[project.locale][
+      project.version_code
+    ] || undefined;
   const storedSettings = settingsSchema.parse(JSON.parse(project.settings));
   if (storedSettings.voiceDefaultsVersion !== 1) {
     const upgraded = JSON.stringify(
@@ -561,6 +569,7 @@ export async function videoApi(
       },
       mediaAccess: await mediaAccess(),
       baseVoiceDefaults,
+      defaultAudioEdition,
       defaults: settingsSchema.parse({ loudnessTarget, volumeMultiplier: 1 }),
       voiceStyleDefaults: styleDefaults,
     });
@@ -669,7 +678,10 @@ export async function videoApi(
     };
     const applied = await applyStoredAlignment({
       jobId,
-      currentSettings,
+      currentSettings: resolveChapterAudio(
+        currentSettings,
+        defaultAudioEdition,
+      ),
       expectedSettings,
       project,
       jobs: data.jobs ?? (data.job ? [data.job] : []),
@@ -709,6 +721,7 @@ export async function videoApi(
       project.locale,
       baseVoiceDefaults,
     );
+    settings = resolveChapterAudio(settings, defaultAudioEdition);
     query.set("baseVoice", settings.baseVoice!);
     query.set(
       "voiceParameters",

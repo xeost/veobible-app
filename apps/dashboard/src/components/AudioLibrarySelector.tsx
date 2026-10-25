@@ -10,17 +10,26 @@ export function AudioLibrarySelector({
   disabled,
   onChange,
   label = "Chapter audio source",
+  inheritDefault,
+  defaultEdition,
+  availableEditions,
+  showTimingHelp = true,
 }: {
+  inheritDefault?: boolean;
+  defaultEdition?: string;
+  availableEditions?: string[];
+  showTimingHelp?: boolean;
   label?: string;
   code: string;
   locale: string;
   value?: string;
   disabled: boolean;
-  onChange: (value?: string) => void;
+  onChange: (value?: string, inheritDefault?: boolean) => void;
 }) {
   const { t } = useI18n();
   const [editions, setEditions] = useState<string[]>([]);
   useEffect(() => {
+    if (availableEditions) return;
     let live = true;
     api<{ projects: AudioProjectSummary[] }>("audios")
       .then((data) => {
@@ -42,29 +51,55 @@ export function AudioLibrarySelector({
     return () => {
       live = false;
     };
-  }, [code, locale]);
+  }, [code, locale, availableEditions]);
+  const options = availableEditions ?? editions;
+  const editionLabel = (edition?: string) =>
+    edition
+      ? `${t("Audio version")} ${edition.match(/-v(\d+)$/)?.[1]}`
+      : t("Original recordings");
   return (
     <label>
       {t(label)}
       <select
-        value={value ?? ""}
+        value={inheritDefault ? "default" : (value ?? "")}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value || undefined)}
+        onChange={(event) =>
+          onChange(
+            event.target.value === "default"
+              ? defaultEdition
+              : event.target.value || undefined,
+            event.target.value === "default",
+          )
+        }
       >
-        <option value="">{t("Original recordings")}</option>
-        {value && !editions.includes(value) && (
-          <option value={value}>
-            {t("Audio version")} {value.match(/-v(\d+)$/)?.[1]}
+        {inheritDefault !== undefined && (
+          <option value="default">
+            {t("Default ({value})").replace(
+              "{value}",
+              editionLabel(defaultEdition),
+            )}
           </option>
         )}
-        {editions.map((edition) => (
+        <option value="">{t("Original recordings")}</option>
+        {value && !options.includes(value) && (
+          <option value={value}>{editionLabel(value)}</option>
+        )}
+        {options.map((edition) => (
           <option key={edition} value={edition}>
-            {t("Audio version")} {edition.match(/-v(\d+)$/)?.[1]}
+            {editionLabel(edition)}
           </option>
         ))}
       </select>
+      {inheritDefault !== undefined && (
+        <small className="muted">
+          {t(
+            "“Default” uses the value configured in the Settings modal on the corresponding format page.",
+          )}
+        </small>
+      )}
       <small className="muted">
-        {t("Changing the audio source resets verse timing adjustments.")}{" "}
+        {showTimingHelp &&
+          t("Changing the audio source resets verse timing adjustments.")}{" "}
         {t(
           "New audio versions become available after generating chapter recordings in Audios.",
         )}

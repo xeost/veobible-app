@@ -20,6 +20,7 @@ export const settingsSchema = z.object({
   voiceDefaultsVersion: z.literal(1).optional(),
   visualElements: visualElementsSchema.optional(),
   audioEdition: audioEditionSchema.optional(),
+  inheritAudioEdition: z.boolean().optional(),
   baseVoice: baseVoiceSchema.optional(),
   baseVoices: voiceRolesSchema.optional(),
   inheritedBaseVoiceRoles: z

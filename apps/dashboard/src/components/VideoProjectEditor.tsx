@@ -4,6 +4,10 @@ import { useVisualShortcuts } from "./useVisualShortcuts";
 import type { VisualElement } from "../../../../tools/video-project-api/src/visual-elements";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import type { VoiceStylePresets } from "../lib/voice-style-presets";
+import {
+  inheritsChapterAudio,
+  resolveChapterAudio,
+} from "../lib/chapter-audio-settings";
 import { AudioLibrarySelector } from "./AudioLibrarySelector";
 import {
   projectBaseVoice,
@@ -121,6 +125,7 @@ export function VideoProjectEditor({
   const { t } = useI18n();
   const [project, setProject] = useState<EditorProject | null>(null);
   const [settings, setSettings] = useState<Settings>(settingsSchema.parse({}));
+  const [defaultAudioEdition, setDefaultAudioEdition] = useState<string>();
   const [loudnessTarget, setLoudnessTarget] = useState<-14 | -16>(-14);
   const [baseVoiceDefaults, setBaseVoiceDefaults] = useState<
     BaseVoiceDefaults["es"]
@@ -322,6 +327,7 @@ export function VideoProjectEditor({
         const data = await api<{
           video: EditorProject;
           defaults: Settings;
+          defaultAudioEdition?: string;
           baseVoiceDefaults: BaseVoiceDefaults["es"];
           voiceStyleDefaults: VoiceStylePresets;
           mediaAccess: NonNullable<typeof mediaAccess>;
@@ -337,6 +343,7 @@ export function VideoProjectEditor({
         );
         setLoudnessTarget(data.defaults.loudnessTarget);
         setBaseVoiceDefaults(data.baseVoiceDefaults);
+        setDefaultAudioEdition(data.defaultAudioEdition);
         setVoiceStyleDefaults(data.voiceStyleDefaults);
         if (!initialized) {
           const values = settingsSchema.parse(
@@ -344,9 +351,13 @@ export function VideoProjectEditor({
               ? JSON.parse(data.video.settings)
               : data.defaults,
           );
-          setSettings(values);
+          const resolved = resolveChapterAudio(
+            values,
+            data.defaultAudioEdition,
+          );
+          setSettings(resolved);
           initialized = true;
-          void inspect(values);
+          void inspect(resolved);
         }
         setProject(data.video);
       } catch (cause) {
@@ -2039,11 +2050,16 @@ export function VideoProjectEditor({
                 locale={project.locale}
                 code={project.version_code}
                 value={settings.audioEdition}
+                inheritDefault={inheritsChapterAudio(settings)}
+                defaultEdition={defaultAudioEdition}
                 disabled={locked || analyzing}
-                onChange={(audioEdition) => {
+                onChange={(audioEdition, inheritAudioEdition) => {
                   const next = {
                     ...settings,
-                    audioEdition,
+                    audioEdition: inheritAudioEdition
+                      ? defaultAudioEdition
+                      : audioEdition,
+                    inheritAudioEdition,
                     readingVoices: {},
                     verseOffsets: [],
                     readingSectionPadding: [],

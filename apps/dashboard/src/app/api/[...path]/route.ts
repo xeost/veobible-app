@@ -1,4 +1,8 @@
 import {
+  loadChapterAudioSettings,
+  saveChapterAudioSettings,
+} from "../../../lib/chapter-audio-settings";
+import {
   loadLoudnessSettings,
   saveLoudnessSettings,
 } from "../../../lib/loudness-settings";
@@ -512,6 +516,19 @@ async function handle(req: Request, lang: Language) {
       admin();
       return json({
         templates: await savePublicationSettings(database, kind, await body()),
+      });
+    }
+  }
+  if (parts.join("/") === "settings/chapter-audio") {
+    const kind = z
+      .enum(["short", "long", "book"])
+      .parse(url.searchParams.get("kind"));
+    if (method === "GET")
+      return json({ settings: await loadChapterAudioSettings(database, kind) });
+    if (method === "PUT") {
+      admin();
+      return json({
+        settings: await saveChapterAudioSettings(database, kind, await body()),
       });
     }
   }
