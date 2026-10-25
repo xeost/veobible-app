@@ -18,6 +18,7 @@ test("browser media grants preserve streaming, ranges and downloads without gran
       url: req.url,
       auth: req.headers.authorization,
       range: req.headers.range,
+      etag: req.headers["if-none-match"],
     });
     res.writeHead(req.headers.range ? 206 : 200, {
       "Content-Type": "video/mp4",
@@ -52,6 +53,17 @@ test("browser media grants preserve streaming, ranges and downloads without gran
     );
     assert.equal(generated.status, 206);
     assert.equal(await generated.text(), "test");
+    const waveform = await fetch(
+      url.replace("/media/video?", "/media/intro?") + "&waveform=1",
+      {
+        headers: { Origin: origin, "If-None-Match": '"recording-v1"' },
+      },
+    );
+    assert.equal(waveform.status, 200);
+    await waveform.text();
+    assert.match(waveform.headers.get("access-control-expose-headers"), /ETag/);
+    assert.equal(forwarded.at(-1).etag, '"recording-v1"');
+    assert.ok(forwarded.at(-1).url.includes("waveform=1"));
     assert.equal(response.headers.get("access-control-allow-origin"), origin);
     assert.equal(response.headers.get("content-range"), "bytes 0-3/8");
     assert.equal(forwarded[0].auth, `Bearer ${secret}`);
@@ -67,6 +79,8 @@ test("browser media grants preserve streaming, ranges and downloads without gran
       ),
       `${url}&kind=long`,
       `${url}&file=private`,
+      `${url}&waveform=2`,
+      `${url}&waveform=1&waveform=1`,
       url.replace("/media/video", "/state"),
       `${base}/v1/queue?mediaToken=${grant}`,
       url.replace(
@@ -122,7 +136,7 @@ test("browser media grants preserve streaming, ranges and downloads without gran
     assert.equal(preflight.status, 204);
     assert.equal(
       preflight.headers.get("access-control-allow-headers"),
-      "Range",
+      "Range, If-None-Match",
     );
   } finally {
     proxy.closeAllConnections();

@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { loudnessTargetSchema } from "./loudness-schema.js";
+import { audioWaveform } from "./audio-waveform.js";
 
 const run = promisify(execFile);
 const pending = new Map<string, Promise<string>>();
@@ -122,6 +123,10 @@ export async function normalizeAudio(
         { maxBuffer: 4 * 1024 * 1024 },
       );
       await fs.rename(temporary, output);
+      // Prepare once alongside a newly normalized recording, without delaying playback.
+      void audioWaveform(output, ffmpeg).catch((error) =>
+        console.warn("Could not precompute audio waveform", error),
+      );
       return output;
     } finally {
       await fs.rm(temporary, { force: true });

@@ -81,6 +81,10 @@ export function matchesMediaScope(url, scope) {
   }
   return [...url.searchParams.keys()].every(
     (key) =>
-      expected.has(key) || ["mediaToken", "revision", "download"].includes(key),
+      expected.has(key) ||
+      ["mediaToken", "revision", "download"].includes(key) ||
+      (key === "waveform" &&
+        url.searchParams.getAll(key).length === 1 &&
+        url.searchParams.get(key) === "1"),
   );
 }

@@ -20,6 +20,8 @@ import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import type { BaseVoiceDefaults } from "../lib/base-voices";
 import type { VoiceStylePresets } from "../lib/voice-style-presets";
 import { ProjectEditorHeader } from "./ProjectEditorHeader";
+import { EditorPreparation, type PreparationTask } from "./EditorPreparation";
+import { audioEditorPreparation } from "../lib/audio-editor-preparation";
 import { scrollEditorSectionIntoView } from "../lib/editor-section-scroll";
 import { useGenerationQueue } from "./GenerationQueueContext";
 import { queueChangedEvent } from "../lib/generation-queue";
@@ -60,6 +62,18 @@ export function AudioProjectEditor({
     baseVoiceDefaults: BaseVoiceDefaults["en"];
     voiceStyleDefaults: VoiceStylePresets;
   } | null>(null);
+  const [preparedEditor, setPreparedEditor] = useState<string | null>(null);
+  const [selectionRestored, setSelectionRestored] = useState<string | null>(
+    null,
+  );
+  const [preparedWaveforms, setPreparedWaveforms] = useState<
+    Record<string, boolean>
+  >({});
+  const onWaveformPrepared = useCallback((key: string, success: boolean) => {
+    setPreparedWaveforms((current) =>
+      current[key] === success ? current : { ...current, [key]: success },
+    );
+  }, []);
   const [expanded, setExpanded] = useState(new Set([1]));
   const [activeVerse, setActiveVerse] = useState<AudioVerseSelection | null>(
     null,
@@ -71,6 +85,21 @@ export function AudioProjectEditor({
     busyRef = useRef(false),
     pendingRef = useRef(false);
   const players = useRef<Record<string, HTMLAudioElement>>({});
+  useEffect(() => {
+    setProject(null);
+    setSettings(null);
+    setFormatDefaults(null);
+    setPreparedEditor(null);
+    setSelectionRestored(null);
+    setPreparedWaveforms({});
+    setExpanded(new Set([1]));
+    setActiveVerse(null);
+    setError("");
+    setDirty(false);
+    dirtyRef.current = false;
+    Object.values(players.current).forEach((player) => player.pause());
+    players.current = {};
+  }, [endpoint]);
   const verseCountsKey = project?.verseCounts.join(",");
   useEffect(() => {
     if (
@@ -87,6 +116,7 @@ export function AudioProjectEditor({
         window.location.hash,
         verseCountsKey.split(",").map(Number),
       );
+      setSelectionRestored(endpoint);
       if (!selected) return;
       rememberAudioVerseSelection(edition, book, selected);
       const fragment = audioVerseFragment(selected);
@@ -100,6 +130,7 @@ export function AudioProjectEditor({
       Object.values(players.current).forEach((player) => player.pause());
       setActiveVerse(selected);
       setExpanded((current) => new Set([...current, selected.chapter]));
+      if (preparedEditor !== endpoint) return;
       if (frame !== undefined) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const section = document.getElementById(
@@ -114,7 +145,15 @@ export function AudioProjectEditor({
       window.removeEventListener("hashchange", restore);
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
-  }, [verseCountsKey, project?.edition, project?.book, edition, book]);
+  }, [
+    verseCountsKey,
+    project?.edition,
+    project?.book,
+    edition,
+    book,
+    endpoint,
+    preparedEditor,
+  ]);
   const selectVerse = (selected: AudioVerseSelection) => {
     setActiveVerse(selected);
     rememberAudioVerseSelection(edition, book, selected);
@@ -135,37 +174,99 @@ export function AudioProjectEditor({
   dirtyRef.current = dirty;
   busyRef.current = busy;
   useProjectBreadcrumb(`/audios/${edition}/${book}`, project?.title);
-  const refresh = useCallback(async () => {
-    const value = await api<
-      AudioProjectDetail & NonNullable<typeof formatDefaults>
-    >(endpoint);
-    setFormatDefaults({
-      baseVoiceDefaults: value.baseVoiceDefaults,
-      voiceStyleDefaults: value.voiceStyleDefaults,
-    });
-    if (!dirtyRef.current && !busyRef.current) {
-      setProject(value);
-      setSettings(value.settings);
-      setError("");
-    }
-  }, [endpoint]);
-  useEffect(
-    () =>
-      pollWhileVisible(
-        async () => {
-          try {
-            await refresh();
-          } catch {
-            setError(
-              "Could not load audio projects. Check that generation is available and try again.",
-            );
-          }
-        },
-        () => pendingRef.current,
-        2500,
-      ),
-    [refresh],
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      const value = await api<
+        AudioProjectDetail & NonNullable<typeof formatDefaults>
+      >(endpoint, { signal });
+      if (signal?.aborted) return;
+      setFormatDefaults({
+        baseVoiceDefaults: value.baseVoiceDefaults,
+        voiceStyleDefaults: value.voiceStyleDefaults,
+      });
+      if (!dirtyRef.current && !busyRef.current) {
+        setProject(value);
+        setSettings(value.settings);
+        setError("");
+      }
+    },
+    [endpoint],
   );
+  useEffect(() => {
+    const controller = new AbortController();
+    const stop = pollWhileVisible(
+      async () => {
+        try {
+          await refresh(controller.signal);
+        } catch {
+          if (controller.signal.aborted) return;
+          setError(
+            "Could not load audio projects. Check that generation is available and try again.",
+          );
+        }
+      },
+      () => pendingRef.current,
+      2500,
+    );
+    return () => {
+      controller.abort();
+      stop();
+    };
+  }, [refresh]);
+  const currentProject =
+    project?.edition === edition && project?.book === book ? project : null;
+  const preparation = audioEditorPreparation(
+    currentProject,
+    expanded,
+    activeVerse,
+    preparedWaveforms,
+  );
+  const initialDataLoaded = Boolean(
+    currentProject &&
+    settings &&
+    formatDefaults &&
+    selectionRestored === endpoint,
+  );
+  useEffect(() => {
+    if (initialDataLoaded && preparation.completed === preparation.total)
+      setPreparedEditor(endpoint);
+  }, [initialDataLoaded, preparation.completed, preparation.total, endpoint]);
+  const preparing = preparedEditor !== endpoint && !error;
+  const preparationTasks: PreparationTask[] = [
+    {
+      label: "Project and saved settings",
+      status:
+        currentProject && settings && formatDefaults
+          ? "Completed"
+          : "In progress",
+    },
+    {
+      label: "Chapters and verse text",
+      status: currentProject ? "Completed" : "Waiting",
+    },
+    {
+      label: "Recordings and saved cuts",
+      status: currentProject && settings ? "Completed" : "Waiting",
+    },
+    {
+      label: "Waveforms for open chapters",
+      status: preparation.failed
+        ? "Could not complete"
+        : !initialDataLoaded
+          ? "Waiting"
+          : preparation.completed < preparation.total
+            ? "In progress"
+            : "Completed",
+    },
+  ];
+  const preparationOverlay = preparing ? (
+    <EditorPreparation
+      description="Loading the project and preparing waveforms for the open chapters."
+      tasks={preparationTasks}
+      completed={preparation.completed}
+      total={preparation.total}
+    />
+  ) : null;
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (dirtyRef.current) event.preventDefault();
@@ -254,23 +355,28 @@ export function AudioProjectEditor({
     `/api/${endpoint}/media?chapter=${chapter}${verse ? `&verse=${verse}` : ""}&revision=${encodeURIComponent(revision)}`;
   if (!project || !settings)
     return (
-      <p
-        className={error ? "error" : "empty"}
-        role={error ? "alert" : undefined}
-      >
-        {t(error || "Loading project…")}
+      <>
+        {preparationOverlay}
         {error && (
-          <button
-            onClick={() =>
-              void refresh()
-                .then(() => setError(""))
-                .catch(() => {})
-            }
-          >
-            {t("Retry")}
-          </button>
+          <p className="error" role="alert">
+            {t(error)}
+            <button
+              onClick={async () => {
+                setError("");
+                try {
+                  await refresh();
+                } catch {
+                  setError(
+                    "Could not load audio projects. Check that generation is available and try again.",
+                  );
+                }
+              }}
+            >
+              {t("Retry")}
+            </button>
+          </p>
         )}
-      </p>
+      </>
     );
   const allVoicesReady = project.content.every((chapter) =>
     chapter.verses.every(
@@ -279,175 +385,186 @@ export function AudioProjectEditor({
   );
   return (
     <>
-      <ProjectEditorHeader
-        eyebrow="AUDIO PROJECT EDITOR"
-        showDescription={false}
-        title={project.title}
-        version={`${project.version.label} · ${t("Audio version")} ${edition.match(/-v(\d+)$/)?.[1]}`}
-        backHref="/audios"
-      >
-        <button
-          disabled={locked || !dirty}
-          onClick={async () => {
-            setBusy(true);
-            busyRef.current = true;
-            try {
-              await save();
-              notify("Changes saved.", "success");
-            } catch {
-              notify(
-                "This audio project changed. Reload it before saving.",
-                "error",
-              );
-            } finally {
-              setBusy(false);
-              busyRef.current = false;
-            }
-          }}
+      {preparationOverlay}
+      <div inert={preparing} aria-busy={preparing}>
+        <ProjectEditorHeader
+          eyebrow="AUDIO PROJECT EDITOR"
+          showDescription={false}
+          title={project.title}
+          version={`${project.version.label} · ${t("Audio version")} ${edition.match(/-v(\d+)$/)?.[1]}`}
+          backHref="/audios"
         >
-          <Save size={16} />
-          {t("Save changes")}
-        </button>
-        <button
-          className="primary"
-          disabled={locked || !allVoicesReady}
-          data-tooltip={t("Create all final audios")}
-          onClick={() => void generate({ assembleOnly: true })}
-        >
-          {queueTasks.some(
-            (task) =>
-              task.type === "audio-chapter" && task.status === "running",
-          ) ? (
-            <LoaderCircle className="voice-spinner" size={16} />
-          ) : (
-            <Combine size={16} />
-          )}
-          {t("Create all final audios")}
-        </button>
-      </ProjectEditorHeader>
-      <div className="project-studio-layout audio-editor">
-        <details className="panel project-voice-settings project-configuration">
-          <summary>
-            <span className="project-configuration-title">
-              <Settings size={18} aria-hidden="true" />
-              {t("Project configuration")}
-            </span>
-            <ChevronDown size={18} aria-hidden="true" />
-          </summary>
-          <div className="project-configuration-content">
-            <BaseVoiceSelector
-              inheritFormatSettings
-              defaultVoice={formatDefaults?.baseVoiceDefaults.reading}
-              defaultPreset={formatDefaults?.voiceStyleDefaults.reading}
-              locale={project.version.locale}
-              value={settings.inheritBaseVoice ? "" : settings.baseVoice}
-              preset={settings.narrationPreset}
-              onPresetChange={(narrationPreset) =>
-                change({ ...settings, narrationPreset })
+          <button
+            disabled={locked || !dirty}
+            onClick={async () => {
+              setBusy(true);
+              busyRef.current = true;
+              try {
+                await save();
+                notify("Changes saved.", "success");
+              } catch {
+                notify(
+                  "This audio project changed. Reload it before saving.",
+                  "error",
+                );
+              } finally {
+                setBusy(false);
+                busyRef.current = false;
               }
-              disabled={locked}
-              onChange={(baseVoice) =>
-                change({
-                  ...settings,
-                  baseVoice: baseVoice || settings.baseVoice,
-                  inheritBaseVoice: !baseVoice,
-                })
-              }
-            />
-            <p className="muted">
-              {t(
-                "“Default” uses the value configured in the Settings modal on the corresponding format page.",
-              )}
-            </p>
-            <p className="muted">
-              {t(
-                "Generate a voice for each verse, then create the final audio to join the saved voices into one file per chapter, applying your cuts and pauses.",
-              )}
-            </p>
-            {dirty && <p className="notice">{t("Unsaved changes")}</p>}
-          </div>
-        </details>
-        {project.status === "failed" && (
-          <p className="error" role="alert">
-            {t(
-              "Audio generation could not be completed. Completed verses are saved; try again to continue.",
+            }}
+          >
+            <Save size={16} />
+            {t("Save changes")}
+          </button>
+          <button
+            className="primary"
+            disabled={locked || !allVoicesReady}
+            data-tooltip={t("Create all final audios")}
+            onClick={() => void generate({ assembleOnly: true })}
+          >
+            {queueTasks.some(
+              (task) =>
+                task.type === "audio-chapter" && task.status === "running",
+            ) ? (
+              <LoaderCircle className="voice-spinner" size={16} />
+            ) : (
+              <Combine size={16} />
             )}
-          </p>
-        )}
-        {project.status === "done" && (
-          <p className="notice">
-            {t("Chapter recordings are ready to use in videos.")}
-          </p>
-        )}
-        <div className="section-stack">
-          <div className="sections-toolbar">
-            <div>
-              <h2>{t("Chapters")}</h2>
+            {t("Create all final audios")}
+          </button>
+        </ProjectEditorHeader>
+        <div className="project-studio-layout audio-editor">
+          {preparation.failed && !preparing && (
+            <p className="notice" role="alert">
+              {t(
+                "Some waveforms could not be prepared. Open the chapter to retry loading its audio.",
+              )}
+            </p>
+          )}
+          <details className="panel project-voice-settings project-configuration">
+            <summary>
+              <span className="project-configuration-title">
+                <Settings size={18} aria-hidden="true" />
+                {t("Project configuration")}
+              </span>
+              <ChevronDown size={18} aria-hidden="true" />
+            </summary>
+            <div className="project-configuration-content">
+              <BaseVoiceSelector
+                inheritFormatSettings
+                defaultVoice={formatDefaults?.baseVoiceDefaults.reading}
+                defaultPreset={formatDefaults?.voiceStyleDefaults.reading}
+                locale={project.version.locale}
+                value={settings.inheritBaseVoice ? "" : settings.baseVoice}
+                preset={settings.narrationPreset}
+                onPresetChange={(narrationPreset) =>
+                  change({ ...settings, narrationPreset })
+                }
+                disabled={locked}
+                onChange={(baseVoice) =>
+                  change({
+                    ...settings,
+                    baseVoice: baseVoice || settings.baseVoice,
+                    inheritBaseVoice: !baseVoice,
+                  })
+                }
+              />
               <p className="muted">
                 {t(
-                  "Regenerate individual verses and adjust their waveform before joining the chapter.",
+                  "“Default” uses the value configured in the Settings modal on the corresponding format page.",
                 )}
               </p>
+              <p className="muted">
+                {t(
+                  "Generate a voice for each verse, then create the final audio to join the saved voices into one file per chapter, applying your cuts and pauses.",
+                )}
+              </p>
+              {dirty && <p className="notice">{t("Unsaved changes")}</p>}
             </div>
-            <div>
-              <button
-                className="icon-button"
-                aria-label={t("Expand all sections")}
-                onClick={() =>
-                  setExpanded(new Set(project.content.map((c) => c.chapter)))
-                }
-              >
-                <ChevronsDown size={18} />
-              </button>
-              <button
-                className="icon-button"
-                aria-label={t("Collapse all sections")}
-                onClick={() => setExpanded(new Set())}
-              >
-                <ChevronsUp size={18} />
-              </button>
-            </div>
-          </div>
-          {project.content.map((chapter) => (
-            <AudioChapter
-              key={chapter.chapter}
-              chapter={chapter}
-              project={project}
-              settings={settings}
-              selectedVerse={
-                activeVerse?.chapter === chapter.chapter
-                  ? activeVerse.verse
-                  : undefined
-              }
-              onSelectVerse={(verse) =>
-                selectVerse({ chapter: chapter.chapter, verse })
-              }
-              locked={locked}
-              submitting={busy}
-              tasks={queueTasks.filter(
-                (task) => task.chapter === chapter.chapter,
+          </details>
+          {project.status === "failed" && (
+            <p className="error" role="alert">
+              {t(
+                "Audio generation could not be completed. Completed verses are saved; try again to continue.",
               )}
-              open={expanded.has(chapter.chapter)}
-              toggle={() =>
-                setExpanded((current) => {
-                  const next = new Set(current);
-                  if (next.has(chapter.chapter)) next.delete(chapter.chapter);
-                  else next.add(chapter.chapter);
-                  return next;
-                })
-              }
-              change={change}
-              generate={generate}
-              onToggleApproval={toggleApproval}
-              media={media}
-              onPlay={(audio) => {
-                Object.values(players.current).forEach((other) => {
-                  if (other !== audio) other.pause();
-                });
-                players.current[String(chapter.chapter)] = audio;
-              }}
-            />
-          ))}
+            </p>
+          )}
+          {project.status === "done" && (
+            <p className="notice">
+              {t("Chapter recordings are ready to use in videos.")}
+            </p>
+          )}
+          <div className="section-stack">
+            <div className="sections-toolbar">
+              <div>
+                <h2>{t("Chapters")}</h2>
+                <p className="muted">
+                  {t(
+                    "Regenerate individual verses and adjust their waveform before joining the chapter.",
+                  )}
+                </p>
+              </div>
+              <div>
+                <button
+                  className="icon-button"
+                  aria-label={t("Expand all sections")}
+                  onClick={() =>
+                    setExpanded(new Set(project.content.map((c) => c.chapter)))
+                  }
+                >
+                  <ChevronsDown size={18} />
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label={t("Collapse all sections")}
+                  onClick={() => setExpanded(new Set())}
+                >
+                  <ChevronsUp size={18} />
+                </button>
+              </div>
+            </div>
+            {project.content.map((chapter) => (
+              <AudioChapter
+                key={chapter.chapter}
+                chapter={chapter}
+                project={project}
+                settings={settings}
+                selectedVerse={
+                  activeVerse?.chapter === chapter.chapter
+                    ? activeVerse.verse
+                    : undefined
+                }
+                onSelectVerse={(verse) =>
+                  selectVerse({ chapter: chapter.chapter, verse })
+                }
+                onPrepared={onWaveformPrepared}
+                locked={locked}
+                submitting={busy}
+                tasks={queueTasks.filter(
+                  (task) => task.chapter === chapter.chapter,
+                )}
+                open={expanded.has(chapter.chapter)}
+                toggle={() =>
+                  setExpanded((current) => {
+                    const next = new Set(current);
+                    if (next.has(chapter.chapter)) next.delete(chapter.chapter);
+                    else next.add(chapter.chapter);
+                    return next;
+                  })
+                }
+                change={change}
+                generate={generate}
+                onToggleApproval={toggleApproval}
+                media={media}
+                onPlay={(audio) => {
+                  Object.values(players.current).forEach((other) => {
+                    if (other !== audio) other.pause();
+                  });
+                  players.current[String(chapter.chapter)] = audio;
+                }}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </>

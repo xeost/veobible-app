@@ -80,6 +80,7 @@ import {
   type PreviewPlaybackHandle,
 } from "./VideoProjectPreview";
 import { ProjectEditorHeader } from "./ProjectEditorHeader";
+import { EditorPreparation, type PreparationTask } from "./EditorPreparation";
 import { scrollEditorSectionIntoView } from "../lib/editor-section-scroll";
 import { GenerationProgress } from "./GenerationProgress";
 import { expandReadingContext } from "../../../../tools/video-project-api/src/reading-timeline";
@@ -665,7 +666,7 @@ export function VideoProjectEditor({
     if (preparationComplete) setPreparedEditor(base);
   }, [base, preparationComplete]);
   const preparing = preparedEditor !== base && !error;
-  const preparationTasks = [
+  const preparationTasks: PreparationTask[] = [
     {
       label: "Project and saved settings",
       status: project ? "Completed" : "In progress",
@@ -721,54 +722,12 @@ export function VideoProjectEditor({
     },
   ];
   const preparationOverlay = preparing ? (
-    <div
-      className="editor-preparation-overlay"
-      role="status"
-      aria-live="polite"
-    >
-      <div className="editor-preparation-message">
-        <LoaderCircle size={32} className="voice-spinner" aria-hidden="true" />
-        <h2>{t("Preparing the editor…")}</h2>
-        <p className="muted">
-          {t("Loading audio so every section is ready to edit.")}
-        </p>
-        <ul className="editor-preparation-tasks">
-          {preparationTasks.map((task) => (
-            <li key={task.label}>
-              {task.status === "In progress" ? (
-                <LoaderCircle
-                  size={16}
-                  className="voice-spinner"
-                  aria-hidden="true"
-                />
-              ) : task.status === "Completed" ? (
-                <CircleCheck size={16} aria-hidden="true" />
-              ) : (
-                <span aria-hidden="true">
-                  {task.status === "Waiting" ? "·" : "!"}
-                </span>
-              )}
-              <span>{t(task.label)}</span>
-              <span className="muted">{t(task.status)}</span>
-            </li>
-          ))}
-        </ul>
-        {waveformKeys.length > 0 && (
-          <>
-            <progress
-              max={waveformKeys.length}
-              value={preparedCount}
-              aria-label={t("Preparing audio")}
-            />
-            <p className="muted">
-              {t("{completed} of {total} audio tracks prepared")
-                .replace("{completed}", String(preparedCount))
-                .replace("{total}", String(waveformKeys.length))}
-            </p>
-          </>
-        )}
-      </div>
-    </div>
+    <EditorPreparation
+      description="Loading audio so every section is ready to edit."
+      tasks={preparationTasks}
+      completed={preparedCount}
+      total={waveformKeys.length}
+    />
   ) : null;
 
   const result = project?.result ? JSON.parse(project.result) : null;

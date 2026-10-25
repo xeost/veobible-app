@@ -4,7 +4,17 @@ import {
   summarizeAudio,
   waveformPeaks,
   withWaveformSlot,
+  loadAudioWaveform,
 } from "./audio-waveform";
+import {
+  encodeWaveform,
+  waveformContentType,
+} from "../../../../tools/video-project-api/src/waveform-format";
+import {
+  waveformCacheKey,
+  writeWaveformCache,
+  readWaveformCache,
+} from "./waveform-cache";
 
 test("waveforms retain peaks from all channels and release full audio samples", () => {
   const channels = [
@@ -100,4 +110,175 @@ test("failed preparations release their slot and a pre-aborted request does no w
     ),
     [1, 2, 3],
   );
+});
+
+test("compact peaks are cached, revalidated across signed URL refreshes, and replaced after regeneration", async (t) => {
+  const bytes = encodeWaveform({
+    duration: 0.002,
+    interval: 0.001,
+    amplitudes: new Float32Array([0.25, 0.75]),
+  });
+  const src =
+    "https://media.example/v1/projects/1/media/intro?kind=short&mediaToken=first";
+  let requests = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      assert.ok(String(input).includes("waveform=1"));
+      const etag = new Headers(init?.headers).get("If-None-Match");
+      requests++;
+      if (requests === 1) assert.equal(etag, null);
+      if (requests === 2 || requests === 3) assert.equal(etag, '"v1"');
+      if (requests === 2) return new Response(null, { status: 304 });
+      return new Response(bytes.slice(0), {
+        headers: {
+          "Content-Type": waveformContentType,
+          ETag: requests > 2 ? '"v2"' : '"v1"',
+        },
+      });
+    },
+  );
+  const first = await loadAudioWaveform(src, new AbortController().signal, {
+    resourceKey: "intro",
+  });
+  const renewed = src.replace("mediaToken=first", "mediaToken=renewed");
+  assert.equal(
+    waveformCacheKey(src, "intro"),
+    waveformCacheKey(renewed, "intro"),
+  );
+  assert.ok(!waveformCacheKey(src, "intro").includes("mediaToken"));
+  assert.deepEqual(
+    await loadAudioWaveform(renewed, new AbortController().signal, {
+      resourceKey: "intro",
+    }),
+    first,
+  );
+  await loadAudioWaveform(renewed, new AbortController().signal, {
+    resourceKey: "intro",
+  });
+  assert.equal(
+    (await readWaveformCache(waveformCacheKey(src, "intro")))?.etag,
+    '"v2"',
+  );
+  await loadAudioWaveform(renewed, new AbortController().signal, {
+    resourceKey: "intro",
+    refresh: true,
+  });
+  assert.equal(requests, 4);
+});
+
+test("corrupt cached peaks are discarded and unavailable cache storage does not block preparation", async (t) => {
+  const src =
+    "https://media.example/v1/projects/2/media/intro?mediaToken=private";
+  const key = waveformCacheKey(src, "intro");
+  await writeWaveformCache(key, {
+    bytes: new ArrayBuffer(1),
+    etag: '"broken"',
+  });
+  const bytes = encodeWaveform({
+    duration: 0.001,
+    interval: 0.001,
+    amplitudes: new Float32Array([0.5]),
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_: RequestInfo | URL, init?: RequestInit) => {
+      assert.equal(new Headers(init?.headers).get("If-None-Match"), null);
+      return new Response(bytes, {
+        headers: { "Content-Type": waveformContentType, ETag: '"fixed"' },
+      });
+    },
+  );
+  const result = await loadAudioWaveform(src, new AbortController().signal, {
+    resourceKey: "intro",
+  });
+  assert.equal(result.amplitudes[0], 0.5);
+});
+
+test("older services fall back to audio and calculate peaks in a worker", async (t) => {
+  const buffer = {
+    duration: 0.002,
+    sampleRate: 1000,
+    length: 2,
+    numberOfChannels: 1,
+    getChannelData: () => new Float32Array([0.2, -0.8]),
+  };
+  let closed = false;
+  let terminated = false;
+  let transferred = false;
+  let respond = true;
+  let started: (() => void) | undefined;
+  class FakeAudioContext {
+    decodeAudioData = async () => buffer;
+    close = async () => {
+      closed = true;
+    };
+  }
+  class FakeWorker {
+    onmessage?: (event: { data: ReturnType<typeof summarizeAudio> }) => void;
+    postMessage(data: { channels: Float32Array[] }, transfer: ArrayBuffer[]) {
+      transferred = transfer[0] === data.channels[0].buffer;
+      started?.();
+      if (respond)
+        queueMicrotask(() =>
+          this.onmessage?.({ data: summarizeAudio(buffer) }),
+        );
+    }
+    terminate() {
+      terminated = true;
+    }
+  }
+  const originalContext = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "AudioContext",
+  );
+  const originalWorker = Object.getOwnPropertyDescriptor(globalThis, "Worker");
+  Object.defineProperty(globalThis, "AudioContext", {
+    configurable: true,
+    value: FakeAudioContext,
+  });
+  Object.defineProperty(globalThis, "Worker", {
+    configurable: true,
+    value: FakeWorker,
+  });
+  t.after(() => {
+    if (originalContext)
+      Object.defineProperty(globalThis, "AudioContext", originalContext);
+    else Reflect.deleteProperty(globalThis, "AudioContext");
+    if (originalWorker)
+      Object.defineProperty(globalThis, "Worker", originalWorker);
+    else Reflect.deleteProperty(globalThis, "Worker");
+  });
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    requests++;
+    return new Response(new ArrayBuffer(8), {
+      headers: { "Content-Type": "audio/wav" },
+    });
+  });
+  const result = await loadAudioWaveform(
+    "https://legacy.example/audio",
+    new AbortController().signal,
+  );
+  assert.equal(requests, 1);
+  assert.deepEqual(result, summarizeAudio(buffer));
+  assert.ok(transferred && terminated && closed);
+  respond = false;
+  terminated = false;
+  closed = false;
+  const controller = new AbortController();
+  const workerStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const canceled = loadAudioWaveform(
+    "https://legacy.example/audio",
+    controller.signal,
+  );
+  const rejected = assert.rejects(canceled, { name: "AbortError" });
+  await workerStarted;
+  controller.abort();
+  await rejected;
+  assert.ok(terminated && closed);
 });

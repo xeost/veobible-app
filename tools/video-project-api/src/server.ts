@@ -1,4 +1,6 @@
 import { normalizeAudio } from "./audio-loudness.js";
+import { audioWaveform } from "./audio-waveform.js";
+import { waveformContentType } from "./waveform-format.js";
 import { loudnessTargetSchema } from "./loudness-schema.js";
 import { baseVoiceSchema } from "./base-voice-schema.js";
 import { automaticVoiceTrim } from "./voice-trim.js";
@@ -1081,6 +1083,12 @@ const server = http.createServer(async (req, res) => {
                     "video" | "video-follow" | "video-subscribe" | "thumbnail",
                 );
       if (!file) return json(res, 404, { error: "Audio section not found" });
+      const waveform = url.searchParams.get("waveform") === "1";
+      if (
+        waveform &&
+        !/^(intro|outro|chapter-\d+|(?:generated-)?reading-\d+)$/.test(asset)
+      )
+        return json(res, 400, { error: "Waveform unavailable for this asset" });
       let stat;
       try {
         stat = await fsp.stat(file);
@@ -1105,6 +1113,26 @@ const server = http.createServer(async (req, res) => {
           (kind === "short" ? shortAudioConfig : longAudioConfig).ffmpegBin,
         );
         stat = await fsp.stat(file);
+      }
+      if (waveform) {
+        const started = performance.now();
+        const prepared = await audioWaveform(
+          file,
+          (kind === "short" ? shortAudioConfig : longAudioConfig).ffmpegBin,
+        );
+        const headers = {
+          "Content-Type": waveformContentType,
+          "Cache-Control": "private, no-cache",
+          ETag: prepared.etag,
+          "Server-Timing": `waveform;dur=${(performance.now() - started).toFixed(1)}`,
+        };
+        if (req.headers["if-none-match"] === prepared.etag) {
+          res.writeHead(304, headers);
+          return res.end();
+        }
+        const bytes = await fsp.readFile(prepared.file);
+        res.writeHead(200, { ...headers, "Content-Length": bytes.length });
+        return res.end(bytes);
       }
       const range = req.headers.range;
       let start = 0,

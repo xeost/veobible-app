@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { loadAudioWaveform, type AudioWaveform } from "../lib/audio-waveform";
-const cachedWaveforms = new Map<string, AudioWaveform>();
 
 export type WaveformPreparation = {
   cacheWaveform?: boolean;
@@ -10,7 +9,7 @@ export type WaveformPreparation = {
 };
 export function useAudioWaveform(
   src: string,
-  { resourceKey, onPrepared, cacheWaveform = false }: WaveformPreparation,
+  { resourceKey, onPrepared, cacheWaveform = true }: WaveformPreparation,
   enabled = true,
 ) {
   const [data, setData] = useState<AudioWaveform | null>(null);
@@ -24,23 +23,13 @@ export function useAudioWaveform(
     const controller = new AbortController();
     setData(null);
     setError(false);
-    const cached =
-      cacheWaveform && revision === 0
-        ? cachedWaveforms.get(resourceKey)
-        : undefined;
-    void (
-      cached
-        ? Promise.resolve(cached)
-        : loadAudioWaveform(latest.current.src, controller.signal)
-    ).then(
+    void loadAudioWaveform(latest.current.src, controller.signal, {
+      resourceKey,
+      cacheWaveform,
+      refresh: revision > 0,
+    }).then(
       (waveform) => {
         if (!live) return;
-        if (cacheWaveform) {
-          cachedWaveforms.delete(resourceKey);
-          cachedWaveforms.set(resourceKey, waveform);
-          while (cachedWaveforms.size > 8)
-            cachedWaveforms.delete(cachedWaveforms.keys().next().value!);
-        }
         setData(waveform);
         latest.current.onPrepared(resourceKey, true);
       },

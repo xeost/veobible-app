@@ -7,6 +7,7 @@ import net from "node:net";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { once } from "node:events";
+import { decodeWaveform, waveformContentType } from "./waveform-format.js";
 
 test(
   "HTTP discovery, playback and final render state share production outputs while development remains isolated",
@@ -267,6 +268,27 @@ test(
       assert.equal(cachedAudio.headers.get("content-type"), "audio/flac");
       assert.equal(defaultAudio.toString("ascii", 0, 4), "fLaC");
       assert.notDeepEqual(defaultAudio, originalChapter);
+      const waveformUrl = `${base}/v1/projects/7/media/chapter-0?${longQuery}&waveform=1`;
+      const waveform = await fetch(waveformUrl, { headers });
+      assert.equal(waveform.status, 200);
+      assert.equal(waveform.headers.get("content-type"), waveformContentType);
+      const waveformBytes = await waveform.arrayBuffer();
+      assert.ok(decodeWaveform(waveformBytes).duration > 0);
+      const etag = waveform.headers.get("etag")!;
+      assert.ok(etag);
+      const unchanged = await fetch(waveformUrl, {
+        headers: { ...headers, "If-None-Match": etag },
+      });
+      assert.equal(unchanged.status, 304);
+      assert.equal((await unchanged.arrayBuffer()).byteLength, 0);
+      const otherWaveform = new URL(waveformUrl);
+      otherWaveform.searchParams.set("loudnessTarget", "-16");
+      const otherTarget = await fetch(otherWaveform, {
+        headers: { ...headers, "If-None-Match": etag },
+      });
+      assert.equal(otherTarget.status, 200);
+      assert.notEqual(otherTarget.headers.get("etag"), etag);
+      await otherTarget.arrayBuffer();
       const ranged = await fetch(
         `${base}/v1/projects/7/media/chapter-0?${longQuery}`,
         { headers: { ...headers, Range: "bytes=0-31" } },

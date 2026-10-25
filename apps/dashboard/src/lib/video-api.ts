@@ -619,7 +619,7 @@ export async function videoApi(
       .parse(url.searchParams.get("asset"));
     const access = await mediaAccess();
     const target = new URL(`${access.base}${asset}?${access.query}`);
-    for (const key of ["download", "revision"]) {
+    for (const key of ["download", "revision", "waveform"]) {
       if (url.searchParams.has(key))
         target.searchParams.set(key, url.searchParams.get(key)!);
     }

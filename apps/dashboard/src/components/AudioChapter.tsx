@@ -28,6 +28,7 @@ import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
 import { VersePronunciationEditor } from "./VersePronunciationEditor";
 import { OriginalVerseAudio } from "./OriginalVerseAudio";
+import { audioWaveformResourceKey } from "../lib/audio-editor-preparation";
 import {
   initialVerseText,
   temporaryVerseText,
@@ -50,6 +51,7 @@ export function AudioChapter({
   onToggleApproval,
   selectedVerse,
   onSelectVerse,
+  onPrepared,
 }: {
   chapter: AudioProjectDetail["content"][number];
   project: AudioProjectDetail;
@@ -74,6 +76,7 @@ export function AudioChapter({
   onToggleApproval: (reference: string) => Promise<void>;
   selectedVerse?: number;
   onSelectVerse: (verse: number) => void;
+  onPrepared: (key: string, success: boolean) => void;
 }) {
   const { t } = useI18n();
   const activeTask =
@@ -389,8 +392,12 @@ export function AudioChapter({
             <VerseWaveform
               key={`${reference}/${recording.revision}`}
               src={media(chapter.chapter, verse.verse, recording.revision)}
-              resourceKey={`${project.edition}/${project.book}/${reference}/${recording.revision}`}
-              onPrepared={() => {}}
+              resourceKey={audioWaveformResourceKey(
+                project,
+                reference,
+                recording.revision,
+              )}
+              onPrepared={onPrepared}
               locale={project.version.locale}
               expanded={open}
               sourceStart={0}

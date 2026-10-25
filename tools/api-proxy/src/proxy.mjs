@@ -51,7 +51,7 @@ export function createProxy({
       res.writeHead(204, {
         "Access-Control-Allow-Origin": req.headers.origin || "null",
         "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-        "Access-Control-Allow-Headers": "Range",
+        "Access-Control-Allow-Headers": "Range, If-None-Match",
         "Access-Control-Max-Age": "600",
         Vary: "Origin",
       });
@@ -142,7 +142,7 @@ export function createProxy({
         if (scope) {
           responseHeaders["access-control-allow-origin"] = scope.origin;
           responseHeaders["access-control-expose-headers"] =
-            "Content-Length, Content-Range, Accept-Ranges, Content-Disposition";
+            "Content-Length, Content-Range, Accept-Ranges, Content-Disposition, ETag, Server-Timing";
           responseHeaders["vary"] = "Origin";
           responseHeaders["cache-control"] = "private, no-store";
           responseHeaders["referrer-policy"] = "no-referrer";

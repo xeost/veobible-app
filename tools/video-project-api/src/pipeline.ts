@@ -1,5 +1,6 @@
 import { renderVideoVariants } from "./render-variants.js";
-import { normalizeSections } from "./audio-loudness.js";
+import { normalizeAudio, normalizeSections } from "./audio-loudness.js";
+import { audioWaveform } from "./audio-waveform.js";
 import {
   adaptNarrationText,
   type NarrationTextAdaptations,
@@ -858,6 +859,25 @@ export async function generateProjectVoice(
     );
   }
   update(99);
+  // New narrations arrive with their editing peaks ready; older files are prepared on demand.
+  try {
+    const file = part.startsWith("chapter-")
+      ? (await projectChapterVoiceFiles(input)).find(
+          (item) => item.part === part,
+        )?.file
+      : path.join(sources, voiceFilename(part));
+    if (file) {
+      const normalized = await normalizeAudio(
+        file,
+        input.settings.loudnessTarget,
+        m.config.ffmpegBin,
+      );
+      await audioWaveform(normalized, m.config.ffmpegBin);
+    }
+  } catch (error) {
+    // An optional editing derivative must not turn successful synthesis into a failed job.
+    console.warn("Could not precompute narration waveform", error);
+  }
 }
 
 /** Resolve chapter recordings from the saved passage, without analyzing reading audio. */

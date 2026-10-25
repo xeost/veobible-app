@@ -462,6 +462,13 @@ export const portuguese: Record<string, string> = {
   "Select project: {title}": "Selecionar projeto: {title}",
 
   "Preparing the editor…": "Preparando o editor…",
+  "Loading the project and preparing waveforms for the open chapters.":
+    "Carregando o projeto e preparando as formas de onda dos capítulos abertos.",
+  "Chapters and verse text": "Capítulos e texto dos versículos",
+  "Recordings and saved cuts": "Gravações e cortes salvos",
+  "Waveforms for open chapters": "Formas de onda dos capítulos abertos",
+  "Some waveforms could not be prepared. Open the chapter to retry loading its audio.":
+    "Não foi possível preparar algumas formas de onda. Abra o capítulo para tentar carregar o áudio novamente.",
   "Project and saved settings": "Projeto e configurações salvas",
   "Passage sections and verse timings":
     "Seções da passagem e tempos dos versículos",
