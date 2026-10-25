@@ -2958,10 +2958,34 @@ audio {
   background: #111115ed;
   backdrop-filter: blur(6px);
   cursor: progress;
+  overflow-y: auto;
 }
 .editor-preparation-message {
+  width: 100%;
   max-width: 440px;
+  margin-block: auto;
   text-align: center;
+}
+.editor-preparation-tasks {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0 0;
+  text-align: left;
+}
+.editor-preparation-tasks li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) minmax(0, 110px);
+  align-items: center;
+  gap: 10px;
+  padding-block: 8px;
+  font-size: 13px;
+}
+.editor-preparation-tasks li > :first-child {
+  justify-self: center;
+  color: var(--accent);
+}
+.editor-preparation-tasks li > :last-child {
+  text-align: right;
 }
 .editor-preparation-message > svg {
   color: var(--accent);

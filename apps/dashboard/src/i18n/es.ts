@@ -466,6 +466,16 @@ export const spanish: Record<string, string> = {
   "Select project: {title}": "Seleccionar proyecto: {title}",
 
   "Preparing the editor…": "Preparando el editor…",
+  "Project and saved settings": "Proyecto y ajustes guardados",
+  "Passage sections and verse timings":
+    "Secciones del pasaje y tiempos de versículos",
+  "Available narrations": "Narraciones disponibles",
+  "Audio for editing": "Audios para editar",
+  "Saved timing adjustments": "Ajustes de tiempos guardados",
+  "Visual shortcuts": "Atajos visuales",
+  Waiting: "Pendiente",
+  "In progress": "En curso",
+  "Could not complete": "No se pudo completar",
   "Loading audio so every section is ready to edit.":
     "Cargando los audios para que todas las secciones estén listas para editar.",
   "Preparing audio": "Preparando los audios",

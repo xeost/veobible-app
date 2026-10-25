@@ -665,6 +665,61 @@ export function VideoProjectEditor({
     if (preparationComplete) setPreparedEditor(base);
   }, [base, preparationComplete]);
   const preparing = preparedEditor !== base && !error;
+  const preparationTasks = [
+    {
+      label: "Project and saved settings",
+      status: project ? "Completed" : "In progress",
+    },
+    {
+      label: "Passage sections and verse timings",
+      status: analysisError
+        ? "Could not complete"
+        : analyzing
+          ? "In progress"
+          : analysis
+            ? "Completed"
+            : "Waiting",
+    },
+    {
+      label: "Available narrations",
+      status: voiceError
+        ? "Could not complete"
+        : voicesLoaded
+          ? "Completed"
+          : project
+            ? "In progress"
+            : "Waiting",
+    },
+    {
+      label: "Audio for editing",
+      status:
+        preparationFailed || analysisError
+          ? "Could not complete"
+          : !initialDataLoaded || preparedCount < waveformKeys.length
+            ? analysis
+              ? "In progress"
+              : "Waiting"
+            : "Completed",
+    },
+    {
+      label: "Saved timing adjustments",
+      status: applyingAlignment
+        ? "In progress"
+        : alignmentLoaded
+          ? "Completed"
+          : analysis
+            ? "In progress"
+            : "Waiting",
+    },
+    {
+      label: "Visual shortcuts",
+      status: visualShortcuts.error
+        ? "Could not complete"
+        : visualShortcuts.loading
+          ? "In progress"
+          : "Completed",
+    },
+  ];
   const preparationOverlay = preparing ? (
     <div
       className="editor-preparation-overlay"
@@ -677,6 +732,27 @@ export function VideoProjectEditor({
         <p className="muted">
           {t("Loading audio so every section is ready to edit.")}
         </p>
+        <ul className="editor-preparation-tasks">
+          {preparationTasks.map((task) => (
+            <li key={task.label}>
+              {task.status === "In progress" ? (
+                <LoaderCircle
+                  size={16}
+                  className="voice-spinner"
+                  aria-hidden="true"
+                />
+              ) : task.status === "Completed" ? (
+                <CircleCheck size={16} aria-hidden="true" />
+              ) : (
+                <span aria-hidden="true">
+                  {task.status === "Waiting" ? "·" : "!"}
+                </span>
+              )}
+              <span>{t(task.label)}</span>
+              <span className="muted">{t(task.status)}</span>
+            </li>
+          ))}
+        </ul>
         {waveformKeys.length > 0 && (
           <>
             <progress
