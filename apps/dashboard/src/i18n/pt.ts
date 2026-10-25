@@ -1,4 +1,6 @@
 export const portuguese: Record<string, string> = {
+  "{count} visual element": "{count} elemento visual",
+  "{count} visual elements": "{count} elementos visuais",
   "Audio versions": "Versão dos áudios",
   "Choose the chapter audio for each Bible version. Projects that select “Default” will use these choices.":
     "Escolha o áudio dos capítulos para cada versão bíblica. Os projetos que selecionarem “Padrão” usarão essas opções.",

@@ -1354,6 +1354,7 @@ export function VideoProjectEditor({
     readingReferences: string[] = [],
   ) => {
     const readingLocked = readingLocks(Number(id.slice(8))).editingLocked;
+    const visualElementCount = settings.visualElements?.[id]?.length ?? 0;
     const content = (
       <>
         <span className="section-number">
@@ -1365,7 +1366,19 @@ export function VideoProjectEditor({
         </span>
         <span className="section-heading-text">
           <strong>{title}</strong>
-          <small>{summary}</small>
+          <small>
+            {summary}
+            {visualElementCount > 0 && (
+              <>
+                {" · "}
+                {t(
+                  visualElementCount === 1
+                    ? "{count} visual element"
+                    : "{count} visual elements",
+                ).replace("{count}", String(visualElementCount))}
+              </>
+            )}
+          </small>
         </span>
       </>
     );
