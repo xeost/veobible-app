@@ -118,7 +118,10 @@ export function CurrentAudioProjects({
   return (
     <section className="panel">
       <div className="panel-heading">
-        <h3>{t("Current projects · Audios")}</h3>
+        <div className="ongoing-projects-heading">
+          <h3>{t("Audios")}</h3>
+          <p className="muted">{t("Ongoing projects")}</p>
+        </div>
       </div>
       {error && <p className="error">{t(error)}</p>}
       <div className="table-wrap">
@@ -126,12 +129,12 @@ export function CurrentAudioProjects({
           <thead>
             <tr>
               <th>ID</th>
-              <th>{t("Audio project")}</th>
+              <th>{t("Project")}</th>
               <th>{t("Bible version")}</th>
               <th>{t("Chapters")}</th>
               <th>{t("Status")}</th>
-              <th>{t("Actions")}</th>
               <th>{t("Updated")}</th>
+              <th>{t("Actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -185,6 +188,9 @@ export function CurrentAudioProjects({
                       {statusLabel(row.status, language)}
                     </span>
                   </td>
+                  <td className="muted">
+                    <UpdatedAt value={row.updatedAt} />
+                  </td>
                   <td>
                     <div className="project-publication-controls">
                       <AudioProjectMarker
@@ -222,9 +228,6 @@ export function CurrentAudioProjects({
                         )}
                       </button>
                     </div>
-                  </td>
-                  <td className="muted">
-                    <UpdatedAt value={row.updatedAt} />
                   </td>
                 </tr>
               ))}

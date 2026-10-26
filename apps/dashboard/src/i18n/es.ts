@@ -236,7 +236,7 @@ export const spanish: Record<string, string> = {
     "Elige las voces de lectura para nuevos proyectos de audio en cada idioma. Los proyectos existentes conservan sus voces.",
   "Clean up published book video files":
     "Eliminar archivos de videos de libros publicados",
-  "Book Videos": "Book Videos",
+  "Book Videos": "Videos de libros",
   "COMPLETE BOOKS · LANDSCAPE": "LIBROS COMPLETOS · HORIZONTAL",
   "Create a video for each complete book of the Bible.":
     "Crea un video por cada libro completo de la Biblia.",
@@ -671,7 +671,7 @@ export const spanish: Record<string, string> = {
   Background: "Fondo",
   "Background video": "Video de fondo",
   "Bible version": "Versión bíblica",
-  "Bible versions": "Versiones de la Biblia",
+  "Bible versions": "Versiones bíblicas",
   "Books could not be loaded. Check that this version is available and try again.":
     "No se pudieron cargar los libros. Comprueba que esta versión esté disponible y vuelve a intentarlo.",
   Cancel: "Cancelar",
@@ -872,7 +872,7 @@ export const spanish: Record<string, string> = {
   "Loading waveform…": "Cargando forma de onda…",
   Long: "Long",
   "Long episodes": "Episodios largos",
-  "Long Videos": "Long Videos",
+  "Long Videos": "Videos largos",
   "Manage the versions available for your video projects.":
     "Administra las versiones disponibles para tus proyectos de video.",
   "Manage your personal information and account security.":
@@ -1057,7 +1057,7 @@ export const spanish: Record<string, string> = {
   Short: "Short",
   "Short name": "Nombre corto",
   "Short passages": "Pasajes cortos",
-  "Short Videos": "Short Videos",
+  "Short Videos": "Videos cortos",
   "Sign in": "Inicia sesión",
   "Sign in to the Dashboard": "Entrar al Dashboard",
   "Sign out": "Cerrar sesión",

@@ -845,8 +845,35 @@ dialog.published-cleanup-dialog::backdrop {
   line-height: 1.8;
   margin-top: 19px;
 }
+.ongoing-projects-heading h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.ongoing-projects-heading .muted {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
 .table-wrap {
   overflow: auto;
+}
+#ongoing-projects-panel th:first-child,
+#ongoing-projects-panel td:first-child {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+  font-variant-numeric: tabular-nums;
+}
+#ongoing-projects-panel th:last-child,
+#ongoing-projects-panel td:last-child {
+  /* Four 32px buttons, three 8px gaps and 24px of cell padding. */
+  width: 176px;
+  min-width: 176px;
+  max-width: 176px;
+}
+#ongoing-projects-panel td:last-child .icon-button {
+  width: 32px;
+  flex: 0 0 32px;
 }
 table {
   width: 100%;

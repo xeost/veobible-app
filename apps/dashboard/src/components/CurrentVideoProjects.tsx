@@ -7,6 +7,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bookmark,
+  Clapperboard,
+  Film,
   FolderOpen,
   ArrowRightToLine,
   LoaderCircle,
@@ -287,15 +289,18 @@ export function CurrentVideoProjects({
       {(["short", "long", "book"] as const).map((kind) => (
         <section className="panel" key={kind}>
           <div className="panel-heading">
-            <h3>
-              {t(
-                kind === "short"
-                  ? "Current projects · Short videos"
-                  : kind === "book"
-                    ? "Current projects · Book videos"
-                    : "Current projects · Long videos",
-              )}
-            </h3>
+            <div className="ongoing-projects-heading">
+              <h3>
+                {t(
+                  kind === "short"
+                    ? "Short Videos"
+                    : kind === "book"
+                      ? "Book Videos"
+                      : "Long Videos",
+                )}
+              </h3>
+              <p className="muted">{t("Ongoing projects")}</p>
+            </div>
             <PublishedProjectCleanup
               kind={kind}
               onDeleted={() =>
@@ -311,8 +316,8 @@ export function CurrentVideoProjects({
                   <th>{t("Project")}</th>
                   <th>{t("Bible version")}</th>
                   <th>{t("Publication")}</th>
-                  <th>{t("Actions")}</th>
                   <th>{t("Updated")}</th>
+                  <th>{t("Actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -341,7 +346,13 @@ export function CurrentVideoProjects({
                       <td className="muted">{row.id}</td>
                       <td>
                         <Link className="button project-name" href={href(row)}>
-                          <Bookmark size={17} aria-hidden="true" />
+                          <span className="video-icon">
+                            {kind === "short" ? (
+                              <Clapperboard size={19} aria-hidden="true" />
+                            ) : (
+                              <Film size={19} aria-hidden="true" />
+                            )}
+                          </span>
                           {row.title}
                         </Link>
                       </td>
@@ -389,6 +400,9 @@ export function CurrentVideoProjects({
                             {publicationLabel(row.published, language)}
                           </button>
                         </div>
+                      </td>
+                      <td className="muted">
+                        <UpdatedAt value={row.updated_at} />
                       </td>
                       <td>
                         <div className="project-publication-controls">
@@ -456,9 +470,6 @@ export function CurrentVideoProjects({
                             </button>
                           )}
                         </div>
-                      </td>
-                      <td className="muted">
-                        <UpdatedAt value={row.updated_at} />
                       </td>
                     </tr>
                   ))}
