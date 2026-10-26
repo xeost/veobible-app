@@ -28,6 +28,7 @@ import { useGenerationQueue } from "./GenerationQueueContext";
 import { queueChangedEvent } from "../lib/generation-queue";
 import { useProjectBreadcrumb } from "./ProjectBreadcrumb";
 import { useToast } from "./ToastProvider";
+import { useEditorErrorNotifications } from "./useEditorErrorNotifications";
 import { pollWhileVisible } from "../lib/visible-polling";
 import {
   audioVerseFragment,
@@ -272,6 +273,16 @@ export function AudioProjectEditor({
       setPreparedEditor(endpoint);
   }, [initialDataLoaded, preparation.completed, preparation.total, endpoint]);
   const preparing = preparedEditor !== endpoint && !error;
+  useEditorErrorNotifications(endpoint, {
+    request: error,
+    generation:
+      currentProject?.status === "failed" &&
+      "Audio generation could not be completed. Completed verses are saved; try again to continue.",
+    preparation:
+      preparation.failed &&
+      !preparing &&
+      "Some waveforms could not be prepared. Open the chapter to retry loading its audio.",
+  });
   const preparationTasks: PreparationTask[] = [
     {
       label: "Project and saved settings",
@@ -406,8 +417,7 @@ export function AudioProjectEditor({
       <>
         {preparationOverlay}
         {error && (
-          <p className="error" role="alert">
-            {t(error)}
+          <div>
             <button
               onClick={async () => {
                 setError("");
@@ -422,7 +432,7 @@ export function AudioProjectEditor({
             >
               {t("Retry")}
             </button>
-          </p>
+          </div>
         )}
       </>
     );
@@ -482,13 +492,6 @@ export function AudioProjectEditor({
           </button>
         </ProjectEditorHeader>
         <div className="project-studio-layout audio-editor">
-          {preparation.failed && !preparing && (
-            <p className="notice" role="alert">
-              {t(
-                "Some waveforms could not be prepared. Open the chapter to retry loading its audio.",
-              )}
-            </p>
-          )}
           <details className="panel project-voice-settings project-configuration">
             <summary>
               <span className="project-configuration-title">
@@ -530,13 +533,6 @@ export function AudioProjectEditor({
               {dirty && <p className="notice">{t("Unsaved changes")}</p>}
             </div>
           </details>
-          {project.status === "failed" && (
-            <p className="error" role="alert">
-              {t(
-                "Audio generation could not be completed. Completed verses are saved; try again to continue.",
-              )}
-            </p>
-          )}
           {project.status === "done" && (
             <p className="notice">
               {t("Chapter recordings are ready to use in videos.")}

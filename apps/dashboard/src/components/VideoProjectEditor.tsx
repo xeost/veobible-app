@@ -17,6 +17,7 @@ import {
   type VoiceLocale,
 } from "../lib/base-voices";
 import { useToast } from "./ToastProvider";
+import { useEditorErrorNotifications } from "./useEditorErrorNotifications";
 import {
   alignmentWasApplied,
   alignmentSignatureMatches,
@@ -211,6 +212,7 @@ export function VideoProjectEditor({
   }, [settings, projectId]);
   const [voices, setVoices] = useState<Voices>(emptyVoices);
   const [voicesLoaded, setVoicesLoaded] = useState(false);
+  const [voicesScope, setVoicesScope] = useState<string | null>(null);
   const queuingVoices = pendingTasks.has("voices");
   const [voiceRevision, setVoiceRevision] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -398,6 +400,7 @@ export function VideoProjectEditor({
         const data = await api<{ voices: Voices }>(endpoint("voices"));
         if (live) {
           setVoices(data.voices);
+          setVoicesScope(base);
           setVoicesLoaded(true);
           setVoiceError("");
         }
@@ -711,6 +714,27 @@ export function VideoProjectEditor({
     if (preparationComplete) setPreparedEditor(base);
   }, [base, preparationComplete]);
   const preparing = preparedEditor !== base && !error;
+  useEditorErrorNotifications(base, {
+    request: error,
+    analysis: analysisError,
+    playback: voiceError,
+    preparation:
+      preparationFailed &&
+      !preparing &&
+      "Some audio could not be prepared. Open its section to retry loading it.",
+    ...Object.fromEntries(
+      narrationParts.map((part) => {
+        const voice = voices[part];
+        return [
+          `voice:${part}:${voice?.jobId ?? "saved"}`,
+          voicesLoaded &&
+            voicesScope === base &&
+            voice?.status === "failed" &&
+            voiceFailureMessage(voice.failureReason),
+        ];
+      }),
+    ),
+  });
   const nextWaveformsKey = JSON.stringify(
     nextVideoWaveforms(
       waveformResources,
@@ -1297,9 +1321,6 @@ export function VideoProjectEditor({
             value={state?.progress ?? 0}
             label={t("Generating passage reading…")}
           />
-        )}
-        {enabled && state?.status === "failed" && (
-          <p className="error">{t(voiceFailureMessage(state.failureReason))}</p>
         )}
         {showWaveform && track ? (
           <VerseWaveform
@@ -1902,11 +1923,6 @@ export function VideoProjectEditor({
                     )}
               </p>
             )}
-            {voice.status === "failed" && (
-              <p className="error">
-                {t(voiceFailureMessage(voice.failureReason))}
-              </p>
-            )}
             {(!voice.available || pending) && generateAction}
           </div>
           {sectionVisuals(part)}
@@ -1923,12 +1939,11 @@ export function VideoProjectEditor({
             <ChevronLeft size={16} />
             {t("Back to projects")}
           </Link>
-          <p
-            className={error ? "error" : "empty"}
-            role={error ? "alert" : "status"}
-          >
-            {t(error || "Loading project…")}
-          </p>
+          {!error && (
+            <p className="empty" role="status">
+              {t("Loading project…")}
+            </p>
+          )}
         </section>
       </>
     );
@@ -1940,13 +1955,6 @@ export function VideoProjectEditor({
         inert={preparing}
         aria-busy={preparing}
       >
-        {preparationFailed && !preparing && (
-          <p className="notice" role="status">
-            {t(
-              "Some audio could not be prepared. Open its section to retry loading it.",
-            )}
-          </p>
-        )}
         <ProjectEditorHeader
           eyebrow="VIDEO PROJECT EDITOR"
           showDescription={false}
@@ -2032,16 +2040,6 @@ export function VideoProjectEditor({
                 : t("Generate video")}
           </button>
         </ProjectEditorHeader>
-        {error && (
-          <p className="error" role="alert">
-            {t(error)}
-          </p>
-        )}
-        {voiceError && (
-          <p className="error" role="alert">
-            {t(voiceError)}
-          </p>
-        )}
         {active && (
           <div className="project-render-progress">
             <GenerationProgress
@@ -2475,11 +2473,6 @@ export function VideoProjectEditor({
                   {sectionVisuals("reading-0")}
                 </div>
               </section>
-            )}
-            {analysisError && (
-              <p className="error" role="alert">
-                {t(analysisError)}
-              </p>
             )}
             {voiceSection("outro", sectionIds.length)}
           </div>
