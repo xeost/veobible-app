@@ -1,4 +1,14 @@
 export const portuguese: Record<string, string> = {
+  "Ongoing projects": "Projetos em andamento",
+  "Resume your marked projects and continue working by language.":
+    "Retome seus projetos marcados e continue trabalhando por idioma.",
+  "There is no next project for this audio version.":
+    "Não há próximo projeto para esta versão de áudio.",
+  "Mark the next project in this audio version, ordered by ID.":
+    "Marcar o próximo projeto desta versão de áudio, ordenado por ID.",
+  "Current projects · Audios": "Projetos atuais · Áudios",
+  "Mark audio projects in Audios to see them here.":
+    "Marque projetos em Áudios para vê-los aqui.",
   "{count} visual element": "{count} elemento visual",
   "{count} visual elements": "{count} elementos visuais",
   "Audio versions": "Versão dos áudios",

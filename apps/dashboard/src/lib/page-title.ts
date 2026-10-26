@@ -1,5 +1,6 @@
 const pageLabels: Record<string, string> = {
   "/": "Dashboard",
+  "/current-projects": "Ongoing projects",
   "/login": "Sign in",
   "/bible-versions": "Bible versions",
   "/short-videos": "Short Videos",

@@ -2,9 +2,10 @@
 
 import { useEffect } from "react";
 
-const storageKey = "veo-home-scroll-position";
-
-export function useHomeScrollPosition(ready: boolean) {
+export function useHomeScrollPosition(
+  ready: boolean,
+  storageKey = "veo-home-scroll-position",
+) {
   useEffect(() => {
     if (!ready) return;
     let frame = 0;
@@ -80,7 +81,7 @@ export function useHomeScrollPosition(ready: boolean) {
     return () => {
       cancelAnimationFrame(frame);
       cancelAnimationFrame(restoreFrame);
-      // Save the last home position rather than another page's reset position.
+      // Save the last observed position before navigation resets the scroll.
       if (!restoring) save();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("wheel", cancelRestore);
@@ -88,5 +89,5 @@ export function useHomeScrollPosition(ready: boolean) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [ready]);
+  }, [ready, storageKey]);
 }

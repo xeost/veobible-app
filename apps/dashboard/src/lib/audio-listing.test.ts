@@ -206,3 +206,79 @@ test("audio pagination clamps missing pages and validates filters", async () => 
     sqlite.close();
   }
 });
+
+test("marked audio lookup returns only selected projects in the active environment", async () => {
+  const { sqlite, database } = fixture();
+  try {
+    const params = new URLSearchParams({ ids: "1,2,69,999", pageSize: "100" });
+    const development = await pageAudioProjects(
+      database,
+      params,
+      "development",
+    );
+    assert.deepEqual(
+      development.projects.map((row) => row.id),
+      [1, 2],
+    );
+    assert.equal(development.pagination.total, 2);
+    assert.equal("recordings" in development.projects[0], false);
+    const production = await pageAudioProjects(database, params, "production");
+    assert.deepEqual(
+      production.projects.map((row) => row.id),
+      [69],
+    );
+    for (const ids of [
+      "",
+      "1,invalid",
+      "-1",
+      "1.5",
+      Array(81).fill("1").join(","),
+    ]) {
+      await assert.rejects(
+        pageAudioProjects(
+          database,
+          new URLSearchParams({ ids }),
+          "development",
+        ),
+      );
+    }
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("next audio projects are ordered by ID within the same edition and environment", async () => {
+  const { sqlite, database } = fixture();
+  try {
+    // Book order can differ from insertion order: advancing follows IDs.
+    sqlite.exec("UPDATE audio_projects SET book_order=100 WHERE id=2");
+    const params = new URLSearchParams({
+      edition: "rv1909-v2",
+      afterId: "1",
+      pageSize: "3",
+    });
+    assert.deepEqual(
+      (await pageAudioProjects(database, params, "development")).projects.map(
+        (row) => row.id,
+      ),
+      [2, 3, 4],
+    );
+    params.set("afterId", "66");
+    assert.equal(
+      (await pageAudioProjects(database, params, "development")).projects
+        .length,
+      0,
+    );
+    params.set("afterId", "69");
+    assert.equal(
+      (await pageAudioProjects(database, params, "production")).projects.length,
+      0,
+    );
+    for (const value of ["0", "-1", "invalid", "1.5"]) {
+      params.set("afterId", value);
+      await assert.rejects(pageAudioProjects(database, params, "development"));
+    }
+  } finally {
+    sqlite.close();
+  }
+});

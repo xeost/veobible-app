@@ -43,8 +43,23 @@ export async function pageAudioProjects(
     .enum(["all", "draft", "queued", "running", "done", "failed"])
     .parse(params.get("status") ?? "all");
   const query = (params.get("query") ?? "").trim().toLowerCase();
-  const base = `p.output_environment=?${edition ? " AND p.edition=?" : ""}`;
-  const baseValues = [environment, ...(edition ? [edition] : [])];
+  const ids = params.has("ids")
+    ? z
+        .array(z.coerce.number().int().positive().safe())
+        .min(1)
+        .max(80)
+        .parse(params.get("ids")!.split(","))
+    : null;
+  const afterId = params.has("afterId")
+    ? z.coerce.number().int().positive().safe().parse(params.get("afterId"))
+    : null;
+  const base = `p.output_environment=?${edition ? " AND p.edition=?" : ""}${afterId !== null ? " AND p.id>?" : ""}${ids ? ` AND p.id IN (${ids.map(() => "?").join(",")})` : ""}`;
+  const baseValues = [
+    environment,
+    ...(edition ? [edition] : []),
+    ...(afterId !== null ? [afterId] : []),
+    ...(ids ?? []),
+  ];
   let title = "p.title || ' ' || p.id || ' ' || v.label";
   for (const upper of "ÁÀÂÃÄÅÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÑÇÝŸ")
     if (query.includes(upper.toLowerCase()))
@@ -82,7 +97,7 @@ export async function pageAudioProjects(
     (limit, offset) =>
       database
         .prepare(
-          `SELECT p.id,p.edition,p.book,p.title,p.chapter_count,(SELECT count(*) FROM json_each(p.chapters)) completed_chapters,p.status,p.progress,p.updated_at,v.id version_id,v.code,v.locale,v.label${join} WHERE ${base} AND ${match} ORDER BY v.label,CAST(substr(p.edition,length(v.code)+3) AS INTEGER),p.book_order,p.id LIMIT ? OFFSET ?`,
+          `SELECT p.id,p.edition,p.book,p.title,p.chapter_count,(SELECT count(*) FROM json_each(p.chapters)) completed_chapters,p.status,p.progress,p.updated_at,v.id version_id,v.code,v.locale,v.label${join} WHERE ${base} AND ${match} ORDER BY ${afterId !== null ? "p.id" : "v.label,CAST(substr(p.edition,length(v.code)+3) AS INTEGER),p.book_order,p.id"} LIMIT ? OFFSET ?`,
         )
         .bind(...baseValues, ...matchValues, limit, offset),
   );

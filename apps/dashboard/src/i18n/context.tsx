@@ -1,23 +1,13 @@
 "use client";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 import {
   browserLanguage,
   persistBrowserLanguage,
 } from "../lib/language-preference";
 import { spanish } from "./es";
 import { portuguese } from "./pt";
-export type Language = "es" | "en" | "pt";
-const Context = createContext({
-  language: "en" as Language,
-  setLanguage: (_: Language) => {},
-  t: (text: string): string => text,
-});
+import { LanguageContext, type Language } from "./language-context";
+export type { Language } from "./language-context";
 export function I18nProvider({
   initialLanguage = "en",
   children,
@@ -41,9 +31,9 @@ export function I18nProvider({
     return text;
   };
   return (
-    <Context.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
       {children}
-    </Context.Provider>
+    </LanguageContext.Provider>
   );
 }
-export const useI18n = () => useContext(Context);
+export const useI18n = () => useContext(LanguageContext);

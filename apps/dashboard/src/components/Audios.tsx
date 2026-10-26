@@ -27,6 +27,9 @@ import { useDebouncedValue } from "./useDebouncedValue";
 import { usePinnedBibleVersions } from "./usePinnedBibleVersions";
 import { VideoProjectMenu } from "./VideoProjectMenu";
 import { VoiceSettingsModal } from "./VoiceSettingsModal";
+import { AudioProjectMarker } from "./AudioProjectMarker";
+import { useCurrentAudioProjects } from "./useCurrentAudioProjects";
+import { audioProjectVersionKey } from "../lib/current-audio-projects";
 import { UpdatedAt } from "./UpdatedAt";
 export type AudioVersionOption = AudioVersion & {
   edition: string;
@@ -179,6 +182,7 @@ export function Audios() {
     notify = useToast();
   const router = useRouter(),
     searchParams = useSearchParams();
+  const { marks, toggle } = useCurrentAudioProjects();
   const requestedEdition = searchParams.get("edition");
   const { orderVersions } = usePinnedBibleVersions();
   const [catalog, setCatalog] = useState<AudioCatalog>({
@@ -386,7 +390,7 @@ export function Audios() {
               {rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="video-project-row"
+                  className={`video-project-row${marks[audioProjectVersionKey(row)]?.includes(row.id) ? " current-project" : ""}`}
                   tabIndex={0}
                   aria-label={`${t("Open project")}: ${row.title}`}
                   onClick={(event) => {
@@ -427,9 +431,16 @@ export function Audios() {
                     {row.completedChapters} / {row.chapterCount}
                   </td>
                   <td>
-                    <span className={`badge ${row.status}`}>
-                      {statusLabel(row.status, language)}
-                    </span>
+                    <div className="project-publication-controls">
+                      <span className={`badge ${row.status}`}>
+                        {statusLabel(row.status, language)}
+                      </span>
+                      <AudioProjectMarker
+                        row={row}
+                        marks={marks}
+                        toggle={toggle}
+                      />
+                    </div>
                   </td>
                   <td className="muted">
                     <UpdatedAt value={row.updatedAt} />

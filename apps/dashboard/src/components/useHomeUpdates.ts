@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { useGenerationQueue } from "./GenerationQueueContext";
+import { currentAudioStorageKey } from "../lib/current-audio-projects";
 import { currentProjectStorageKey } from "../lib/current-video-projects";
 import {
   createHomeRefresh,
@@ -28,7 +29,9 @@ export function useHomeUpdates(
       if (
         event.key === null ||
         event.key === currentProjectStorageKey("short") ||
-        event.key === currentProjectStorageKey("long")
+        event.key === currentProjectStorageKey("long") ||
+        event.key === currentProjectStorageKey("book") ||
+        event.key === currentAudioStorageKey
       )
         trigger();
     };

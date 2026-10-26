@@ -83,8 +83,10 @@ function FinalVideoIndicator({
 
 export function CurrentVideoProjects({
   onLoadingChange,
+  locale = "all",
 }: {
   onLoadingChange?: (loading: boolean) => void;
+  locale?: "all" | "es" | "en" | "pt";
 }) {
   const { t, language } = useI18n();
   const { orderVersions } = usePinnedBibleVersions();
@@ -175,7 +177,10 @@ export function CurrentVideoProjects({
   const orderedRows = (["short", "long", "book"] as const).flatMap((kind) =>
     orderVersions(
       rows
-        .filter((row) => row.kind === kind)
+        .filter(
+          (row) =>
+            row.kind === kind && (locale === "all" || row.locale === locale),
+        )
         .map((row) => ({ ...row, code: row.version_code })),
     ),
   );
@@ -460,17 +465,19 @@ export function CurrentVideoProjects({
               </tbody>
             </table>
             {loading && <div className="empty">{t("Loading projects…")}</div>}
-            {!loading && !error && !rows.some((row) => row.kind === kind) && (
-              <div className="empty">
-                {t(
-                  kind === "short"
-                    ? "Mark a project in Short Videos to see it here."
-                    : kind === "book"
-                      ? "Mark a project in Book Videos to see it here."
-                      : "Mark a project in Long Videos to see it here.",
-                )}
-              </div>
-            )}
+            {!loading &&
+              !error &&
+              !orderedRows.some((row) => row.kind === kind) && (
+                <div className="empty">
+                  {t(
+                    kind === "short"
+                      ? "Mark a project in Short Videos to see it here."
+                      : kind === "book"
+                        ? "Mark a project in Book Videos to see it here."
+                        : "Mark a project in Long Videos to see it here.",
+                  )}
+                </div>
+              )}
           </div>
         </section>
       ))}

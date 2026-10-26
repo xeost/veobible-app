@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Bookmark,
   Clapperboard,
   Film,
   Rocket,
@@ -36,6 +37,7 @@ import {
 } from "../lib/generation-queue";
 const items = [
   ["/", "Dashboard", LayoutDashboard],
+  ["/current-projects", "Ongoing projects", Bookmark],
   ["/bible-versions", "Bible versions", BookOpen],
   ["/short-videos", "Short Videos", Clapperboard],
   ["/long-videos", "Long Videos", Film],

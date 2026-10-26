@@ -2,7 +2,6 @@
 import { UpdatedAt } from "../../components/UpdatedAt";
 import { useI18n } from "../../i18n/context";
 import { useHomeScrollPosition } from "../../components/useHomeScrollPosition";
-import { CurrentVideoProjects } from "../../components/CurrentVideoProjects";
 import { userMessage, publicationLabel } from "../../lib/presentation";
 import { useState } from "react";
 import Link from "next/link";
@@ -21,8 +20,7 @@ export default function Dashboard() {
   const [data, setData] = useState<any>(null),
     [error, setError] = useState("");
   const [summaryLoaded, setSummaryLoaded] = useState(false);
-  const [projectsLoading, setProjectsLoading] = useState(true);
-  useHomeScrollPosition(summaryLoaded && !projectsLoading);
+  useHomeScrollPosition(summaryLoaded);
   useHomeUpdates(async (signal) => {
     try {
       const summary = await api("summary", { signal });
@@ -80,7 +78,6 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
-      <CurrentVideoProjects onLoadingChange={setProjectsLoading} />
       <div className="overview-grid">
         <section className="hero-card">
           <div className="hero-orb">
