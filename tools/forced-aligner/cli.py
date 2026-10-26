@@ -273,7 +273,6 @@ def main():
     if sys.platform != "darwin" or os.uname().machine != "arm64":
         raise RuntimeError("MLX alignment requires Apple Silicon macOS")
     # One model per invocation; the video generation queue serializes requests.
-    os.environ.setdefault("HF_HOME", str(Path(__file__).resolve().parent / ".cache" / "huggingface"))
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     import mlx.core as mx
     from mlx_audio.stt import load

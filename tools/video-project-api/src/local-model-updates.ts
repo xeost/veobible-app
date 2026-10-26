@@ -35,6 +35,38 @@ const commonVoice = [
   "grapheme_mtl_merged_expanded_v1.json",
 ];
 const profiles = {
+  "qwen3-base-0.6b": {
+    repo: "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+    required: [
+      "config.json",
+      "model.safetensors",
+      "tokenizer_config.json",
+      "preprocessor_config.json",
+      "generation_config.json",
+      "vocab.json",
+      "merges.txt",
+      "speech_tokenizer/config.json",
+      "speech_tokenizer/preprocessor_config.json",
+      "speech_tokenizer/model.safetensors",
+    ],
+    maxBytes: 8 * GiB,
+  },
+  "qwen3-base-1.7b": {
+    repo: "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    required: [
+      "config.json",
+      "model.safetensors",
+      "tokenizer_config.json",
+      "preprocessor_config.json",
+      "generation_config.json",
+      "vocab.json",
+      "merges.txt",
+      "speech_tokenizer/config.json",
+      "speech_tokenizer/preprocessor_config.json",
+      "speech_tokenizer/model.safetensors",
+    ],
+    maxBytes: 12 * GiB,
+  },
   "chatterbox-original": {
     repo: "ResembleAI/chatterbox",
     required: [
@@ -121,7 +153,9 @@ function softwareKnown(model: Model) {
     match &&
     (model.software.name === "chatterbox-tts"
       ? Number(match[1]) === 1 && Number(match[2]) >= 7
-      : Number(match[1]) === 3 && Number(match[2]) >= 1),
+      : model.software.name === "qwen-tts"
+        ? Number(match[1]) === 1 && Number(match[2]) === 1
+        : Number(match[1]) === 3 && Number(match[2]) >= 1),
   );
 }
 function comparableSize(
@@ -250,6 +284,37 @@ export async function checkLocalModelUpdates(
   const withinBudget =
     latestBytes !== null && latestBytes > 0 && latestBytes <= profile.maxBytes;
   let formatMatches = model.role === "voice";
+  if (model.variant.startsWith("qwen3-base-") && baseline && hasFiles) {
+    try {
+      const [before, after, tokenizerBefore, tokenizerAfter] =
+        await Promise.all([
+          json(`/${profile.repo}/resolve/${baseline.sha}/config.json`),
+          json(`/${profile.repo}/resolve/${latest.sha}/config.json`),
+          json(
+            `/${profile.repo}/resolve/${baseline.sha}/speech_tokenizer/config.json`,
+          ),
+          json(
+            `/${profile.repo}/resolve/${latest.sha}/speech_tokenizer/config.json`,
+          ),
+        ]);
+      const config = z
+        .object({
+          model_type: z.literal("qwen3_tts"),
+          tts_model_type: z.literal("base"),
+          tts_model_size: z.literal(
+            model.variant === "qwen3-base-0.6b" ? "0b6" : "1b7",
+          ),
+        })
+        .passthrough()
+        .safeParse(after);
+      formatMatches =
+        config.success &&
+        canonicalConfig(before) === canonicalConfig(after) &&
+        canonicalConfig(tokenizerBefore) === canonicalConfig(tokenizerAfter);
+    } catch {
+      formatMatches = false;
+    }
+  }
   if (model.role !== "voice" && baseline && hasFiles) {
     try {
       const [before, after] = await Promise.all([

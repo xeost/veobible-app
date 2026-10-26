@@ -1,3 +1,4 @@
+import { narrationModelSchema } from "../../../../tools/video-project-api/src/narration-models";
 import {
   voiceStyleDefaultsSchema,
   type VoiceStyleDefaults,
@@ -67,6 +68,18 @@ export const baseVoiceCatalogSchema = z.object({
       text: z.string().nullable(),
       status: z.enum(["queued", "running", "done", "failed"]),
       progress: z.number(),
+      samples: z
+        .array(
+          z.object({
+            voiceModel: narrationModelSchema,
+            available: z.boolean(),
+            generatedAt: z.string().nullable(),
+            text: z.string().nullable(),
+            status: z.enum(["queued", "running", "done", "failed"]),
+            progress: z.number(),
+          }),
+        )
+        .default([]),
     }),
   ),
 });

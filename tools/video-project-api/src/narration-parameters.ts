@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  modelSettingsSchema,
+  qwenParametersSchema,
+  qwenDefaults,
+} from "./narration-model-settings.js";
+import { isQwenNarrationModel } from "./narration-models.js";
 
 export const narrationControls = {
   exaggeration: { min: 0, max: 2, step: 0.05 },
@@ -14,6 +20,7 @@ const customFields = {
 export const narrationParametersSchema = z
   .object({
     ...customFields,
+    modelSettings: modelSettingsSchema.optional(),
     min_p: z.literal(0.05),
     top_p: z.literal(1),
     repetition_penalty: z.number().finite().min(1).max(2),
@@ -62,6 +69,7 @@ export const narrationStyleSchema = z.discriminatedUnion("preset", [
     .object({
       preset: z.literal("custom"),
       ...customFields,
+      modelSettings: modelSettingsSchema.optional(),
       repetition_penalty: z.number().finite().min(1).max(2).default(1.2),
     })
     .strict(),
@@ -87,11 +95,28 @@ export function resolveNarrationStyle(
   const { preset, ...controls } = style;
   return { ...fixed, ...controls };
 }
+/** Resolve only the chosen model at the synthesis boundary. Legacy flat settings remain valid. */
+export function effectiveNarrationParameters(
+  parameters: NarrationParameters | undefined,
+  model: string,
+) {
+  const parsed = narrationParametersSchema.parse(
+    parameters ?? narrationPresets.natural,
+  );
+  const { modelSettings, ...legacy } = parsed;
+  const selected = modelSettings?.[model];
+  return isQwenNarrationModel(model)
+    ? qwenParametersSchema.parse(selected ?? qwenDefaults)
+    : narrationParametersSchema
+        .omit({ modelSettings: true })
+        .parse(selected ?? legacy);
+}
 export function narrationParameterArgs(
   parameters?: NarrationParameters,
+  model = "multilingual-v3",
 ): string[] {
-  if (!parameters) return [];
-  return Object.entries(narrationParametersSchema.parse(parameters)).flatMap(
-    ([key, value]) => [`--${key.replaceAll("_", "-")}`, String(value)],
-  );
+  if (!parameters && !isQwenNarrationModel(model)) return [];
+  return Object.entries(
+    effectiveNarrationParameters(parameters, model),
+  ).flatMap(([key, value]) => [`--${key.replaceAll("_", "-")}`, String(value)]);
 }

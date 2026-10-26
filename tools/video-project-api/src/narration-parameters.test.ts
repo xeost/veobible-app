@@ -74,3 +74,42 @@ test("custom repetition penalty reaches generation and legacy custom settings re
       false,
     );
 });
+
+test("model settings survive video, audio and example requests while synthesis uses only the selected entry", async () => {
+  const { qwenDefaults } = await import("./narration-model-settings.js");
+  const { audioGenerateSchema } = await import("./audio-project-schema.js");
+  const { sampleRequestSchema } = await import("./voice-samples.js");
+  const parameters = {
+    ...narrationPresets.natural,
+    modelSettings: {
+      "qwen3-base-0.6b": { ...qwenDefaults, temperature: 0.6, top_p: 0.8 },
+      "qwen3-base-1.7b": { ...qwenDefaults, temperature: 1.2 },
+      "future-model": { options: { strength: 5 }, modes: ["a", "b"] },
+    },
+  };
+  assert.deepEqual(
+    renderSchema.shape.voiceParameters.parse(parameters),
+    parameters,
+  );
+  assert.deepEqual(
+    audioGenerateSchema.parse({
+      voiceModel: "qwen3-base-0.6b",
+      voiceParameters: parameters,
+    }).voiceParameters,
+    parameters,
+  );
+  assert.deepEqual(
+    sampleRequestSchema.parse({
+      voice: "pt-1",
+      text: "Peace",
+      voiceModel: "qwen3-base-1.7b",
+      voiceParameters: parameters,
+    }).voiceParameters,
+    parameters,
+  );
+  const args = narrationParameterArgs(parameters, "qwen3-base-0.6b");
+  assert.equal(args[args.indexOf("--temperature") + 1], "0.6");
+  assert.equal(args[args.indexOf("--top-p") + 1], "0.8");
+  assert.equal(args.includes("--exaggeration"), false);
+  assert.equal(args.includes("--future-model"), false);
+});

@@ -419,3 +419,68 @@ test("Brazilian Portuguese checks its own T3 and decoder without counting duplic
   assert.equal(changed.status, "update_available");
   assert.equal(changed.changedFiles, 1);
 });
+
+test("Qwen Base updates compare both model and speech tokenizer metadata without downloading weights", async () => {
+  for (const [size, variant] of [
+    ["0.6", "qwen3-base-0.6b"],
+    ["1.7", "qwen3-base-1.7b"],
+  ] as const) {
+    const model = voice({
+      name: `Qwen3-TTS Base ${size}B`,
+      repository: `Qwen/Qwen3-TTS-12Hz-${size}B-Base`,
+      variant,
+      software: { name: "qwen-tts", version: "0.1.1" },
+    });
+    const required = [
+      "config.json",
+      "model.safetensors",
+      "tokenizer_config.json",
+      "preprocessor_config.json",
+      "generation_config.json",
+      "vocab.json",
+      "merges.txt",
+      "speech_tokenizer/config.json",
+      "speech_tokenizer/preprocessor_config.json",
+      "speech_tokenizer/model.safetensors",
+    ];
+    const before = required.map((name) => file(name));
+    const after = before.map((entry) =>
+      entry.rfilename === "model.safetensors"
+        ? file(entry.rfilename, "2")
+        : entry,
+    );
+    const configuration = {
+      model_type: "qwen3_tts",
+      tts_model_type: "base",
+      tts_model_size: size === "0.6" ? "0b6" : "1b7",
+      hidden_size: 1024,
+    };
+    const compatible = source({
+      before,
+      after,
+      beforeConfig: configuration,
+      afterConfig: configuration,
+    });
+    const update = await checkLocalModelUpdates(model, {
+      fetch: compatible.network,
+    });
+    assert.equal(update.status, "update_available");
+    assert.equal(update.compatibility, "expected_fit");
+    assert.ok(
+      compatible.requests.some((path) =>
+        path.includes("/speech_tokenizer/config.json"),
+      ),
+    );
+    const changed = source({
+      before,
+      after,
+      beforeConfig: configuration,
+      afterConfig: { ...configuration, hidden_size: 2048 },
+    });
+    const review = await checkLocalModelUpdates(model, {
+      fetch: changed.network,
+    });
+    assert.equal(review.status, "review_required");
+    assert.equal(review.reason, "format_changed");
+  }
+});

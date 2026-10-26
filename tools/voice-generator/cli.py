@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthesize any named collection of text tracks with Chatterbox."""
+"""Synthesize named text tracks using the selected narration model."""
 
 import argparse
 import json
@@ -129,6 +129,11 @@ def load_checkpoint_model(kind: str, device: str, audio_decoder: str | None = No
 
 def load_model(kind: str, device: str, audio_decoder: str | None = None):
     import torch
+    if kind in ("qwen3-base-0.6b", "qwen3-base-1.7b"):
+        from qwen_base import load_qwen
+        if audio_decoder is not None:
+            raise ValueError("Qwen Base does not use Chatterbox audio decoders")
+        return load_qwen(kind, device)
     if kind not in ("multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"):
         raise ValueError(f"Unknown narration model: {kind}")
     if device == "auto":
@@ -188,7 +193,9 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
     validate_generation(args, scripts)
     output_names = [f"{name}.{extension}" for name in scripts for extension in ("txt", "wav")]
     print("Stage: Loading model", flush=True)
-    import torchaudio
+    qwen = args.model.startswith("qwen3-base-")
+    if not qwen:
+        import torchaudio
     decoder = getattr(args, "audio_decoder", None)
     model = load_model(args.model, args.device, decoder) if decoder is not None else load_model(args.model, args.device)
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -199,25 +206,36 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
         for track, script in scripts.items():
             print("Stage: Generating voice", flush=True)
             voice_prompt = voice_prompt_for_track(track, voice_prompts, args.voice_prompt)
-            kwargs = {
-                "audio_prompt_path": str(voice_prompt) if voice_prompt else None,
-                "exaggeration": args.exaggeration,
-                "cfg_weight": args.cfg_weight,
-                **{key: getattr(args, key) for key in ("temperature", "min_p", "top_p", "repetition_penalty") if getattr(args, key, None) is not None},
-            }
-            if args.model != "chatterbox":
-                kwargs["language_id"] = args.language
+            kwargs = {}
+            if not qwen:
+                kwargs = {
+                    "audio_prompt_path": str(voice_prompt) if voice_prompt else None,
+                    "exaggeration": args.exaggeration,
+                    "cfg_weight": args.cfg_weight,
+                    **{key: getattr(args, key) for key in ("temperature", "min_p", "top_p", "repetition_penalty") if getattr(args, key, None) is not None},
+                }
+                if args.model != "chatterbox":
+                    kwargs["language_id"] = args.language
             chunks = [script] if getattr(args, "single_utterance", False) else speech_chunks(script)
             native_chunks = []
             for index, chunk in enumerate(chunks):
                 print(f"Stage: Generating voice fragment {index + 1}/{len(chunks)}", flush=True)
                 print(f"Voice text: {json.dumps(chunk, ensure_ascii=False)}", flush=True)
-                waveform = model.generate(text=chunk, **kwargs)
+                if qwen:
+                    from qwen_base import synthesize_qwen
+                    waveform, sample_rate = synthesize_qwen(model, chunk, args.language, voice_prompt, args)
+                else:
+                    waveform = model.generate(text=chunk, **kwargs)
+                    sample_rate = model.sr
                 # Never treat a capped output as a complete rendition of the transcript.
-                if waveform.shape[-1] / model.sr >= 39.96:
+                if not qwen and waveform.shape[-1] / model.sr >= 39.96:
                     raise RuntimeError("VOICE_TRUNCATED: a speech fragment reached the model's audio limit")
                 native = staging / f"{track}-{index}-native.wav"
-                torchaudio.save(str(native), waveform.cpu(), model.sr)
+                if qwen:
+                    import soundfile as sf
+                    sf.write(str(native), waveform, sample_rate, subtype="PCM_24")
+                else:
+                    torchaudio.save(str(native), waveform.cpu(), sample_rate)
                 native_chunks.append(native)
                 del waveform
             print("Stage: Converting voice", flush=True)
@@ -235,12 +253,12 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Synthesize audio tracks with Chatterbox from a scripts JSON file")
+    parser = argparse.ArgumentParser(description="Synthesize audio tracks from a scripts JSON file")
     parser.add_argument("--scripts", required=True, type=Path, help="JSON mapping track names to text")
     parser.add_argument("--single-utterance", action="store_true", help="Generate each track in one model request without splitting its text")
-    parser.add_argument("--language", required=True, help="Language code supported by Chatterbox, such as es, en, or pt")
+    parser.add_argument("--language", required=True, help="Narration language, such as es, en, or pt")
     parser.add_argument("--output-dir", required=True, type=Path, help="Output directory")
-    parser.add_argument("--model", choices=("multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"), default="multilingual")
+    parser.add_argument("--model", choices=("qwen3-base-0.6b", "qwen3-base-1.7b", "multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"), default="multilingual")
     parser.add_argument("--audio-decoder", choices=("general", "v3"), help="Audio decoder: general s3gen.pt or s3gen_v3.pt; omitted retains the model default")
     parser.add_argument("--device", choices=("auto", "cpu", "mps", "cuda"), default="auto")
     parser.add_argument("--voice-prompt", type=Path, help="Optional WAV/MP3 voice reference")
@@ -251,6 +269,8 @@ def main() -> int:
     parser.add_argument("--min-p", type=float)
     parser.add_argument("--top-p", type=float)
     parser.add_argument("--repetition-penalty", type=float)
+    parser.add_argument("--top-k", type=int, default=50)
+    parser.add_argument("--max-new-tokens", type=int, default=2048)
     parser.add_argument("--dry-run", action="store_true", help="Validate and show scripts without loading the model")
     parser.add_argument("--force", action="store_true", help="Replace existing tracks")
     parser.add_argument("--resource-profile", choices=("low", "standard"), default=os.getenv("VOICE_GENERATOR_PROFILE", "low"), help="low uses CPU and reduced process priority (default)")
@@ -270,6 +290,8 @@ def main() -> int:
             value = getattr(args, key)
             if value is not None and not lower <= value <= upper:
                 raise ValueError(f"{key} must be between {lower} and {upper}")
+        if not 1 <= args.top_k <= 100 or not 128 <= args.max_new_tokens <= 4096:
+            raise ValueError("Invalid sampling candidate or speech length limit")
         scripts = read_scripts(args.scripts)
         voice_prompts = read_voice_prompts(args.voice_prompts, scripts)
         if args.dry_run:

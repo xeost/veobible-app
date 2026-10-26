@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { modelSettingsSchema } from "../../../../tools/video-project-api/src/narration-model-settings";
 import {
   narrationPresets,
   narrationStylesSchema,
@@ -29,6 +30,14 @@ export type CustomNarrationPreset = z.infer<typeof customNarrationPresetSchema>;
 const languagePresetsSchema = z
   .object({
     selected: z.string(),
+    builtInSettings: z
+      .object({
+        natural: modelSettingsSchema.optional(),
+        expressive: modelSettingsSchema.optional(),
+        relaxed: modelSettingsSchema.optional(),
+      })
+      .strict()
+      .optional(),
     items: z.array(customNarrationPresetSchema).max(100),
   })
   .strict()
@@ -97,13 +106,37 @@ export function stylesFromPresetLibrary(
     Object.fromEntries(
       (["en", "es", "pt"] as const).map((locale) => {
         const { selected, items } = library[locale];
-        if (Object.hasOwn(narrationPresets, selected))
-          return [locale, { preset: selected }];
+        if (Object.hasOwn(narrationPresets, selected)) {
+          const key = selected as keyof typeof narrationPresets;
+          const modelSettings = library[locale].builtInSettings?.[key];
+          if (!modelSettings) return [locale, { preset: selected }];
+          const { min_p, top_p, ...controls } = narrationPresets[key];
+          return [locale, { preset: "custom", ...controls, modelSettings }];
+        }
         const { min_p, top_p, ...controls } = narrationParametersSchema.parse(
           items.find((item) => item.id === selected)?.settings,
         );
         return [locale, { preset: "custom", ...controls }];
       }),
     ),
+  );
+}
+
+/** Resolve a library entry without selecting a model; project snapshots retain every model. */
+export function presetSettings(
+  library: NarrationPresetLibrary,
+  locale: NarrationLocale,
+  id: string,
+) {
+  if (Object.hasOwn(narrationPresets, id)) {
+    const key = id as keyof typeof narrationPresets;
+    const modelSettings = library[locale].builtInSettings?.[key];
+    return {
+      ...narrationPresets[key],
+      ...(modelSettings ? { modelSettings } : {}),
+    };
+  }
+  return narrationParametersSchema.parse(
+    library[locale].items.find((item) => item.id === id)?.settings,
   );
 }

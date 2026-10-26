@@ -71,7 +71,7 @@ export async function audioDurationSeconds(file: string): Promise<number> {
   return duration;
 }
 
-function estimateAudioRange(
+export function estimateAudioRange(
   verses: Verse[],
   first: number,
   last: number,
@@ -87,8 +87,8 @@ function estimateAudioRange(
     .filter((verse) => verse.verse <= last)
     .reduce((sum, verse) => sum + wordCount(verse.text), 0);
   return {
-    start: (duration * before) / total,
-    end: (duration * through) / total,
+    start: before === 0 ? 0 : (duration * before) / total,
+    end: through === total ? duration : (duration * through) / total,
   };
 }
 
@@ -472,9 +472,20 @@ export function applyPassageAudioOffsets(
   adjusted[adjusted.length - 1].end += offsets.endSeconds;
   for (let index = 0; index < adjusted.length; index++) {
     const section = adjusted[index];
+    const duration = sourceDurations[index];
+    // Arithmetic at a file boundary may overshoot by a few floating-point units.
+    // Snap only those tiny overruns; preserve all valid saved cuts exactly.
+    const tolerance = 16 * Number.EPSILON * Math.max(1, duration);
+    if (section.start < 0 && section.start >= -tolerance) section.start = 0;
+    if (section.end > duration && section.end <= duration + tolerance)
+      section.end = duration;
     if (
+      !Number.isFinite(duration) ||
+      duration <= 0 ||
+      !Number.isFinite(section.start) ||
+      !Number.isFinite(section.end) ||
       section.start < 0 ||
-      section.end > sourceDurations[index] ||
+      section.end > duration ||
       section.end <= section.start
     ) {
       throw new Error(

@@ -291,7 +291,9 @@ export function AdminTools() {
                             ? t("Version not identified")
                             : model.software.name === "chatterbox-tts"
                               ? "Chatterbox"
-                              : "MLX Audio"}
+                              : model.software.name === "qwen-tts"
+                                ? "Qwen3-TTS"
+                                : "MLX Audio"}
                           <small>
                             {model.software.version ?? t("Not available")}
                           </small>

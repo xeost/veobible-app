@@ -1,3 +1,4 @@
+import { narrationModelSchema } from "./narration-models.js";
 import { normalizeAudio } from "./audio-loudness.js";
 import { audioWaveform } from "./audio-waveform.js";
 import { waveformContentType } from "./waveform-format.js";
@@ -76,12 +77,17 @@ const {
   chapterVoicesAvailable,
   projectChapterVoiceFiles,
 } = await import("./pipeline.js");
-const { outputRoot } = await import("./working-directories.js");
+const { outputRoot, sharedVoiceDirectory } =
+  await import("./working-directories.js");
 const { config: shortAudioConfig } = await import("./engines/short/config.js");
 const { config: longAudioConfig } = await import("./engines/long/config.js");
 const { audioProjectHttp } = await import("./audio-project-http.js");
-const { listBaseVoices, queueVoiceSample, sampleFile, sampleRequestSchema } =
-  await import("./voice-samples.js");
+const {
+  listBaseVoices,
+  queueVoiceSample,
+  storedSampleFile,
+  sampleRequestSchema,
+} = await import("./voice-samples.js");
 const { stopAlignmentWorkers } = await import("./forced-alignment.js");
 const { createPreview, previewAsset } = await import("./preview.js");
 const origins = new Set(
@@ -169,7 +175,9 @@ const generationTasks = new ProcessTasks();
 const analysisTasks = new ProcessTasks();
 // Share only in-flight inspections; completed results may become stale after voice generation.
 const inspections = new Map<string, ReturnType<typeof inspectProject>>();
-function inspectProject(input: Parameters<typeof import("./pipeline.js").inspection>[0]) {
+function inspectProject(
+  input: Parameters<typeof import("./pipeline.js").inspection>[0],
+) {
   return analysisTasks.run("inspection", [input]);
 }
 function sharedInspection(input: Parameters<typeof inspectProject>[0]) {
@@ -286,6 +294,79 @@ const server = http.createServer(async (req, res) => {
       )
     )
       return;
+    if (url.pathname === "/v1/base-voices/about" && req.method === "GET") {
+      const file = await fsp
+        .open(path.join(sharedVoiceDirectory, "voices.md"), "r")
+        .catch((error) => {
+          if (error.code === "ENOENT") return null;
+          throw error;
+        });
+      if (!file)
+        return json(res, 404, {
+          error: "Voice information is not available yet.",
+        });
+      try {
+        const stat = await file.stat();
+        if (!stat.isFile() || stat.size > 1024 * 1024)
+          return json(res, 413, {
+            error: "Voice information could not be read.",
+          });
+        return json(res, 200, { markdown: await file.readFile("utf8") });
+      } finally {
+        await file.close();
+      }
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "v1" &&
+      parts[1] === "base-voices" &&
+      parts[3] === "original" &&
+      ["GET", "HEAD"].includes(req.method ?? "")
+    ) {
+      const voice = baseVoiceSchema.parse(parts[2]);
+      const file = path.join(sharedVoiceDirectory, `${voice}.mp3`);
+      const stat = await fsp.stat(file).catch(() => null);
+      if (!stat?.isFile() || !stat.size)
+        return json(res, 404, { error: "Base voice not found" });
+      let start = 0,
+        end = stat.size - 1;
+      const range = req.headers.range;
+      if (range) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+        if (!match || (!match[1] && !match[2])) {
+          res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
+          return res.end();
+        }
+        start = match[1]
+          ? Number(match[1])
+          : Math.max(0, stat.size - Number(match[2]));
+        end = match[1] && match[2] ? Math.min(Number(match[2]), end) : end;
+        if (
+          !Number.isSafeInteger(start) ||
+          !Number.isSafeInteger(end) ||
+          start > end ||
+          start >= stat.size
+        ) {
+          res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
+          return res.end();
+        }
+      }
+      res.writeHead(range ? 206 : 200, {
+        "Content-Type": "audio/mpeg",
+        "Content-Length": end - start + 1,
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, no-store",
+        ...(range
+          ? { "Content-Range": `bytes ${start}-${end}/${stat.size}` }
+          : {}),
+      });
+      if (req.method === "HEAD") return res.end();
+      const stream = fs.createReadStream(file, { start, end });
+      stream.on("error", () => res.destroy());
+      res.on("close", () => stream.destroy());
+      stream.pipe(res);
+      return;
+    }
     if (url.pathname === "/v1/base-voices" && req.method === "GET")
       return json(res, 200, { voices: await listBaseVoices() });
     if (
@@ -304,7 +385,16 @@ const server = http.createServer(async (req, res) => {
         return json(res, 202, task);
       }
       if (req.method === "GET") {
-        const file = sampleFile(voice);
+        const model = narrationModelSchema
+          .optional()
+          .parse(url.searchParams.get("model") ?? undefined);
+        const file = model
+          ? await storedSampleFile(voice, model)
+          : await storedSampleFile(
+              voice,
+              (await listBaseVoices()).find((item) => item.id === voice)
+                ?.voiceModel,
+            );
         const stat = await fsp.stat(file).catch(() => null);
         if (!stat?.isFile() || !stat.size)
           return json(res, 404, { error: "Sample not generated" });
@@ -609,9 +699,13 @@ const server = http.createServer(async (req, res) => {
             try {
               job.stage = "Aligning";
               await alignmentJobs.save(file, job);
-              job.result = await generationTasks.run("alignment", [input], (progress) => {
-                job.progress = Math.max(job.progress, progress);
-              });
+              job.result = await generationTasks.run(
+                "alignment",
+                [input],
+                (progress) => {
+                  job.progress = Math.max(job.progress, progress);
+                },
+              );
               job.status = "done";
               job.stage = "Complete";
               job.progress = 100;
@@ -841,12 +935,16 @@ const server = http.createServer(async (req, res) => {
           async () => {
             job.status = "running";
             try {
-              await generationTasks.run("voice", [input, input.part], (progress) => {
-                job.progress = Math.max(
-                  job.progress ?? 0,
-                  clampProgress(progress),
-                );
-              });
+              await generationTasks.run(
+                "voice",
+                [input, input.part],
+                (progress) => {
+                  job.progress = Math.max(
+                    job.progress ?? 0,
+                    clampProgress(progress),
+                  );
+                },
+              );
               job.status = "done";
             } catch (error) {
               console.error("Voice generation failed", error);
@@ -976,16 +1074,20 @@ const server = http.createServer(async (req, res) => {
           job.stage = "Starting";
           void notify();
           try {
-            job.result = await generationTasks.run("render", [input], (stage, progress) => {
-              const stageChanged = job.stage !== stage;
-              job.stage = stage;
-              if (progress !== undefined)
-                job.progress = Math.max(
-                  job.progress ?? 0,
-                  clampProgress(progress),
-                );
-              if (stageChanged) void notify();
-            });
+            job.result = await generationTasks.run(
+              "render",
+              [input],
+              (stage, progress) => {
+                const stageChanged = job.stage !== stage;
+                job.stage = stage;
+                if (progress !== undefined)
+                  job.progress = Math.max(
+                    job.progress ?? 0,
+                    clampProgress(progress),
+                  );
+                if (stageChanged) void notify();
+              },
+            );
             job.status = "done";
             job.stage = "Complete";
           } catch (error) {

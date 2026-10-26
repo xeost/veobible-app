@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 import { narrationPresets } from "./narration-parameters.js";
+import { qwenDefaults } from "./narration-model-settings.js";
 
 test(
   "generated examples persist, use selected base/model/parameters and preserve the last audio on failure",
@@ -78,6 +79,7 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
             WORKING_DIR: directory,
             VIDEO_TTS_SCRIPT: worker,
             VIDEO_SHORT_TTS_PYTHON: process.execPath,
+            VIDEO_QWEN_TTS_PYTHON: process.execPath,
             SAMPLE_LOG: path.join(directory, "calls.jsonl"),
           },
           stdio: ["ignore", "pipe", "pipe"],
@@ -102,6 +104,65 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
       };
       await start();
       assert.equal((await fetch(base)).status, 401);
+      assert.equal((await fetch(`${base}/about`)).status, 401);
+      assert.equal((await fetch(`${base}/es-1/original`)).status, 401);
+      const original = await fetch(`${base}/es-1/original`, { headers });
+      assert.equal(original.headers.get("Content-Type"), "audio/mpeg");
+      assert.equal(original.headers.get("Accept-Ranges"), "bytes");
+      assert.equal(await original.text(), "original-es-1.mp3");
+      const partial = await fetch(`${base}/es-1/original`, {
+        headers: { ...headers, Range: "bytes=9-12" },
+      });
+      assert.equal(partial.status, 206);
+      assert.equal(partial.headers.get("Content-Range"), "bytes 9-12/17");
+      assert.equal(await partial.text(), "es-1");
+      const suffix = await fetch(`${base}/es-1/original`, {
+        headers: { ...headers, Range: "bytes=-3" },
+      });
+      assert.equal(await suffix.text(), "mp3");
+      assert.equal(
+        (
+          await fetch(`${base}/es-1/original`, {
+            headers: { ...headers, Range: "bytes=999-" },
+          })
+        ).status,
+        416,
+      );
+      assert.equal(
+        (await fetch(`${base}/es-999/original`, { headers })).status,
+        404,
+      );
+      const head = await fetch(`${base}/es-1/original`, {
+        method: "HEAD",
+        headers,
+      });
+      assert.equal(head.status, 200);
+      assert.equal(await head.text(), "");
+      assert.equal(
+        await fs.stat(path.join(directory, "calls.jsonl")).catch(() => null),
+        null,
+      );
+
+      assert.equal((await fetch(`${base}/about`, { headers })).status, 404);
+      const information = path.join(voices, "voices.md");
+      const markdown =
+        "# Voices\n\n## English\n\n1. A **warm** voice\n\n```text\nExample narration.\n```";
+      await fs.writeFile(information, markdown);
+      const about = await fetch(`${base}/about`, { headers });
+      assert.equal(about.headers.get("Cache-Control"), "no-store");
+      assert.deepEqual(await about.json(), { markdown });
+      await fs.writeFile(information, "# Updated voices");
+      assert.deepEqual(
+        await (await fetch(`${base}/about`, { headers })).json(),
+        { markdown: "# Updated voices" },
+      );
+      assert.deepEqual(
+        await (
+          await fetch(`${base}/about?file=../../other.md`, { headers })
+        ).json(),
+        { markdown: "# Updated voices" },
+      );
+
       const disabledReading = await fetch(
         `http://127.0.0.1:${port}/v1/projects/1/voices`,
         {
@@ -139,6 +200,7 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         text: string,
         voiceModel = "multilingual-v3",
         voiceDecoder?: "general" | "v3",
+        voiceParameters = narrationPresets.expressive as import("./narration-parameters.js").NarrationParameters,
       ) =>
         fetch(`${base}/${voice}/sample`, {
           method: "POST",
@@ -147,7 +209,7 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
             text,
             voiceModel,
             voiceDecoder,
-            voiceParameters: narrationPresets.expressive,
+            voiceParameters,
           }),
         });
       const settled = async (id: string) => {
@@ -166,7 +228,7 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
       );
       assert.equal(response.status, 202);
       const task = await response.json();
-      const duplicate = await request("es-2", "duplicate");
+      const duplicate = await request("es-2", "duplicate", "latam", "v3");
       assert.equal(duplicate.status, 202);
       assert.equal((await duplicate.json()).id, task.id);
       const queueSnapshot = async (environment = "production") => {
@@ -231,11 +293,12 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
       );
       const metadata = JSON.parse(
         await fs.readFile(
-          path.join(voices, "samples/es-2-sample.wav.json"),
+          path.join(voices, "samples/es-2-latam-sample.wav.json"),
           "utf8",
         ),
       );
       assert.equal(metadata.voiceDecoder, "v3");
+      assert.deepEqual(metadata.voiceParameters, narrationPresets.expressive);
       for (const [key, value] of Object.entries(narrationPresets.expressive))
         assert.equal(
           calls[0].args[
@@ -250,13 +313,16 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
       await request("es-2", "Regenerated example.");
       assert.equal((await settled("es-2")).text, "Regenerated example.");
       const regenerated = await fs.readFile(
-        path.join(voices, "samples/es-2-sample.wav"),
+        path.join(voices, "samples/es-2-multilingual-v3-sample.wav"),
         "utf8",
       );
       await request("es-2", "fail");
       assert.equal((await settled("es-2")).status, "failed");
       assert.equal(
-        await fs.readFile(path.join(voices, "samples/es-2-sample.wav"), "utf8"),
+        await fs.readFile(
+          path.join(voices, "samples/es-2-multilingual-v3-sample.wav"),
+          "utf8",
+        ),
         regenerated,
       );
       assert.equal((await settled("en-1")).available, true);
@@ -269,11 +335,189 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
       );
       assert.ok(history.items.every((item: any) => item.finishedAt));
       assert.equal(history.summary.completed, history.summary.total);
+      // Metadata must record the same effective parameters passed to synthesis,
+      // excluding the legacy Chatterbox values and other models' preset views.
+      for (const model of ["qwen3-base-0.6b", "qwen3-base-1.7b"]) {
+        const expected = {
+          ...qwenDefaults,
+          temperature: 0.65,
+          top_p: 0.85,
+          top_k: 23,
+          repetition_penalty: 1.15,
+          max_new_tokens: 1536,
+        };
+        const parameters = {
+          ...narrationPresets.expressive,
+          modelSettings: {
+            [model]: expected,
+            "multilingual-v3": narrationPresets.relaxed,
+          },
+        };
+        const response = await request(
+          "pt-1",
+          `Example ${model}.`,
+          model,
+          undefined,
+          parameters,
+        );
+        assert.equal(response.status, 202);
+        assert.equal((await settled("pt-1")).status, "done");
+        const saved = JSON.parse(
+          await fs.readFile(
+            path.join(voices, `samples/pt-1-${model}-sample.wav.json`),
+            "utf8",
+          ),
+        );
+        assert.equal(saved.voiceModel, model);
+        assert.deepEqual(saved.voiceParameters, expected);
+        assert.equal(saved.voiceDecoder, undefined);
+        const call = (
+          await fs.readFile(path.join(directory, "calls.jsonl"), "utf8")
+        )
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line))
+          .at(-1);
+        assert.equal(call.args[call.args.indexOf("--model") + 1], model);
+        for (const [key, value] of Object.entries(saved.voiceParameters)) {
+          assert.equal(
+            call.args[call.args.indexOf("--" + key.replaceAll("_", "-")) + 1],
+            String(value),
+          );
+        }
+        for (const flag of ["--exaggeration", "--cfg-weight", "--min-p"])
+          assert.ok(!call.args.includes(flag));
+      }
+      // Built-in presets without a model-specific view use Qwen defaults.
+      await request("pt-1", "Default Qwen example.", "qwen3-base-0.6b");
+      assert.equal((await settled("pt-1")).status, "done");
+      const defaultsMetadata = JSON.parse(
+        await fs.readFile(
+          path.join(voices, "samples/pt-1-qwen3-base-0.6b-sample.wav.json"),
+          "utf8",
+        ),
+      );
+      assert.deepEqual(defaultsMetadata.voiceParameters, qwenDefaults);
+      const variants = (await catalog()).find(
+        (voice) => voice.id === "pt-1",
+      ).samples;
+      assert.deepEqual(
+        variants
+          .filter((sample: any) => sample.available)
+          .map((sample: any) => sample.voiceModel)
+          .sort(),
+        ["qwen3-base-0.6b", "qwen3-base-1.7b"],
+      );
+      const readSample = async (model: string) => {
+        const response = await fetch(`${base}/pt-1/sample?model=${model}`, {
+          headers,
+        });
+        assert.equal(response.status, 200);
+        return response.text();
+      };
+      assert.equal(
+        await readSample("qwen3-base-0.6b"),
+        "RIFF-generated-Default Qwen example.",
+      );
+      assert.equal(
+        await readSample("qwen3-base-1.7b"),
+        "RIFF-generated-Example qwen3-base-1.7b.",
+      );
+      assert.equal(
+        (await fetch(`${base}/pt-1/sample?model=multilingual-v3`, { headers }))
+          .status,
+        404,
+      );
+      assert.equal(
+        (await fetch(`${base}/pt-1/sample?model=invalid`, { headers })).status,
+        400,
+      );
+      const preservedMetadata = JSON.parse(
+        await fs.readFile(
+          path.join(voices, "samples/pt-1-qwen3-base-1.7b-sample.wav.json"),
+          "utf8",
+        ),
+      );
+      assert.equal(preservedMetadata.voiceParameters.top_k, 23);
+      assert.equal(preservedMetadata.text, "Example qwen3-base-1.7b.");
+      assert.deepEqual(
+        (await fs.readdir(path.join(voices, "samples")))
+          .filter((name) => name.startsWith("pt-1-"))
+          .sort(),
+        [
+          "pt-1-qwen3-base-0.6b-sample.wav",
+          "pt-1-qwen3-base-0.6b-sample.wav.json",
+          "pt-1-qwen3-base-1.7b-sample.wav",
+          "pt-1-qwen3-base-1.7b-sample.wav.json",
+        ],
+      );
+      // A legacy pair is attributable only to its recorded model, and remains untouched.
+      const legacyFile = path.join(voices, "samples/es-1-sample.wav");
+      await fs.writeFile(legacyFile, "legacy audio");
+      await fs.writeFile(
+        legacyFile + ".json",
+        JSON.stringify({
+          voiceModel: "latam",
+          text: "Legacy example.",
+          voiceParameters: narrationPresets.natural,
+        }),
+      );
+      assert.equal(
+        await (
+          await fetch(`${base}/es-1/sample?model=latam`, { headers })
+        ).text(),
+        "legacy audio",
+      );
+      assert.equal(
+        (await fetch(`${base}/es-1/sample?model=qwen3-base-1.7b`, { headers }))
+          .status,
+        404,
+      );
+      await request("es-1", "A new model.", "qwen3-base-1.7b");
+      assert.equal((await settled("es-1")).status, "done");
+      assert.equal(await fs.readFile(legacyFile, "utf8"), "legacy audio");
+      // Different models of one voice are separate queued jobs, but repeat requests
+      // for the same voice/model still share the active job.
+      await fs.unlink(path.join(directory, "calls.jsonl.release"));
+      const holding = await request(
+        "es-1",
+        "A literal {example}.",
+        "qwen3-base-0.6b",
+      );
+      const holdingTask = await holding.json();
+      const otherModel = await request(
+        "es-1",
+        "Another model example.",
+        "qwen3-base-1.7b",
+      );
+      const otherTask = await otherModel.json();
+      assert.notEqual(otherTask.id, holdingTask.id);
+      const duplicateModel = await request(
+        "es-1",
+        "duplicate",
+        "qwen3-base-1.7b",
+      );
+      assert.equal((await duplicateModel.json()).id, otherTask.id);
+      await fs.writeFile(
+        path.join(directory, "calls.jsonl.release"),
+        "release",
+      );
+      await settled("es-1");
+
       await stop();
       await start();
       const cached = (await catalog()).find((voice) => voice.id === "es-2");
       assert.equal(cached.available, true);
       assert.equal(cached.text, "Regenerated example.");
+      assert.equal(
+        await readSample("qwen3-base-0.6b"),
+        "RIFF-generated-Default Qwen example.",
+      );
+      assert.equal(
+        await readSample("qwen3-base-1.7b"),
+        "RIFF-generated-Example qwen3-base-1.7b.",
+      );
+
       assert.equal((await request("es-99", "Missing.")).status, 500);
       assert.equal(
         (await request("en-1", "Invalid language model.", "latam")).status,

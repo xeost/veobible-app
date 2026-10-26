@@ -8,10 +8,14 @@ import { baseVoiceSchema, voiceForLocale } from "./base-voice-schema.js";
 import { sharedVoiceDirectory } from "./working-directories.js";
 import {
   narrationModelSchema,
+  narrationModelOptions,
   narrationDecoderSchema,
   narrationModelForLocale,
 } from "./narration-models.js";
-import { narrationParametersSchema } from "./narration-parameters.js";
+import {
+  narrationParametersSchema,
+  effectiveNarrationParameters,
+} from "./narration-parameters.js";
 import { generateVoice } from "./engines/short/voice.js";
 
 export const sampleRequestSchema = z
@@ -29,8 +33,51 @@ export const sampleRequestSchema = z
   .strict();
 const tasks = new Map<string, QueueJob>();
 const samples = path.join(sharedVoiceDirectory, "samples");
-export const sampleFile = (id: string) =>
-  path.join(samples, `${baseVoiceSchema.parse(id)}-sample.wav`);
+export const sampleFile = (id: string, model?: string) =>
+  path.join(
+    samples,
+    `${baseVoiceSchema.parse(id)}${model ? `-${narrationModelSchema.parse(model)}` : ""}-sample.wav`,
+  );
+
+/** Legacy samples remain readable only under the model recorded in their metadata. */
+export async function storedSampleFile(id: string, model?: string) {
+  const file = sampleFile(id, model);
+  if (
+    await fs.stat(file).then(
+      (stat) => stat.isFile() && stat.size > 0,
+      () => false,
+    )
+  )
+    return file;
+  if (model) {
+    const legacy = sampleFile(id);
+    const metadata = await fs
+      .readFile(legacy + ".json", "utf8")
+      .then(
+        (text) => JSON.parse(text),
+        () => null,
+      )
+      .catch(() => null);
+    if (metadata?.voiceModel === model) return legacy;
+  }
+  return file;
+}
+async function sampleState(id: string, model?: string) {
+  const file = await storedSampleFile(id, model);
+  const stat = await fs.stat(file).catch(() => null);
+  let metadata: { text?: string; generatedAt?: string } = {};
+  try {
+    metadata = JSON.parse(await fs.readFile(file + ".json", "utf8"));
+  } catch {}
+  return {
+    available: Boolean(stat?.isFile() && stat.size > 0),
+    generatedAt:
+      metadata.generatedAt ?? (stat ? stat.mtime.toISOString() : null),
+    text: metadata.text ?? null,
+    status: tasks.get(`${id}:${model}`)?.status ?? "done",
+    progress: tasks.get(`${id}:${model}`)?.progress ?? 0,
+  };
+}
 export async function listBaseVoices() {
   const names = await fs.readdir(sharedVoiceDirectory).catch((error) => {
     if (error.code === "ENOENT") return [] as string[];
@@ -44,22 +91,33 @@ export async function listBaseVoices() {
     if (!(await fs.stat(path.join(sharedVoiceDirectory, name))).isFile())
       continue;
     const id = name.slice(0, -4);
-    const stat = await fs.stat(sampleFile(id)).catch(() => null);
-    let metadata: { text?: string; generatedAt?: string } = {};
-    try {
-      metadata = JSON.parse(
-        await fs.readFile(sampleFile(id) + ".json", "utf8"),
-      );
-    } catch {}
+    const locale = id.split("-")[0] as "en" | "es" | "pt";
+    const variants = await Promise.all(
+      narrationModelOptions[locale].map(async ({ value }) => ({
+        voiceModel: value,
+        ...(await sampleState(id, value)),
+      })),
+    );
+    // Preserve the unfiltered catalogue contract for existing voice pickers.
+    const latest =
+      variants
+        .filter((item) => item.available)
+        .sort((a, b) =>
+          (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""),
+        )[0] ?? (await sampleState(id));
+    const pending = variants.find((item) =>
+      ["queued", "running"].includes(item.status),
+    );
     voices.push({
       id,
-      locale: id.split("-")[0],
-      available: Boolean(stat?.isFile() && stat.size > 0),
-      generatedAt:
-        metadata.generatedAt ?? (stat ? stat.mtime.toISOString() : null),
-      text: metadata.text ?? null,
-      status: tasks.get(id)?.status ?? "done",
-      progress: tasks.get(id)?.progress ?? 0,
+      locale,
+      ...latest,
+      voiceModel:
+        "voiceModel" in latest ? (latest.voiceModel as string) : undefined,
+      ...(pending
+        ? { status: pending.status, progress: pending.progress }
+        : {}),
+      samples: variants,
     });
   }
   return voices;
@@ -74,7 +132,8 @@ export async function queueVoiceSample(
   narrationModelForLocale(input.voiceModel, locale);
   if (!(await listBaseVoices()).some((voice) => voice.id === input.voice))
     throw new Error("Base voice not found");
-  const current = tasks.get(input.voice);
+  const key = `${input.voice}:${input.voiceModel}`;
+  const current = tasks.get(key);
   if (current && ["queued", "running"].includes(current.status)) return current;
   const task: QueueJob = {
     id: randomUUID(),
@@ -82,7 +141,7 @@ export async function queueVoiceSample(
     stage: "Queued",
     progress: 0,
   };
-  tasks.set(input.voice, task);
+  tasks.set(key, task);
   queue.enqueue(
     {
       projectId: null,
@@ -131,6 +190,10 @@ export async function queueVoiceSample(
           path.join(staging, "metadata.json"),
           JSON.stringify({
             ...input,
+            voiceParameters: effectiveNarrationParameters(
+              input.voiceParameters,
+              input.voiceModel,
+            ),
             voiceDecoder:
               input.voiceDecoder ??
               (input.voiceModel === "latam"
@@ -141,10 +204,10 @@ export async function queueVoiceSample(
             generatedAt: new Date().toISOString(),
           }),
         );
-        await fs.rename(output, sampleFile(input.voice));
+        await fs.rename(output, sampleFile(input.voice, input.voiceModel));
         await fs.rename(
           path.join(staging, "metadata.json"),
-          sampleFile(input.voice) + ".json",
+          sampleFile(input.voice, input.voiceModel) + ".json",
         );
         task.stage = "Done";
         task.status = "done";

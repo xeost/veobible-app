@@ -1944,4 +1944,44 @@ export const spanish: Record<string, string> = {
   "Could not play the audio. Try again.":
     "No se pudo reproducir el audio. Vuelve a intentarlo.",
   "Retry playback": "Reintentar reproducción",
+  "Qwen3-TTS Base 0.6B (voice cloning)":
+    "Qwen3-TTS Base 0.6B (clonación de voz)",
+  "Qwen3-TTS Base 1.7B (voice cloning)":
+    "Qwen3-TTS Base 1.7B (clonación de voz)",
+  "Choose the narration model for each Bible language. Applies to new voices in video and audio projects. Each model keeps its own preset settings.":
+    "Elige el modelo de narración para cada idioma de la Biblia. Se aplica a nuevas voces de proyectos de video y audio. Cada modelo conserva su propia configuración de presets.",
+  "Settings apply only to the selected voice model. Other model settings are kept.":
+    "La configuración se aplica solo al modelo de voz seleccionado. Se conservan los ajustes de los demás modelos.",
+  "Sampling candidates": "Opciones de generación",
+  "Speech length limit": "Límite de duración del habla",
+  "Higher values produce more varied speech; lower values are more predictable.":
+    "Los valores altos producen una voz más variada; los valores bajos son más predecibles.",
+  "Limits the range of likely speech choices. Lower values make generation more selective.":
+    "Limita las opciones probables de habla. Los valores bajos hacen la generación más selectiva.",
+  "Limits how many speech choices are considered at each step.":
+    "Limita cuántas opciones de habla se consideran en cada paso.",
+  "Higher values discourage repeated sounds. Adjust independently for each voice model.":
+    "Los valores altos reducen los sonidos repetidos. Ajústalo de forma independiente para cada modelo de voz.",
+  "Limits the length of each generated fragment. Raise this if a complete verse reaches the limit.":
+    "Limita la duración de cada fragmento generado. Auméntalo si un versículo completo alcanza el límite.",
+  "This model copies the reference voice. These controls adjust variation and repetition, without setting emotion or speaking speed.":
+    "Este modelo copia la voz de referencia. Estos controles ajustan la variación y las repeticiones, sin definir la emoción ni la velocidad del habla.",
+  "About the voices": "Acerca de las voces",
+  "Loading voice information…": "Cargando información de las voces…",
+  "Voice information is not available yet.":
+    "La información de las voces aún no está disponible.",
+  "Could not load voice information. Try again or contact the administrator.":
+    "No se pudo cargar la información de las voces. Vuelve a intentarlo o contacta al administrador.",
+  "No voice information has been added yet.":
+    "Todavía no se ha añadido información de las voces.",
+  "About the base voices": "Acerca de las voces base",
+  "No base voices available.": "No hay voces base disponibles.",
+  "Could not play the base voice. Choose another voice or reopen this window.":
+    "No se pudo reproducir la voz base. Elige otra voz o vuelve a abrir esta ventana.",
+  Notes: "Notas",
+  "Base voice": "Voz base",
+  "Example to listen to": "Ejemplo para escuchar",
+  "Not generated yet": "Aún no se ha generado",
+  "One example is saved per voice and model. Regenerating replaces only that model\u2019s example.":
+    "Se guarda un ejemplo por voz y modelo. Al regenerarlo, solo se reemplaza el ejemplo de ese modelo.",
 };

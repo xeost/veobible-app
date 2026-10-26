@@ -28,7 +28,7 @@ export async function signMediaAccess(scope, secret) {
   return `${payload}.${encode(new Uint8Array(signature))}`;
 }
 
-/** A media grant authorizes only GET/HEAD assets within one project and environment. */
+/** A media grant authorizes only GET/HEAD assets within its signed scope. */
 export async function verifyMediaAccess(token, secret, now = Date.now()) {
   try {
     if (!secret || !token || token.length > 4096) return null;
@@ -52,7 +52,8 @@ export async function verifyMediaAccess(token, secret, now = Date.now()) {
         /^\/v1\/projects\/[1-9]\d*\/media\/$/.test(scope.path) ||
         /^\/v1\/audio-projects\/[a-z0-9-]+-v[1-9]\d*\/[a-z0-9-]+\/$/.test(
           scope.path,
-        )
+        ) ||
+        /^\/v1\/base-voices\/(es|en|pt)-[1-9]\d*\/$/.test(scope.path)
       ) ||
       typeof scope.query !== "string" ||
       typeof scope.origin !== "string" ||
@@ -67,6 +68,9 @@ export async function verifyMediaAccess(token, secret, now = Date.now()) {
 
 export function mediaAsset(pathname) {
   return (
+    /^\/v1\/base-voices\/(?:es|en|pt)-[1-9]\d*\/(original)$/.exec(
+      pathname,
+    )?.[1] ??
     /^\/v1\/audio-projects\/[a-z0-9-]+-v[1-9]\d*\/[a-z0-9-]+\/(media|original-media)$/.exec(
       pathname,
     )?.[1] ??
@@ -80,6 +84,14 @@ export function mediaAsset(pathname) {
 export function matchesMediaScope(url, scope) {
   if (!mediaAsset(url.pathname) || !url.pathname.startsWith(scope.path))
     return false;
+  if (scope.path.startsWith("/v1/base-voices/"))
+    return (
+      scope.query === "" &&
+      [...url.searchParams.keys()].every(
+        (key) =>
+          key === "mediaToken" && url.searchParams.getAll(key).length === 1,
+      )
+    );
   const expected = new URLSearchParams(scope.query);
   for (const [key, value] of expected) {
     if (

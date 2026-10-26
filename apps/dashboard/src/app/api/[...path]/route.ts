@@ -1,3 +1,5 @@
+import { narrationModelSchema } from "../../../../../../tools/video-project-api/src/narration-models";
+import { signMediaAccess } from "../../../../../../tools/api-proxy/src/media-access.mjs";
 import {
   loadChapterAudioSettings,
   saveChapterAudioSettings,
@@ -421,6 +423,54 @@ async function handle(req: Request, lang: Language) {
     }
   }
   if (parts[0] === "base-voices") {
+    if (parts.length === 2 && parts[1] === "media-access" && method === "GET") {
+      const response = await videoFetch("/v1/base-voices");
+      if (!response.ok)
+        return json({ error: "Could not load voices. Try again." }, 502);
+      const catalog = baseVoiceCatalogSchema.parse(await response.json());
+      const expiresAt = Date.now() + 60 * 60 * 1000;
+      const env = bindings();
+      const voices = await Promise.all(
+        catalog.voices.map(async ({ id, locale }) => {
+          const path = `/v1/base-voices/${id}/`;
+          const token = await signMediaAccess(
+            { path, query: "", origin: url.origin, expiresAt },
+            env.DASHBOARD_API_PROXY_TOKEN,
+          );
+          return {
+            id,
+            locale,
+            url: `${env.VIDEO_API_URL.replace(/\/$/, "")}${path}original?mediaToken=${encodeURIComponent(token)}`,
+          };
+        }),
+      );
+      return json({ voices, expiresAt });
+    }
+    if (parts.length === 2 && parts[1] === "about" && method === "GET") {
+      try {
+        const response = await videoFetch("/v1/base-voices/about");
+        if (response.status === 404)
+          return json(
+            { error: "Voice information is not available yet." },
+            404,
+          );
+        if (!response.ok) throw new Error("Voice information unavailable");
+        const document = z
+          .object({ markdown: z.string().max(1024 * 1024) })
+          .parse(await response.json());
+        return json(document);
+      } catch (cause) {
+        console.error("Could not load voice information", cause);
+        return json(
+          {
+            error:
+              "Could not load voice information. Try again or contact the administrator.",
+          },
+          502,
+        );
+      }
+    }
+
     if (parts.length === 1 && method === "GET") {
       const response = await videoFetch("/v1/base-voices");
       if (!response.ok)
@@ -440,7 +490,12 @@ async function handle(req: Request, lang: Language) {
     if (parts.length === 3 && parts[2] === "sample") {
       const voice = baseVoiceSchema.parse(parts[1]);
       if (method === "GET") {
-        const response = await videoFetch(`/v1/base-voices/${voice}/sample`);
+        const model = narrationModelSchema
+          .optional()
+          .parse(url.searchParams.get("model") ?? undefined);
+        const response = await videoFetch(
+          `/v1/base-voices/${voice}/sample${model ? `?model=${encodeURIComponent(model)}` : ""}`,
+        );
         if (!response.ok)
           return json(
             { error: "No example has been generated for this voice yet." },

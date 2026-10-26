@@ -43,8 +43,8 @@ test("inventory groups shared models and probes each interpreter/cache/software 
       };
     },
   });
-  assert.equal(calls.length, 2);
-  assert.equal(result.models.length, 6);
+  assert.equal(calls.length, 3);
+  assert.equal(result.models.length, 8);
   const narration = result.models.find((model) => model.role === "voice")!;
   assert.deepEqual(narration.uses, [
     { kind: "short", languages: ["es", "en", "pt"] },
@@ -59,7 +59,7 @@ test("inventory groups shared models and probes each interpreter/cache/software 
   );
   assert.equal(
     calls.find((call) => call.python === "alignment-python")?.env.HF_HOME,
-    path.join(alignmentWorkerRoot, ".cache/huggingface"),
+    undefined,
   );
   assert.ok(!JSON.stringify(result).includes(voiceScript));
   assert.ok(localModelsSchema.safeParse(result).success);
@@ -75,7 +75,9 @@ test("Latam includes its base components, preserves language overrides and uses 
     voices: { short: config, long: voice({ ttsProvider: "elevenlabs" }) },
     alignment: { ...alignment, python: "same-python" },
     env: { HF_HOME: "/custom/cache" },
-    probe: async (_python, request) => {
+    probe: async (_python, request, env) => {
+      assert.equal(env.HF_HOME, "/custom/cache");
+      assert.equal(env.HF_HUB_CACHE, undefined);
       requests.push(request);
       return {
         version: request.package,
@@ -86,10 +88,10 @@ test("Latam includes its base components, preserves language overrides and uses 
       };
     },
   });
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 3);
   assert.equal(
     result.models.filter((model) => model.role === "voice").length,
-    4,
+    6,
   );
   const base = requests
     .find((request) => request.package === "chatterbox-tts")
@@ -289,6 +291,16 @@ test("catalogue includes all requested alternatives without selecting or loading
         "chatterbox-latam",
         "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
       ],
+      [
+        "Qwen3-TTS Base 0.6B",
+        "qwen3-base-0.6b",
+        "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+      ],
+      [
+        "Qwen3-TTS Base 1.7B",
+        "qwen3-base-1.7b",
+        "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+      ],
     ],
   );
   assert.ok(
@@ -296,7 +308,7 @@ test("catalogue includes all requested alternatives without selecting or loading
       (model) => model.uses.length === 0 && model.status === "not_downloaded",
     ),
   );
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   const probes = calls.find(
     (request) => request.package === "chatterbox-tts",
   ).models;

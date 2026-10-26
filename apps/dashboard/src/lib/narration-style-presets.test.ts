@@ -61,7 +61,11 @@ test("presets persist per language and selected values reach narration generatio
     presets.es.items.push({
       id: "solemn",
       name: "Solemne",
-      settings: { ...narrationPresets.expressive, temperature: 0.6 },
+      settings: {
+        ...narrationPresets.expressive,
+        temperature: 0.6,
+        modelSettings: { "future-model": { nested: { pace: 0.7 } } },
+      },
     });
     presets.es.selected = "solemn";
     presets.pt.items.push({
@@ -136,4 +140,97 @@ test("preset validation protects built-ins and rejects missing, duplicate or inv
   preset.name = "  ";
   assert.equal(narrationPresetLibrarySchema.safeParse(library).success, false);
   assert.deepEqual(narrationPresets, original);
+});
+
+test("one style keeps independent configurations for both Qwen sizes, Chatterbox and future models", async () => {
+  const { qwenDefaults } =
+    await import("../../../../tools/video-project-api/src/narration-model-settings");
+  const { effectiveNarrationParameters, narrationParameterArgs } =
+    await import("./narration-parameters");
+  const { narrationPresetSelectionSchema } =
+    await import("./voice-style-presets");
+  const { presetSettings } = await import("./narration-style-presets");
+  const library = presetLibraryFromStyles(defaultNarrationStyles());
+  library.es.items.push({
+    id: "solemn",
+    name: "Solemn",
+    settings: {
+      ...narrationPresets.natural,
+      modelSettings: {
+        "multilingual-v3": {
+          ...narrationPresets.expressive,
+          temperature: 0.65,
+        },
+        "qwen3-base-0.6b": { ...qwenDefaults, top_k: 25 },
+        "qwen3-base-1.7b": { ...qwenDefaults, top_p: 0.8 },
+        "future-voice": { nested: { pace: 0.9 }, flags: ["a", "b"] },
+      },
+    },
+  });
+  library.es.selected = "solemn";
+  const reloaded = narrationPresetLibrarySchema.parse(
+    JSON.parse(JSON.stringify(library)),
+  );
+  const styles = stylesFromPresetLibrary(reloaded);
+  const parameters = resolveNarrationStyle(styles.es);
+  assert.equal(
+    effectiveNarrationParameters(parameters, "multilingual-v3").temperature,
+    0.65,
+  );
+  const small = effectiveNarrationParameters(parameters, "qwen3-base-0.6b");
+  assert.deepEqual(small, { ...qwenDefaults, top_k: 25 });
+  assert.deepEqual(
+    effectiveNarrationParameters(parameters, "qwen3-base-1.7b"),
+    { ...qwenDefaults, top_p: 0.8 },
+  );
+  const args = narrationParameterArgs(parameters, "qwen3-base-1.7b");
+  assert.equal(args.includes("--exaggeration"), false);
+  assert.equal(args.includes("--cfg-weight"), false);
+  assert.equal(args.includes("--model-settings"), false);
+  assert.equal(args[args.indexOf("--top-p") + 1], "0.8");
+  // A project snapshots the complete style, so later model changes preserve its choices.
+  const snapshot = narrationPresetSelectionSchema.parse({
+    id: "solemn",
+    name: "Solemn",
+    settings: presetSettings(reloaded, "es", "solemn"),
+  });
+  assert.deepEqual(snapshot.settings.modelSettings?.["future-voice"], {
+    nested: { pace: 0.9 },
+    flags: ["a", "b"],
+  });
+  assert.deepEqual(snapshot.settings, parameters);
+});
+
+test("built-in styles accept model-specific settings without changing their identities or other languages", async () => {
+  const { qwenDefaults } =
+    await import("../../../../tools/video-project-api/src/narration-model-settings");
+  const { effectiveNarrationParameters } =
+    await import("./narration-parameters");
+  const { presetSettings } = await import("./narration-style-presets");
+  const library = presetLibraryFromStyles(defaultNarrationStyles());
+  library.en.builtInSettings = {
+    natural: {
+      "qwen3-base-0.6b": { ...qwenDefaults, temperature: 0.55 },
+      "qwen3-base-1.7b": { ...qwenDefaults, top_k: 40 },
+    },
+  };
+  const parsed = narrationPresetLibrarySchema.parse(
+    JSON.parse(JSON.stringify(library)),
+  );
+  assert.equal(parsed.en.selected, "natural");
+  assert.deepEqual(parsed.en.items, []);
+  const parameters = resolveNarrationStyle(stylesFromPresetLibrary(parsed).en);
+  assert.deepEqual(parameters, presetSettings(parsed, "en", "natural"));
+  assert.deepEqual(
+    effectiveNarrationParameters(parameters, "multilingual-v3"),
+    narrationPresets.natural,
+  );
+  assert.equal(
+    effectiveNarrationParameters(parameters, "qwen3-base-0.6b").temperature,
+    0.55,
+  );
+  assert.deepEqual(stylesFromPresetLibrary(parsed).es, { preset: "natural" });
+  const bad = structuredClone(parsed);
+  bad.en.builtInSettings!.natural!["qwen3-base-0.6b"].top_k = -1;
+  assert.equal(narrationPresetLibrarySchema.safeParse(bad).success, false);
 });

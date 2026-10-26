@@ -22,7 +22,9 @@
     "next": "^15.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-markdown": "^10.1.0",
     "react-server-dom-webpack": "19.2.8",
+    "remark-gfm": "^4.0.1",
     "remotion": "4.0.532",
     "vinext": "^1.0.0-beta.8",
     "zod": "^3.24.2"

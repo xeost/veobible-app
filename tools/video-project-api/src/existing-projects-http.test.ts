@@ -97,6 +97,8 @@ test(
           "ResembleAI/chatterbox",
           "ResembleAI/Chatterbox-Multilingual-pt-br",
           "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
+          "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+          "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
         ],
       );
       assert.ok(

@@ -29,6 +29,8 @@ export const localModelSchema = z.object({
   status: localModelStatusSchema,
   variant: z
     .enum([
+      "qwen3-base-0.6b",
+      "qwen3-base-1.7b",
       "chatterbox-original",
       "chatterbox-pt-br",
       "chatterbox-v2",
@@ -41,7 +43,7 @@ export const localModelSchema = z.object({
     ])
     .default("custom"),
   software: z.object({
-    name: z.enum(["chatterbox-tts", "mlx-audio"]),
+    name: z.enum(["chatterbox-tts", "mlx-audio", "qwen-tts"]),
     version: z.string().max(100).nullable(),
   }),
 });

@@ -6,7 +6,7 @@ import {
 } from "./narration-models";
 test("every displayed language option resolves to the worker model, and V2 cannot be selected", () => {
   for (const locale of ["en", "es", "pt"] as const) {
-    assert.equal(narrationModelOptions[locale].length, 2);
+    assert.equal(narrationModelOptions[locale].length, 4);
     for (const option of narrationModelOptions[locale])
       assert.equal(narrationModelForLocale(option.value, locale), option.value);
     assert.throws(() => narrationModelForLocale("multilingual-v2", locale));
@@ -38,13 +38,13 @@ test("both video engines pass the selected per-language model to the worker with
       import * as short from './src/engines/short/voice.ts'; import * as long from './src/engines/long/voice.ts';
       import { narrationModelOptions } from './src/narration-models.ts';
       import { narrationPresets } from './src/narration-parameters.ts';
-      for(const [kind, engine] of Object.entries({short,long})) for(const locale of ['en','es','pt']) for(const {value} of narrationModelOptions[locale]) for(const decoder of ['general','v3']) {
+      for(const [kind, engine] of Object.entries({short,long})) for(const locale of ['en','es','pt']) for(const {value} of narrationModelOptions[locale]) for(const decoder of (value.startsWith('qwen3-') ? [undefined] : ['general','v3'])) {
         const out=path.join(process.env.MODEL_TEST_DIR,kind+'-'+locale+'-'+value+'-'+decoder);
         await engine.generateVoice(out,{locale,voiceModel:value,voiceDecoder:decoder,voiceParameters:narrationPresets.expressive,voiceTextAdaptations:{reinforceSpanishRs:true},reference:'John',version:'Bible',book:'John',start:'1:1',end:'1:2',passage_id:'john-1-1',templates:{intro:'¶ ‹Rosa› corre ‹rápido.›',outro:'Goodbye'}},true,'intro');
         const spoken=JSON.parse(await fs.readFile(path.join(out,'spoken-scripts.json'),'utf8'));
         assert.equal(spoken.intro,locale==='es'?'Rrosa corrre rrápido.':'Rosa corre rápido.');
         const args=JSON.parse(await fs.readFile(path.join(out,'args.json'),'utf8'));
-        for(const [key, parameter] of Object.entries(narrationPresets.expressive)) assert.equal(args[args.indexOf('--'+key.replaceAll('_','-'))+1],String(parameter));
+        for(const [key, parameter] of Object.entries(value.startsWith('qwen3-') ? {temperature:0.9,top_p:1,top_k:50,repetition_penalty:1.05,max_new_tokens:2048} : narrationPresets.expressive)) assert.equal(args[args.indexOf('--'+key.replaceAll('_','-'))+1],String(parameter));
         if(decoder) assert.equal(args[args.indexOf('--audio-decoder')+1],decoder); else assert.equal(args.includes('--audio-decoder'),false);
         assert.equal(args[args.indexOf('--model')+1],value); assert.equal(args[args.indexOf('--language')+1],locale);
       }
@@ -52,6 +52,7 @@ test("both video engines pass the selected per-language model to the worker with
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       VIDEO_TTS_SCRIPT: worker,
+      VIDEO_QWEN_TTS_PYTHON: process.execPath,
       MODEL_TEST_DIR: root,
       WORKING_DIR: root,
     };
@@ -66,5 +67,55 @@ test("both video engines pass the selected per-language model to the worker with
     );
   } finally {
     await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("chapter cache depends only on the active model's preset configuration", async () => {
+  const { chapterSynthesis } = await import("./pipeline.js");
+  const { narrationPresets } = await import("./narration-parameters.js");
+  const { qwenDefaults } = await import("./narration-model-settings.js");
+  const parameters = {
+    ...narrationPresets.natural,
+    modelSettings: {
+      "qwen3-base-0.6b": { ...qwenDefaults },
+      "qwen3-base-1.7b": { ...qwenDefaults },
+    },
+  };
+  const small = () =>
+    chapterSynthesis("es", "qwen3-base-0.6b", parameters, "es-1");
+  const chatterbox = () =>
+    chapterSynthesis("es", "multilingual-v3", parameters, "es-1");
+  const original = small(),
+    originalChatterbox = chatterbox();
+  parameters.modelSettings["qwen3-base-1.7b"].top_k = 20;
+  assert.equal(small(), original);
+  parameters.modelSettings["qwen3-base-0.6b"].top_k = 30;
+  assert.notEqual(small(), original);
+  assert.equal(chatterbox(), originalChatterbox);
+  assert.notEqual(
+    small(),
+    chapterSynthesis("es", "qwen3-base-1.7b", parameters, "es-1"),
+  );
+});
+
+test("voice providers inherit the shared Hugging Face cache without private overrides", async () => {
+  const { narrationRuntime, qwenPython } =
+    await import("./narration-runtime.js");
+  for (const env of [
+    {},
+    { HF_HOME: "/shared/huggingface", HF_HUB_CACHE: "/shared/hub" },
+  ]) {
+    for (const model of [
+      "multilingual-v3",
+      "qwen3-base-0.6b",
+      "qwen3-base-1.7b",
+    ]) {
+      const runtime = narrationRuntime(model, "chatterbox-python", env);
+      assert.equal(runtime.env, env);
+      assert.equal(
+        runtime.python,
+        model.startsWith("qwen3-") ? qwenPython : "chatterbox-python",
+      );
+    }
   }
 });

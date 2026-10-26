@@ -43,6 +43,7 @@ import { applyReadingCuts, expandReadingContext } from "./reading-timeline.js";
 import { initializeFinderView } from "./finder-view.js";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { effectiveNarrationParameters } from "./narration-parameters.js";
 import path from "node:path";
 import {
   outputRoot,
@@ -82,7 +83,11 @@ export function chapterSynthesis(
   return createHash("sha256")
     .update(
       JSON.stringify({
-        provider: selected ? "chatterbox" : longConfig.ttsProvider,
+        provider: selected?.startsWith("qwen3-base-")
+          ? "qwen3"
+          : selected
+            ? "chatterbox"
+            : longConfig.ttsProvider,
         model:
           selected || longConfig.ttsProvider === "chatterbox"
             ? ["multilingual", "multilingual-v3"].includes(model)
@@ -94,7 +99,14 @@ export function chapterSynthesis(
             ? baseVoiceSample(locale, baseVoice)
             : longConfig.elevenLabsVoices[locale],
         script: longConfig.ttsScript,
-        ...(parameters ? { parameters } : {}),
+        ...(parameters
+          ? {
+              parameters:
+                parameters.modelSettings || model.startsWith("qwen3-base-")
+                  ? effectiveNarrationParameters(parameters, model)
+                  : parameters,
+            }
+          : {}),
         ...(locale === "es" && textAdaptations?.reinforceSpanishRs
           ? { textAdaptations }
           : {}),

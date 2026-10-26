@@ -11,7 +11,7 @@ python3.12 -m venv tools/forced-aligner/.venv
 tools/forced-aligner/.venv/bin/python -m pip install -r tools/forced-aligner/requirements.txt
 ```
 
-The first real analysis downloads the aligner and `mlx-community/Qwen3-ASR-0.6B-8bit` into `tools/forced-aligner/.cache/huggingface` (ignored by Git). `HF_HOME` can override this directory. Later analyses reuse the downloads. Run the video API as a native macOS process with access to Metal, rather than in a Linux container.
+The first real analysis downloads the aligner and `mlx-community/Qwen3-ASR-0.6B-8bit` into the shared Hugging Face cache (`~/.cache/huggingface/hub` by default). `hf cache ls` lists these models alongside narration models. Standard Hugging Face environment overrides are respected; no project-specific cache is selected. Later analyses reuse the downloads. Run the video API as a native macOS process with access to Metal, rather than in a Linux container.
 
 ## Editor workflow
 

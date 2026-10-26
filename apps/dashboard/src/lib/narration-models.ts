@@ -6,6 +6,8 @@ export {
   narrationModelsSchema,
   defaultNarrationModels,
   narrationModelOptions,
+  isQwenNarrationModel,
+  narrationProvider,
   selectedNarrationDecoder,
   selectedNarrationTextAdaptations,
   type NarrationModels,
@@ -39,6 +41,8 @@ export function applyNarrationSelection<
   T extends import("./local-models").LocalModels,
 >(inventory: T, selection: import("./narration-models").NarrationModels): T {
   const variants = {
+    "qwen3-base-0.6b": "qwen3-base-0.6b",
+    "qwen3-base-1.7b": "qwen3-base-1.7b",
     chatterbox: "chatterbox-original",
     "multilingual-v3": "chatterbox-v3",
     latam: "chatterbox-latam",

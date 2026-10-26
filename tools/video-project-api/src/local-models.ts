@@ -14,6 +14,7 @@ import {
   type LocalModels,
 } from "./local-models-contract.js";
 
+import { qwenPython } from "./narration-runtime.js";
 const execute = promisify(execFile);
 const probeFile = fileURLToPath(
   new URL("./local-model-inventory.py", import.meta.url),
@@ -96,25 +97,29 @@ export async function loadLocalModels(
       repoPattern.test(source) && !existsSync(source) ? source : null;
     const variant: Model["variant"] = custom
       ? "custom"
-      : repository === "ResembleAI/chatterbox"
-        ? required.includes("t3_cfg.safetensors")
-          ? "chatterbox-original"
-          : required.includes("t3_mtl23ls_v3.safetensors")
-            ? "chatterbox-v3"
-            : required.includes("t3_mtl23ls_v2.safetensors")
-              ? "chatterbox-v2"
-              : "chatterbox-shared"
-        : repository === "ResembleAI/Chatterbox-Multilingual-es-mx-latam"
-          ? "chatterbox-latam"
-          : repository === "ResembleAI/Chatterbox-Multilingual-pt-br"
-            ? "chatterbox-pt-br"
-            : role === "alignment" &&
-                repository === "mlx-community/Qwen3-ForcedAligner-0.6B-8bit"
-              ? "qwen3-aligner-0.6b-8bit"
-              : role === "recognition" &&
-                  repository === "mlx-community/Qwen3-ASR-0.6B-8bit"
-                ? "qwen3-asr-0.6b-8bit"
-                : "custom";
+      : repository === "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+        ? "qwen3-base-0.6b"
+        : repository === "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+          ? "qwen3-base-1.7b"
+          : repository === "ResembleAI/chatterbox"
+            ? required.includes("t3_cfg.safetensors")
+              ? "chatterbox-original"
+              : required.includes("t3_mtl23ls_v3.safetensors")
+                ? "chatterbox-v3"
+                : required.includes("t3_mtl23ls_v2.safetensors")
+                  ? "chatterbox-v2"
+                  : "chatterbox-shared"
+            : repository === "ResembleAI/Chatterbox-Multilingual-es-mx-latam"
+              ? "chatterbox-latam"
+              : repository === "ResembleAI/Chatterbox-Multilingual-pt-br"
+                ? "chatterbox-pt-br"
+                : role === "alignment" &&
+                    repository === "mlx-community/Qwen3-ForcedAligner-0.6B-8bit"
+                  ? "qwen3-aligner-0.6b-8bit"
+                  : role === "recognition" &&
+                      repository === "mlx-community/Qwen3-ASR-0.6B-8bit"
+                    ? "qwen3-asr-0.6b-8bit"
+                    : "custom";
     const previous = entries.find(
       (entry) =>
         entry.model.name === name &&
@@ -157,7 +162,11 @@ export async function loadLocalModels(
         status: custom ? "custom" : "unavailable",
         variant,
         software: {
-          name: role === "voice" ? "chatterbox-tts" : "mlx-audio",
+          name: variant.startsWith("qwen3-base-")
+            ? "qwen-tts"
+            : role === "voice"
+              ? "chatterbox-tts"
+              : "mlx-audio",
           version: null,
         },
       },
@@ -294,12 +303,29 @@ export async function loadLocalModels(
       continue;
     add(name, "voice", repository, required, cataloguePython, env, []);
   }
-  const alignmentEnv = {
-    ...env,
-    HF_HOME:
-      env.HF_HOME ??
-      path.join(path.dirname(alignment.script), ".cache/huggingface"),
-  };
+  for (const size of ["0.6", "1.7"]) {
+    add(
+      `Qwen3-TTS Base ${size}B`,
+      "voice",
+      `Qwen/Qwen3-TTS-12Hz-${size}B-Base`,
+      [
+        "config.json",
+        "model*.safetensors",
+        "tokenizer_config.json",
+        "preprocessor_config.json",
+        "generation_config.json",
+        "vocab.json",
+        "merges.txt",
+        "speech_tokenizer/config.json",
+        "speech_tokenizer/preprocessor_config.json",
+        "speech_tokenizer/model.safetensors",
+      ],
+      qwenPython,
+      env,
+      [],
+    );
+  }
+  const alignmentEnv = env;
   const customAlignment =
     path.resolve(alignment.script) !== path.join(alignmentWorkerRoot, "cli.py");
   const uses = (["short", "long"] as const).map((kind) => ({

@@ -11,10 +11,12 @@ import {
 } from "../lib/narration-parameters";
 import {
   builtInNarrationLabels,
+  presetSettings,
   narrationPresetLibrarySchema,
   type NarrationPresetLibrary,
 } from "../lib/narration-style-presets";
 import type { NarrationPresetSelection } from "../lib/voice-style-presets";
+import { narrationModelOptions } from "../lib/narration-models";
 import type { VoiceSampleSettings } from "../lib/voice-sample-settings";
 import {
   sampleTexts,
@@ -51,6 +53,11 @@ export function BaseVoiceSelector({
 }) {
   const { t } = useI18n();
   const canGenerate = Boolean(narrationSettings);
+  const generationModel = narrationSettings?.models[locale];
+  const [playbackModel, setPlaybackModel] = useState(generationModel ?? "");
+  useEffect(() => {
+    setPlaybackModel(generationModel ?? "");
+  }, [generationModel, value, defaultVoice]);
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const id = useId();
@@ -116,6 +123,17 @@ export function BaseVoiceSelector({
         : (systemCustomPreset?.name ?? "")
     : "";
   const selected = voices.find((voice) => voice.id === effectiveValue);
+  const generationSample = generationModel
+    ? selected?.samples?.find((sample) => sample.voiceModel === generationModel)
+    : selected;
+  const playbackSample = canGenerate
+    ? selected?.samples?.find((sample) => sample.voiceModel === playbackModel)
+    : selected;
+  const playbackWorking = Boolean(
+    playbackSample && ["queued", "running"].includes(playbackSample.status),
+  );
+  const savedSamples =
+    selected?.samples?.filter((sample) => sample.available) ?? [];
   const formatPresetLabel = defaultPreset
     ? Object.hasOwn(builtInNarrationLabels, defaultPreset.id)
       ? t(
@@ -128,26 +146,29 @@ export function BaseVoiceSelector({
         : defaultPreset.name
     : systemPresetLabel;
   useEffect(() => {
-    setText(selected?.text || sampleTexts[locale]);
-  }, [selected?.id, selected?.text, locale]);
+    setText(generationSample?.text || sampleTexts[locale]);
+  }, [selected?.id, generationSample?.text, generationModel, locale]);
   const working =
     submitting ||
-    Boolean(selected && ["queued", "running"].includes(selected.status));
+    Boolean(
+      generationSample &&
+      ["queued", "running"].includes(generationSample.status),
+    );
   useEffect(() => {
     const player = audio.current;
     setPlaying(false);
     return () => {
       player?.pause();
     };
-  }, [effectiveValue, locale, selected?.generatedAt]);
+  }, [effectiveValue, locale, playbackModel, playbackSample?.generatedAt]);
   useEffect(() => {
-    if (working) {
+    if (playbackWorking) {
       audio.current?.pause();
       setPlaying(false);
     }
-  }, [working]);
+  }, [playbackWorking]);
   const togglePlayback = async () => {
-    if (working) return;
+    if (playbackWorking) return;
     const player = audio.current;
     if (!player) return;
     if (!player.paused) {
@@ -166,6 +187,7 @@ export function BaseVoiceSelector({
     audio.current?.pause();
     setPlaying(false);
     setSubmitting(true);
+    setPlaybackModel(generationModel ?? "");
     setError("");
     try {
       await api(`base-voices/${effectiveValue}/sample`, {
@@ -177,7 +199,14 @@ export function BaseVoiceSelector({
       setVoices((current) =>
         current.map((voice) =>
           voice.id === effectiveValue
-            ? { ...voice, status: "queued", progress: 0 }
+            ? {
+                ...voice,
+                samples: (voice.samples ?? []).map((sample) =>
+                  sample.voiceModel === generationModel
+                    ? { ...sample, status: "queued", progress: 0 }
+                    : sample,
+                ),
+              }
             : voice,
         ),
       );
@@ -195,13 +224,13 @@ export function BaseVoiceSelector({
         playing ? "Pause voice example" : "Listen to the generated example",
       )}
       data-tooltip={t(
-        !selected?.available
+        !playbackSample?.available
           ? "No example has been generated for this voice yet."
           : playing
             ? "Pause voice example"
             : "Listen to the generated example",
       )}
-      disabled={loading || working || !selected?.available}
+      disabled={loading || playbackWorking || !playbackSample?.available}
       onClick={() => void togglePlayback()}
     >
       {playing ? (
@@ -288,7 +317,9 @@ export function BaseVoiceSelector({
                 onPresetChange({
                   id: key,
                   name: builtInNarrationLabels[key],
-                  settings: { ...narrationPresets[key] },
+                  settings: presets
+                    ? presetSettings(presets, locale, key)
+                    : { ...narrationPresets[key] },
                 });
               } else {
                 const item = presets?.[locale].items.find(
@@ -386,13 +417,53 @@ export function BaseVoiceSelector({
               {t(
                 working
                   ? "Generating example…"
-                  : selected?.available
+                  : generationSample?.available
                     ? "Regenerate example"
                     : "Generate example",
               )}
             </button>
+          </div>
+          <label htmlFor={`${id}-sample-model`}>
+            {t("Example to listen to")}
+          </label>
+          <div className="base-voice-select-row">
+            <select
+              id={`${id}-sample-model`}
+              value={playbackModel}
+              disabled={loading || !selected}
+              onChange={(event) => {
+                audio.current?.pause();
+                setPlaying(false);
+                setError("");
+                setPlaybackModel(event.target.value);
+              }}
+            >
+              {narrationModelOptions[locale]
+                .filter(
+                  (option) =>
+                    option.value === generationModel ||
+                    savedSamples.some(
+                      (sample) => sample.voiceModel === option.value,
+                    ),
+                )
+                .map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(option.label)}
+                    {!savedSamples.some(
+                      (sample) => sample.voiceModel === option.value,
+                    )
+                      ? ` · ${t("Not generated yet")}`
+                      : ""}
+                  </option>
+                ))}
+            </select>
             {playbackButton}
           </div>
+          <p className="muted">
+            {t(
+              "One example is saved per voice and model. Regenerating replaces only that model’s example.",
+            )}
+          </p>
           <p className="muted">
             {t(
               "Examples use the model and narration preset currently selected above, including unsaved changes. Regenerate an example after changing them.",
@@ -403,18 +474,18 @@ export function BaseVoiceSelector({
       {canGenerate && working && (
         <p className="muted" role="status">
           {t(
-            selected?.status === "queued"
+            generationSample?.status === "queued"
               ? "Example waiting to be generated…"
               : "Generating example…",
           )}
         </p>
       )}
-      {canGenerate && selected?.status === "failed" && (
+      {canGenerate && generationSample?.status === "failed" && (
         <p className="error" role="alert">
           {t("Could not generate the example. Try again.")}
         </p>
       )}
-      {selected?.available && (
+      {playbackSample?.available && (
         <audio
           ref={audio}
           id={`${id}-audio`}
@@ -428,8 +499,8 @@ export function BaseVoiceSelector({
             setError("Could not play the example. Try again.");
           }}
           preload="none"
-          key={`${effectiveValue}:${selected.generatedAt}`}
-          src={`/api/base-voices/${effectiveValue}/sample?revision=${encodeURIComponent(selected.generatedAt ?? "")}`}
+          key={`${effectiveValue}:${playbackModel}:${playbackSample.generatedAt}`}
+          src={`/api/base-voices/${effectiveValue}/sample?${canGenerate ? `model=${encodeURIComponent(playbackModel)}&` : ""}revision=${encodeURIComponent(playbackSample.generatedAt ?? "")}`}
         />
       )}
       {error && (

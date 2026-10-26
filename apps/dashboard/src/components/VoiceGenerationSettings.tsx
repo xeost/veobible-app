@@ -2,6 +2,7 @@
 import { resolveNarrationStyle } from "../lib/narration-parameters";
 import {
   builtInNarrationLabels,
+  presetSettings,
   narrationPresetLibrarySchema,
   stylesFromPresetLibrary,
   type NarrationPresetLibrary,
@@ -16,6 +17,7 @@ import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import {
   narrationModelsSchema,
+  isQwenNarrationModel,
   narrationModelOptions,
   selectedNarrationDecoder,
   type NarrationModels,
@@ -91,7 +93,7 @@ export function VoiceGenerationSettings() {
         <h2 id="voice-generation-title">{t("Voice generation settings")}</h2>
         <p className="muted">
           {t(
-            "Choose the narration model for each Bible language. Applies to new voices in video and audio projects. Multilingual options use V3.",
+            "Choose the narration model for each Bible language. Applies to new voices in video and audio projects. Each model keeps its own preset settings.",
           )}
         </p>
         {error && (
@@ -140,7 +142,7 @@ export function VoiceGenerationSettings() {
                       </option>
                     ))}
                   </select>
-                  {locale === "es" && (
+                  {locale === "es" && !isQwenNarrationModel(models.es) && (
                     <details>
                       <summary>
                         {t("Text adaptations for this voice model")}
@@ -154,8 +156,9 @@ export function VoiceGenerationSettings() {
                         <input
                           type="checkbox"
                           checked={
-                            models.textAdaptations?.es?.[models.es]
-                              ?.reinforceSpanishRs ?? false
+                            models.textAdaptations?.es?.[
+                              models.es as "latam" | "multilingual-v3"
+                            ]?.reinforceSpanishRs ?? false
                           }
                           onChange={(event) =>
                             setModels(
@@ -167,7 +170,7 @@ export function VoiceGenerationSettings() {
                                     ...models.textAdaptations?.es,
                                     [models.es]: {
                                       ...models.textAdaptations?.es?.[
-                                        models.es
+                                        models.es as "latam" | "multilingual-v3"
                                       ],
                                       reinforceSpanishRs: event.target.checked,
                                     },
@@ -227,15 +230,17 @@ export function VoiceGenerationSettings() {
                         );
                         setEditor({
                           locale,
-                          readOnly: builtIn,
+                          readOnly: false,
                           preset: builtIn
                             ? {
                                 id: selected,
                                 name: builtInNarrationLabels[
                                   selected as keyof typeof builtInNarrationLabels
                                 ],
-                                settings: resolveNarrationStyle(
-                                  stylesFromPresetLibrary(presets)[locale],
+                                settings: presetSettings(
+                                  presets,
+                                  locale,
+                                  selected,
                                 ),
                               }
                             : presets[locale].items.find(
@@ -244,14 +249,7 @@ export function VoiceGenerationSettings() {
                         });
                       }}
                     >
-                      {t(
-                        Object.hasOwn(
-                          builtInNarrationLabels,
-                          presets[locale].selected,
-                        )
-                          ? "View preset"
-                          : "Configure preset",
-                      )}
+                      {t("Configure preset")}
                     </button>
                     <button
                       type="button"
@@ -272,33 +270,37 @@ export function VoiceGenerationSettings() {
                       {t("Add preset")}
                     </button>
                   </div>
-                  <details>
-                    <summary>{t("Advanced voice settings")}</summary>
-                    <label htmlFor={`audio-decoder-${locale}`}>
-                      {t("Audio decoder")}
-                    </label>
-                    <select
-                      id={`audio-decoder-${locale}`}
-                      value={selectedNarrationDecoder(models, locale)}
-                      onChange={(event) =>
-                        setModels(
-                          narrationModelsSchema.parse({
-                            ...models,
-                            decoders: {
-                              ...models.decoders,
-                              [locale]: {
-                                ...models.decoders?.[locale],
-                                [models[locale]]: event.target.value,
+                  {!isQwenNarrationModel(models[locale]) && (
+                    <details>
+                      <summary>{t("Advanced voice settings")}</summary>
+                      <label htmlFor={`audio-decoder-${locale}`}>
+                        {t("Audio decoder")}
+                      </label>
+                      <select
+                        id={`audio-decoder-${locale}`}
+                        value={selectedNarrationDecoder(models, locale)}
+                        onChange={(event) =>
+                          setModels(
+                            narrationModelsSchema.parse({
+                              ...models,
+                              decoders: {
+                                ...models.decoders,
+                                [locale]: {
+                                  ...models.decoders?.[locale],
+                                  [models[locale]]: event.target.value,
+                                },
                               },
-                            },
-                          }),
-                        )
-                      }
-                    >
-                      <option value="general">{t("General (s3gen.pt)")}</option>
-                      <option value="v3">{t("V3 (s3gen_v3.pt)")}</option>
-                    </select>
-                  </details>
+                            }),
+                          )
+                        }
+                      >
+                        <option value="general">
+                          {t("General (s3gen.pt)")}
+                        </option>
+                        <option value="v3">{t("V3 (s3gen_v3.pt)")}</option>
+                      </select>
+                    </details>
+                  )}
                 </fieldset>
               ))}
             </div>
@@ -315,9 +317,10 @@ export function VoiceGenerationSettings() {
             </button>
           </form>
         )}
-        {editor && presets && (
+        {editor && presets && models && (
           <NarrationPresetModal
             initial={editor.preset}
+            model={models[editor.locale]}
             readOnly={editor.readOnly}
             language={
               { en: "English", es: "Spanish", pt: "Portuguese" }[editor.locale]
@@ -333,6 +336,7 @@ export function VoiceGenerationSettings() {
                     setPresets({
                       ...presets,
                       [editor.locale]: {
+                        ...current,
                         selected:
                           current.selected === editor.preset.id
                             ? "natural"
@@ -349,9 +353,26 @@ export function VoiceGenerationSettings() {
             }
             apply={(preset) => {
               const current = presets[editor.locale];
+              if (Object.hasOwn(builtInNarrationLabels, preset.id)) {
+                const key = preset.id as keyof typeof builtInNarrationLabels;
+                setPresets({
+                  ...presets,
+                  [editor.locale]: {
+                    ...current,
+                    selected: key,
+                    builtInSettings: {
+                      ...current.builtInSettings,
+                      [key]: preset.settings.modelSettings,
+                    },
+                  },
+                });
+                setEditor(null);
+                return;
+              }
               setPresets({
                 ...presets,
                 [editor.locale]: {
+                  ...current,
                   selected: preset.id,
                   items: current.items.some((item) => item.id === preset.id)
                     ? current.items.map((item) =>

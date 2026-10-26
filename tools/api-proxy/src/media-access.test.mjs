@@ -240,3 +240,83 @@ test("audio grants stream verse, chapter and original media without authorizing 
     upstream.close();
   }
 });
+
+test("base voice grants stream only the selected original file and preserve ranges", async () => {
+  const secret = "base-voice-proxy-secret";
+  const origin = "https://dash.veobible.com";
+  const forwarded = [];
+  const upstream = http.createServer((req, res) => {
+    forwarded.push({
+      url: req.url,
+      authorization: req.headers.authorization,
+      range: req.headers.range,
+    });
+    res.writeHead(req.headers.range ? 206 : 200, {
+      "Content-Type": "audio/mpeg",
+      "Content-Length": "4",
+      "Accept-Ranges": "bytes",
+      ...(req.headers.range ? { "Content-Range": "bytes 0-3/8" } : {}),
+    });
+    res.end("base");
+  });
+  upstream.listen(0, "127.0.0.1");
+  await once(upstream, "listening");
+  const proxy = createProxy({
+    videoPort: upstream.address().port,
+    token: secret,
+    log: () => {},
+  });
+  proxy.listen(0, "127.0.0.1");
+  await once(proxy, "listening");
+  const base = `http://127.0.0.1:${proxy.address().port}`;
+  const scope = {
+    path: "/v1/base-voices/en-1/",
+    query: "",
+    origin,
+    expiresAt: Date.now() + 3600000,
+  };
+  const token = await signMediaAccess(scope, secret);
+  const url = `${base}${scope.path}original?mediaToken=${token}`;
+  try {
+    const response = await fetch(url, {
+      headers: { Origin: origin, Range: "bytes=0-3" },
+    });
+    assert.equal(response.status, 206);
+    assert.equal(await response.text(), "base");
+    assert.equal(response.headers.get("Content-Type"), "audio/mpeg");
+    assert.equal(response.headers.get("Content-Range"), "bytes 0-3/8");
+    assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
+    assert.deepEqual(forwarded[0], {
+      url: "/v1/base-voices/en-1/original",
+      authorization: `Bearer ${secret}`,
+      range: "bytes=0-3",
+    });
+    const head = await fetch(url, { method: "HEAD" });
+    assert.equal(head.status, 200);
+    assert.equal(await head.text(), "");
+    for (const invalid of [
+      url.replace("en-1/", "en-2/"),
+      url.replace("en-1/", "es-1/"),
+      url.replace("original?", "sample?"),
+      `${url}&file=other.mp3`,
+      `${base}/v1/base-voices?mediaToken=${token}`,
+      url.replace(
+        token,
+        await signMediaAccess({ ...scope, expiresAt: Date.now() - 1 }, secret),
+      ),
+    ]) {
+      assert.equal((await fetch(invalid)).status, 401);
+    }
+    assert.equal((await fetch(url, { method: "POST" })).status, 401);
+    assert.equal(
+      (await fetch(url, { headers: { Origin: "https://other.example" } }))
+        .status,
+      401,
+    );
+  } finally {
+    proxy.closeAllConnections();
+    proxy.close();
+    upstream.closeAllConnections();
+    upstream.close();
+  }
+});

@@ -1,3 +1,5 @@
+import { narrationRuntime } from "../../narration-runtime.js";
+import { narrationProvider } from "../../narration-models.js";
 import {
   adaptNarrationText,
   type NarrationTextAdaptations,
@@ -467,7 +469,9 @@ export async function generateVoice(
       ),
     ]),
   );
-  const provider = context.voiceModel ? "chatterbox" : config.ttsProvider;
+  const provider = context.voiceModel
+    ? narrationProvider(context.voiceModel)
+    : config.ttsProvider;
   if (provider === "elevenlabs") {
     onProgress?.(20);
     await generateElevenLabsVoice(
@@ -480,7 +484,7 @@ export async function generateVoice(
     onProgress?.(100);
     return;
   }
-  if (provider !== "chatterbox")
+  if (provider !== "chatterbox" && provider !== "qwen3")
     throw new Error(
       `Unknown voice provider: ${config.ttsProvider}. Use chatterbox or elevenlabs`,
     );
@@ -526,15 +530,25 @@ export async function generateVoice(
     );
     if (context.voiceDecoder)
       args.push("--audio-decoder", context.voiceDecoder);
-    args.push(...narrationParameterArgs(context.voiceParameters));
+    args.push(
+      ...narrationParameterArgs(
+        context.voiceParameters,
+        context.voiceModel ?? config.ttsModels[context.locale],
+      ),
+    );
     if (context.singleUtterance) args.push("--single-utterance");
     args.push("--voice-prompts", promptsPath);
     if (force) args.push("--force");
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(config.ttsPython, args, {
+      const runtime = narrationRuntime(
+        context.voiceModel ?? config.ttsModels[context.locale],
+        config.ttsPython,
+      );
+      const child = spawn(runtime.python, args, {
+        env: runtime.env,
         stdio: ["ignore", "pipe", "pipe"],
       });
-      let stage = "Starting Chatterbox";
+      let stage = "Starting voice generation";
       let stageStarted = Date.now();
       let stdoutBuffer = "";
       let stdoutTail = "";
