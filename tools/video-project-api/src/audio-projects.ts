@@ -402,6 +402,25 @@ export class AudioProjects {
     if (!asset) throw new AudioProjectError("Audio is not ready yet.", 404);
     return safeFile(verse ? internal : output, asset.file);
   }
+  /** Browser grants authorize audio within one book, without a hydrated DB snapshot. */
+  async browserMediaScope(
+    edition: string,
+    book: string,
+    order: number,
+    chapterCount: number,
+  ) {
+    audioBookSchema.parse(book);
+    const { marker } = await this.owned(edition);
+    return { version: marker.version, book, order, chapterCount };
+  }
+  async browserMedia(edition: string, book: string, file: string) {
+    audioBookSchema.parse(book);
+    const { internal, output } = await this.owned(edition);
+    const verse = file.startsWith(`${book}/`) && file.endsWith(".wav");
+    if (!verse && !new RegExp(`^\\d{2}-${book}-[1-9]\\d*\\.mp3$`).test(file))
+      throw new AudioProjectError("Invalid audio file.", 400);
+    return safeFile(verse ? internal : output, file);
+  }
   async queue(
     edition: string,
     book: string,

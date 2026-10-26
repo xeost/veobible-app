@@ -13,6 +13,9 @@ import {
   type AudioProjectDetail,
 } from "../../../../tools/video-project-api/src/audio-project-schema";
 import { videoFetch } from "./video-client";
+import { bindings } from "./env";
+import { signMediaAccess } from "../../../../tools/api-proxy/src/media-access.mjs";
+import { audioMediaUrl } from "./audio-media";
 import { bibleVersionOptions } from "./bible-versions";
 import { loadBaseVoiceDefaults, resolveAudioBaseVoice } from "./base-voices";
 import {
@@ -136,6 +139,71 @@ export async function audioApi(
       outputEnvironment,
     );
     const endpoint = `/v1/audio-projects/${edition}/${book}`;
+    const mediaAccess = async () => {
+      const expiresAt = Date.now() + 60 * 60 * 1000;
+      const path = `${endpoint}/`;
+      const query = new URLSearchParams({
+        outputEnvironment,
+        order: String(project.order),
+        chapterCount: String(project.chapterCount),
+      });
+      const token = await signMediaAccess(
+        { path, query: query.toString(), origin: url.origin, expiresAt },
+        bindings().DASHBOARD_API_PROXY_TOKEN,
+      );
+      return {
+        base: `${bindings().VIDEO_API_URL.replace(/\/$/, "")}${path}`,
+        query: `${query}&mediaToken=${encodeURIComponent(token)}`,
+        expiresAt,
+      };
+    };
+    if (parts[3] === "media-access" && req.method === "GET")
+      return json({ mediaAccess: await mediaAccess() });
+    if (
+      ["media", "original-media"].includes(parts[3]) &&
+      req.method === "GET"
+    ) {
+      const chapter = z.coerce
+        .number()
+        .int()
+        .positive()
+        .max(project.chapterCount)
+        .parse(url.searchParams.get("chapter"));
+      const verse = url.searchParams.has("verse")
+        ? z.coerce
+            .number()
+            .int()
+            .positive()
+            .parse(url.searchParams.get("verse"))
+        : undefined;
+      const original = parts[3] === "original-media";
+      const asset = verse
+        ? project.recordings[`${chapter}:${verse}`]
+        : project.chapters[String(chapter)];
+      if (!original && !asset)
+        throw new AudioDatabaseError("Audio is not ready yet.", 404);
+      const target = new URL(
+        audioMediaUrl(
+          await mediaAccess(),
+          chapter,
+          verse,
+          url.searchParams.get("revision") ?? "",
+          asset?.file,
+          original,
+        ),
+      );
+      for (const name of ["download", "waveform"])
+        if (url.searchParams.has(name))
+          target.searchParams.set(name, url.searchParams.get(name)!);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: target.href,
+          "Cache-Control": "no-store",
+          "Referrer-Policy": "no-referrer",
+        },
+      });
+    }
     const snapshot = {
       project,
       jobId: row.active_job_id,
@@ -173,6 +241,7 @@ export async function audioApi(
       // supplies Bible content or helps reconcile an interrupted generation.
       return json({
         ...detail,
+        mediaAccess: await mediaAccess(),
         ...(await findAudioProject(database, edition, book, outputEnvironment))
           .project,
         baseVoiceDefaults: (await loadBaseVoiceDefaults(database, "audio"))[
@@ -283,27 +352,6 @@ export async function audioApi(
           start: req.method === "POST",
         }),
       );
-    }
-    if (
-      ["media", "original-media"].includes(parts[3]) &&
-      req.method === "GET"
-    ) {
-      const response = await forward(
-        `${endpoint}/${parts[3]}${url.search}`,
-        snapshot,
-      );
-      if (!response.ok && response.status !== 416) return relay(response);
-      const headers = new Headers({ "Cache-Control": "no-store" });
-      for (const name of [
-        "content-type",
-        "content-length",
-        "accept-ranges",
-        "content-range",
-        "content-disposition",
-      ])
-        if (response.headers.has(name))
-          headers.set(name, response.headers.get(name)!);
-      return new Response(response.body, { status: response.status, headers });
     }
     return json({ error: "Not found" }, 404);
   } catch (error) {

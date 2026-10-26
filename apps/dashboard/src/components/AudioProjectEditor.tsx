@@ -16,6 +16,7 @@ import type {
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import { AudioChapter } from "./AudioChapter";
+import { audioMediaUrl, type AudioMediaAccess } from "../lib/audio-media";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
 import type { BaseVoiceDefaults } from "../lib/base-voices";
 import type { VoiceStylePresets } from "../lib/voice-style-presets";
@@ -56,6 +57,12 @@ export function AudioProjectEditor({
       ["queued", "running"].includes(item.status),
   );
   const endpoint = `audios/${encodeURIComponent(edition)}/${encodeURIComponent(book)}`;
+  const [mediaAccess, setMediaAccess] = useState<{
+    endpoint: string;
+    access: AudioMediaAccess;
+  } | null>(null);
+  const mediaAccessRef = useRef(mediaAccess);
+  mediaAccessRef.current = mediaAccess;
   const [project, setProject] = useState<AudioProjectDetail | null>(null),
     [settings, setSettings] = useState<AudioSettings | null>(null);
   const [formatDefaults, setFormatDefaults] = useState<{
@@ -177,9 +184,17 @@ export function AudioProjectEditor({
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
       const value = await api<
-        AudioProjectDetail & NonNullable<typeof formatDefaults>
+        AudioProjectDetail &
+          NonNullable<typeof formatDefaults> & { mediaAccess: AudioMediaAccess }
       >(endpoint, { signal });
       if (signal?.aborted) return;
+      // Progress polling must not replace audio URLs during playback.
+      setMediaAccess((current) =>
+        current?.endpoint === endpoint &&
+        current.access.expiresAt > Date.now() + 5 * 60_000
+          ? current
+          : { endpoint, access: value.mediaAccess },
+      );
       setFormatDefaults({
         baseVoiceDefaults: value.baseVoiceDefaults,
         voiceStyleDefaults: value.voiceStyleDefaults,
@@ -213,6 +228,31 @@ export function AudioProjectEditor({
       stop();
     };
   }, [refresh]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const stop = pollWhileVisible(
+      async () => {
+        const current = mediaAccessRef.current;
+        if (
+          current?.endpoint !== endpoint ||
+          current.access.expiresAt > Date.now() + 5 * 60_000
+        )
+          return;
+        const result = await api<{ mediaAccess: AudioMediaAccess }>(
+          `${endpoint}/media-access`,
+          { signal: controller.signal },
+        );
+        if (!controller.signal.aborted)
+          setMediaAccess({ endpoint, access: result.mediaAccess });
+      },
+      () => true,
+      60_000,
+    );
+    return () => {
+      controller.abort();
+      stop();
+    };
+  }, [endpoint]);
   const currentProject =
     project?.edition === edition && project?.book === book ? project : null;
   const preparation = audioEditorPreparation(
@@ -351,8 +391,16 @@ export function AudioProjectEditor({
     }
     return queued;
   };
-  const media = (chapter: number, verse?: number, revision = "") =>
-    `/api/${endpoint}/media?chapter=${chapter}${verse ? `&verse=${verse}` : ""}&revision=${encodeURIComponent(revision)}`;
+  const media = (chapter: number, verse?: number, revision = "") => {
+    const access =
+      mediaAccess?.endpoint === endpoint ? mediaAccess.access : undefined;
+    const asset = verse
+      ? project?.recordings[`${chapter}:${verse}`]
+      : project?.chapters[String(chapter)];
+    return access && asset
+      ? audioMediaUrl(access, chapter, verse, revision, asset.file)
+      : `/api/${endpoint}/media?chapter=${chapter}${verse ? `&verse=${verse}` : ""}&revision=${encodeURIComponent(revision)}`;
+  };
   if (!project || !settings)
     return (
       <>
@@ -556,6 +604,18 @@ export function AudioProjectEditor({
                 generate={generate}
                 onToggleApproval={toggleApproval}
                 media={media}
+                originalMedia={(chapter, revision) =>
+                  mediaAccess?.endpoint === endpoint
+                    ? audioMediaUrl(
+                        mediaAccess.access,
+                        chapter,
+                        undefined,
+                        revision,
+                        undefined,
+                        true,
+                      )
+                    : `/api/${endpoint}/original-media?chapter=${chapter}&revision=${encodeURIComponent(revision)}`
+                }
                 onPlay={(audio) => {
                   Object.values(players.current).forEach((other) => {
                     if (other !== audio) other.pause();

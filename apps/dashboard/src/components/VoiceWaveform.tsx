@@ -11,6 +11,7 @@ export function VoiceWaveform({
   src,
   resourceKey,
   onPrepared,
+  prepareWaveform = true,
   trim,
   disabled,
   expanded,
@@ -21,6 +22,7 @@ export function VoiceWaveform({
   generateAction,
 }: WaveformPreparation & {
   src: string;
+  prepareWaveform?: boolean;
   trim?: VoiceTrim;
   disabled: boolean;
   expanded: boolean;
@@ -38,7 +40,7 @@ export function VoiceWaveform({
     data,
     error: waveError,
     retry,
-  } = useAudioWaveform(src, { resourceKey, onPrepared });
+  } = useAudioWaveform(src, { resourceKey, onPrepared }, prepareWaveform);
   const peaks = useMemo(
     () => (data ? waveformPeaks(data, 0, data.duration, 160) : []),
     [data],
@@ -171,7 +173,7 @@ export function VoiceWaveform({
           audioRef(player);
         }}
         src={src}
-        preload="metadata"
+        preload={expanded ? "metadata" : "none"}
         onLoadedMetadata={(event) => {
           const player = event.currentTarget;
           if (!Number.isFinite(player.duration)) return;

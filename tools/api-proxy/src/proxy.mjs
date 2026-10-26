@@ -146,7 +146,10 @@ export function createProxy({
           responseHeaders["vary"] = "Origin";
           responseHeaders["cache-control"] = "private, no-store";
           responseHeaders["referrer-policy"] = "no-referrer";
-          if (url.searchParams.has("download")) {
+          if (
+            url.searchParams.has("download") &&
+            !url.pathname.startsWith("/v1/audio-projects/")
+          ) {
             const passage = url.searchParams.get("passage");
             const filename = /^[a-z0-9-]+$/i.test(passage || "")
               ? passage

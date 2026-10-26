@@ -176,6 +176,22 @@ test("unowned folders, originals, traversal and symlinked audio cannot be access
       projects.media("rv1909-v2", "jude", 1, 1),
       /Linked audio/,
     );
+    for (const file of [
+      "genesis/1.wav",
+      "jude/../../private.wav",
+      "jude/settings.json",
+      "01-genesis-1.mp3",
+    ])
+      await assert.rejects(projects.browserMedia("rv1909-v2", "jude", file));
+    await fs.mkdir(path.join(internal, "jude"));
+    await fs.symlink(
+      path.join(root, "rv1909", "original.mp3"),
+      path.join(internal, "jude", "linked.wav"),
+    );
+    await assert.rejects(
+      projects.browserMedia("rv1909-v2", "jude", "jude/linked.wav"),
+      /Linked audio/,
+    );
   } finally {
     await clean();
   }

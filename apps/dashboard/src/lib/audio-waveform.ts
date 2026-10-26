@@ -153,13 +153,9 @@ export async function loadAudioWaveform(
   options: WaveformOptions = {},
 ): Promise<AudioWaveform> {
   signal.throwIfAborted();
-  if (
-    !options.immutableWaveform ||
-    options.refresh ||
-    options.cacheWaveform === false
-  )
+  if (options.refresh || options.cacheWaveform === false)
     return prepareAudioWaveform(src, signal, options);
-  const key = waveformCacheKey(src, options.resourceKey ?? src.split("?")[0]);
+  const key = `${options.immutableWaveform ? "immutable" : "validated"}:${waveformCacheKey(src, options.resourceKey ?? src.split("?")[0])}`;
   let entry = pendingWaveforms.get(key);
   if (!entry) {
     const controller = new AbortController();

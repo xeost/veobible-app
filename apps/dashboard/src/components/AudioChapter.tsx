@@ -48,6 +48,7 @@ export function AudioChapter({
   change,
   generate,
   media,
+  originalMedia,
   onPlay,
   onToggleApproval,
   selectedVerse,
@@ -73,6 +74,7 @@ export function AudioChapter({
     textOverride?: string;
   }) => Promise<boolean>;
   media: (chapter: number, verse?: number, revision?: string) => string;
+  originalMedia: (chapter: number, revision: string) => string;
   onPlay: (audio: HTMLAudioElement) => void;
   onToggleApproval: (reference: string) => Promise<void>;
   selectedVerse?: number;
@@ -213,6 +215,7 @@ export function AudioChapter({
       chapter={chapter.chapter}
       reference={reference}
       locale={project.version.locale}
+      media={originalMedia}
       checked={listenToOriginal}
       onChange={setListenToOriginal}
     />

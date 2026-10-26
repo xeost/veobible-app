@@ -52,6 +52,59 @@ async function notify(url: string, token: string, event: unknown) {
   }
   throw new Error("Audio progress could not be saved.");
 }
+async function streamAudioMedia(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  url: URL,
+  file: string,
+  book: string,
+  chapter: number,
+  verse?: number,
+) {
+  const stat = await fsp.stat(file);
+  let start = 0,
+    end = stat.size - 1;
+  const range = req.headers.range;
+  if (range) {
+    const match = /^bytes=(\d+)-(\d*)$/.exec(range);
+    if (!match) {
+      res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
+      res.end();
+      return;
+    }
+    start = Number(match[1]);
+    end = match[2] ? Math.min(Number(match[2]), end) : end;
+    if (start > end || start >= stat.size) {
+      res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
+      res.end();
+      return;
+    }
+  }
+  res.writeHead(range ? 206 : 200, {
+    "Content-Type": /\.mp3$/i.test(file)
+      ? "audio/mpeg"
+      : /\.m4a$/i.test(file)
+        ? "audio/mp4"
+        : "audio/wav",
+    "Content-Length": end - start + 1,
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "no-store",
+    ...(range ? { "Content-Range": `bytes ${start}-${end}/${stat.size}` } : {}),
+    ...(url.searchParams.has("download")
+      ? {
+          "Content-Disposition": `attachment; filename="${book}-${chapter}${verse ? `-${verse}` : ""}.${file.split(".").pop()!.toLowerCase()}"`,
+        }
+      : {}),
+  });
+  const stream = fs.createReadStream(file, { start, end });
+  stream.on("error", () => res.destroy());
+  res.on("close", () => stream.destroy());
+  if (req.method === "HEAD") {
+    res.end();
+    stream.destroy();
+  } else stream.pipe(res);
+}
+
 export async function audioProjectHttp(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -74,6 +127,62 @@ export async function audioProjectHttp(
   };
   try {
     const parts = url.pathname.split("/").filter(Boolean).slice(2);
+    if (
+      ["GET", "HEAD"].includes(req.method ?? "") &&
+      /^\/v1\/audio-projects\/[^/]+\/[^/]+\/(?:media|original-media)$/.test(
+        url.pathname,
+      )
+    ) {
+      const edition = audioEditionSchema.parse(parts[0]);
+      const book = audioBookSchema.parse(parts[1]);
+      const environment = audioEnvironmentSchema.parse(
+        url.searchParams.get("outputEnvironment"),
+      );
+      const projects = libraries[environment];
+      const order = z.coerce
+        .number()
+        .int()
+        .positive()
+        .parse(url.searchParams.get("order"));
+      const chapterCount = z.coerce
+        .number()
+        .int()
+        .positive()
+        .max(200)
+        .parse(url.searchParams.get("chapterCount"));
+      const chapter = z.coerce
+        .number()
+        .int()
+        .positive()
+        .max(chapterCount)
+        .parse(url.searchParams.get("chapter"));
+      const verse = url.searchParams.has("verse")
+        ? z.coerce
+            .number()
+            .int()
+            .positive()
+            .parse(url.searchParams.get("verse"))
+        : undefined;
+      const file =
+        parts[2] === "original-media"
+          ? await originals.media(
+              await projects.browserMediaScope(
+                edition,
+                book,
+                order,
+                chapterCount,
+              ),
+              chapter,
+              url.searchParams.get("revision"),
+            )
+          : await projects.browserMedia(
+              edition,
+              book,
+              z.string().min(1).parse(url.searchParams.get("file")),
+            );
+      await streamAudioMedia(req, res, url, file, book, chapter, verse);
+      return true;
+    }
     if (req.method !== "POST") {
       json({ error: "Audio project not found." }, 404);
       return true;
@@ -297,47 +406,7 @@ export async function audioProjectHttp(
                 url.searchParams.get("revision"),
               )
             : await projects.media(edition, book, chapter, verse);
-        const stat = await fsp.stat(file);
-        let start = 0,
-          end = stat.size - 1;
-        const range = req.headers.range;
-        if (range) {
-          const match = /^bytes=(\d+)-(\d*)$/.exec(range);
-          if (!match) {
-            res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
-            res.end();
-            return true;
-          }
-          start = Number(match[1]);
-          end = match[2] ? Math.min(Number(match[2]), end) : end;
-          if (start > end || start >= stat.size) {
-            res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
-            res.end();
-            return true;
-          }
-        }
-        res.writeHead(range ? 206 : 200, {
-          "Content-Type": /\.mp3$/i.test(file)
-            ? "audio/mpeg"
-            : /\.m4a$/i.test(file)
-              ? "audio/mp4"
-              : "audio/wav",
-          "Content-Length": end - start + 1,
-          "Accept-Ranges": "bytes",
-          "Cache-Control": "no-store",
-          ...(range
-            ? { "Content-Range": `bytes ${start}-${end}/${stat.size}` }
-            : {}),
-          ...(url.searchParams.has("download")
-            ? {
-                "Content-Disposition": `attachment; filename="${book}-${chapter}${verse ? `-${verse}` : ""}.${verse ? "wav" : "mp3"}"`,
-              }
-            : {}),
-        });
-        const stream = fs.createReadStream(file, { start, end });
-        stream.on("error", () => res.destroy());
-        res.on("close", () => stream.destroy());
-        stream.pipe(res);
+        await streamAudioMedia(req, res, url, file, book, chapter, verse);
       } else json({ error: "Audio project not found." }, 404);
     } else json({ error: "Audio project not found." }, 404);
   } catch (error) {

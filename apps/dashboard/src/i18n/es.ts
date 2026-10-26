@@ -500,6 +500,8 @@ export const spanish: Record<string, string> = {
   "Could not complete": "No se pudo completar",
   "Loading audio so every section is ready to edit.":
     "Cargando los audios para que todas las secciones estén listas para editar.",
+  "Loading the project and preparing audio for the open sections.":
+    "Cargando el proyecto y preparando los audios de las secciones abiertas.",
   "Preparing audio": "Preparando los audios",
   "{completed} of {total} audio tracks prepared":
     "{completed} de {total} audios preparados",

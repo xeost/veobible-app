@@ -12,6 +12,7 @@ export function OriginalVerseAudio({
   chapter,
   reference,
   locale,
+  media,
   checked,
   onChange,
 }: {
@@ -19,6 +20,7 @@ export function OriginalVerseAudio({
   chapter: number;
   reference: string;
   locale: string;
+  media?: (chapter: number, revision: string) => string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
@@ -104,7 +106,11 @@ export function OriginalVerseAudio({
           state.revision ? (
           <VerseWaveform
             key={reference}
-            src={`/api/${endpoint}/original-media?chapter=${chapter}&revision=${encodeURIComponent(state.revision)}`}
+            src={
+              media
+                ? media(chapter, state.revision)
+                : `/api/${endpoint}/original-media?chapter=${chapter}&revision=${encodeURIComponent(state.revision)}`
+            }
             resourceKey={`original/${endpoint}/${chapter}/${state.revision}`}
             onPrepared={(_, success) => {
               if (!success) setError(true);

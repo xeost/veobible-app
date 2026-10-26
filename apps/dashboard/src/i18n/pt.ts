@@ -496,6 +496,8 @@ export const portuguese: Record<string, string> = {
   "Could not complete": "Não foi possível concluir",
   "Loading audio so every section is ready to edit.":
     "Carregando os áudios para que todas as seções estejam prontas para editar.",
+  "Loading the project and preparing audio for the open sections.":
+    "Carregando o projeto e preparando os áudios das seções abertas.",
   "Preparing audio": "Preparando os áudios",
   "{completed} of {total} audio tracks prepared":
     "{completed} de {total} áudios preparados",

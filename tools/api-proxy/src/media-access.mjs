@@ -48,7 +48,12 @@ export async function verifyMediaAccess(token, secret, now = Date.now()) {
       !Number.isSafeInteger(scope.expiresAt) ||
       scope.expiresAt <= now ||
       scope.expiresAt > now + 3900000 ||
-      !/^\/v1\/projects\/[1-9]\d*\/media\/$/.test(scope.path) ||
+      !(
+        /^\/v1\/projects\/[1-9]\d*\/media\/$/.test(scope.path) ||
+        /^\/v1\/audio-projects\/[a-z0-9-]+-v[1-9]\d*\/[a-z0-9-]+\/$/.test(
+          scope.path,
+        )
+      ) ||
       typeof scope.query !== "string" ||
       typeof scope.origin !== "string" ||
       new URL(scope.origin).origin !== scope.origin
@@ -62,9 +67,13 @@ export async function verifyMediaAccess(token, secret, now = Date.now()) {
 
 export function mediaAsset(pathname) {
   return (
+    /^\/v1\/audio-projects\/[a-z0-9-]+-v[1-9]\d*\/[a-z0-9-]+\/(media|original-media)$/.exec(
+      pathname,
+    )?.[1] ??
     /^\/v1\/projects\/[1-9]\d*\/media\/(video|video-follow|video-subscribe|thumbnail|intro|outro|chapter-\d+|reading-\d+|generated-reading-\d+|preview-[0-9a-f-]{36}-\d+)$/.exec(
       pathname,
-    )?.[1] ?? null
+    )?.[1] ??
+    null
   );
 }
 
@@ -82,6 +91,9 @@ export function matchesMediaScope(url, scope) {
   return [...url.searchParams.keys()].every(
     (key) =>
       expected.has(key) ||
+      (scope.path.startsWith("/v1/audio-projects/") &&
+        ["chapter", "verse", "file"].includes(key) &&
+        url.searchParams.getAll(key).length === 1) ||
       ["mediaToken", "revision", "download"].includes(key) ||
       (key === "waveform" &&
         url.searchParams.getAll(key).length === 1 &&

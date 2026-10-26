@@ -206,6 +206,7 @@ test("older services fall back to audio and calculate peaks in a worker", async 
     getChannelData: () => new Float32Array([0.2, -0.8]),
   };
   let closed = false;
+  let onClosed: (() => void) | undefined;
   let terminated = false;
   let transferred = false;
   let respond = true;
@@ -214,6 +215,7 @@ test("older services fall back to audio and calculate peaks in a worker", async 
     decodeAudioData = async () => buffer;
     close = async () => {
       closed = true;
+      onClosed?.();
     };
   }
   class FakeWorker {
@@ -278,8 +280,12 @@ test("older services fall back to audio and calculate peaks in a worker", async 
   );
   const rejected = assert.rejects(canceled, { name: "AbortError" });
   await workerStarted;
+  const cleanup = new Promise<void>((resolve) => {
+    onClosed = resolve;
+  });
   controller.abort();
   await rejected;
+  await cleanup;
   assert.ok(terminated && closed);
 });
 
@@ -355,46 +361,55 @@ test("revisioned verse peaks persist after local decoding and bypass fetching un
   assert.equal(decodes, 4);
 });
 
-test("advancing shares an unfinished prefetch even when the prefetch subscriber leaves", async (t) => {
-  const bytes = encodeWaveform({
-    duration: 0.001,
-    interval: 0.001,
-    amplitudes: new Float32Array([0.5]),
+for (const immutableWaveform of [false, true]) {
+  test(`advancing shares an unfinished prefetch when its subscriber leaves (immutable=${immutableWaveform})`, async (t) => {
+    const bytes = encodeWaveform({
+      duration: 0.001,
+      interval: 0.001,
+      amplitudes: new Float32Array([0.5]),
+    });
+    let release!: () => void;
+    let started!: () => void;
+    const fetching = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let requests = 0;
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (_: RequestInfo | URL, init?: RequestInit) => {
+        requests++;
+        started();
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        assert.equal(init?.signal?.aborted, false);
+        return new Response(bytes, {
+          headers: { "Content-Type": waveformContentType, ETag: '"shared"' },
+        });
+      },
+    );
+    const src = "https://prefetch.example/verse?revision=one";
+    const options = {
+      resourceKey: `next/one/${immutableWaveform}`,
+      immutableWaveform,
+    };
+    const controller = new AbortController();
+    const prefetch = loadAudioWaveform(src, controller.signal, options);
+    const canceled = assert.rejects(prefetch, { name: "AbortError" });
+    await fetching;
+    controller.abort();
+    await canceled;
+    const visible = loadAudioWaveform(
+      src,
+      new AbortController().signal,
+      options,
+    );
+    release();
+    assert.equal((await visible).amplitudes[0], 0.5);
+    assert.equal(requests, 1);
   });
-  let release!: () => void;
-  let started!: () => void;
-  const fetching = new Promise<void>((resolve) => {
-    started = resolve;
-  });
-  let requests = 0;
-  t.mock.method(
-    globalThis,
-    "fetch",
-    async (_: RequestInfo | URL, init?: RequestInit) => {
-      requests++;
-      started();
-      await new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      assert.equal(init?.signal?.aborted, false);
-      return new Response(bytes, {
-        headers: { "Content-Type": waveformContentType, ETag: '"shared"' },
-      });
-    },
-  );
-  const src = "https://prefetch.example/verse?revision=one";
-  const options = { resourceKey: "next/one", immutableWaveform: true };
-  const controller = new AbortController();
-  const prefetch = loadAudioWaveform(src, controller.signal, options);
-  const canceled = assert.rejects(prefetch, { name: "AbortError" });
-  await fetching;
-  controller.abort();
-  await canceled;
-  const visible = loadAudioWaveform(src, new AbortController().signal, options);
-  release();
-  assert.equal((await visible).amplitudes[0], 0.5);
-  assert.equal(requests, 1);
-});
+}
 
 test("abandoned speculative loads are canceled and failed loads can be retried", async (t) => {
   const src = "https://prefetch.example/abandoned";

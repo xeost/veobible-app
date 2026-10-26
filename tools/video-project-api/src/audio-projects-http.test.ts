@@ -343,6 +343,35 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
       assert.equal(invalid.status, 400, await invalid.text());
       await stop();
       await start();
+      // Browser audio works immediately after restart, without hydrating a book snapshot.
+      const directQuery = new URLSearchParams({
+        outputEnvironment: "production",
+        order: String(state.order),
+        chapterCount: String(state.chapterCount),
+        chapter: "1",
+        verse: "1",
+        file: state.recordings["1:1"].file,
+      });
+      const direct = await fetch(`${project}/media?${directQuery}`, {
+        headers: { ...headers, Range: "bytes=0-3" },
+      });
+      assert.equal(direct.status, 206, await direct.clone().text());
+      assert.equal(await direct.text(), "RIFF");
+      const download = await fetch(
+        `${project}/media?${directQuery}&download=1`,
+        { headers },
+      );
+      assert.equal(
+        download.headers.get("content-disposition"),
+        'attachment; filename="jude-1-1.wav"',
+      );
+      await download.arrayBuffer();
+      const escaped = new URLSearchParams(directQuery);
+      escaped.set("file", "genesis/private.wav");
+      assert.equal(
+        (await fetch(`${project}/media?${escaped}`, { headers })).status,
+        400,
+      );
       const persisted = await (
         await fetch(project, {
           method: "POST",

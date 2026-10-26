@@ -90,6 +90,12 @@ import { GenerationProgress } from "./GenerationProgress";
 import { expandReadingContext } from "../../../../tools/video-project-api/src/reading-timeline";
 import { VoiceWaveform } from "./VoiceWaveform";
 import { VerseWaveform } from "./VerseWaveform";
+import { loadAudioWaveform } from "../lib/audio-waveform";
+import {
+  visibleVideoWaveforms,
+  nextVideoWaveforms,
+  type VideoWaveformResource,
+} from "../lib/video-editor-preparation";
 import { queueChangedEvent } from "../lib/generation-queue";
 import { editorActivityLocks, editorBlockLocks } from "../lib/editor-activity";
 import { createEditorTaskQueue } from "../lib/editor-task-queue";
@@ -646,10 +652,31 @@ export function VideoProjectEditor({
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
   }, [base, verseTargetsKey, project?.project_id, projectId, preparedEditor]);
-  const waveformKeys = [
-    ...timeline
-      .filter((section) => section.originalAvailable !== false)
-      .map((section) => `${base}:${loudnessTarget}:reading-${section.index}`),
+  const waveformResources: VideoWaveformResource[] = [
+    ...timeline.flatMap((section) => {
+      const id = `reading-${section.index}`;
+      const resources: VideoWaveformResource[] = [];
+      if (section.originalAvailable !== false)
+        resources.push({
+          section: id,
+          resourceKey: `${base}:${loudnessTarget}:${id}`,
+          src: media(id),
+        });
+      const track = analysis?.generatedReadings?.[section.index];
+      if (
+        track?.available &&
+        (settings.readingVoices?.[section.index]?.enabled ||
+          section.originalAvailable === false) &&
+        !pendingTasks.has(`voice:${id}`) &&
+        !["queued", "running"].includes(voices[id as VoicePart]?.status ?? "")
+      )
+        resources.push({
+          section: id,
+          resourceKey: `${base}:${loudnessTarget}:generated-${section.index}:${track.revision}`,
+          src: `${media(`generated-${id}`)}&revision=${track.revision}`,
+        });
+      return resources;
+    }),
     ...narrationParts
       .filter(
         (part) =>
@@ -657,8 +684,15 @@ export function VideoProjectEditor({
           voices[part]?.available &&
           !["queued", "running"].includes(voices[part]?.status ?? ""),
       )
-      .map((part) => `${base}:${loudnessTarget}:${part}:${voiceRevision}`),
+      .map((part) => ({
+        section: part,
+        resourceKey: `${base}:${loudnessTarget}:${part}:${voiceRevision}`,
+        src: `${media(part)}&revision=${voiceRevision}`,
+      })),
   ];
+  const waveformKeys = visibleVideoWaveforms(waveformResources, expanded).map(
+    (resource) => resource.resourceKey,
+  );
   const preparedCount = waveformKeys.filter(
     (key) => key in preparedWaveforms,
   ).length;
@@ -677,6 +711,41 @@ export function VideoProjectEditor({
     if (preparationComplete) setPreparedEditor(base);
   }, [base, preparationComplete]);
   const preparing = preparedEditor !== base && !error;
+  const nextWaveformsKey = JSON.stringify(
+    nextVideoWaveforms(
+      waveformResources,
+      timeline.map((section) => `reading-${section.index}`),
+      expanded,
+      activeVerse?.project === base
+        ? `reading-${activeVerse.section}`
+        : undefined,
+    ),
+  );
+  useEffect(() => {
+    if (preparing || !initialDataLoaded || preparedCount < waveformKeys.length)
+      return;
+    const resources: VideoWaveformResource[] = JSON.parse(nextWaveformsKey);
+    const controller = new AbortController();
+    void (async () => {
+      for (const resource of resources) {
+        if (controller.signal.aborted) return;
+        try {
+          await loadAudioWaveform(resource.src, controller.signal, {
+            resourceKey: resource.resourceKey,
+          });
+        } catch {
+          // Opening the section retries speculative failures normally.
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, [
+    preparing,
+    initialDataLoaded,
+    preparedCount,
+    waveformKeys.length,
+    nextWaveformsKey,
+  ]);
   const preparationTasks: PreparationTask[] = [
     {
       label: "Project and saved settings",
@@ -734,7 +803,7 @@ export function VideoProjectEditor({
   ];
   const preparationOverlay = preparing ? (
     <EditorPreparation
-      description="Loading audio so every section is ready to edit."
+      description="Loading the project and preparing audio for the open sections."
       tasks={preparationTasks}
       completed={preparedCount}
       total={waveformKeys.length}
@@ -1311,7 +1380,8 @@ export function VideoProjectEditor({
   };
   const clearVerseFragment = (section?: number) => {
     const target = parseVideoVerseFragment(window.location.hash, verseTargets);
-    if (!target || (section !== undefined && target.section !== section)) return;
+    if (!target || (section !== undefined && target.section !== section))
+      return;
     window.history.replaceState(
       window.history.state,
       "",
@@ -1780,6 +1850,7 @@ export function VideoProjectEditor({
             <h3>{t("Narration preview")}</h3>
             {voice.available && !pending ? (
               <VoiceWaveform
+                prepareWaveform={expanded.has(part)}
                 resourceKey={`${base}:${loudnessTarget}:${part}:${voiceRevision}`}
                 onPrepared={onWaveformPrepared}
                 generateAction={generateAction}
@@ -2261,99 +2332,112 @@ export function VideoProjectEditor({
                         hidden={!expanded.has(id)}
                         className="section-body"
                       >
-                        {settings.alignmentReviewReferences?.some((reference) =>
-                          verses.some((cue) => cue.reference === reference),
-                        ) && (
-                          <p className="notice">
-                            {t(
-                              "Listen carefully to these verse cuts: {references}",
-                            ).replace(
-                              "{references}",
-                              settings.alignmentReviewReferences
-                                .filter((reference) =>
-                                  verses.some(
-                                    (cue) => cue.reference === reference,
+                        {expanded.has(id) && (
+                          <>
+                            {settings.alignmentReviewReferences?.some(
+                              (reference) =>
+                                verses.some(
+                                  (cue) => cue.reference === reference,
+                                ),
+                            ) && (
+                              <p className="notice">
+                                {t(
+                                  "Listen carefully to these verse cuts: {references}",
+                                ).replace(
+                                  "{references}",
+                                  settings.alignmentReviewReferences
+                                    .filter((reference) =>
+                                      verses.some(
+                                        (cue) => cue.reference === reference,
+                                      ),
+                                    )
+                                    .join(", "),
+                                )}
+                              </p>
+                            )}
+                            <VerseWaveform
+                              selectedReference={
+                                activeVerse?.project === base &&
+                                activeVerse.section === section.index
+                                  ? activeVerse.reference
+                                  : undefined
+                              }
+                              onSelectReference={(reference) =>
+                                selectVerse({
+                                  section: section.index,
+                                  reference,
+                                })
+                              }
+                              editableVerseText={Boolean(
+                                settings.readingVoices?.[section.index]
+                                  ?.enabled ||
+                                section.originalAvailable === false,
+                              )}
+                              textOnly={section.originalAvailable === false}
+                              toolbarActions={
+                                <>
+                                  <span
+                                    className="waveform-volume-indicator"
+                                    data-tooltip={`${t("Automatic volume")}: ${loudnessTarget} LUFS`}
+                                    aria-label={`${t("Automatic volume")}: ${loudnessTarget} LUFS`}
+                                  >
+                                    <Volume2 size={16} aria-hidden="true" />
+                                    {loudnessTarget} LUFS
+                                  </span>
+                                  <span
+                                    className="section-action-separator"
+                                    aria-hidden="true"
+                                  />
+                                </>
+                              }
+                              resourceKey={`${base}:${loudnessTarget}:${id}`}
+                              onPrepared={onWaveformPrepared}
+                              expanded={expanded.has(id)}
+                              resetRevision={readingResetRevisions[id] ?? 0}
+                              locale={project.locale}
+                              src={media(id)}
+                              sourceStart={section.start}
+                              sourceEnd={section.end}
+                              sourceDuration={
+                                section.sourceDuration ?? section.end
+                              }
+                              onExpand={(edge) =>
+                                expandSection(section.index, edge)
+                              }
+                              timelineStart={section.timelineStart}
+                              volumeMultiplier={1}
+                              cues={verses}
+                              disabled={
+                                readingLocks(section.index).editingLocked ||
+                                analyzing
+                              }
+                              onTrim={trim}
+                              preservedReferences={verses
+                                .filter((cue) =>
+                                  verseHasSavedCuts(
+                                    settings.verseOffsets,
+                                    cue.reference,
                                   ),
                                 )
-                                .join(", "),
+                                .map((cue) => cue.reference)}
+                              onShift={(cue, manuallyAdjusted) =>
+                                shiftVerse(section.index, cue, manuallyAdjusted)
+                              }
+                            >
+                              {(cue, selectReference, pronunciation) =>
+                                generatedReading(
+                                  section.index,
+                                  cue.reference,
+                                  selectReference,
+                                  pronunciation,
+                                )
+                              }
+                            </VerseWaveform>
+                            {sectionVisuals(
+                              id,
+                              verses.map((cue) => cue.reference),
                             )}
-                          </p>
-                        )}
-                        <VerseWaveform
-                          selectedReference={
-                            activeVerse?.project === base &&
-                            activeVerse.section === section.index
-                              ? activeVerse.reference
-                              : undefined
-                          }
-                          onSelectReference={(reference) =>
-                            selectVerse({ section: section.index, reference })
-                          }
-                          editableVerseText={Boolean(
-                            settings.readingVoices?.[section.index]?.enabled ||
-                            section.originalAvailable === false,
-                          )}
-                          textOnly={section.originalAvailable === false}
-                          toolbarActions={
-                            <>
-                              <span
-                                className="waveform-volume-indicator"
-                                data-tooltip={`${t("Automatic volume")}: ${loudnessTarget} LUFS`}
-                                aria-label={`${t("Automatic volume")}: ${loudnessTarget} LUFS`}
-                              >
-                                <Volume2 size={16} aria-hidden="true" />
-                                {loudnessTarget} LUFS
-                              </span>
-                              <span
-                                className="section-action-separator"
-                                aria-hidden="true"
-                              />
-                            </>
-                          }
-                          resourceKey={`${base}:${loudnessTarget}:${id}`}
-                          onPrepared={onWaveformPrepared}
-                          expanded={expanded.has(id)}
-                          resetRevision={readingResetRevisions[id] ?? 0}
-                          locale={project.locale}
-                          src={media(id)}
-                          sourceStart={section.start}
-                          sourceEnd={section.end}
-                          sourceDuration={section.sourceDuration ?? section.end}
-                          onExpand={(edge) =>
-                            expandSection(section.index, edge)
-                          }
-                          timelineStart={section.timelineStart}
-                          volumeMultiplier={1}
-                          cues={verses}
-                          disabled={
-                            readingLocks(section.index).editingLocked ||
-                            analyzing
-                          }
-                          onTrim={trim}
-                          preservedReferences={verses
-                            .filter((cue) =>
-                              verseHasSavedCuts(
-                                settings.verseOffsets,
-                                cue.reference,
-                              ),
-                            )
-                            .map((cue) => cue.reference)}
-                          onShift={(cue, manuallyAdjusted) =>
-                            shiftVerse(section.index, cue, manuallyAdjusted)
-                          }
-                        >
-                          {(cue, selectReference, pronunciation) =>
-                            generatedReading(
-                              section.index,
-                              cue.reference,
-                              selectReference,
-                              pronunciation,
-                            )
-                          }
-                        </VerseWaveform>
-                        {sectionVisuals(
-                          id,
-                          verses.map((cue) => cue.reference),
+                          </>
                         )}
                       </div>
                     </section>
