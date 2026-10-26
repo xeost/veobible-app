@@ -41,13 +41,13 @@ test("core UI sections translate to accurate Spanish and Portuguese", () => {
   assert.equal(spanish["My profile"], "Mi perfil");
   assert.equal(portuguese["My profile"], "Meu perfil");
 
-  assert.equal(spanish["Bible versions"], "Versiones de la Biblia");
+  assert.equal(spanish["Bible versions"], "Versiones bíblicas");
   assert.equal(portuguese["Bible versions"], "Versões da Bíblia");
 
-  assert.equal(spanish["Short Videos"], "Short Videos");
+  assert.equal(spanish["Short Videos"], "Videos cortos");
   assert.equal(portuguese["Short Videos"], "Vídeos Curtos");
 
-  assert.equal(spanish["Long Videos"], "Long Videos");
+  assert.equal(spanish["Long Videos"], "Videos largos");
   assert.equal(portuguese["Long Videos"], "Vídeos Longos");
 
   assert.equal(spanish["Publications"], "Publicaciones");
