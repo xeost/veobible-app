@@ -29,6 +29,7 @@ import { VerseWaveform } from "./VerseWaveform";
 import { VersePronunciationEditor } from "./VersePronunciationEditor";
 import { OriginalVerseAudio } from "./OriginalVerseAudio";
 import { audioWaveformResourceKey } from "../lib/audio-editor-preparation";
+import { loadAudioWaveform } from "../lib/audio-waveform";
 import {
   initialVerseText,
   temporaryVerseText,
@@ -117,6 +118,34 @@ export function AudioChapter({
     if (selectedVerse === undefined) dispatchSpeech({ type: "discard" });
   }, [selectedVerse]);
   const recording = project.recordings[reference];
+  const [preparedKey, setPreparedKey] = useState<string | null>(null);
+  const currentKey = recording
+    ? audioWaveformResourceKey(project, reference, recording.revision)
+    : undefined;
+  const next = chapter.verses[selection.index + 1];
+  const nextReference = next ? `${chapter.chapter}:${next.verse}` : undefined;
+  const nextRecording = nextReference
+    ? project.recordings[nextReference]
+    : undefined;
+  const nextKey =
+    nextRecording && nextReference
+      ? audioWaveformResourceKey(project, nextReference, nextRecording.revision)
+      : undefined;
+  const nextSrc =
+    nextRecording && next
+      ? media(chapter.chapter, next.verse, nextRecording.revision)
+      : undefined;
+  useEffect(() => {
+    if (!open || preparedKey !== currentKey || !nextKey || !nextSrc) return;
+    const controller = new AbortController();
+    void loadAudioWaveform(nextSrc, controller.signal, {
+      resourceKey: nextKey,
+      immutableWaveform: true,
+    }).catch(() => {
+      // Speculation is optional; opening the verse retries failures normally.
+    });
+    return () => controller.abort();
+  }, [open, preparedKey, currentKey, nextKey, nextSrc]);
   const approved = isAudioVerseApproved(project, settings, reference);
   const generationLocked =
     submitting ||
@@ -397,7 +426,11 @@ export function AudioChapter({
                 reference,
                 recording.revision,
               )}
-              onPrepared={onPrepared}
+              immutableWaveform
+              onPrepared={(key, success) => {
+                if (success) setPreparedKey(key);
+                onPrepared(key, success);
+              }}
               locale={project.version.locale}
               expanded={open}
               sourceStart={0}

@@ -4,12 +4,18 @@ import { loadAudioWaveform, type AudioWaveform } from "../lib/audio-waveform";
 
 export type WaveformPreparation = {
   cacheWaveform?: boolean;
+  immutableWaveform?: boolean;
   resourceKey: string;
   onPrepared: (key: string, success: boolean) => void;
 };
 export function useAudioWaveform(
   src: string,
-  { resourceKey, onPrepared, cacheWaveform = true }: WaveformPreparation,
+  {
+    resourceKey,
+    onPrepared,
+    cacheWaveform = true,
+    immutableWaveform = false,
+  }: WaveformPreparation,
   enabled = true,
 ) {
   const [data, setData] = useState<AudioWaveform | null>(null);
@@ -26,6 +32,7 @@ export function useAudioWaveform(
     void loadAudioWaveform(latest.current.src, controller.signal, {
       resourceKey,
       cacheWaveform,
+      immutableWaveform,
       refresh: revision > 0,
     }).then(
       (waveform) => {
@@ -44,7 +51,7 @@ export function useAudioWaveform(
       controller.abort();
     };
     // Signed media URLs can refresh without changing the underlying recording.
-  }, [resourceKey, revision, enabled, cacheWaveform]);
+  }, [resourceKey, revision, enabled, cacheWaveform, immutableWaveform]);
   return {
     data,
     error,

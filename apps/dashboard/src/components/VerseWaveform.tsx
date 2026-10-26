@@ -49,6 +49,7 @@ export function VerseWaveform({
   resourceKey,
   onPrepared,
   cacheWaveform,
+  immutableWaveform,
   locale,
   sourceStart,
   sourceEnd,
@@ -140,7 +141,7 @@ export function VerseWaveform({
     retry,
   } = useAudioWaveform(
     src,
-    { resourceKey, onPrepared, cacheWaveform },
+    { resourceKey, onPrepared, cacheWaveform, immutableWaveform },
     !textOnly,
   );
   const [focus, setFocus] = useState(

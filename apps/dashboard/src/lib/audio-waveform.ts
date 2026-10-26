@@ -1,6 +1,7 @@
 import { summarizeAudio, type AudioWaveform } from "./audio-waveform-data";
 import {
   decodeWaveform,
+  encodeWaveform,
   waveformContentType,
 } from "../../../../tools/video-project-api/src/waveform-format";
 import {
@@ -127,14 +128,84 @@ export async function withWaveformSlot<T>(
     waiting.shift()?.();
   }
 }
+type WaveformOptions = {
+  resourceKey?: string;
+  cacheWaveform?: boolean;
+  refresh?: boolean;
+  // Only for recordings whose resource key changes whenever the audio changes.
+  immutableWaveform?: boolean;
+};
+
+const pendingWaveforms = new Map<
+  string,
+  {
+    controller: AbortController;
+    promise: Promise<AudioWaveform>;
+    users: number;
+    abortTimer?: ReturnType<typeof setTimeout>;
+  }
+>();
+
+/** Share speculative preparation with the editor when the user advances mid-load. */
 export async function loadAudioWaveform(
   src: string,
   signal: AbortSignal,
-  options: {
-    resourceKey?: string;
-    cacheWaveform?: boolean;
-    refresh?: boolean;
-  } = {},
+  options: WaveformOptions = {},
+): Promise<AudioWaveform> {
+  signal.throwIfAborted();
+  if (
+    !options.immutableWaveform ||
+    options.refresh ||
+    options.cacheWaveform === false
+  )
+    return prepareAudioWaveform(src, signal, options);
+  const key = waveformCacheKey(src, options.resourceKey ?? src.split("?")[0]);
+  let entry = pendingWaveforms.get(key);
+  if (!entry) {
+    const controller = new AbortController();
+    entry = {
+      controller,
+      promise: prepareAudioWaveform(src, controller.signal, options),
+      users: 0,
+    };
+    pendingWaveforms.set(key, entry);
+    const current = entry;
+    void entry.promise
+      .finally(() => {
+        if (pendingWaveforms.get(key) === current) pendingWaveforms.delete(key);
+      })
+      .catch(() => {});
+  }
+  const current = entry;
+  clearTimeout(current.abortTimer);
+  current.users++;
+  return new Promise<AudioWaveform>((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener("abort", abort, { once: true });
+    current.promise.then(
+      (data) => {
+        signal.removeEventListener("abort", abort);
+        resolve(data);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        reject(error);
+      },
+    );
+  }).finally(() => {
+    // Let a newly mounted editor subscribe before canceling abandoned prefetches.
+    if (--current.users === 0)
+      current.abortTimer = setTimeout(() => {
+        if (pendingWaveforms.get(key) === current) pendingWaveforms.delete(key);
+        current.controller.abort();
+      }, 0);
+  });
+}
+
+async function prepareAudioWaveform(
+  src: string,
+  signal: AbortSignal,
+  options: WaveformOptions,
 ): Promise<AudioWaveform> {
   return withWaveformSlot(signal, async () => {
     const boundedSignal = AbortSignal.any([
@@ -155,6 +226,7 @@ export async function loadAudioWaveform(
         cached = undefined;
       }
     }
+    if (cachedData && options.immutableWaveform) return cachedData;
     const downloadStart = performance.now();
     let response: Response | undefined;
     try {
@@ -211,6 +283,11 @@ export async function loadAudioWaveform(
       const computeStart = performance.now();
       const waveform = await summarizeOffThread(buffer, boundedSignal);
       measure("compute-peaks", computeStart);
+      if (options.immutableWaveform && options.cacheWaveform !== false)
+        await writeWaveformCache(key, {
+          bytes: encodeWaveform(waveform),
+          etag: '"local-waveform-v1"',
+        });
       return waveform;
     } finally {
       await context.close();

@@ -282,3 +282,171 @@ test("older services fall back to audio and calculate peaks in a worker", async 
   await rejected;
   assert.ok(terminated && closed);
 });
+
+test("revisioned verse peaks persist after local decoding and bypass fetching until regeneration or retry", async (t) => {
+  const buffer = {
+    duration: 0.002,
+    sampleRate: 1000,
+    length: 2,
+    numberOfChannels: 1,
+    getChannelData: () => new Float32Array([0.25, -0.75]),
+  };
+  let decodes = 0;
+  const original = Object.getOwnPropertyDescriptor(globalThis, "AudioContext");
+  Object.defineProperty(globalThis, "AudioContext", {
+    configurable: true,
+    value: class {
+      async decodeAudioData() {
+        decodes++;
+        return buffer;
+      }
+      async close() {}
+    },
+  });
+  t.after(() => {
+    if (original) Object.defineProperty(globalThis, "AudioContext", original);
+    else Reflect.deleteProperty(globalThis, "AudioContext");
+  });
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    requests++;
+    return new Response(new ArrayBuffer(8), {
+      headers: { "Content-Type": "audio/wav" },
+    });
+  });
+  const src = "https://audio.example/verse?revision=first";
+  const options = {
+    resourceKey: "edition/book/1:1/first",
+    immutableWaveform: true,
+  };
+  const first = await loadAudioWaveform(
+    src,
+    new AbortController().signal,
+    options,
+  );
+  const cached = await readWaveformCache(
+    waveformCacheKey(src, options.resourceKey),
+  );
+  assert.ok(cached?.bytes.byteLength);
+  assert.deepEqual(
+    await loadAudioWaveform(src, new AbortController().signal, options),
+    first,
+  );
+  assert.equal(requests, 1);
+  assert.equal(decodes, 1);
+  await loadAudioWaveform(
+    src.replace("first", "second"),
+    new AbortController().signal,
+    {
+      ...options,
+      resourceKey: "edition/book/1:1/second",
+    },
+  );
+  assert.equal(decodes, 2);
+  await loadAudioWaveform(src, new AbortController().signal, {
+    ...options,
+    refresh: true,
+  });
+  assert.equal(decodes, 3);
+  await loadAudioWaveform(src, new AbortController().signal, {
+    ...options,
+    cacheWaveform: false,
+  });
+  assert.equal(decodes, 4);
+});
+
+test("advancing shares an unfinished prefetch even when the prefetch subscriber leaves", async (t) => {
+  const bytes = encodeWaveform({
+    duration: 0.001,
+    interval: 0.001,
+    amplitudes: new Float32Array([0.5]),
+  });
+  let release!: () => void;
+  let started!: () => void;
+  const fetching = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  let requests = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_: RequestInfo | URL, init?: RequestInit) => {
+      requests++;
+      started();
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      assert.equal(init?.signal?.aborted, false);
+      return new Response(bytes, {
+        headers: { "Content-Type": waveformContentType, ETag: '"shared"' },
+      });
+    },
+  );
+  const src = "https://prefetch.example/verse?revision=one";
+  const options = { resourceKey: "next/one", immutableWaveform: true };
+  const controller = new AbortController();
+  const prefetch = loadAudioWaveform(src, controller.signal, options);
+  const canceled = assert.rejects(prefetch, { name: "AbortError" });
+  await fetching;
+  controller.abort();
+  await canceled;
+  const visible = loadAudioWaveform(src, new AbortController().signal, options);
+  release();
+  assert.equal((await visible).amplitudes[0], 0.5);
+  assert.equal(requests, 1);
+});
+
+test("abandoned speculative loads are canceled and failed loads can be retried", async (t) => {
+  const src = "https://prefetch.example/abandoned";
+  const options = { resourceKey: "abandoned/one", immutableWaveform: true };
+  let started!: () => void;
+  let aborted!: () => void;
+  const fetching = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const stopped = new Promise<void>((resolve) => {
+    aborted = resolve;
+  });
+  let requests = 0;
+  const bytes = encodeWaveform({
+    duration: 0.001,
+    interval: 0.001,
+    amplitudes: new Float32Array([0.75]),
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_: RequestInfo | URL, init?: RequestInit) => {
+      requests++;
+      if (requests === 1) {
+        started();
+        return new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => {
+              aborted();
+              reject(init.signal?.reason);
+            },
+            { once: true },
+          );
+        });
+      }
+      return new Response(bytes, {
+        headers: { "Content-Type": waveformContentType, ETag: '"retried"' },
+      });
+    },
+  );
+  const controller = new AbortController();
+  const loading = loadAudioWaveform(src, controller.signal, options);
+  const rejected = assert.rejects(loading, { name: "AbortError" });
+  await fetching;
+  controller.abort();
+  await rejected;
+  await stopped;
+  assert.equal(
+    (await loadAudioWaveform(src, new AbortController().signal, options))
+      .amplitudes[0],
+    0.75,
+  );
+  assert.equal(requests, 2);
+});
