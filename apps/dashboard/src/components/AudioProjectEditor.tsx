@@ -177,6 +177,14 @@ export function AudioProjectEditor({
       );
     }
   };
+  const clearVerseFragment = () => {
+    if (window.location.hash)
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+  };
   const pending =
       queueTasks.length > 0 ||
       (!!project && ["queued", "running"].includes(project.status)),
@@ -623,7 +631,10 @@ export function AudioProjectEditor({
                 <button
                   className="icon-button"
                   aria-label={t("Collapse all sections")}
-                  onClick={() => setExpanded(new Set())}
+                  onClick={() => {
+                    clearVerseFragment();
+                    setExpanded(new Set());
+                  }}
                 >
                   <ChevronsUp size={18} />
                 </button>
@@ -650,14 +661,15 @@ export function AudioProjectEditor({
                   (task) => task.chapter === chapter.chapter,
                 )}
                 open={expanded.has(chapter.chapter)}
-                toggle={() =>
+                toggle={() => {
+                  if (expanded.has(chapter.chapter)) clearVerseFragment();
                   setExpanded((current) => {
                     const next = new Set(current);
                     if (next.has(chapter.chapter)) next.delete(chapter.chapter);
                     else next.add(chapter.chapter);
                     return next;
-                  })
-                }
+                  });
+                }}
                 change={change}
                 generate={generate}
                 cleanEditingFiles={cleanEditingFiles}

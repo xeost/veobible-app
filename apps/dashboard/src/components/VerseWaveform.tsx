@@ -43,6 +43,10 @@ import {
 } from "../lib/video-timing";
 import { useAudioWaveform, type WaveformPreparation } from "./useAudioWaveform";
 import { waveformPeaks } from "../lib/audio-waveform";
+import {
+  hasMediaPlaybackError,
+  isPlaybackInterruption,
+} from "../lib/audio-playback-errors";
 export function VerseWaveform({
   src,
   expanded,
@@ -257,6 +261,7 @@ export function VerseWaveform({
   useEffect(() => {
     const player = audio.current;
     return () => {
+      playbackRequest.current++;
       player?.pause();
     };
   }, []);
@@ -353,10 +358,7 @@ export function VerseWaveform({
         applyReadingPlaybackSpeed(player, playbackSpeedRef.current, true);
       }
     } catch (error) {
-      if (
-        request === playbackRequest.current &&
-        !(error instanceof DOMException && error.name === "AbortError")
-      )
+      if (request === playbackRequest.current && !isPlaybackInterruption(error))
         setPlaybackError(true);
     }
   };
@@ -908,7 +910,10 @@ export function VerseWaveform({
               }}
               onPause={() => setPlaying(false)}
               onEnded={() => setPlaying(false)}
-              onError={() => setPlaybackError(true)}
+              onError={(event) => {
+                if (hasMediaPlaybackError(event.currentTarget))
+                  setPlaybackError(true);
+              }}
               onTimeUpdate={() => {
                 if (!audio.current) return;
                 if (audio.current.currentTime >= stopAt.current) {

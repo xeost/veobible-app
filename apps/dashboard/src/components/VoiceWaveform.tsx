@@ -5,6 +5,10 @@ import { useI18n } from "../i18n/context";
 
 import { useAudioWaveform, type WaveformPreparation } from "./useAudioWaveform";
 import { waveformPeaks } from "../lib/audio-waveform";
+import {
+  hasMediaPlaybackError,
+  isPlaybackInterruption,
+} from "../lib/audio-playback-errors";
 
 export type VoiceTrim = { startSeconds: number; endSeconds: number };
 export function VoiceWaveform({
@@ -48,6 +52,7 @@ export function VoiceWaveform({
   const [playing, setPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const stopAt = useRef<number | null>(null);
+  const playbackRequest = useRef(0);
   const end = Math.min(duration, trim?.endSeconds ?? duration);
   const start = Math.max(0, Math.min(trim?.startSeconds ?? 0, end - 0.02));
   const bounds = useRef({ start, end });
@@ -60,8 +65,11 @@ export function VoiceWaveform({
   }, [expanded]);
   useEffect(() => {
     const player = audio.current;
-    return () => player?.pause();
-  }, []);
+    return () => {
+      playbackRequest.current++;
+      player?.pause();
+    };
+  }, [src]);
   useEffect(() => {
     if (!playing) return;
     let frame: number;
@@ -83,9 +91,13 @@ export function VoiceWaveform({
   const play = (from = bounds.current.start, until = bounds.current.end) => {
     const player = audio.current;
     if (!player || until <= from) return;
+    const request = ++playbackRequest.current;
     player.currentTime = from;
     stopAt.current = until;
-    void player.play().catch(onError);
+    void player.play().catch((error: unknown) => {
+      if (request === playbackRequest.current && !isPlaybackInterruption(error))
+        onError();
+    });
   };
   const move = (edge: "start" | "end", value: number) => {
     const current = bounds.current;
@@ -217,7 +229,9 @@ export function VoiceWaveform({
           stopAt.current = null;
           onPlaybackChange(false);
         }}
-        onError={onError}
+        onError={(event) => {
+          if (hasMediaPlaybackError(event.currentTarget)) onError();
+        }}
       />
       <p className="muted">
         {t(

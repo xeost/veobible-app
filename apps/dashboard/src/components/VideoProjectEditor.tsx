@@ -17,6 +17,7 @@ import {
   type VoiceLocale,
 } from "../lib/base-voices";
 import { useToast } from "./ToastProvider";
+import { isPlaybackInterruption } from "../lib/audio-playback-errors";
 import { useEditorErrorNotifications } from "./useEditorErrorNotifications";
 import {
   alignmentWasApplied,
@@ -1220,10 +1221,15 @@ export function VideoProjectEditor({
       return;
     }
     setVoiceError("");
+    const source = player.src;
     try {
       await player.play();
     } catch (cause) {
-      if (!(cause instanceof DOMException && cause.name === "AbortError"))
+      if (
+        voicePlayers.current[part] === player &&
+        player.src === source &&
+        !isPlaybackInterruption(cause)
+      )
         setVoiceError("Could not play the narration. Try again.");
     }
   };
@@ -1961,6 +1967,7 @@ export function VideoProjectEditor({
                 }
                 onPlaybackChange={(playing) => {
                   if (playing) {
+                    setVoiceError("");
                     Object.entries(voicePlayers.current).forEach(
                       ([key, player]) => {
                         if (key !== part) player?.pause();
