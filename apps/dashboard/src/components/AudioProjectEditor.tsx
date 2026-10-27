@@ -15,6 +15,7 @@ import type {
 } from "../../../../tools/video-project-api/src/audio-project-schema";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
+import { refreshAudioEditor } from "../lib/audio-editor-refresh";
 import { AudioChapter } from "./AudioChapter";
 import { audioMediaUrl, type AudioMediaAccess } from "../lib/audio-media";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
@@ -66,6 +67,8 @@ export function AudioProjectEditor({
   mediaAccessRef.current = mediaAccess;
   const [project, setProject] = useState<AudioProjectDetail | null>(null),
     [settings, setSettings] = useState<AudioSettings | null>(null);
+  const projectRef = useRef(project);
+  projectRef.current = project;
   const [formatDefaults, setFormatDefaults] = useState<{
     baseVoiceDefaults: BaseVoiceDefaults["en"];
     voiceStyleDefaults: VoiceStylePresets;
@@ -184,29 +187,39 @@ export function AudioProjectEditor({
   useProjectBreadcrumb(`/audios/${edition}/${book}`, project?.title);
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
-      const value = await api<
-        AudioProjectDetail &
-          NonNullable<typeof formatDefaults> & { mediaAccess: AudioMediaAccess }
-      >(endpoint, { signal });
+      const current = projectRef.current;
+      const { project: value, extras } = await refreshAudioEditor(
+        api,
+        endpoint,
+        current?.edition === edition && current?.book === book ? current : null,
+        signal,
+      );
       if (signal?.aborted) return;
       // Progress polling must not replace audio URLs during playback.
-      setMediaAccess((current) =>
-        current?.endpoint === endpoint &&
-        current.access.expiresAt > Date.now() + 5 * 60_000
-          ? current
-          : { endpoint, access: value.mediaAccess },
-      );
-      setFormatDefaults({
-        baseVoiceDefaults: value.baseVoiceDefaults,
-        voiceStyleDefaults: value.voiceStyleDefaults,
-      });
+      if (extras?.mediaAccess) {
+        const access = extras.mediaAccess;
+        setMediaAccess((current) =>
+          current?.endpoint === endpoint &&
+          current.access.expiresAt > Date.now() + 5 * 60_000
+            ? current
+            : { endpoint, access },
+        );
+      }
+      if (extras?.baseVoiceDefaults && extras.voiceStyleDefaults)
+        setFormatDefaults({
+          baseVoiceDefaults: extras.baseVoiceDefaults,
+          voiceStyleDefaults: extras.voiceStyleDefaults,
+        });
       if (!dirtyRef.current && !busyRef.current) {
-        setProject(value);
-        setSettings(value.settings);
+        if (value) {
+          projectRef.current = value;
+          setProject(value);
+          setSettings(value.settings);
+        }
         setError("");
       }
     },
-    [endpoint],
+    [endpoint, edition, book],
   );
   useEffect(() => {
     const controller = new AbortController();
@@ -214,11 +227,12 @@ export function AudioProjectEditor({
       async () => {
         try {
           await refresh(controller.signal);
-        } catch {
+        } catch (error) {
           if (controller.signal.aborted) return;
           setError(
             "Could not load audio projects. Check that generation is available and try again.",
           );
+          throw error;
         }
       },
       () => pendingRef.current,
@@ -388,9 +402,16 @@ export function AudioProjectEditor({
       });
       queued = true;
       window.dispatchEvent(new Event(queueChangedEvent));
-      const value = await api<AudioProjectDetail>(endpoint);
-      setProject(value);
-      setSettings(value.settings);
+      const { project: value } = await refreshAudioEditor(
+        api,
+        endpoint,
+        projectRef.current,
+      );
+      if (value) {
+        projectRef.current = value;
+        setProject(value);
+        setSettings(value.settings);
+      }
     } catch {
       notify(
         "Could not complete the audio request. Check that generation is available and try again.",

@@ -1,3 +1,4 @@
+import { audioProjectPatch } from "./audio-project-patch.js";
 import { OriginalAudioComparisons } from "./original-audio.js";
 import { randomUUID } from "node:crypto";
 import type http from "node:http";
@@ -31,8 +32,14 @@ const snapshotInput = z.object({
 const callbackSchema = z.object({
   url: z.string().url(),
   token: z.string().min(32),
+  format: z.literal("patch-v1").optional(),
 });
-async function notify(url: string, token: string, event: unknown) {
+async function notify(
+  url: string,
+  token: string,
+  event: unknown,
+  fallback?: unknown,
+) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const response = await fetch(url, {
@@ -45,6 +52,10 @@ async function notify(url: string, token: string, event: unknown) {
         signal: AbortSignal.timeout(10000),
       });
       if (response.ok) return;
+      if (response.status === 409 && fallback) {
+        event = fallback;
+        fallback = undefined;
+      }
     } catch {
       /* Retry the same sequence; duplicate deliveries are idempotent. */
     }
@@ -216,6 +227,97 @@ export async function audioProjectHttp(
         json({ error: "Audio project not found." }, 404);
         return true;
       }
+      const id = `${environment}/${edition}/${book}`;
+      if (parts[2] === "content") {
+        const scope = z
+          .object({
+            version: audioVersionSchema,
+            chapterCount: z.number().int().positive().max(200),
+            order: z.number().int().positive(),
+          })
+          .parse(raw);
+        const project = { ...scope, edition, book };
+        json({
+          content: await projects.content(project),
+          originalChapters: await originals.availableChapters(project),
+        });
+        return true;
+      }
+      if (parts[2] === "updates") {
+        const cursor = z
+          .object({
+            jobId: z.string().uuid(),
+            sequence: z.number().int().nonnegative(),
+          })
+          .parse(raw);
+        const session = sessions.get(id);
+        if (!session || session.jobId !== cursor.jobId) {
+          json({ needsSnapshot: true }, 409);
+          return true;
+        }
+        if (session.sequence <= cursor.sequence) {
+          json({ sequence: session.sequence });
+          return true;
+        }
+        const project = await projects.read(edition, book);
+        json({ sequence: session.sequence, project });
+        return true;
+      }
+      if (parts[2] === "original") {
+        const chapter = z.coerce
+          .number()
+          .int()
+          .positive()
+          .parse(url.searchParams.get("chapter"));
+        const { start, project } = z
+          .object({
+            start: z.boolean().default(false),
+            project: z.object({
+              edition: audioEditionSchema,
+              book: audioBookSchema,
+              version: audioVersionSchema,
+              order: z.number().int().positive(),
+              chapterCount: z.number().int().positive().max(200),
+            }),
+          })
+          .parse(raw);
+        if (project.edition !== edition || project.book !== book)
+          throw new AudioProjectError(
+            "Audio project does not match its folder.",
+            400,
+          );
+        json(
+          await originals.inspect(project, chapter, start, (run, progress) => {
+            const job: QueueJob = {
+              id: randomUUID(),
+              status: "queued",
+              stage: "Aligning original audio",
+              progress: 0,
+            };
+            queue.enqueue(
+              {
+                projectId: null,
+                kind: "audio",
+                type: "alignment",
+                outputEnvironment: environment,
+              },
+              job,
+              async () => {
+                const timer = setInterval(() => {
+                  job.progress = progress();
+                }, 500);
+                try {
+                  await run();
+                } finally {
+                  clearInterval(timer);
+                }
+              },
+            );
+          }),
+        );
+
+        return true;
+      }
       const input = snapshotInput.parse(raw);
       if (
         input.project.outputEnvironment !== environment ||
@@ -226,8 +328,7 @@ export async function audioProjectHttp(
           "Audio project does not match its folder.",
           400,
         );
-      const id = `${environment}/${edition}/${book}`,
-        known = sessions.get(id);
+      const known = sessions.get(id);
       if (!input.jobId || known?.jobId !== input.jobId) {
         projects.hydrate(input.project);
         if (input.jobId)
@@ -235,7 +336,12 @@ export async function audioProjectHttp(
         else sessions.delete(id);
       }
       if (parts.length === 2) {
-        const detail = await projects.detail(edition, book);
+        const includeContent = z
+          .object({ includeContent: z.boolean().default(true) })
+          .parse(raw).includeContent;
+        const detail = includeContent
+          ? await projects.detail(edition, book)
+          : await projects.read(edition, book);
         const session = sessions.get(id);
         if (
           session &&
@@ -246,7 +352,13 @@ export async function audioProjectHttp(
           session.sequence++;
         json({
           ...detail,
-          originalChapters: await originals.availableChapters(input.project),
+          ...(includeContent
+            ? {
+                originalChapters: await originals.availableChapters(
+                  input.project,
+                ),
+              }
+            : {}),
           sequence: session?.sequence ?? 0,
         });
       } else if (parts[2] === "generate") {
@@ -278,6 +390,7 @@ export async function audioProjectHttp(
         )
           throw new AudioProjectError("Origin not allowed", 403);
         if (!generation.append) session.callback = callbackSettings;
+        let previous = input.project;
         const requestId = randomUUID();
         const generationInput = audioGenerateSchema.parse(generation.input);
         const projectId = Number(callback.pathname.split("/")[3]);
@@ -320,10 +433,22 @@ export async function audioProjectHttp(
             },
             undefined,
             async (project) => {
-              await notify(callbackSettings.url, callbackSettings.token, {
-                sequence: ++session.sequence,
-                project,
-              });
+              const baseSequence = session.sequence;
+              const sequence = ++session.sequence;
+              const snapshot = { sequence, project };
+              await notify(
+                callbackSettings.url,
+                callbackSettings.token,
+                callbackSettings.format === "patch-v1"
+                  ? {
+                      sequence,
+                      baseSequence,
+                      patch: audioProjectPatch(previous, project),
+                    }
+                  : snapshot,
+                snapshot,
+              );
+              previous = project;
             },
             (task, status, progress) => {
               const job = jobs.get(taskKey(task));
@@ -341,49 +466,6 @@ export async function audioProjectHttp(
             generation.append,
           ),
           202,
-        );
-      } else if (parts[2] === "original") {
-        const chapter = z.coerce
-          .number()
-          .int()
-          .positive()
-          .parse(url.searchParams.get("chapter"));
-        const { start } = z
-          .object({ start: z.boolean().default(false) })
-          .parse(raw);
-        json(
-          await originals.inspect(
-            input.project,
-            chapter,
-            start,
-            (run, progress) => {
-              const job: QueueJob = {
-                id: randomUUID(),
-                status: "queued",
-                stage: "Aligning original audio",
-                progress: 0,
-              };
-              queue.enqueue(
-                {
-                  projectId: null,
-                  kind: "audio",
-                  type: "alignment",
-                  outputEnvironment: environment,
-                },
-                job,
-                async () => {
-                  const timer = setInterval(() => {
-                    job.progress = progress();
-                  }, 500);
-                  try {
-                    await run();
-                  } finally {
-                    clearInterval(timer);
-                  }
-                },
-              );
-            },
-          ),
         );
       } else if (parts[2] === "media" || parts[2] === "original-media") {
         const chapter = z.coerce

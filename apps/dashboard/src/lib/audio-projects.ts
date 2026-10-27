@@ -1,3 +1,4 @@
+import { audioPatchEventSchema } from "../../../../tools/video-project-api/src/audio-project-patch";
 import { withAudioVersePause } from "./audio-settings";
 import { inheritAudioVoiceDefaults } from "./project-voice-defaults";
 import { loadBaseVoiceDefaults } from "./base-voices";
@@ -18,7 +19,7 @@ export class AudioDatabaseError extends Error {
     super(message);
   }
 }
-type Row = {
+export type AudioProjectRow = {
   id: number;
   bible_version_id: number;
   output_environment: AudioProject["outputEnvironment"];
@@ -42,6 +43,7 @@ type Row = {
   locale: AudioProject["version"]["locale"];
   label: string;
 };
+type Row = AudioProjectRow;
 const select =
   "SELECT p.*,v.code,v.locale,v.label FROM audio_projects p JOIN bible_versions v ON v.id=p.bible_version_id";
 const now = () => new Date().toISOString();
@@ -53,7 +55,9 @@ export const audioTokenHash = async (token: string) =>
     (v) => v.toString(16).padStart(2, "0"),
   ).join("");
 export function audioProjectFromRow(row: Row): AudioProject {
-  return audioProjectSchema.parse({
+  // Every write validates external input. Revalidating the entire persisted book
+  // here clones thousands of recordings and trims on every editor request.
+  return {
     outputEnvironment: row.output_environment,
     edition: row.edition,
     book: row.book,
@@ -74,9 +78,9 @@ export function audioProjectFromRow(row: Row): AudioProject {
     progress: row.progress,
     revision: row.revision,
     updatedAt: row.updated_at,
-  });
+  };
 }
-export async function findAudioProject(
+export async function findAudioProjectRow(
   database: D1Database,
   edition: string,
   book: string,
@@ -89,6 +93,15 @@ export async function findAudioProject(
     .bind(edition, book, environment)
     .first<Row>();
   if (!row) throw new AudioDatabaseError("Audio project not found.", 404);
+  return row;
+}
+export async function findAudioProject(
+  database: D1Database,
+  edition: string,
+  book: string,
+  environment: AudioProject["outputEnvironment"] = "production",
+) {
+  const row = await findAudioProjectRow(database, edition, book, environment);
   const project = audioProjectFromRow(row);
   if (project.settings.voiceDefaultsVersion !== 1) {
     const [defaults, styles] = await Promise.all([
@@ -122,20 +135,33 @@ export async function listAudioProjects(
   const rows = (
     await database
       .prepare(
-        `${select} WHERE p.output_environment=? ORDER BY v.label,p.edition,p.book_order`,
+        `SELECT p.output_environment,p.edition,p.book,p.title,p.book_order,
+      p.chapter_count,p.verse_counts,p.bible_version_id,p.chapters,p.status,p.progress,p.updated_at,
+      v.code,v.locale,v.label FROM audio_projects p JOIN bible_versions v ON v.id=p.bible_version_id
+      WHERE p.output_environment=? ORDER BY v.label,p.edition,p.book_order`,
       )
       .bind(environment)
       .all<Row>()
   ).results;
-  return rows.map((row) => {
-    const {
-      recordings: _,
-      settings: _s,
-      revision: _r,
-      ...summary
-    } = audioProjectFromRow(row);
-    return summary;
-  });
+  return rows.map((row) => ({
+    outputEnvironment: row.output_environment,
+    edition: row.edition,
+    book: row.book,
+    title: row.title,
+    order: row.book_order,
+    chapterCount: row.chapter_count,
+    verseCounts: JSON.parse(row.verse_counts),
+    chapters: JSON.parse(row.chapters),
+    status: row.status,
+    progress: row.progress,
+    updatedAt: row.updated_at,
+    version: {
+      id: row.bible_version_id,
+      code: row.code,
+      locale: row.locale,
+      label: row.label,
+    },
+  }));
 }
 export async function insertAudioProjects(
   database: D1Database,
@@ -398,6 +424,136 @@ export async function applyAudioEvent(
     .run();
   return { applied: !!result.meta.changes };
 }
+/** JSON merge patches are applied inside the database: cost in the Worker is
+ * proportional to the changed verses, not to the accumulated book size. */
+export async function applyAudioPatch(
+  database: D1Database,
+  id: number,
+  jobId: string,
+  value: unknown,
+  token: string,
+) {
+  const { sequence, baseSequence, patch } = audioPatchEventSchema.parse(value);
+  const row = await database
+    .prepare(
+      `SELECT p.id,book,book_order,chapter_count,verse_counts,
+    locale,active_job_id,callback_hash,job_sequence,status
+    FROM audio_projects p JOIN bible_versions v ON v.id=p.bible_version_id WHERE p.id=?`,
+    )
+    .bind(id)
+    .first<
+      Pick<
+        Row,
+        | "id"
+        | "book"
+        | "book_order"
+        | "chapter_count"
+        | "verse_counts"
+        | "locale"
+        | "active_job_id"
+        | "callback_hash"
+        | "job_sequence"
+        | "status"
+      >
+    >();
+  if (!row) throw new AudioDatabaseError("Audio project not found.", 404);
+  if (row.callback_hash !== (await audioTokenHash(token)))
+    throw new AudioDatabaseError("Unauthorized", 401);
+  if (
+    row.active_job_id !== jobId ||
+    sequence <= row.job_sequence ||
+    !["queued", "running"].includes(row.status)
+  )
+    return { applied: false };
+  if (baseSequence !== row.job_sequence || sequence <= baseSequence)
+    throw new AudioDatabaseError("Audio update needs a current snapshot.", 409);
+  const verseCounts = JSON.parse(row.verse_counts) as number[];
+  const refs = new Set([
+    ...Object.keys(patch.recordings),
+    ...Object.keys(patch.settings.trims ?? {}),
+    ...Object.keys(patch.settings.pauses ?? {}),
+    ...Object.keys(patch.settings.approvals ?? {}),
+  ]);
+  for (const ref of refs) {
+    const [chapter, verse] = ref.split(":").map(Number);
+    if (
+      ref !== `${chapter}:${verse}` ||
+      !verseCounts[chapter - 1] ||
+      verse < 1 ||
+      verse > verseCounts[chapter - 1]
+    )
+      throw new AudioDatabaseError("Verse not found.", 400);
+  }
+  if (
+    patch.settings.baseVoice &&
+    !patch.settings.baseVoice.startsWith(`${row.locale}-`)
+  )
+    throw new AudioDatabaseError(
+      "Choose a voice in the project's language.",
+      400,
+    );
+  for (const recording of Object.values(patch.recordings))
+    if (
+      recording &&
+      (!recording.file.startsWith(`${row.book}/`) ||
+        recording.file.split(/[/\\]/).some((p) => p === "." || p === ".."))
+    )
+      throw new AudioDatabaseError("Invalid audio file.", 400);
+  for (const [chapter, asset] of Object.entries(patch.chapters))
+    if (
+      String(Number(chapter)) !== chapter ||
+      Number(chapter) < 1 ||
+      Number(chapter) > row.chapter_count ||
+      (asset &&
+        asset.file !==
+          `${String(row.book_order).padStart(2, "0")}-${row.book}-${chapter}.mp3`)
+    )
+      throw new AudioDatabaseError("Invalid audio file.", 400);
+  // Validate changed cuts against new recordings or only the referenced saved duration.
+  for (const [ref, trim] of Object.entries(patch.settings.trims ?? {})) {
+    if (!trim) continue;
+    const duration = Object.hasOwn(patch.recordings, ref)
+      ? patch.recordings[ref]?.duration
+      : (
+          await database
+            .prepare(
+              "SELECT json_extract(recordings,?) duration FROM audio_projects WHERE id=?",
+            )
+            .bind(`$."${ref}".duration`, id)
+            .first<{ duration: number | null }>()
+        )?.duration;
+    if (!duration || trim.endSeconds > duration + 0.01)
+      throw new AudioDatabaseError(
+        "The audio trim is outside this verse.",
+        400,
+      );
+  }
+  const result = await database
+    .prepare(
+      `UPDATE audio_projects SET
+    settings=json_patch(settings,?),recordings=json_patch(recordings,?),chapters=json_patch(chapters,?),
+    status=?,progress=?,job_sequence=?,revision=revision+1,updated_at=?
+    WHERE id=? AND active_job_id=? AND job_sequence=? AND status IN ('queued','running')`,
+    )
+    .bind(
+      JSON.stringify(patch.settings),
+      JSON.stringify(patch.recordings),
+      JSON.stringify(patch.chapters),
+      patch.status,
+      patch.progress,
+      sequence,
+      now(),
+      id,
+      jobId,
+      baseSequence,
+    )
+    .run();
+  if (!result.meta.changes) {
+    // Concurrent reconciliation may have advanced the cursor. Retry with a full snapshot.
+    throw new AudioDatabaseError("Audio update needs a current snapshot.", 409);
+  }
+  return { applied: true };
+}
 export async function audioProjectCallback(
   req: Request,
   database: D1Database,
@@ -413,14 +569,23 @@ export async function audioProjectCallback(
   if (!token || Number(req.headers.get("content-length") ?? 0) > 1024 * 1024)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    const value = (await req.json()) as { patch?: unknown };
     return Response.json(
-      await applyAudioEvent(
-        database,
-        Number(match[1]),
-        match[2],
-        await req.json(),
-        token,
-      ),
+      value.patch
+        ? await applyAudioPatch(
+            database,
+            Number(match[1]),
+            match[2],
+            value,
+            token,
+          )
+        : await applyAudioEvent(
+            database,
+            Number(match[1]),
+            match[2],
+            value,
+            token,
+          ),
     );
   } catch (error) {
     return Response.json(

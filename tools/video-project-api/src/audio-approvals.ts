@@ -34,6 +34,22 @@ export function isAudioVerseApproved(
   );
 }
 
+function sameSettingsValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const left = a as Record<string, unknown>,
+    right = b as Record<string, unknown>;
+  const keys = Object.keys(left).filter((key) => left[key] !== undefined);
+  return (
+    keys.length ===
+      Object.keys(right).filter((key) => right[key] !== undefined).length &&
+    keys.every(
+      (key) =>
+        Object.hasOwn(right, key) && sameSettingsValue(left[key], right[key]),
+    )
+  );
+}
+
 /** Review metadata does not change the rendered chapter audio. */
 export function audioMixSettingsChanged(
   previous: AudioSettings,
@@ -41,5 +57,5 @@ export function audioMixSettingsChanged(
 ) {
   const { approvals: _previousApprovals, ...previousMix } = previous;
   const { approvals: _nextApprovals, ...nextMix } = next;
-  return JSON.stringify(previousMix) !== JSON.stringify(nextMix);
+  return !sameSettingsValue(previousMix, nextMix);
 }

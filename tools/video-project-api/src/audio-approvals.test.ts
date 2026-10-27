@@ -58,3 +58,17 @@ test("review metadata does not change audio mixes but trim changes do", () => {
     true,
   );
 });
+
+test("equivalent settings with different JSON key order preserve final chapter audio", () => {
+  const first: AudioSettings = {
+    baseVoice: "es-1",
+    pauses: { "1:1": 0.3, "1:2": 0.4 },
+    trims: { "1:1": { startSeconds: 0.1, endSeconds: 1.2 } },
+  };
+  const second: AudioSettings = {
+    trims: { "1:1": { endSeconds: 1.2, startSeconds: 0.1 } },
+    pauses: { "1:2": 0.4, "1:1": 0.3 },
+    baseVoice: "es-1",
+  };
+  assert.equal(audioMixSettingsChanged(first, second), false);
+});

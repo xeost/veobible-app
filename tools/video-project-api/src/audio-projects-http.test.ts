@@ -9,6 +9,7 @@ import type { AudioProject } from "./audio-project-schema.js";
 import { once } from "node:events";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { audioPatchEventSchema } from "./audio-project-patch.js";
 import { config } from "./engines/long/config.js";
 
 test(
@@ -21,6 +22,19 @@ test(
     let diagnostics = "";
     let durable!: AudioProject,
       sequence = 0;
+    let rejectedPatch = false;
+    let patchCount = 0;
+    let snapshotCount = 0;
+    const mergePatch = (before: any, patch: any): any => {
+      const next = { ...before };
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === null) delete next[key];
+        else if (typeof value === "object" && !Array.isArray(value))
+          next[key] = mergePatch(next[key], value);
+        else next[key] = value;
+      }
+      return next;
+    };
     const callbackToken = "audio-project-callback-token-123456789012345";
     const callbackServer = http.createServer(async (req, res) => {
       if (req.headers.authorization !== `Bearer ${callbackToken}`) {
@@ -31,10 +45,26 @@ test(
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
       const event = JSON.parse(Buffer.concat(chunks).toString());
-      if (event.sequence > sequence) {
-        durable = event.project;
-        sequence = event.sequence;
+      if (event.patch) {
+        patchCount++;
+        // A stale cursor must trigger the full-snapshot recovery path.
+        if (
+          !rejectedPatch ||
+          (event.sequence > sequence && event.baseSequence !== sequence)
+        ) {
+          rejectedPatch = true;
+          res.writeHead(409);
+          res.end("{}");
+          return;
+        }
+        const parsed = audioPatchEventSchema.parse(event);
+        if (event.sequence > sequence)
+          durable = mergePatch(durable, parsed.patch);
+      } else {
+        snapshotCount++;
+        if (event.sequence > sequence) durable = event.project;
       }
+      sequence = Math.max(sequence, event.sequence);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end("{}");
     });
@@ -204,6 +234,32 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
         outputEnvironment: "production",
       });
       const project = `${base}/v1/audio-projects/rv1909-v2/jude`;
+      const staticContent = await fetch(`${project}/content`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          outputEnvironment: "production",
+          version,
+          order: durable.order,
+          chapterCount: durable.chapterCount,
+        }),
+      });
+      assert.equal(staticContent.status, 200);
+      assert.equal((await staticContent.json()).content[0].chapter, 1);
+      assert.equal(
+        (
+          await fetch(`${project}/updates`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              outputEnvironment: "production",
+              jobId,
+              sequence: 0,
+            }),
+          })
+        ).status,
+        409,
+      );
       // Listing works without callback access; generation needs an allowed origin.
       const denied = await fetch(`${project}/generate`, {
         method: "POST",
@@ -213,6 +269,7 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
           callback: {
             url: `https://unconfigured-dashboard.example/api/audio-project-events/1/${jobId}`,
             token: callbackToken,
+            format: "patch-v1",
           },
           input: { chapter: 1, verse: 1, voiceModel: "multilingual-v3" },
         }),
@@ -227,6 +284,7 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
           callback: {
             url: `${callbackOrigin}/api/audio-project-events/1/${jobId}`,
             token: callbackToken,
+            format: "patch-v1",
           },
           input: { chapter: 1, verse: 1, voiceModel: "multilingual-v3" },
         }),
@@ -258,6 +316,19 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
         })
       ).json();
       assert.ok(["queued", "running"].includes(reloaded.status));
+      const noChanges = await fetch(`${project}/updates`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          outputEnvironment: "production",
+          jobId,
+          sequence: Number.MAX_SAFE_INTEGER,
+        }),
+      });
+      const cursorOnly = await noChanges.json();
+      assert.deepEqual(Object.keys(cursorOnly), ["sequence"]);
+      assert.ok(cursorOnly.sequence >= 1);
+
       assert.equal(
         (
           await (
@@ -343,6 +414,25 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
       assert.equal(invalid.status, 400, await invalid.text());
       await stop();
       await start();
+      assert.ok(patchCount > 1);
+      assert.ok(
+        snapshotCount >= 1,
+        "stale patch must recover with a complete snapshot",
+      );
+      assert.equal(
+        (
+          await fetch(`${project}/updates`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              outputEnvironment: "production",
+              jobId,
+              sequence,
+            }),
+          })
+        ).status,
+        409,
+      );
       // Browser audio works immediately after restart, without hydrating a book snapshot.
       const directQuery = new URLSearchParams({
         outputEnvironment: "production",
@@ -376,9 +466,10 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
         await fetch(project, {
           method: "POST",
           headers,
-          body: JSON.stringify(snapshot()),
+          body: JSON.stringify({ ...snapshot(), includeContent: false }),
         })
       ).json();
+      assert.equal(persisted.content, undefined);
       assert.equal(
         persisted.recordings["1:1"].revision,
         state.recordings["1:1"].revision,
@@ -406,6 +497,7 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
           callback: {
             url: `${callbackOrigin}/api/audio-project-events/1/${jobId}`,
             token: callbackToken,
+            format: "patch-v1",
           },
           input: { chapter: 1, alignOnly: true },
         }),
@@ -456,6 +548,7 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
           callback: {
             url: `${callbackOrigin}/api/audio-project-events/1/${jobId}`,
             token: callbackToken,
+            format: "patch-v1",
           },
           input: {
             chapter: 1,

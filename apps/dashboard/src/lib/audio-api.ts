@@ -15,6 +15,11 @@ import {
 import { videoFetch } from "./video-client";
 import { bindings } from "./env";
 import { signMediaAccess } from "../../../../tools/api-proxy/src/media-access.mjs";
+import {
+  audioEditorHeader,
+  audioEditorState,
+  type AudioEditorHeader,
+} from "./audio-editor-state";
 import { audioMediaUrl } from "./audio-media";
 import { bibleVersionOptions } from "./bible-versions";
 import { loadBaseVoiceDefaults, resolveAudioBaseVoice } from "./base-voices";
@@ -132,20 +137,15 @@ export async function audioApi(
       return json({ error: "Not found" }, 404);
     const edition = audioEditionSchema.parse(parts[1]),
       book = audioBookSchema.parse(parts[2]);
-    const { row, project } = await findAudioProject(
-      database,
-      edition,
-      book,
-      outputEnvironment,
-    );
-    const endpoint = `/v1/audio-projects/${edition}/${book}`;
-    const mediaAccess = async () => {
+    const editorMediaAccess = async (
+      header: Pick<AudioEditorHeader, "book_order" | "chapter_count">,
+    ) => {
       const expiresAt = Date.now() + 60 * 60 * 1000;
-      const path = `${endpoint}/`;
+      const path = `/v1/audio-projects/${edition}/${book}/`;
       const query = new URLSearchParams({
         outputEnvironment,
-        order: String(project.order),
-        chapterCount: String(project.chapterCount),
+        order: String(header.book_order),
+        chapterCount: String(header.chapter_count),
       });
       const token = await signMediaAccess(
         { path, query: query.toString(), origin: url.origin, expiresAt },
@@ -157,8 +157,101 @@ export async function audioApi(
         expiresAt,
       };
     };
-    if (parts[3] === "media-access" && req.method === "GET")
-      return json({ mediaAccess: await mediaAccess() });
+    if (
+      ["state", "content", "media-access", "original"].includes(parts[3]) &&
+      (req.method === "GET" ||
+        (parts[3] === "original" && req.method === "POST"))
+    ) {
+      const header = await audioEditorHeader(
+        database,
+        edition,
+        book,
+        outputEnvironment,
+      );
+      if (parts[3] === "media-access")
+        return json({ mediaAccess: await editorMediaAccess(header) });
+      if (parts[3] === "original")
+        return relay(
+          await forward(
+            `/v1/audio-projects/${edition}/${book}/original${url.search}`,
+            {
+              project: {
+                edition,
+                book,
+                version: {
+                  id: header.bible_version_id,
+                  code: header.code,
+                  locale: header.locale,
+                  label: header.label,
+                },
+                order: header.book_order,
+                chapterCount: header.chapter_count,
+              },
+              start: req.method === "POST",
+            },
+          ),
+        );
+      if (parts[3] === "content") {
+        const response = await forward(
+          `/v1/audio-projects/${edition}/${book}/content`,
+          {
+            version: {
+              id: header.bible_version_id,
+              code: header.code,
+              locale: header.locale,
+              label: header.label,
+            },
+            chapterCount: header.chapter_count,
+            order: header.book_order,
+          },
+        );
+        if (!response.ok) return relay(response);
+        // Stream Bible text without decoding and re-encoding the full book in the Worker.
+        return new Response(response.body, {
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+        });
+      }
+      const since = url.searchParams.has("revision")
+        ? z.coerce
+            .number()
+            .int()
+            .nonnegative()
+            .parse(url.searchParams.get("revision"))
+        : null;
+      return audioEditorState(
+        database,
+        header,
+        since,
+        forward,
+        async (current) => {
+          const [mediaAccess, voices, styles] = await Promise.all([
+            editorMediaAccess(current),
+            loadBaseVoiceDefaults(database, "audio"),
+            loadVoiceStyleDefaults(database, "audio"),
+          ]);
+          return {
+            mediaAccess,
+            baseVoiceDefaults: voices[current.locale],
+            voiceStyleDefaults: styles[current.locale],
+          };
+        },
+      );
+    }
+    const { row, project } = await findAudioProject(
+      database,
+      edition,
+      book,
+      outputEnvironment,
+    );
+    const endpoint = `/v1/audio-projects/${edition}/${book}`;
+    const mediaAccess = () =>
+      editorMediaAccess({
+        book_order: project.order,
+        chapter_count: project.chapterCount,
+      });
     if (
       ["media", "original-media"].includes(parts[3]) &&
       req.method === "GET"
@@ -311,6 +404,7 @@ export async function audioApi(
                 callback: {
                   url: `${url.origin}/api/audio-project-events/${job.id}/${job.jobId}`,
                   token: job.token,
+                  format: "patch-v1",
                 },
               }
             : {}),
@@ -344,14 +438,6 @@ export async function audioApi(
         console.error("Audio generation dispatch uncertain", String(error));
         return json({ queued: true }, 202);
       }
-    }
-    if (parts[3] === "original" && ["GET", "POST"].includes(req.method)) {
-      return relay(
-        await forward(`${endpoint}/original${url.search}`, {
-          ...snapshot,
-          start: req.method === "POST",
-        }),
-      );
     }
     return json({ error: "Not found" }, 404);
   } catch (error) {

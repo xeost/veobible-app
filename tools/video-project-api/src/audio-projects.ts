@@ -315,6 +315,21 @@ export class AudioProjects {
   }
   async detail(edition: string, book: string): Promise<AudioProjectDetail> {
     const project = await this.read(edition, book);
+    return { ...project, content: await this.content(project) };
+  }
+  async content(
+    project: Pick<
+      AudioProject,
+      "edition" | "book" | "version" | "chapterCount"
+    >,
+  ) {
+    const { marker } = await this.owned(project.edition);
+    if (
+      marker.version.code !== project.version.code ||
+      marker.version.locale !== project.version.locale
+    )
+      throw new AudioProjectError("Audio project does not match its folder.");
+    const book = audioBookSchema.parse(project.book);
     const content: AudioProjectDetail["content"] = [];
     for (let chapter = 1; chapter <= project.chapterCount; chapter++) {
       const verses = z
@@ -339,7 +354,7 @@ export class AudioProjects {
         );
       content.push({ chapter, verses });
     }
-    return { ...project, content };
+    return content;
   }
   async save(edition: string, book: string, value: unknown) {
     const input = audioSaveSchema.parse(value);

@@ -642,3 +642,316 @@ test("verse approvals persist without invalidating completed chapter audio and f
     sqlite.close();
   }
 });
+
+test("editor polling avoids reading recordings and returns a tiny unchanged response", async (t) => {
+  const { audioEditorHeader, audioEditorState } =
+    await import("./audio-editor-state");
+  const { sqlite, database, project } = fixture();
+  try {
+    project.settings.voiceDefaultsVersion = 1;
+    project.book = "genesis";
+    project.title = "Genesis";
+    project.order = 1;
+    project.chapterCount = 50;
+    project.verseCounts = Array(50).fill(31);
+    project.recordings = Object.fromEntries(
+      Array.from({ length: 1533 }, (_, i) => [
+        `${Math.floor(i / 31) + 1}:${(i % 31) + 1}`,
+        {
+          file: `genesis/${i}/intro.wav`,
+          duration: 7,
+          revision: `recording-${i}`,
+        },
+      ]),
+    );
+    await insertAudioProjects(database, [project]);
+    const queries: string[] = [];
+    const traced = {
+      ...database,
+      prepare(query: string) {
+        queries.push(query);
+        return database.prepare(query);
+      },
+    } as D1Database;
+    const header = await audioEditorHeader(
+      traced,
+      project.edition,
+      project.book,
+      "production",
+    );
+    const response = await audioEditorState(
+      traced,
+      header,
+      project.revision,
+      async () => {
+        throw new Error("idle projects must not contact generation");
+      },
+      async () => {
+        throw new Error(
+          "unchanged polls must not reload defaults or sign media",
+        );
+      },
+    );
+    const body = await response.text();
+    assert.deepEqual(JSON.parse(body), { unchanged: true, revision: 0 });
+    assert.ok(body.length < 50);
+    t.diagnostic(
+      `Large-book state: ${JSON.stringify(project).length} bytes; unchanged poll: ${body.length} bytes; one metadata query.`,
+    );
+    assert.equal(queries.length, 1);
+    assert.ok(!queries[0].includes("p.*"));
+    assert.ok(!queries[0].includes("recordings"));
+    const raw = await audioEditorState(
+      database,
+      header,
+      null,
+      async () => {
+        throw new Error("unexpected forward");
+      },
+      async () => ({ mediaAccess: "fixture" }),
+    );
+    const initial = (await raw.json()) as any;
+    assert.deepEqual(
+      initial.project,
+      (await findAudioProject(database, project.edition, project.book)).project,
+    );
+    assert.equal(initial.extras.mediaAccess, "fixture");
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("editor progress reconciles missed callbacks and interrupted service snapshots without Bible text", async () => {
+  const { audioEditorHeader, audioEditorState } =
+    await import("./audio-editor-state");
+  const { sqlite, database, project } = fixture();
+  try {
+    project.settings.voiceDefaultsVersion = 1;
+    await insertAudioProjects(database, [project]);
+    const job = await beginAudioJob(database, project.edition, project.book);
+    const header = await audioEditorHeader(
+      database,
+      project.edition,
+      project.book,
+      "production",
+    );
+    const calls: { path: string; body: any }[] = [];
+    const response = await audioEditorState(
+      database,
+      header,
+      header.revision,
+      async (path, body) => {
+        calls.push({ path, body });
+        if (path.endsWith("/updates"))
+          return Response.json({ needsSnapshot: true }, { status: 409 });
+        return Response.json({ ...job.project, status: "failed", sequence: 1 });
+      },
+      async () => {
+        throw new Error("polls must not load initial extras");
+      },
+    );
+    const result = (await response.json()) as any;
+    assert.equal(result.project.status, "failed");
+    assert.equal(result.project.revision, header.revision + 1);
+    assert.equal(result.project.content, undefined);
+    assert.deepEqual(calls[0].body, { jobId: job.jobId, sequence: 0 });
+    assert.equal(calls[1].body.includeContent, false);
+    assert.equal(calls[1].body.project.book, project.book);
+    assert.equal(
+      (await findAudioProject(database, project.edition, project.book)).row
+        .job_sequence,
+      1,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("incremental audio callbacks persist only changed verses, authenticate and fence sequences", async () => {
+  const { applyAudioPatch } = await import("./audio-projects");
+  const { audioProjectPatch } =
+    await import("../../../../tools/video-project-api/src/audio-project-patch");
+  const { sqlite, database, project } = fixture();
+  try {
+    await insertAudioProjects(database, [project]);
+    const job = await beginAudioJob(database, project.edition, project.book);
+    const first: AudioProject = structuredClone(job.project);
+    first.status = "running";
+    first.recordings["1:1"] = {
+      file: "jude/1-1-r1/intro.wav",
+      duration: 2,
+      revision: "r1",
+    };
+    first.settings.trims["1:1"] = { startSeconds: 0.1, endSeconds: 1.8 };
+    const event = {
+      sequence: 1,
+      baseSequence: 0,
+      patch: audioProjectPatch(job.project, first),
+    };
+    await assert.rejects(
+      applyAudioPatch(database, job.id, job.jobId, event, "wrong-token"),
+      /Unauthorized/,
+    );
+    assert.deepEqual(
+      await applyAudioPatch(database, job.id, job.jobId, event, job.token),
+      { applied: true },
+    );
+    assert.deepEqual(
+      await applyAudioPatch(database, job.id, job.jobId, event, job.token),
+      { applied: false },
+    );
+    const second = structuredClone(first);
+    second.recordings["1:2"] = {
+      file: "jude/1-2-r2/intro.wav",
+      duration: 3,
+      revision: "r2",
+    };
+    second.settings.trims["1:2"] = { startSeconds: 0, endSeconds: 2.5 };
+    const next = {
+      sequence: 2,
+      baseSequence: 1,
+      patch: audioProjectPatch(first, second),
+    };
+    assert.deepEqual(Object.keys(next.patch.recordings), ["1:2"]);
+    await assert.rejects(
+      applyAudioPatch(
+        database,
+        job.id,
+        job.jobId,
+        { ...next, baseSequence: 0 },
+        job.token,
+      ),
+      /current snapshot/,
+    );
+    await applyAudioPatch(database, job.id, job.jobId, next, job.token);
+    const saved = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.deepEqual(saved.recordings, second.recordings);
+    assert.deepEqual(saved.settings.trims, second.settings.trims);
+    assert.equal(saved.settings.baseVoice, second.settings.baseVoice);
+    assert.deepEqual(saved.settings.pauses, second.settings.pauses);
+    assert.equal(saved.revision, job.project.revision + 2);
+    const invalidTrim = {
+      sequence: 3,
+      baseSequence: 2,
+      patch: {
+        ...audioProjectPatch(second, second),
+        settings: { trims: { "1:1": { startSeconds: 0, endSeconds: 20 } } },
+      },
+    };
+    await assert.rejects(
+      applyAudioPatch(database, job.id, job.jobId, invalidTrim, job.token),
+      /outside this verse/,
+    );
+    const traversal = {
+      sequence: 3,
+      baseSequence: 2,
+      patch: {
+        ...next.patch,
+        recordings: {
+          "1:2": { file: "jude/../outside.wav", duration: 3, revision: "x" },
+        },
+      },
+    };
+    await assert.rejects(
+      applyAudioPatch(database, job.id, job.jobId, traversal, job.token),
+      /Invalid audio file/,
+    );
+    assert.equal(
+      (await findAudioProject(database, project.edition, project.book)).row
+        .job_sequence,
+      2,
+    );
+    const removed = structuredClone(second);
+    delete removed.settings.trims["1:1"];
+    removed.chapters["1"] = { file: "65-jude-1.mp3", revision: "chapter1" };
+    removed.status = "done";
+    await applyAudioPatch(
+      database,
+      job.id,
+      job.jobId,
+      {
+        sequence: 3,
+        baseSequence: 2,
+        patch: audioProjectPatch(second, removed),
+      },
+      job.token,
+    );
+    const final = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.deepEqual(final.settings.trims, removed.settings.trims);
+    assert.deepEqual(final.chapters, removed.chapters);
+    assert.equal(final.status, "done");
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("active editor polls stay compact and observe callbacks committed during inspection", async () => {
+  const { audioEditorHeader, audioEditorState } =
+    await import("./audio-editor-state");
+  const { sqlite, database, project } = fixture();
+  try {
+    project.settings.voiceDefaultsVersion = 1;
+    await insertAudioProjects(database, [project]);
+    const job = await beginAudioJob(database, project.edition, project.book);
+    const header = await audioEditorHeader(
+      database,
+      project.edition,
+      project.book,
+      "production",
+    );
+    let extraCalls = 0;
+    const extras = async () => {
+      extraCalls++;
+      return {};
+    };
+    const unchanged = await audioEditorState(
+      database,
+      header,
+      header.revision,
+      async (_path, body) => {
+        assert.deepEqual(body, { jobId: job.jobId, sequence: 0 });
+        return Response.json({ sequence: 0 });
+      },
+      extras,
+    );
+    assert.deepEqual(await unchanged.json(), {
+      unchanged: true,
+      revision: header.revision,
+    });
+    const saved: AudioProject = {
+      ...job.project,
+      status: "running",
+      progress: 25,
+    };
+    const changed = await audioEditorState(
+      database,
+      header,
+      header.revision,
+      async () => {
+        await applyAudioEvent(
+          database,
+          job.id,
+          job.jobId,
+          { sequence: 1, project: saved },
+          job.token,
+        );
+        return Response.json({ sequence: 0 });
+      },
+      extras,
+    );
+    const value = (await changed.json()) as any;
+    assert.equal(value.project.progress, 25);
+    assert.equal(value.project.revision, header.revision + 1);
+    assert.equal(extraCalls, 0);
+    await assert.rejects(
+      audioEditorHeader(database, project.edition, project.book, "development"),
+      /not found/,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
