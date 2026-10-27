@@ -366,6 +366,28 @@ a:focus-visible {
   max-height: calc(100dvh - 48px);
   box-shadow: 0 24px 100px #0009;
 }
+.confirm-dialog {
+  width: min(480px, calc(100vw - 32px));
+}
+.confirm-dialog-description {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.confirm-dialog-description p {
+  margin: 12px 0;
+}
+.confirm-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+.confirm-dialog-actions .danger {
+  color: #ffc1c1;
+  border-color: #b9535366;
+  background: #83363633;
+}
 .generation-queue-dialog::backdrop {
   background: #07050bcc;
   backdrop-filter: blur(5px);
@@ -3150,8 +3172,16 @@ audio {
 .local-model-update-action {
   min-width: 180px;
 }
-.local-model-update-action button {
-  white-space: nowrap;
+.local-model-action-buttons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.local-model-action-buttons .icon-button {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 .local-model-update-action small {
   max-width: 200px;
@@ -4060,4 +4090,15 @@ audio {
   .original-voice-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.cosy-narration-options {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+.cosy-narration-options textarea {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
 }

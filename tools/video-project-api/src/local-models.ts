@@ -1,4 +1,10 @@
+import { removeCachedRepository } from "./local-model-removal.js";
 import path from "node:path";
+import {
+  disabledModels,
+  modelKey,
+  setModelEnabled,
+} from "./local-model-state.js";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
@@ -10,11 +16,12 @@ import {
 } from "./alignment-config.js";
 import {
   localModelsSchema,
+  localModelRemovalTargets,
   localModelStatusSchema,
   type LocalModels,
 } from "./local-models-contract.js";
 
-import { qwenPython } from "./narration-runtime.js";
+import { cosyPython, qwenPython } from "./narration-runtime.js";
 const execute = promisify(execFile);
 const probeFile = fileURLToPath(
   new URL("./local-model-inventory.py", import.meta.url),
@@ -50,26 +57,35 @@ const probeSchema = z.object({
 });
 const repoPattern = /^[\w.-]+\/[\w.-]+$/;
 const probe: Probe = async (python, request, env) => {
-  const { stdout } = await execute(
-    python,
-    ["-B", probeFile, JSON.stringify(request)],
-    {
-      env: { ...env, HF_HUB_OFFLINE: "1", HF_HUB_DISABLE_TELEMETRY: "1" },
-      timeout: 8000,
-      maxBuffer: 128 * 1024,
-    },
-  );
-  return JSON.parse(stdout);
+  const inspect = async (interpreter: string) => {
+    const { stdout } = await execute(
+      interpreter,
+      ["-B", probeFile, JSON.stringify(request)],
+      {
+        env: { ...env, HF_HUB_OFFLINE: "1", HF_HUB_DISABLE_TELEMETRY: "1" },
+        timeout: 8000,
+        maxBuffer: 128 * 1024,
+      },
+    );
+    return JSON.parse(stdout);
+  };
+  try {
+    return await inspect(python);
+  } catch (cause) {
+    if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
+    // Cache inventory remains useful before an inference environment is installed.
+    // A fallback interpreter cannot identify that environment's package version.
+    return { ...(await inspect("python3")), version: null };
+  }
 };
 
-export async function loadLocalModels(
-  options: {
-    voices?: { short: VoiceConfig; long: VoiceConfig };
-    alignment?: ReturnType<typeof alignmentWorkerConfig>;
-    env?: NodeJS.ProcessEnv;
-    probe?: Probe;
-  } = {},
-): Promise<LocalModels> {
+type InventoryOptions = {
+  voices?: { short: VoiceConfig; long: VoiceConfig };
+  alignment?: ReturnType<typeof alignmentWorkerConfig>;
+  env?: NodeJS.ProcessEnv;
+  probe?: Probe;
+};
+async function modelEntries(options: InventoryOptions = {}) {
   const voices = options.voices ?? {
     short: (await import("./engines/short/config.js")).config,
     long: (await import("./engines/long/config.js")).config,
@@ -97,29 +113,34 @@ export async function loadLocalModels(
       repoPattern.test(source) && !existsSync(source) ? source : null;
     const variant: Model["variant"] = custom
       ? "custom"
-      : repository === "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
-        ? "qwen3-base-0.6b"
-        : repository === "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
-          ? "qwen3-base-1.7b"
-          : repository === "ResembleAI/chatterbox"
-            ? required.includes("t3_cfg.safetensors")
-              ? "chatterbox-original"
-              : required.includes("t3_mtl23ls_v3.safetensors")
-                ? "chatterbox-v3"
-                : required.includes("t3_mtl23ls_v2.safetensors")
-                  ? "chatterbox-v2"
-                  : "chatterbox-shared"
-            : repository === "ResembleAI/Chatterbox-Multilingual-es-mx-latam"
-              ? "chatterbox-latam"
-              : repository === "ResembleAI/Chatterbox-Multilingual-pt-br"
-                ? "chatterbox-pt-br"
-                : role === "alignment" &&
-                    repository === "mlx-community/Qwen3-ForcedAligner-0.6B-8bit"
-                  ? "qwen3-aligner-0.6b-8bit"
-                  : role === "recognition" &&
-                      repository === "mlx-community/Qwen3-ASR-0.6B-8bit"
-                    ? "qwen3-asr-0.6b-8bit"
-                    : "custom";
+      : repository === "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+        ? required.includes("llm.rl.pt")
+          ? "cosyvoice3-rl-0.5b"
+          : "cosyvoice3-base-0.5b"
+        : repository === "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+          ? "qwen3-base-0.6b"
+          : repository === "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+            ? "qwen3-base-1.7b"
+            : repository === "ResembleAI/chatterbox"
+              ? required.includes("t3_cfg.safetensors")
+                ? "chatterbox-original"
+                : required.includes("t3_mtl23ls_v3.safetensors")
+                  ? "chatterbox-v3"
+                  : required.includes("t3_mtl23ls_v2.safetensors")
+                    ? "chatterbox-v2"
+                    : "chatterbox-shared"
+              : repository === "ResembleAI/Chatterbox-Multilingual-es-mx-latam"
+                ? "chatterbox-latam"
+                : repository === "ResembleAI/Chatterbox-Multilingual-pt-br"
+                  ? "chatterbox-pt-br"
+                  : role === "alignment" &&
+                      repository ===
+                        "mlx-community/Qwen3-ForcedAligner-0.6B-8bit"
+                    ? "qwen3-aligner-0.6b-8bit"
+                    : role === "recognition" &&
+                        repository === "mlx-community/Qwen3-ASR-0.6B-8bit"
+                      ? "qwen3-asr-0.6b-8bit"
+                      : "custom";
     const previous = entries.find(
       (entry) =>
         entry.model.name === name &&
@@ -162,11 +183,13 @@ export async function loadLocalModels(
         status: custom ? "custom" : "unavailable",
         variant,
         software: {
-          name: variant.startsWith("qwen3-base-")
-            ? "qwen-tts"
-            : role === "voice"
-              ? "chatterbox-tts"
-              : "mlx-audio",
+          name: variant.startsWith("cosyvoice3-")
+            ? "cosyvoice"
+            : variant.startsWith("qwen3-base-")
+              ? "qwen-tts"
+              : role === "voice"
+                ? "chatterbox-tts"
+                : "mlx-audio",
           version: null,
         },
       },
@@ -325,6 +348,28 @@ export async function loadLocalModels(
       [],
     );
   }
+  for (const variant of ["base", "rl"]) {
+    add(
+      `CosyVoice 3 ${variant === "rl" ? "RL" : "Base"} 0.5B`,
+      "voice",
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      [
+        variant === "rl" ? "llm.rl.pt" : "llm.pt",
+        "flow.pt",
+        "hift.pt",
+        "campplus.onnx",
+        "speech_tokenizer_v3.onnx",
+        "cosyvoice3.yaml",
+        "CosyVoice-BlankEN/config.json",
+        "CosyVoice-BlankEN/tokenizer_config.json",
+        "CosyVoice-BlankEN/vocab.json",
+        "CosyVoice-BlankEN/merges.txt",
+      ],
+      cosyPython,
+      env,
+      [],
+    );
+  }
   const alignmentEnv = env;
   const customAlignment =
     path.resolve(alignment.script) !== path.join(alignmentWorkerRoot, "cli.py");
@@ -360,6 +405,16 @@ export async function loadLocalModels(
     uses,
     customAlignment,
   );
+  return entries;
+}
+
+export async function loadLocalModels(
+  options: InventoryOptions = {},
+): Promise<LocalModels> {
+  const entries = await modelEntries(options);
+  const disabled = disabledModels();
+  for (const entry of entries)
+    entry.model.enabled = !disabled.includes(modelKey(entry.model));
   // Group by the actual interpreter and cache context; inspect each environment
   // once even when several formats/languages share it. No model is imported.
   const groups = new Map<string, typeof entries>();
@@ -400,8 +455,114 @@ export async function loadLocalModels(
       }
     }),
   );
+  // Availability requires actual weights as well as the administrator's intent.
+  // Cache references or shared files alone never make a model ready for use.
+  for (const entry of entries) {
+    if (
+      !entry.custom &&
+      entry.model.repository &&
+      entry.model.status !== "downloaded"
+    )
+      entry.model.enabled = false;
+  }
   return localModelsSchema.parse({
     checkedAt: new Date().toISOString(),
     models: entries.map((entry) => entry.model),
   });
+}
+
+export async function removeLocalModel(
+  model: Model,
+  options: InventoryOptions = {},
+) {
+  const entries = await modelEntries(options);
+  const target = entries.find(
+    (entry) => modelKey(entry.model) === modelKey(model),
+  );
+  if (!target || target.custom || !target.model.repository)
+    throw new Error("Unsupported model removal");
+  const affected = localModelRemovalTargets(
+    entries.map((entry) => entry.model),
+    target.model.repository,
+  );
+  // Disable every affected variant before removing their shared repository,
+  // including dependent voices, so stale jobs cannot silently download it again.
+  for (const affectedModel of affected) setModelEnabled(affectedModel, false);
+  await removeCachedRepository(target.model.repository, target.env);
+  return loadLocalModels(options);
+}
+
+export type ModelDownloadSource = {
+  repository: string;
+  patterns: string[];
+  required: string[];
+  python: string;
+  env: NodeJS.ProcessEnv;
+};
+export async function localModelDownloadPlan(
+  model: Model,
+  options: InventoryOptions = {},
+): Promise<ModelDownloadSource[]> {
+  const entries = await modelEntries(options);
+  const target = entries.find(
+    (entry) => modelKey(entry.model) === modelKey(model),
+  );
+  if (
+    !target ||
+    target.custom ||
+    !target.model.repository ||
+    ["custom", "local"].includes(target.model.status)
+  )
+    throw new Error("Unsupported model download");
+  const required = [...target.probe.required];
+  const patterns = [...required];
+  if (
+    target.model.role !== "voice" ||
+    target.model.variant.startsWith("qwen3-base-")
+  )
+    patterns.push("*.json", "*.txt", "*.model", "*.tiktoken", "*.jinja");
+  if (target.model.variant.startsWith("qwen3-base-"))
+    patterns.push("speech_tokenizer/*");
+  if (target.model.variant.startsWith("cosyvoice3-")) {
+    required.push("CosyVoice-BlankEN/generation_config.json");
+    patterns.push("CosyVoice-BlankEN/generation_config.json");
+  }
+  if (target.model.repository === "ResembleAI/chatterbox")
+    patterns.push("conds.pt", "Cangjie5_TC.json", "s3gen.pt", "s3gen_v3.pt");
+  if (target.model.variant === "chatterbox-latam") patterns.push("s3gen_v3.pt");
+  const result: ModelDownloadSource[] = [];
+  if (["chatterbox-latam", "chatterbox-pt-br"].includes(target.model.variant)) {
+    result.push({
+      repository: "ResembleAI/chatterbox",
+      patterns: ["ve.pt", "conds.pt", "s3gen.pt"],
+      required: ["ve.pt", "s3gen.pt"],
+      python: target.python,
+      env: target.env,
+    });
+  }
+  result.push({
+    repository: target.model.repository,
+    patterns: [...new Set(patterns)],
+    required,
+    python: target.python,
+    env: target.env,
+  });
+  return result;
+}
+export async function verifyModelDownload(plan: ModelDownloadSource[]) {
+  for (const source of plan) {
+    const request = {
+      package: "model-download-verification",
+      models: [{ repository: source.repository, required: source.required }],
+    };
+    let result: unknown;
+    try {
+      result = await probe(source.python, request, source.env);
+    } catch (cause) {
+      if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
+      result = await probe("python3", request, source.env);
+    }
+    if (probeSchema.parse(result).models[0]?.status !== "downloaded")
+      throw new Error("Downloaded model is incomplete");
+  }
 }

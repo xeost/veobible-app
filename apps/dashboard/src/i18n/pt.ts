@@ -1,4 +1,57 @@
 export const portuguese: Record<string, string> = {
+  "Shared files are in use. Choose another model in settings before removing them.":
+    "Há arquivos compartilhados em uso. Escolha outro modelo nas configurações antes de removê-los.",
+  "Removing weights deletes the entire shared download, including older copies. Download each affected model again before using it.":
+    "Remover pesos exclui o download compartilhado completo, incluindo cópias anteriores. Baixe cada modelo afetado novamente antes de usá-lo.",
+  "All files in this shared download will be deleted, including older copies. The models listed below will disappear from settings until downloaded again.":
+    "Todos os arquivos deste download compartilhado serão excluídos, incluindo cópias anteriores. Os modelos listados abaixo deixarão de aparecer nas configurações até serem baixados novamente.",
+  "Other applications on this computer may also need to download these files again.":
+    "Outros aplicativos deste computador também podem precisar baixar esses arquivos novamente.",
+  "Retry download": "Tentar baixar novamente",
+  "Download required": "Download necessário",
+  "Choose a downloaded model": "Escolha um modelo baixado",
+  "Download this model before enabling it.":
+    "Baixe este modelo antes de ativá-lo.",
+  "Removing weights disables the model and hides it from settings. Download it again to make it available. Shared files are kept while another model needs them.":
+    "Remover os pesos desativa o modelo e o oculta nas configurações. Baixe-o novamente para voltar a usá-lo. Os arquivos compartilhados são mantidos enquanto outro modelo precisar deles.",
+  "Could not finish the model download. Check your connection and free disk space, then try downloading it again.":
+    "Não foi possível concluir o download do modelo. Verifique sua conexão e o espaço livre em disco e tente baixar novamente.",
+  "Download model": "Baixar modelo",
+  "Download and enable": "Baixar e ativar",
+  "Resume download": "Retomar download",
+  "Downloading model…": "Baixando modelo…",
+  "Checking downloaded files…": "Verificando arquivos baixados…",
+  "The download continues if you leave this page.":
+    "O download continua se você sair desta página.",
+  "Downloads reuse files already on this computer. A disabled model is enabled after its download finishes. Downloading a model does not change the selected narration model.":
+    "Os downloads reutilizam arquivos que já estão neste computador. Um modelo desativado é ativado ao concluir o download. Baixar um modelo não altera o modelo de narração selecionado.",
+  "Could not finish the model download. Check your connection and free disk space, then resume the download.":
+    "Não foi possível concluir o download do modelo. Verifique sua conexão e o espaço livre em disco e retome o download.",
+  "Another model operation is in progress or the list changed. Refresh it and try again.":
+    "Há outra operação de modelos em andamento ou a lista mudou. Atualize-a e tente novamente.",
+  "Could not start the model download. Check that generation is available and try again.":
+    "Não foi possível iniciar o download do modelo. Verifique se a geração está disponível e tente novamente.",
+  "Model actions": "Ações do modelo",
+  Disabled: "Desativado",
+  "Enable model": "Ativar modelo",
+  "Remove weights": "Remover pesos",
+  "Applying changes…": "Aplicando alterações…",
+  "In use. Choose another model in settings before removing its weights.":
+    "Em uso. Escolha outro modelo nas configurações antes de remover seus pesos.",
+  "Remove this model's weights and disable it? It will disappear from settings. Files needed by other models will be kept. The shared download is also used by other applications on this computer.":
+    "Remover os pesos deste modelo e desativá-lo? Ele deixará de aparecer nas configurações. Os arquivos necessários para outros modelos serão mantidos. Outros aplicativos deste computador também usam este download compartilhado.",
+  "Removing weights disables the model and hides it from settings. Enabling it again allows a new download the next time it is used. Shared files are kept while another model needs them.":
+    "Remover os pesos desativa o modelo e o oculta nas configurações. Ao ativá-lo novamente, ele poderá ser baixado no próximo uso. Os arquivos compartilhados são mantidos enquanto outro modelo precisar deles.",
+  "Could not change this model. Refresh the list and try again.":
+    "Não foi possível alterar este modelo. Atualize a lista e tente novamente.",
+  "The model list changed. Refresh it and try again.":
+    "A lista de modelos mudou. Atualize-a e tente novamente.",
+  "This model is in use. Choose another model in settings before removing its weights.":
+    "Este modelo está em uso. Escolha outro modelo nas configurações antes de remover seus pesos.",
+  "Wait for generation to finish, refresh the model list and try again.":
+    "Aguarde a geração terminar, atualize a lista de modelos e tente novamente.",
+  "This voice model is disabled. Enable it in administration tools before generating voices.":
+    "Este modelo de voz está desativado. Ative-o nas ferramentas de administração antes de gerar vozes.",
   "Ongoing projects": "Projetos em andamento",
   "Resume your marked projects and continue working by language.":
     "Retome seus projetos marcados e continue trabalhando por idioma.",
@@ -1977,4 +2030,27 @@ export const portuguese: Record<string, string> = {
   "Not generated yet": "Ainda não gerado",
   "One example is saved per voice and model. Regenerating replaces only that model\u2019s example.":
     "Um exemplo é salvo por voz e modelo. Gerar novamente substitui apenas o exemplo desse modelo.",
+  "CosyVoice 3 Base 0.5B (voice cloning)":
+    "CosyVoice 3 Base 0.5B (clonagem de voz)",
+  "CosyVoice 3 RL 0.5B (voice cloning)":
+    "CosyVoice 3 RL 0.5B (clonagem de voz)",
+  "Speaking speed": "Velocidade da fala",
+  "Repetition window": "Janela de repetições",
+  "Repetition threshold": "Limite de repetições",
+  "Random seed": "Semente aleatória",
+  "Adjusts the playback pace of the generated speech.":
+    "Ajusta o ritmo de reprodução da voz gerada.",
+  "How many recent speech choices are checked for repetition.":
+    "Quantas escolhas de fala recentes são verificadas para detectar repetições.",
+  "Repetition threshold before choosing another speech sound.":
+    "Limite de repetição antes de escolher outro som de fala.",
+  "Use the same seed to make comparisons more consistent.":
+    "Use a mesma semente para obter comparações mais consistentes.",
+  "Voice cloning mode": "Modo de clonagem de voz",
+  "Clone without transcript": "Clonar sem transcrição",
+  "Clone with transcript": "Clonar com transcrição",
+  "Clone with narration instructions": "Clonar com instruções de narração",
+  "This mode requires an exact transcript of the base recording.":
+    "Este modo requer uma transcrição exata da gravação base.",
+  "Narration instructions": "Instruções de narração",
 };

@@ -8,9 +8,11 @@ import type { VoiceSampleSettings } from "../lib/voice-sample-settings";
 export function VoiceSamples({
   settings,
   disabled,
+  disabledModels,
 }: {
   settings: VoiceSampleSettings | null;
   disabled: boolean;
+  disabledModels?: string[];
 }) {
   const { t } = useI18n();
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -49,8 +51,11 @@ export function VoiceSamples({
                   setVoices((current) => ({ ...current, [locale]: voice }))
                 }
                 label="Narration voice"
-                disabled={disabled}
+                disabled={
+                  disabled || disabledModels?.includes(settings.models[locale])
+                }
                 narrationSettings={settings}
+                disabledModels={disabledModels}
               />
             </fieldset>
           ))}

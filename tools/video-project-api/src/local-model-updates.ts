@@ -35,6 +35,40 @@ const commonVoice = [
   "grapheme_mtl_merged_expanded_v1.json",
 ];
 const profiles = {
+  "cosyvoice3-base-0.5b": {
+    repo: "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+    required: [
+      "llm.pt",
+      "flow.pt",
+      "hift.pt",
+      "campplus.onnx",
+      "speech_tokenizer_v3.onnx",
+      "cosyvoice3.yaml",
+      "CosyVoice-BlankEN/config.json",
+      "CosyVoice-BlankEN/tokenizer_config.json",
+      "CosyVoice-BlankEN/model.safetensors",
+      "CosyVoice-BlankEN/vocab.json",
+      "CosyVoice-BlankEN/merges.txt",
+    ],
+    maxBytes: 10 * GiB,
+  },
+  "cosyvoice3-rl-0.5b": {
+    repo: "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+    required: [
+      "llm.rl.pt",
+      "flow.pt",
+      "hift.pt",
+      "campplus.onnx",
+      "speech_tokenizer_v3.onnx",
+      "cosyvoice3.yaml",
+      "CosyVoice-BlankEN/config.json",
+      "CosyVoice-BlankEN/tokenizer_config.json",
+      "CosyVoice-BlankEN/model.safetensors",
+      "CosyVoice-BlankEN/vocab.json",
+      "CosyVoice-BlankEN/merges.txt",
+    ],
+    maxBytes: 10 * GiB,
+  },
   "qwen3-base-0.6b": {
     repo: "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
     required: [
@@ -148,6 +182,8 @@ function weightsSize(files: File[]) {
 }
 function softwareKnown(model: Model) {
   const version = model.software.version ?? "";
+  if (model.software.name === "cosyvoice")
+    return version === "git+074ca6dc9e80";
   const match = /^0\.(\d+)\.(\d+)(?:\+[\w.]+)?$/.exec(version);
   return Boolean(
     match &&

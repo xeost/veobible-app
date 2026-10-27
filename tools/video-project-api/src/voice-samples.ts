@@ -1,3 +1,4 @@
+import { assertNarrationModelEnabled } from "./local-model-state.js";
 import { narrationTextAdaptationsSchema } from "./narration-text-adaptations.js";
 import { randomUUID } from "node:crypto";
 import type { GenerationQueue, QueueJob } from "./generation-queue.js";
@@ -8,6 +9,7 @@ import { baseVoiceSchema, voiceForLocale } from "./base-voice-schema.js";
 import { sharedVoiceDirectory } from "./working-directories.js";
 import {
   narrationModelSchema,
+  narrationModelIdentity,
   narrationModelOptions,
   narrationDecoderSchema,
   narrationModelForLocale,
@@ -130,6 +132,7 @@ export async function queueVoiceSample(
   const locale = z.enum(["es", "en", "pt"]).parse(input.voice.split("-")[0]);
   voiceForLocale(locale, input.voice);
   narrationModelForLocale(input.voiceModel, locale);
+  assertNarrationModelEnabled(input.voiceModel);
   if (!(await listBaseVoices()).some((voice) => voice.id === input.voice))
     throw new Error("Base voice not found");
   const key = `${input.voice}:${input.voiceModel}`;
@@ -190,6 +193,7 @@ export async function queueVoiceSample(
           path.join(staging, "metadata.json"),
           JSON.stringify({
             ...input,
+            ...narrationModelIdentity(input.voiceModel),
             voiceParameters: effectiveNarrationParameters(
               input.voiceParameters,
               input.voiceModel,

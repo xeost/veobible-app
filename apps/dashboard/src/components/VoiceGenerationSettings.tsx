@@ -17,7 +17,7 @@ import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import {
   narrationModelsSchema,
-  isQwenNarrationModel,
+  narrationProvider,
   narrationModelOptions,
   selectedNarrationDecoder,
   type NarrationModels,
@@ -35,6 +35,7 @@ export function VoiceGenerationSettings() {
     preset: CustomNarrationPreset;
     readOnly: boolean;
   } | null>(null);
+  const [disabledModels, setDisabledModels] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -44,6 +45,7 @@ export function VoiceGenerationSettings() {
         const value = narrationModelsSchema.parse(data.models);
         const initialPresets = narrationPresetLibrarySchema.parse(data.presets);
         if (!controller.signal.aborted) {
+          setDisabledModels(data.disabledModels ?? []);
           setPresets(initialPresets);
           setSavedPresets(initialPresets);
           setModels(value);
@@ -136,54 +138,66 @@ export function VoiceGenerationSettings() {
                       );
                     }}
                   >
-                    {narrationModelOptions[locale].map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {t(option.label)}
+                    {disabledModels.includes(models[locale]) && (
+                      <option value={models[locale]} disabled>
+                        {t("Choose a downloaded model")}
                       </option>
-                    ))}
+                    )}
+                    {narrationModelOptions[locale]
+                      .filter(
+                        (option) => !disabledModels.includes(option.value),
+                      )
+                      .map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {t(option.label)}
+                        </option>
+                      ))}
                   </select>
-                  {locale === "es" && !isQwenNarrationModel(models.es) && (
-                    <details>
-                      <summary>
-                        {t("Text adaptations for this voice model")}
-                      </summary>
-                      <label
-                        className="checkbox"
-                        data-tooltip={t(
-                          "Before generating speech, rr becomes rrr, and r or R at the start of a word becomes rr or Rr. Applies only to this Spanish voice model; the original text stays unchanged.",
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={
-                            models.textAdaptations?.es?.[
-                              models.es as "latam" | "multilingual-v3"
-                            ]?.reinforceSpanishRs ?? false
-                          }
-                          onChange={(event) =>
-                            setModels(
-                              narrationModelsSchema.parse({
-                                ...models,
-                                textAdaptations: {
-                                  ...models.textAdaptations,
-                                  es: {
-                                    ...models.textAdaptations?.es,
-                                    [models.es]: {
-                                      ...models.textAdaptations?.es?.[
-                                        models.es as "latam" | "multilingual-v3"
-                                      ],
-                                      reinforceSpanishRs: event.target.checked,
+                  {locale === "es" &&
+                    narrationProvider(models.es) === "chatterbox" && (
+                      <details>
+                        <summary>
+                          {t("Text adaptations for this voice model")}
+                        </summary>
+                        <label
+                          className="checkbox"
+                          data-tooltip={t(
+                            "Before generating speech, rr becomes rrr, and r or R at the start of a word becomes rr or Rr. Applies only to this Spanish voice model; the original text stays unchanged.",
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              models.textAdaptations?.es?.[
+                                models.es as "latam" | "multilingual-v3"
+                              ]?.reinforceSpanishRs ?? false
+                            }
+                            onChange={(event) =>
+                              setModels(
+                                narrationModelsSchema.parse({
+                                  ...models,
+                                  textAdaptations: {
+                                    ...models.textAdaptations,
+                                    es: {
+                                      ...models.textAdaptations?.es,
+                                      [models.es]: {
+                                        ...models.textAdaptations?.es?.[
+                                          models.es as
+                                            "latam" | "multilingual-v3"
+                                        ],
+                                        reinforceSpanishRs:
+                                          event.target.checked,
+                                      },
                                     },
                                   },
-                                },
-                              }),
-                            )
-                          }
-                        />
-                        {t("Reinforce the Spanish R sound")}
-                      </label>
-                    </details>
-                  )}
+                                }),
+                              )
+                            }
+                          />
+                          {t("Reinforce the Spanish R sound")}
+                        </label>
+                      </details>
+                    )}
                   <label
                     className="narration-style-label"
                     htmlFor={`narration-style-${locale}`}
@@ -270,7 +284,7 @@ export function VoiceGenerationSettings() {
                       {t("Add preset")}
                     </button>
                   </div>
-                  {!isQwenNarrationModel(models[locale]) && (
+                  {narrationProvider(models[locale]) === "chatterbox" && (
                     <details>
                       <summary>{t("Advanced voice settings")}</summary>
                       <label htmlFor={`audio-decoder-${locale}`}>
@@ -309,6 +323,9 @@ export function VoiceGenerationSettings() {
               type="submit"
               disabled={
                 saving ||
+                (["en", "es", "pt"] as const).some((locale) =>
+                  disabledModels.includes(models[locale]),
+                ) ||
                 (JSON.stringify(models) === JSON.stringify(saved) &&
                   JSON.stringify(presets) === JSON.stringify(savedPresets))
               }
@@ -393,6 +410,7 @@ export function VoiceGenerationSettings() {
             : null
         }
         disabled={saving}
+        disabledModels={disabledModels}
       />
     </>
   );

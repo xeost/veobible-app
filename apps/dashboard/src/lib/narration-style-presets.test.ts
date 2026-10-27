@@ -7,6 +7,7 @@ import {
   stylesFromPresetLibrary,
 } from "./narration-style-presets";
 import {
+  narrationParametersSchema,
   defaultNarrationStyles,
   narrationPresets,
   resolveNarrationStyle,
@@ -233,4 +234,29 @@ test("built-in styles accept model-specific settings without changing their iden
   const bad = structuredClone(parsed);
   bad.en.builtInSettings!.natural!["qwen3-base-0.6b"].top_k = -1;
   assert.equal(narrationPresetLibrarySchema.safeParse(bad).success, false);
+});
+
+test("CosyVoice preset views survive saving without replacing Qwen or Chatterbox views", async () => {
+  const { cosyDefaults, qwenDefaults } =
+    await import("../../../../tools/video-project-api/src/narration-model-settings");
+  const { effectiveNarrationParameters } =
+    await import("../../../../tools/video-project-api/src/narration-parameters");
+  const parameters = {
+    ...narrationPresets.natural,
+    modelSettings: {
+      "cosyvoice3-base-0.5b": { ...cosyDefaults, speed: 0.9 },
+      "cosyvoice3-rl-0.5b": {
+        ...cosyDefaults,
+        mode: "instruct",
+        instructions: "Speak clearly.",
+      },
+      "qwen3-base-0.6b": { ...qwenDefaults, top_k: 35 },
+      "multilingual-v3": { ...narrationPresets.expressive },
+    },
+  };
+  const saved = narrationParametersSchema.parse(
+    JSON.parse(JSON.stringify(parameters)),
+  );
+  for (const [model, expected] of Object.entries(parameters.modelSettings))
+    assert.deepEqual(effectiveNarrationParameters(saved, model), expected);
 });

@@ -8,6 +8,12 @@ export const localModelStatusSchema = z.enum([
   "custom",
   "local",
 ]);
+export const localModelDownloadSchema = z.object({
+  status: z.enum(["downloading", "verifying", "completed", "failed"]),
+  startedAt: z.string().datetime(),
+  finishedAt: z.string().datetime().nullable(),
+});
+export type LocalModelDownload = z.infer<typeof localModelDownloadSchema>;
 export const localModelSchema = z.object({
   id: z.string().max(80),
   name: z.string().max(160),
@@ -27,8 +33,12 @@ export const localModelSchema = z.object({
     .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
     .nullable(),
   status: localModelStatusSchema,
+  enabled: z.boolean().optional(),
+  download: localModelDownloadSchema.optional(),
   variant: z
     .enum([
+      "cosyvoice3-base-0.5b",
+      "cosyvoice3-rl-0.5b",
       "qwen3-base-0.6b",
       "qwen3-base-1.7b",
       "chatterbox-original",
@@ -43,7 +53,7 @@ export const localModelSchema = z.object({
     ])
     .default("custom"),
   software: z.object({
-    name: z.enum(["chatterbox-tts", "mlx-audio", "qwen-tts"]),
+    name: z.enum(["chatterbox-tts", "mlx-audio", "qwen-tts", "cosyvoice"]),
     version: z.string().max(100).nullable(),
   }),
 });
@@ -99,3 +109,17 @@ export const localModelUpdateSchema = z.object({
   discovery: z.enum(["complete", "unavailable", "not_applicable"]),
 });
 export type LocalModelUpdate = z.infer<typeof localModelUpdateSchema>;
+
+/** Full-repository removal also affects voices that load shared base components. */
+export function localModelRemovalTargets(
+  models: LocalModels["models"],
+  repository: string | null,
+) {
+  if (!repository) return [];
+  return models.filter(
+    (model) =>
+      model.repository === repository ||
+      (repository === "ResembleAI/chatterbox" &&
+        ["chatterbox-latam", "chatterbox-pt-br"].includes(model.variant)),
+  );
+}

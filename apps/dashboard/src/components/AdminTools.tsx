@@ -1,10 +1,23 @@
 "use client";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { BrainCircuit, RefreshCw, ExternalLink } from "lucide-react";
+import {
+  BrainCircuit,
+  RefreshCw,
+  ExternalLink,
+  Download,
+  Trash2,
+  LoaderCircle,
+} from "lucide-react";
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { pollWhileVisible } from "../lib/visible-polling";
 import {
   localModelsSchema,
+  localModelRemovalTargets,
+  isModelDownloading as downloading,
+  localModelActions,
+  localModelDownloadSchema,
   localModelUpdateSchema,
   type LocalModels,
   type LocalModelUpdate,
@@ -22,7 +35,7 @@ const roles = {
 const statuses = {
   downloaded: "Downloaded",
   not_downloaded: "Not downloaded",
-  incomplete: "Incomplete download",
+  incomplete: "Download required",
   unavailable: "Could not check",
   custom: "Custom configuration",
   local: "Local model",
@@ -34,12 +47,18 @@ export function AdminTools() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const request = useRef<AbortController | null>(null);
+  const activeDownload = useRef(false);
+  const loaded = useRef(false);
   const updateRequest = useRef<AbortController | null>(null);
   const [checkingModel, setCheckingModel] = useState<string | null>(null);
   const [checks, setChecks] = useState<Record<string, LocalModelUpdate>>({});
+  const [changingModel, setChangingModel] = useState<string | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<
+    LocalModels["models"][number] | null
+  >(null);
   const [checkErrors, setCheckErrors] = useState<Record<string, string>>({});
 
-  const refresh = useCallback(async (force = false) => {
+  const refresh = useCallback(async (force = false, quiet = false) => {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
@@ -47,33 +66,125 @@ export function AdminTools() {
     setCheckingModel(null);
     setChecks({});
     setCheckErrors({});
-    setLoading(true);
-    setError("");
+    if (!quiet) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const result = localModelsSchema.parse(
         await api(`admin-tools/local-models${force ? "?refresh=1" : ""}`, {
           signal: controller.signal,
         }),
       );
-      if (!controller.signal.aborted) setData(result);
+      if (!controller.signal.aborted) {
+        activeDownload.current = result.models.some(downloading);
+        loaded.current = true;
+        setData(result);
+      }
     } catch {
       if (!controller.signal.aborted)
         setError(
           "Could not read local model versions. Check that generation is available and try again.",
         );
     } finally {
-      if (!controller.signal.aborted) setLoading(false);
+      if (!controller.signal.aborted && !quiet) setLoading(false);
     }
   }, []);
   useEffect(() => {
-    void refresh();
+    const stop = pollWhileVisible(
+      () => refresh(true, loaded.current),
+      () => activeDownload.current,
+      2000,
+    );
     return () => {
+      stop();
       request.current?.abort();
       updateRequest.current?.abort();
     };
   }, [refresh]);
+  const downloadBusy = Boolean(data?.models.some(downloading));
+  const removalInUse = (model: LocalModels["models"][number]) =>
+    localModelRemovalTargets(data?.models ?? [], model.repository).some(
+      (affected) => affected.uses.length > 0,
+    );
+
+  const downloadModel = async (model: LocalModels["models"][number]) => {
+    if (loading || checkingModel || changingModel || activeDownload.current)
+      return;
+    setChangingModel(model.id);
+    setError("");
+    try {
+      const response = await api(
+        `admin-tools/local-models/${encodeURIComponent(model.id)}/download`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            repository: model.repository,
+            variant: model.variant,
+          }),
+        },
+      );
+      const download = localModelDownloadSchema.parse(response.download);
+      activeDownload.current = ["downloading", "verifying"].includes(
+        download.status,
+      );
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              models: current.models.map((item) =>
+                item.id === model.id ? { ...item, download } : item,
+              ),
+            }
+          : current,
+      );
+      await refresh(true, true);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not start the model download. Check that generation is available and try again.",
+      );
+    } finally {
+      setChangingModel(null);
+    }
+  };
+  const changeModel = async (
+    model: LocalModels["models"][number],
+    confirmed = false,
+  ) => {
+    if (loading || checkingModel || changingModel || activeDownload.current)
+      return;
+    if (!confirmed) {
+      setPendingRemoval(model);
+      return;
+    }
+    setChangingModel(model.id);
+    setError("");
+    try {
+      await api(`admin-tools/local-models/${encodeURIComponent(model.id)}`, {
+        method: "DELETE",
+        body: JSON.stringify({
+          repository: model.repository,
+          variant: model.variant,
+        }),
+      });
+      await refresh(true);
+    } catch (cause) {
+      // Refresh the state even when disk removal fails after disabling the model.
+      await refresh(true);
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not change this model. Refresh the list and try again.",
+      );
+    } finally {
+      setChangingModel(null);
+    }
+  };
   const checkModel = async (model: LocalModels["models"][number]) => {
-    if (loading || checkingModel) return;
+    if (loading || checkingModel || changingModel || activeDownload.current)
+      return;
     updateRequest.current?.abort();
     const controller = new AbortController();
     updateRequest.current = controller;
@@ -171,7 +282,12 @@ export function AdminTools() {
           </div>
           <button
             type="button"
-            disabled={loading || checkingModel !== null}
+            disabled={
+              loading ||
+              checkingModel !== null ||
+              changingModel !== null ||
+              downloadBusy
+            }
             onClick={() => void refresh(true)}
           >
             <RefreshCw
@@ -182,6 +298,16 @@ export function AdminTools() {
             {t("Refresh")}
           </button>
         </div>
+        <p className="muted local-models-note">
+          {t(
+            "Downloads reuse files already on this computer. A disabled model is enabled after its download finishes. Downloading a model does not change the selected narration model.",
+          )}
+        </p>
+        <p className="muted local-models-note">
+          {t(
+            "Removing weights deletes the entire shared download, including older copies. Download each affected model again before using it.",
+          )}
+        </p>
         <p className="muted local-models-note">
           {t(
             "Target computer: MacBook Air M2 · 16 GB RAM. Checks run manually and do not install updates.",
@@ -208,7 +334,7 @@ export function AdminTools() {
                     <th scope="col">{t("Local revision")}</th>
                     <th scope="col">{t("Installed software")}</th>
                     <th scope="col">{t("Status")}</th>
-                    <th scope="col">{t("Model updates")}</th>
+                    <th scope="col">{t("Model actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -291,9 +417,11 @@ export function AdminTools() {
                             ? t("Version not identified")
                             : model.software.name === "chatterbox-tts"
                               ? "Chatterbox"
-                              : model.software.name === "qwen-tts"
-                                ? "Qwen3-TTS"
-                                : "MLX Audio"}
+                              : model.software.name === "cosyvoice"
+                                ? "CosyVoice 3"
+                                : model.software.name === "qwen-tts"
+                                  ? "Qwen3-TTS"
+                                  : "MLX Audio"}
                           <small>
                             {model.software.version ?? t("Not available")}
                           </small>
@@ -302,31 +430,128 @@ export function AdminTools() {
                           <span
                             className={`badge local-model-status ${model.status}`}
                           >
-                            {t(statuses[model.status])}
+                            {t(
+                              downloading(model)
+                                ? model.download?.status === "verifying"
+                                  ? "Checking downloaded files…"
+                                  : "Downloading model…"
+                                : model.status === "downloaded" &&
+                                    model.enabled === false
+                                  ? "Disabled"
+                                  : statuses[model.status],
+                            )}
                           </span>
                         </td>
                         <td className="local-model-update-action">
-                          <button
-                            type="button"
-                            disabled={loading || checkingModel !== null}
-                            aria-label={`${t("Check updates")}: ${model.name}`}
-                            onClick={() => void checkModel(model)}
-                          >
-                            <RefreshCw
-                              size={14}
-                              aria-hidden="true"
-                              className={
-                                checkingModel === model.id
-                                  ? "voice-spinner"
-                                  : undefined
-                              }
-                            />
-                            {t(
-                              checkingModel === model.id
-                                ? "Checking updates…"
-                                : "Check updates",
+                          <div className="local-model-action-buttons">
+                            {localModelActions(model).download && (
+                              <button
+                                type="button"
+                                className="icon-button"
+                                disabled={
+                                  loading ||
+                                  checkingModel !== null ||
+                                  changingModel !== null ||
+                                  downloadBusy
+                                }
+                                onClick={() => void downloadModel(model)}
+                                aria-label={`${t(localModelActions(model).downloadLabel)}: ${model.name}`}
+                                data-tooltip={t(
+                                  localModelActions(model).downloadLabel,
+                                )}
+                              >
+                                {downloading(model) ? (
+                                  <LoaderCircle
+                                    size={16}
+                                    aria-hidden="true"
+                                    className="voice-spinner"
+                                  />
+                                ) : (
+                                  <Download size={16} aria-hidden="true" />
+                                )}
+                              </button>
                             )}
-                          </button>
+                            <button
+                              type="button"
+                              className="icon-button"
+                              disabled={
+                                loading ||
+                                checkingModel !== null ||
+                                changingModel !== null ||
+                                downloadBusy
+                              }
+                              aria-label={`${t(checkingModel === model.id ? "Checking updates…" : "Check updates")}: ${model.name}`}
+                              data-tooltip={t(
+                                checkingModel === model.id
+                                  ? "Checking updates…"
+                                  : "Check updates",
+                              )}
+                              onClick={() => void checkModel(model)}
+                            >
+                              <RefreshCw
+                                size={16}
+                                aria-hidden="true"
+                                className={
+                                  checkingModel === model.id
+                                    ? "voice-spinner"
+                                    : undefined
+                                }
+                              />
+                            </button>
+                            {localModelActions(model).remove && (
+                              <button
+                                type="button"
+                                className="icon-button"
+                                disabled={
+                                  loading ||
+                                  checkingModel !== null ||
+                                  changingModel !== null ||
+                                  downloadBusy ||
+                                  removalInUse(model)
+                                }
+                                onClick={() => void changeModel(model)}
+                                aria-label={`${t(changingModel === model.id ? "Applying changes…" : "Remove weights")}: ${model.name}`}
+                                data-tooltip={t(
+                                  removalInUse(model)
+                                    ? model.uses.length > 0
+                                      ? "In use. Choose another model in settings before removing its weights."
+                                      : "Shared files are in use. Choose another model in settings before removing them."
+                                    : changingModel === model.id
+                                      ? "Applying changes…"
+                                      : "Remove weights",
+                                )}
+                              >
+                                {changingModel === model.id ? (
+                                  <LoaderCircle
+                                    size={16}
+                                    aria-hidden="true"
+                                    className="voice-spinner"
+                                  />
+                                ) : (
+                                  <Trash2 size={16} aria-hidden="true" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                          {downloading(model) && (
+                            <div role="status">
+                              <progress
+                                aria-label={`${t("Downloading model…")}: ${model.name}`}
+                              />
+                              <small>
+                                {t(
+                                  "The download continues if you leave this page.",
+                                )}
+                              </small>
+                            </div>
+                          )}
+                          {model.download?.status === "failed" && (
+                            <p className="error" role="alert">
+                              {t(
+                                "Could not finish the model download. Check your connection and free disk space, then try downloading it again.",
+                              )}
+                            </p>
+                          )}
                           {checks[model.id] && (
                             <small>
                               {t(modelUpdateLabels[checks[model.id].status])}
@@ -381,6 +606,41 @@ export function AdminTools() {
           </>
         )}
       </section>
+      {pendingRemoval && (
+        <ConfirmDialog
+          title={t("Remove weights")}
+          confirmLabel={t("Remove weights")}
+          destructive
+          close={() => setPendingRemoval(null)}
+          onConfirm={() => {
+            void changeModel(pendingRemoval, true);
+            setPendingRemoval(null);
+          }}
+        >
+          <p>
+            {t(
+              "All files in this shared download will be deleted, including older copies. The models listed below will disappear from settings until downloaded again.",
+            )}
+          </p>
+          <ul>
+            {Array.from(
+              new Set(
+                localModelRemovalTargets(
+                  data?.models ?? [],
+                  pendingRemoval.repository,
+                ).map((model) => model.name),
+              ),
+            ).map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+          <p className="muted">
+            {t(
+              "Other applications on this computer may also need to download these files again.",
+            )}
+          </p>
+        </ConfirmDialog>
+      )}
     </>
   );
 }

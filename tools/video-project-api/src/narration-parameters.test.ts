@@ -113,3 +113,55 @@ test("model settings survive video, audio and example requests while synthesis u
   assert.equal(args.includes("--exaggeration"), false);
   assert.equal(args.includes("--future-model"), false);
 });
+
+test("CosyVoice presets select only their own controls and reject invalid modes or instructions", async () => {
+  const { cosyDefaults } = await import("./narration-model-settings.js");
+  const { effectiveNarrationParameters } =
+    await import("./narration-parameters.js");
+  const base = "cosyvoice3-base-0.5b",
+    rl = "cosyvoice3-rl-0.5b";
+  const bundle = {
+    ...narrationPresets.expressive,
+    modelSettings: {
+      [base]: { ...cosyDefaults, top_k: 33 },
+      [rl]: {
+        ...cosyDefaults,
+        mode: "instruct",
+        instructions: "Speak calmly.",
+        speed: 0.9,
+      },
+    },
+  };
+  assert.ok(narrationParametersSchema.safeParse(bundle).success);
+  assert.deepEqual(effectiveNarrationParameters(bundle, base), {
+    ...cosyDefaults,
+    top_k: 33,
+  });
+  assert.deepEqual(
+    effectiveNarrationParameters(bundle, rl),
+    bundle.modelSettings[rl],
+  );
+  assert.deepEqual(
+    effectiveNarrationParameters(narrationPresets.natural, base),
+    cosyDefaults,
+  );
+  const args = narrationParameterArgs(bundle, rl);
+  assert.equal(args[args.indexOf("--instructions") + 1], "Speak calmly.");
+  assert.ok(
+    !args.includes("--exaggeration") && !args.includes("--temperature"),
+  );
+  for (const invalid of [
+    { ...cosyDefaults, mode: "instruct" },
+    { ...cosyDefaults, mode: "instruct", instructions: "<|bad|>" },
+    { ...cosyDefaults, speed: 0 },
+    { ...cosyDefaults, tau_r: 2 },
+  ]) {
+    assert.equal(
+      narrationParametersSchema.safeParse({
+        ...narrationPresets.natural,
+        modelSettings: { [base]: invalid },
+      }).success,
+      false,
+    );
+  }
+});

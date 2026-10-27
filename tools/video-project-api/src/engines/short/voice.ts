@@ -470,7 +470,11 @@ export async function generateVoice(
     onProgress?.(100);
     return;
   }
-  if (provider !== "chatterbox" && provider !== "qwen3")
+  if (
+    provider !== "chatterbox" &&
+    provider !== "qwen3" &&
+    provider !== "cosyvoice3"
+  )
     throw new Error(
       `Unknown voice provider: ${config.ttsProvider}. Use chatterbox or elevenlabs`,
     );

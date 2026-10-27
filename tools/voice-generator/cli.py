@@ -128,6 +128,11 @@ def load_checkpoint_model(kind: str, device: str, audio_decoder: str | None = No
 
 
 def load_model(kind: str, device: str, audio_decoder: str | None = None):
+    if kind in ("cosyvoice3-base-0.5b", "cosyvoice3-rl-0.5b"):
+        from cosyvoice_base import load_cosyvoice
+        if audio_decoder is not None:
+            raise ValueError("CosyVoice 3 does not use Chatterbox audio decoders")
+        return load_cosyvoice(kind, device)
     import torch
     if kind in ("qwen3-base-0.6b", "qwen3-base-1.7b"):
         from qwen_base import load_qwen
@@ -178,6 +183,11 @@ def validate_generation(args: argparse.Namespace, scripts: dict[str, str]) -> No
         raise RuntimeError("ffmpeg must be available on PATH")
     if args.voice_prompt and not args.voice_prompt.is_file():
         raise ValueError(f"Voice prompt does not exist: {args.voice_prompt}")
+    if args.model.startswith("cosyvoice3-"):
+        if args.language not in ("en", "es"):
+            raise ValueError("CosyVoice 3 is enabled only for English and Spanish")
+        if args.device == "mps":
+            raise ValueError("CosyVoice 3 supports CPU or CUDA; choose CPU instead of MPS")
     if args.model == "chatterbox" and args.language != "en":
         raise ValueError("The original Chatterbox model only supports English")
     if args.model == "pt-br" and args.language != "pt":
@@ -192,9 +202,19 @@ def validate_generation(args: argparse.Namespace, scripts: dict[str, str]) -> No
 def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: dict[str, Path]) -> None:
     validate_generation(args, scripts)
     output_names = [f"{name}.{extension}" for name in scripts for extension in ("txt", "wav")]
+    if args.model.startswith("cosyvoice3-"):
+        for track in scripts:
+            reference = voice_prompt_for_track(track, voice_prompts, args.voice_prompt)
+            if reference is None:
+                raise ValueError("CosyVoice 3 requires a base voice recording")
+            if args.mode == "zero_shot" and (not reference.with_suffix(".txt").is_file() or not reference.with_suffix(".txt").read_text(encoding="utf-8").strip()):
+                raise ValueError("This cloning mode requires the exact base voice transcript")
+        if args.mode == "instruct" and not args.instructions.strip():
+            raise ValueError("Enter narration instructions")
     print("Stage: Loading model", flush=True)
     qwen = args.model.startswith("qwen3-base-")
-    if not qwen:
+    cosy = args.model.startswith("cosyvoice3-")
+    if not qwen and not cosy:
         import torchaudio
     decoder = getattr(args, "audio_decoder", None)
     model = load_model(args.model, args.device, decoder) if decoder is not None else load_model(args.model, args.device)
@@ -207,7 +227,7 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
             print("Stage: Generating voice", flush=True)
             voice_prompt = voice_prompt_for_track(track, voice_prompts, args.voice_prompt)
             kwargs = {}
-            if not qwen:
+            if not qwen and not cosy:
                 kwargs = {
                     "audio_prompt_path": str(voice_prompt) if voice_prompt else None,
                     "exaggeration": args.exaggeration,
@@ -221,17 +241,20 @@ def generate(args: argparse.Namespace, scripts: dict[str, str], voice_prompts: d
             for index, chunk in enumerate(chunks):
                 print(f"Stage: Generating voice fragment {index + 1}/{len(chunks)}", flush=True)
                 print(f"Voice text: {json.dumps(chunk, ensure_ascii=False)}", flush=True)
-                if qwen:
+                if cosy:
+                    from cosyvoice_base import synthesize_cosyvoice
+                    waveform, sample_rate = synthesize_cosyvoice(model, chunk, args.language, voice_prompt, args)
+                elif qwen:
                     from qwen_base import synthesize_qwen
                     waveform, sample_rate = synthesize_qwen(model, chunk, args.language, voice_prompt, args)
                 else:
                     waveform = model.generate(text=chunk, **kwargs)
                     sample_rate = model.sr
                 # Never treat a capped output as a complete rendition of the transcript.
-                if not qwen and waveform.shape[-1] / model.sr >= 39.96:
+                if not qwen and not cosy and waveform.shape[-1] / model.sr >= 39.96:
                     raise RuntimeError("VOICE_TRUNCATED: a speech fragment reached the model's audio limit")
                 native = staging / f"{track}-{index}-native.wav"
-                if qwen:
+                if qwen or cosy:
                     import soundfile as sf
                     sf.write(str(native), waveform, sample_rate, subtype="PCM_24")
                 else:
@@ -258,7 +281,7 @@ def main() -> int:
     parser.add_argument("--single-utterance", action="store_true", help="Generate each track in one model request without splitting its text")
     parser.add_argument("--language", required=True, help="Narration language, such as es, en, or pt")
     parser.add_argument("--output-dir", required=True, type=Path, help="Output directory")
-    parser.add_argument("--model", choices=("qwen3-base-0.6b", "qwen3-base-1.7b", "multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"), default="multilingual")
+    parser.add_argument("--model", choices=("cosyvoice3-base-0.5b", "cosyvoice3-rl-0.5b", "qwen3-base-0.6b", "qwen3-base-1.7b", "multilingual", "multilingual-v3", "multilingual-v2", "latam", "pt-br", "chatterbox"), default="multilingual")
     parser.add_argument("--audio-decoder", choices=("general", "v3"), help="Audio decoder: general s3gen.pt or s3gen_v3.pt; omitted retains the model default")
     parser.add_argument("--device", choices=("auto", "cpu", "mps", "cuda"), default="auto")
     parser.add_argument("--voice-prompt", type=Path, help="Optional WAV/MP3 voice reference")
@@ -271,6 +294,12 @@ def main() -> int:
     parser.add_argument("--repetition-penalty", type=float)
     parser.add_argument("--top-k", type=int, default=50)
     parser.add_argument("--max-new-tokens", type=int, default=2048)
+    parser.add_argument("--mode", choices=("cross_lingual", "zero_shot", "instruct"), default="cross_lingual")
+    parser.add_argument("--instructions", default="")
+    parser.add_argument("--speed", type=float, default=1.0)
+    parser.add_argument("--win-size", type=int, default=10)
+    parser.add_argument("--tau-r", type=float, default=0.1)
+    parser.add_argument("--seed", type=int, default=1986)
     parser.add_argument("--dry-run", action="store_true", help="Validate and show scripts without loading the model")
     parser.add_argument("--force", action="store_true", help="Replace existing tracks")
     parser.add_argument("--resource-profile", choices=("low", "standard"), default=os.getenv("VOICE_GENERATOR_PROFILE", "low"), help="low uses CPU and reduced process priority (default)")
@@ -292,6 +321,10 @@ def main() -> int:
                 raise ValueError(f"{key} must be between {lower} and {upper}")
         if not 1 <= args.top_k <= 100 or not 128 <= args.max_new_tokens <= 4096:
             raise ValueError("Invalid sampling candidate or speech length limit")
+        if not 0.5 <= args.speed <= 1.5 or not 1 <= args.win_size <= 100 or not 0 <= args.tau_r <= 1 or not 0 <= args.seed <= 2147483647:
+            raise ValueError("Invalid CosyVoice generation settings")
+        if len(args.instructions) > 500 or any(char in args.instructions for char in "<>|"):
+            raise ValueError("Invalid narration instructions")
         scripts = read_scripts(args.scripts)
         voice_prompts = read_voice_prompts(args.voice_prompts, scripts)
         if args.dry_run:
@@ -305,6 +338,9 @@ def main() -> int:
                     raise ValueError("The low-consumption profile requires CPU; use --device cpu or --resource-profile standard")
                 args.device = "cpu"
             if args.worker:
+                if args.model.startswith("cosyvoice3-") and args.device == "auto":
+                    import torch
+                    args.device = "cuda" if torch.cuda.is_available() else "cpu"
                 configure_worker(limits, args.device)
                 generate(args, scripts, voice_prompts)
             else:

@@ -30,7 +30,7 @@ def inspect_model(model, cache):
     return {"status": "downloaded" if complete else "incomplete", "revision": revision}
 
 
-def inspect(request):
+def shared_cache():
     # Use the installed library's cache precedence when available. Importing its
     # constants does not load inference libraries or query the model host.
     try:
@@ -39,10 +39,25 @@ def inspect(request):
     except ImportError:
         home = os.environ.get("HF_HOME") or str(Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "huggingface")
         cache = Path(os.environ.get("HF_HUB_CACHE") or os.environ.get("HUGGINGFACE_HUB_CACHE") or str(Path(home) / "hub"))
+    return cache
+
+
+def inspect(request):
+    cache = shared_cache()
     try:
         version = importlib.metadata.version(request["package"])
     except importlib.metadata.PackageNotFoundError:
         version = None
+    if request["package"] == "cosyvoice":
+        import subprocess
+        source = Path(os.environ.get("VIDEO_COSYVOICE_SOURCE", str(Path(__file__).resolve().parents[2] / "voice-generator/.cosyvoice-src")))
+        try:
+            revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, text=True, timeout=2).strip()
+            for package in ("torch", "onnxruntime", "transformers", "HyperPyYAML"):
+                importlib.metadata.version(package)
+            version = "git+" + revision[:12] if SHA.fullmatch(revision) else None
+        except (OSError, subprocess.SubprocessError, importlib.metadata.PackageNotFoundError):
+            version = None
     results = []
     for model in request["models"]:
         try:
@@ -50,6 +65,7 @@ def inspect(request):
         except (OSError, ValueError):
             results.append({"status": "unavailable", "revision": None})
     return {"version": version, "models": results}
+
 
 
 if __name__ == "__main__":

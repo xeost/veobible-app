@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 import { narrationPresets } from "./narration-parameters.js";
-import { qwenDefaults } from "./narration-model-settings.js";
+import { cosyDefaults, qwenDefaults } from "./narration-model-settings.js";
 
 test(
   "generated examples persist, use selected base/model/parameters and preserve the last audio on failure",
@@ -80,6 +80,7 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
             VIDEO_TTS_SCRIPT: worker,
             VIDEO_SHORT_TTS_PYTHON: process.execPath,
             VIDEO_QWEN_TTS_PYTHON: process.execPath,
+            VIDEO_COSYVOICE_TTS_PYTHON: process.execPath,
             SAMPLE_LOG: path.join(directory, "calls.jsonl"),
           },
           stdio: ["ignore", "pipe", "pipe"],
@@ -298,6 +299,17 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         ),
       );
       assert.equal(metadata.voiceDecoder, "v3");
+      assert.equal(metadata.voiceProvider, "chatterbox");
+      assert.equal(metadata.voiceModel, "latam");
+      assert.equal(
+        metadata.voiceModelName,
+        "Chatterbox Multilingual es-MX Latam",
+      );
+      assert.equal(
+        metadata.voiceModelRepository,
+        "ResembleAI/Chatterbox-Multilingual-es-mx-latam",
+      );
+      assert.equal(metadata.voiceModelCheckpoint, "t3_es_mx_latam.safetensors");
       assert.deepEqual(metadata.voiceParameters, narrationPresets.expressive);
       for (const [key, value] of Object.entries(narrationPresets.expressive))
         assert.equal(
@@ -369,6 +381,14 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
           ),
         );
         assert.equal(saved.voiceModel, model);
+        assert.equal(saved.voiceProvider, "qwen3");
+        const size = model === "qwen3-base-0.6b" ? "0.6B" : "1.7B";
+        assert.equal(saved.voiceModelName, `Qwen3-TTS 12Hz Base ${size}`);
+        assert.equal(
+          saved.voiceModelRepository,
+          `Qwen/Qwen3-TTS-12Hz-${size}-Base`,
+        );
+        assert.equal(saved.voiceModelCheckpoint, undefined);
         assert.deepEqual(saved.voiceParameters, expected);
         assert.equal(saved.voiceDecoder, undefined);
         const call = (
@@ -450,6 +470,59 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
           "pt-1-qwen3-base-1.7b-sample.wav",
           "pt-1-qwen3-base-1.7b-sample.wav.json",
         ],
+      );
+      for (const model of ["cosyvoice3-base-0.5b", "cosyvoice3-rl-0.5b"]) {
+        const parameters = {
+          ...narrationPresets.natural,
+          modelSettings: {
+            [model]: {
+              ...cosyDefaults,
+              speed: 0.9,
+              mode: "instruct",
+              instructions: "Speak calmly and clearly.",
+            },
+          },
+        };
+        assert.equal(
+          (
+            await request(
+              "en-1",
+              `Cosy ${model}.`,
+              model,
+              undefined,
+              parameters,
+            )
+          ).status,
+          202,
+        );
+        await settled("en-1");
+        const metadata = JSON.parse(
+          await fs.readFile(
+            path.join(voices, `samples/en-1-${model}-sample.wav.json`),
+            "utf8",
+          ),
+        );
+        assert.equal(metadata.voiceProvider, "cosyvoice3");
+        assert.equal(
+          metadata.voiceModelCheckpoint,
+          model.includes("-rl-") ? "llm.rl.pt" : "llm.pt",
+        );
+        assert.deepEqual(
+          metadata.voiceParameters,
+          parameters.modelSettings[model],
+        );
+        assert.equal(metadata.voiceDecoder, undefined);
+        assert.equal(
+          await (
+            await fetch(`${base}/en-1/sample?model=${model}`, { headers })
+          ).text(),
+          `RIFF-generated-Cosy ${model}.`,
+        );
+      }
+      assert.equal(
+        (await request("pt-1", "Unsupported language.", "cosyvoice3-base-0.5b"))
+          .status,
+        400,
       );
       // A legacy pair is attributable only to its recorded model, and remains untouched.
       const legacyFile = path.join(voices, "samples/es-1-sample.wav");

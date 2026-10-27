@@ -30,6 +30,7 @@ export function BaseVoiceSelector({
   defaultVoice,
   onChange,
   disabled = false,
+  disabledModels = [],
   label,
   narrationSettings,
   preset,
@@ -43,6 +44,7 @@ export function BaseVoiceSelector({
   defaultVoice?: string;
   onChange: (id: string) => void;
   disabled?: boolean;
+  disabledModels?: string[];
   label?: string;
   narrationSettings?: VoiceSampleSettings;
   preset?: NarrationPresetSelection;
@@ -439,6 +441,7 @@ export function BaseVoiceSelector({
               }}
             >
               {narrationModelOptions[locale]
+                .filter((option) => !disabledModels.includes(option.value))
                 .filter(
                   (option) =>
                     option.value === generationModel ||

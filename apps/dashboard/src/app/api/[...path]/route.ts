@@ -44,6 +44,8 @@ import {
 import {
   loadNarrationModels,
   applyNarrationSelection,
+  disabledNarrationChoices,
+  narrationModelsSchema,
 } from "../../../lib/narration-models";
 import {
   loadPublicationSettings,
@@ -83,6 +85,8 @@ import { audioApi } from "../../../lib/audio-api";
 import { audioProjectCallback } from "../../../lib/audio-projects";
 import {
   localModelsSchema,
+  localModelRemovalTargets,
+  localModelDownloadSchema,
   localModelUpdateSchema,
 } from "../../../lib/local-models";
 import { z } from "zod";
@@ -239,17 +243,164 @@ async function handle(req: Request, lang: Language) {
       );
     }
   }
+  const modelInventory = async () => {
+    const response = await videoFetch("/v1/local-models?refresh=1");
+    if (!response.ok) throw new Error("Local model inventory unavailable");
+    return applyNarrationSelection(
+      localModelsSchema.parse(await response.json()),
+      await loadNarrationModels(database),
+    );
+  };
+  if (
+    parts.length === 3 &&
+    parts[0] === "admin-tools" &&
+    parts[1] === "local-models" &&
+    ["DELETE", "PATCH"].includes(method)
+  ) {
+    admin();
+    const input = z
+      .object({ repository: z.string(), variant: z.string() })
+      .strict()
+      .parse(await body());
+    try {
+      const inventory = await modelInventory();
+      const model = inventory.models.find(
+        (item) =>
+          item.id === parts[2] &&
+          item.repository === input.repository &&
+          item.variant === input.variant,
+      );
+      if (!model)
+        return json(
+          { error: "The model list changed. Refresh it and try again." },
+          409,
+        );
+      if (
+        method === "DELETE" &&
+        localModelRemovalTargets(inventory.models, model.repository).some(
+          (item) => item.uses.length > 0,
+        )
+      )
+        return json(
+          {
+            error:
+              "This model is in use. Choose another model in settings before removing its weights.",
+          },
+          409,
+        );
+      const response = await videoFetch(
+        `/v1/local-models/${encodeURIComponent(model.id)}`,
+        {
+          method,
+          body: JSON.stringify(input),
+          signal: AbortSignal.timeout(75_000),
+        },
+      );
+      if (!response.ok) {
+        if (
+          response.status === 409 &&
+          ((await response.json()) as { error?: string }).error ===
+            "Download this model before enabling it."
+        )
+          return json(
+            { error: "Download this model before enabling it." },
+            409,
+          );
+        if (response.status === 409)
+          return json(
+            {
+              error:
+                "Wait for generation to finish, refresh the model list and try again.",
+            },
+            409,
+          );
+        throw new Error("Model change failed");
+      }
+      return json({ ok: true });
+    } catch (cause) {
+      console.error("Model change failed", cause);
+      return json(
+        {
+          error: "Could not change this model. Refresh the list and try again.",
+        },
+        502,
+      );
+    }
+  }
+  if (
+    parts.length === 4 &&
+    parts[0] === "admin-tools" &&
+    parts[1] === "local-models" &&
+    parts[3] === "download" &&
+    method === "POST"
+  ) {
+    admin();
+    const id = z
+      .string()
+      .regex(/^local-model-[1-9]\d*$/)
+      .parse(parts[2]);
+    const input = z
+      .object({ repository: z.string(), variant: z.string() })
+      .strict()
+      .parse(await body());
+    try {
+      const response = await videoFetch(`/v1/local-models/${id}/download`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      if (response.status === 409)
+        return json(
+          {
+            error:
+              "Another model operation is in progress or the list changed. Refresh it and try again.",
+          },
+          409,
+        );
+      if (!response.ok) throw new Error("Model download start failed");
+      const result = (await response.json()) as { download: unknown };
+      return json(
+        { download: localModelDownloadSchema.parse(result.download) },
+        202,
+      );
+    } catch (cause) {
+      console.error("Model download start failed", cause);
+      return json(
+        {
+          error:
+            "Could not start the model download. Check that generation is available and try again.",
+        },
+        502,
+      );
+    }
+  }
   if (parts.join("/") === "admin-tools/voice-generation") {
     if (method === "GET")
       return json({
+        disabledModels: disabledNarrationChoices(await modelInventory()),
         models: await loadNarrationModels(database),
         styles: await loadNarrationStyles(database),
         presets: await loadNarrationPresetLibrary(database),
       });
-    if (method === "PUT")
-      return json(
-        await saveNarrationGenerationSettings(database, await body()),
+    if (method === "PUT") {
+      const input = await body();
+      const disabled = disabledNarrationChoices(await modelInventory());
+      const selection = narrationModelsSchema.parse(
+        (input as { models?: unknown }).models,
       );
+      if (
+        (["en", "es", "pt"] as const).some((locale) =>
+          disabled.includes(selection[locale]),
+        )
+      )
+        return json(
+          {
+            error:
+              "This voice model is disabled. Enable it in administration tools before generating voices.",
+          },
+          409,
+        );
+      return json(await saveNarrationGenerationSettings(database, input));
+    }
   }
   if (parts.join("/") === "admin-tools/local-models" && method === "GET") {
     try {

@@ -11,6 +11,10 @@ The dashboard is intended for people who edit and publish videos. Do not assume 
 - These rules apply to the visible product, not to code names, contracts, databases, tests, developer documentation, or internal logs. An explicit user instruction may request technical information in a specific view.
 - Before delivering an interface change, review its visible text and dynamic messages to ensure they follow these rules.
 
+# Confirmation dialogs
+
+- Always use custom confirmation dialogs styled consistently with the dashboard. Never use `window.confirm` or the browser's native confirmation UI. Reuse `src/components/ConfirmDialog.tsx` for simple confirmations, including destructive actions.
+
 # Localization
 
 - All interface text must be written in English by default. English is the default interface language and the source language for translations.

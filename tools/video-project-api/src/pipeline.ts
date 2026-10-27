@@ -1,3 +1,4 @@
+import { narrationProvider } from "./narration-models.js";
 import { renderVideoVariants } from "./render-variants.js";
 import { normalizeAudio, normalizeSections } from "./audio-loudness.js";
 import { audioWaveform } from "./audio-waveform.js";
@@ -83,11 +84,9 @@ export function chapterSynthesis(
   return createHash("sha256")
     .update(
       JSON.stringify({
-        provider: selected?.startsWith("qwen3-base-")
-          ? "qwen3"
-          : selected
-            ? "chatterbox"
-            : longConfig.ttsProvider,
+        provider: selected
+          ? narrationProvider(selected)
+          : longConfig.ttsProvider,
         model:
           selected || longConfig.ttsProvider === "chatterbox"
             ? ["multilingual", "multilingual-v3"].includes(model)
@@ -102,7 +101,8 @@ export function chapterSynthesis(
         ...(parameters
           ? {
               parameters:
-                parameters.modelSettings || model.startsWith("qwen3-base-")
+                parameters.modelSettings ||
+                narrationProvider(model) !== "chatterbox"
                   ? effectiveNarrationParameters(parameters, model)
                   : parameters,
             }

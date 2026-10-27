@@ -1,3 +1,4 @@
+import { localModelRemovalTargets } from "./local-models-contract.js";
 import { narrationModelSchema } from "./narration-models.js";
 import { normalizeAudio } from "./audio-loudness.js";
 import { audioWaveform } from "./audio-waveform.js";
@@ -8,7 +9,10 @@ import { automaticVoiceTrim } from "./voice-trim.js";
 import { narrationParametersSchema } from "./narration-parameters.js";
 import { narrationModelForLocale } from "./narration-models.js";
 import { openProjectFolder } from "./open-project-folder.js";
-import { loadLocalModels } from "./local-models.js";
+import { setModelEnabled } from "./local-model-state.js";
+import { LocalModelDownloads } from "./local-model-downloads.js";
+import { localModelDownloadPlan } from "./local-models.js";
+import { loadLocalModels, removeLocalModel } from "./local-models.js";
 import { checkLocalModelUpdates } from "./local-model-updates.js";
 import {
   cleanupProjectFolders,
@@ -196,25 +200,40 @@ process.once("exit", () => {
 });
 let localModelsInventory: ReturnType<typeof loadLocalModels> | null = null;
 let localModelsExpiresAt = 0;
+let localModelsRevision = 0;
+let modelMaintenance = false;
+const modelDownloads = new LocalModelDownloads({
+  changed: () => invalidateLocalModels(),
+});
 const modelUpdateChecks = new Map<
   string,
   Promise<Awaited<ReturnType<typeof checkLocalModelUpdates>> | null>
 >();
+function invalidateLocalModels() {
+  localModelsRevision++;
+  localModelsInventory = null;
+  localModelsExpiresAt = 0;
+  modelUpdateChecks.clear();
+}
 function readLocalModels(force = false) {
   if (
     !localModelsInventory ||
     Date.now() >= localModelsExpiresAt ||
     (force && localModelsExpiresAt !== Infinity)
   ) {
+    const revision = localModelsRevision;
     localModelsExpiresAt = Infinity;
     localModelsInventory = loadLocalModels()
       .then((result) => {
-        localModelsExpiresAt = Date.now() + 30_000;
+        if (revision === localModelsRevision)
+          localModelsExpiresAt = Date.now() + 30_000;
         return result;
       })
       .catch((cause) => {
-        localModelsInventory = null;
-        localModelsExpiresAt = 0;
+        if (revision === localModelsRevision) {
+          localModelsInventory = null;
+          localModelsExpiresAt = 0;
+        }
         throw cause;
       });
   }
@@ -283,6 +302,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 401, { error: "Unauthorized" });
     const url = new URL(req.url ?? "/", "http://localhost");
     const parts = url.pathname.split("/").filter(Boolean);
+    if (modelMaintenance && !["GET", "HEAD"].includes(req.method ?? ""))
+      return json(res, 409, { error: "Wait for model removal to finish." });
     if (
       await audioProjectHttp(
         req,
@@ -410,12 +431,110 @@ const server = http.createServer(async (req, res) => {
         return;
       }
     }
-    if (url.pathname === "/v1/local-models" && req.method === "GET") {
-      return json(
-        res,
-        200,
-        await readLocalModels(url.searchParams.get("refresh") === "1"),
+    if (
+      parts.length === 3 &&
+      parts[0] === "v1" &&
+      parts[1] === "local-models" &&
+      ["DELETE", "PATCH"].includes(req.method ?? "")
+    ) {
+      const input = z
+        .object({ repository: z.string(), variant: z.string() })
+        .strict()
+        .parse(await body(req));
+      const model = (await readLocalModels(true)).models.find(
+        (item) =>
+          item.id === parts[2] &&
+          item.repository === input.repository &&
+          item.variant === input.variant,
       );
+      if (!model || !model.repository || model.variant === "custom")
+        return json(res, 409, {
+          error: "The model list changed. Refresh it and try again.",
+        });
+      if (
+        req.method === "DELETE" &&
+        model.role !== "voice" &&
+        model.uses.length
+      )
+        return json(res, 409, {
+          error:
+            "This model is in use. Choose another model in settings before removing its weights.",
+        });
+      if (
+        modelMaintenance ||
+        modelDownloads.busy ||
+        generationQueue.pendingCount > 0
+      )
+        return json(res, 409, {
+          error: "Wait for generation to finish before changing models.",
+        });
+      if (req.method === "PATCH" && model.status !== "downloaded")
+        return json(res, 409, {
+          error: "Download this model before enabling it.",
+        });
+      modelMaintenance = true;
+      try {
+        if (req.method === "PATCH") setModelEnabled(model, true);
+        else await removeLocalModel(model);
+        if (req.method === "DELETE") {
+          for (const affected of localModelRemovalTargets(
+            (await readLocalModels()).models,
+            model.repository,
+          ))
+            modelDownloads.clear(affected);
+        } else modelDownloads.clear(model);
+        return json(res, 200, { ok: true });
+      } finally {
+        invalidateLocalModels();
+        modelMaintenance = false;
+      }
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "v1" &&
+      parts[1] === "local-models" &&
+      parts[3] === "download" &&
+      req.method === "POST"
+    ) {
+      const input = z
+        .object({ repository: z.string(), variant: z.string() })
+        .strict()
+        .parse(await body(req));
+      const model = (await readLocalModels(true)).models.find(
+        (item) =>
+          item.id === parts[2] &&
+          item.repository === input.repository &&
+          item.variant === input.variant,
+      );
+      if (!model || !model.repository || model.variant === "custom")
+        return json(res, 409, {
+          error: "The model list changed. Refresh it and try again.",
+        });
+      const plan = await localModelDownloadPlan(model);
+      if (
+        modelMaintenance ||
+        (modelDownloads.busy &&
+          !["downloading", "verifying"].includes(
+            modelDownloads.state(model)?.status ?? "",
+          ))
+      )
+        return json(res, 409, {
+          error:
+            "Another model download is in progress. Wait for it to finish.",
+        });
+      const download = modelDownloads.start(model, plan);
+      return json(res, 202, { download });
+    }
+    if (url.pathname === "/v1/local-models" && req.method === "GET") {
+      let revision: number;
+      let inventory: Awaited<ReturnType<typeof loadLocalModels>>;
+      do {
+        revision = localModelsRevision;
+        inventory = await readLocalModels(
+          url.searchParams.get("refresh") === "1",
+        );
+      } while (revision !== localModelsRevision);
+      return json(res, 200, modelDownloads.withState(inventory));
     }
     if (
       parts.length === 4 &&

@@ -43,8 +43,8 @@ test("inventory groups shared models and probes each interpreter/cache/software 
       };
     },
   });
-  assert.equal(calls.length, 3);
-  assert.equal(result.models.length, 8);
+  assert.equal(calls.length, 4);
+  assert.equal(result.models.length, 10);
   const narration = result.models.find((model) => model.role === "voice")!;
   assert.deepEqual(narration.uses, [
     { kind: "short", languages: ["es", "en", "pt"] },
@@ -88,10 +88,10 @@ test("Latam includes its base components, preserves language overrides and uses 
       };
     },
   });
-  assert.equal(requests.length, 3);
+  assert.equal(requests.length, 4);
   assert.equal(
     result.models.filter((model) => model.role === "voice").length,
-    6,
+    8,
   );
   const base = requests
     .find((request) => request.package === "chatterbox-tts")
@@ -301,14 +301,27 @@ test("catalogue includes all requested alternatives without selecting or loading
         "qwen3-base-1.7b",
         "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
       ],
+      [
+        "CosyVoice 3 Base 0.5B",
+        "cosyvoice3-base-0.5b",
+        "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      ],
+      [
+        "CosyVoice 3 RL 0.5B",
+        "cosyvoice3-rl-0.5b",
+        "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      ],
     ],
   );
   assert.ok(
     alternatives.every(
-      (model) => model.uses.length === 0 && model.status === "not_downloaded",
+      (model) =>
+        model.uses.length === 0 &&
+        model.status === "not_downloaded" &&
+        model.enabled === false,
     ),
   );
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   const probes = calls.find(
     (request) => request.package === "chatterbox-tts",
   ).models;

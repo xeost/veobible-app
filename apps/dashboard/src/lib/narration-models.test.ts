@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import {
+  disabledNarrationChoices,
   loadNarrationModels,
   saveNarrationModels,
   defaultNarrationModels,
@@ -155,4 +156,52 @@ test("decoder choices are independent for each language and model", () => {
   models.es = "latam";
   assert.equal(selectedNarrationDecoder(models, "en"), "general");
   assert.equal(selectedNarrationDecoder(models, "es"), "v3");
+});
+
+test("disabled settings choices use each voice variant independently of shared repositories", () => {
+  const inventory = localModelsSchema.parse({
+    checkedAt: new Date().toISOString(),
+    models: [
+      {
+        id: "local-model-1",
+        name: "Original",
+        role: "voice",
+        uses: [],
+        repository: "ResembleAI/chatterbox",
+        revision: null,
+        status: "not_downloaded",
+        variant: "chatterbox-original",
+        enabled: false,
+        software: { name: "chatterbox-tts", version: null },
+      },
+      {
+        id: "local-model-2",
+        name: "Multilingual",
+        role: "voice",
+        uses: [],
+        repository: "ResembleAI/chatterbox",
+        revision: null,
+        status: "downloaded",
+        variant: "chatterbox-v3",
+        enabled: true,
+        software: { name: "chatterbox-tts", version: null },
+      },
+      {
+        id: "local-model-3",
+        name: "Qwen",
+        role: "voice",
+        uses: [],
+        repository: "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        revision: null,
+        status: "not_downloaded",
+        variant: "qwen3-base-0.6b",
+        enabled: false,
+        software: { name: "qwen-tts", version: null },
+      },
+    ],
+  });
+  assert.deepEqual(disabledNarrationChoices(inventory), [
+    "chatterbox",
+    "qwen3-base-0.6b",
+  ]);
 });

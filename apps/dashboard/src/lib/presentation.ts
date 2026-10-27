@@ -55,6 +55,18 @@ export function generationStage(
 }
 
 const voiceMessages = [
+  "Download this model before enabling it.",
+  "Could not finish the model download. Check your connection and free disk space, then try downloading it again.",
+  "Could not finish the model download. Check your connection and free disk space, then resume the download.",
+  "Another model operation is in progress or the list changed. Refresh it and try again.",
+  "Could not start the model download. Check that generation is available and try again.",
+
+  "Could not change this model. Refresh the list and try again.",
+  "The model list changed. Refresh it and try again.",
+  "This model is in use. Choose another model in settings before removing its weights.",
+  "Wait for generation to finish, refresh the model list and try again.",
+  "This voice model is disabled. Enable it in administration tools before generating voices.",
+
   "The original recording changed or is unavailable. Prepare it again.",
   "Could not complete the audio request. Check that generation is available and try again.",
   "The next audio version changed. Reload the list and try again.",

@@ -105,3 +105,25 @@ Presets, including the three built-ins, keep a `modelSettings` object keyed by s
 The Qwen modal exposes temperature, top-p, top-k, repetition penalty and the maximum speech-token count. These controls affect sampling and generation limits, not explicit emotion or speed. Unconfigured Qwen entries use the same conservative defaults regardless of the legacy style name; configure each style to distinguish its sampling behavior. Chatterbox controls and decoder choices are hidden while Qwen is selected and retained when switching back.
 
 Qwen shares the existing process supervisor, user-wide generation lock, time and RAM limits, temporary output handling, verse/chunk dispatch and final 48 kHz PCM WAV conversion. CPU uses bfloat16; explicit MPS uses float32. Large models or long verses may exceed the configured resource budget; resource limits are not raised automatically. Capped, empty or non-finite Qwen output is rejected before replacing existing recordings. Assess pronunciation, reference similarity and performance with real examples before using a model for a whole book.
+
+## CosyVoice 3 Base and RL
+
+Settings offers **CosyVoice 3 Base 0.5B** and **CosyVoice 3 RL 0.5B** for English and Spanish. Portuguese continues using the existing providers. Both variants come from `FunAudioLLM/Fun-CosyVoice3-0.5B-2512`; Base loads `llm.pt` and RL loads `llm.rl.pt`, sharing flow, vocoder, speaker encoder, speech tokenizer and Qwen initialization files. JSON sample sidecars identify the provider, repository and exact LLM checkpoint.
+
+```bash
+python3.12 tools/voice-generator/setup-cosyvoice.py --download
+```
+
+Setup checks out official CosyVoice revision `074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc` and its Matcha-TTS submodule into the ignored `.cosyvoice-src` directory, with dependencies in `.venv-cosyvoice`. Weights use the standard shared Hugging Face cache without `cache_dir` or `local_dir` overrides. `hf cache ls` lists one repository containing both checkpoints. The adapter selects Base/RL in memory and never renames cached weights or writes speaker caches into snapshots. Inventory lists two variants under the same repository. `VIDEO_COSYVOICE_TTS_PYTHON` and `VIDEO_COSYVOICE_SOURCE` select custom installations. Restart the API proxy after updating the code or runtime configuration.
+
+The default **Clone without transcript** mode reuses existing `en-N.mp3` / `es-N.mp3` references with `cross_lingual` inference. **Clone with transcript** uses `zero_shot` and requires the exact reference transcription in its `.txt` sidecar; it fails instead of guessing when absent. **Clone with narration instructions** uses `instruct2` with plain-language directions saved in the preset. The adapter adds internal prompt delimiters; user instructions cannot contain those delimiters.
+
+Each model's preset independently stores mode, instructions, speed, `top_p`, `top_k`, RAS `win_size`/`tau_r`, and seed while retaining other model views. Instructions remain saved when switching modes. The adapter disables the upstream text frontend to avoid English number normalization being applied to Spanish. Existing application text preparation and fragmenting remain in use. Native 24 kHz speech passes through the existing 48 kHz WAV conversion. Empty, invalid and decoder-capped output is rejected before publication.
+
+The runtime supports CPU or CUDA. The adapter rejects MPS explicitly; the low resource profile uses CPU and retains existing memory, concurrency and timeout protections. Setup never raises resource limits. Measure performance and similarity with actual samples on the deployment machine.
+
+The Qwen encoder is constructed from its cached configuration and receives all its parameters from the selected CosyVoice LLM checkpoint under strict state-dict loading. The redundant `CosyVoice-BlankEN/model.safetensors` initialization weights are not loaded for inference. Setup also caches this optional file so other applications using the upstream loader can reuse the same snapshot. A configuration-tag guard rejects upstream architecture changes rather than silently selecting a different loader.
+
+CosyVoice checkpoints use read-only memory mapping and strict parameter assignment to avoid holding a second complete copy of each component during loading. This reduces loading peaks without increasing the generator's memory budget.
+
+The adapter constructs only inference components and their transitive configuration references. Training datasets, GAN discriminators, optimizers and data processors from the official YAML are not initialized, avoiding training-only dependencies and unnecessary memory use.

@@ -1,10 +1,15 @@
 import { z } from "zod";
 import {
+  cosyParametersSchema,
+  cosyDefaults,
   modelSettingsSchema,
   qwenParametersSchema,
   qwenDefaults,
 } from "./narration-model-settings.js";
-import { isQwenNarrationModel } from "./narration-models.js";
+import {
+  isCosyNarrationModel,
+  isQwenNarrationModel,
+} from "./narration-models.js";
 
 export const narrationControls = {
   exaggeration: { min: 0, max: 2, step: 0.05 },
@@ -99,12 +104,14 @@ export function resolveNarrationStyle(
 export function effectiveNarrationParameters(
   parameters: NarrationParameters | undefined,
   model: string,
-) {
+): Record<string, number | string> {
   const parsed = narrationParametersSchema.parse(
     parameters ?? narrationPresets.natural,
   );
   const { modelSettings, ...legacy } = parsed;
   const selected = modelSettings?.[model];
+  if (isCosyNarrationModel(model))
+    return cosyParametersSchema.parse(selected ?? cosyDefaults);
   return isQwenNarrationModel(model)
     ? qwenParametersSchema.parse(selected ?? qwenDefaults)
     : narrationParametersSchema
@@ -115,7 +122,12 @@ export function narrationParameterArgs(
   parameters?: NarrationParameters,
   model = "multilingual-v3",
 ): string[] {
-  if (!parameters && !isQwenNarrationModel(model)) return [];
+  if (
+    !parameters &&
+    !isQwenNarrationModel(model) &&
+    !isCosyNarrationModel(model)
+  )
+    return [];
   return Object.entries(
     effectiveNarrationParameters(parameters, model),
   ).flatMap(([key, value]) => [`--${key.replaceAll("_", "-")}`, String(value)]);

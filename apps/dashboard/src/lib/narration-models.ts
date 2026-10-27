@@ -7,6 +7,7 @@ export {
   defaultNarrationModels,
   narrationModelOptions,
   isQwenNarrationModel,
+  isCosyNarrationModel,
   narrationProvider,
   selectedNarrationDecoder,
   selectedNarrationTextAdaptations,
@@ -41,6 +42,8 @@ export function applyNarrationSelection<
   T extends import("./local-models").LocalModels,
 >(inventory: T, selection: import("./narration-models").NarrationModels): T {
   const variants = {
+    "cosyvoice3-base-0.5b": "cosyvoice3-base-0.5b",
+    "cosyvoice3-rl-0.5b": "cosyvoice3-rl-0.5b",
     "qwen3-base-0.6b": "qwen3-base-0.6b",
     "qwen3-base-1.7b": "qwen3-base-1.7b",
     chatterbox: "chatterbox-original",
@@ -63,4 +66,23 @@ export function applyNarrationSelection<
       };
     }),
   };
+}
+
+export const narrationVariants: Record<string, string> = {
+  chatterbox: "chatterbox-original",
+  "multilingual-v3": "chatterbox-v3",
+  latam: "chatterbox-latam",
+  "pt-br": "chatterbox-pt-br",
+};
+export function disabledNarrationChoices(
+  inventory: import("./local-models").LocalModels,
+): string[] {
+  return inventory.models
+    .filter((model) => model.enabled === false && model.role === "voice")
+    .map(
+      (model) =>
+        Object.entries(narrationVariants).find(
+          ([, variant]) => variant === model.variant,
+        )?.[0] ?? model.variant,
+    );
 }
