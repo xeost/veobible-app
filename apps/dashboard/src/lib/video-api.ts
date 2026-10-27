@@ -1,3 +1,4 @@
+import { videoEditorRead } from "./video-editor-reads";
 import {
   loadChapterAudioSettings,
   resolveChapterAudio,
@@ -423,6 +424,26 @@ export async function videoApi(
       : [];
     return json({ project: await nextVideoProject(database, id, exclude) });
   }
+  const read = await videoEditorRead(
+    req,
+    database,
+    id,
+    outputEnvironment,
+    videoFetch,
+    async (path, query) => {
+      const expiresAt = Date.now() + 60 * 60 * 1000;
+      const token = await signMediaAccess(
+        { path, query: query.toString(), origin: url.origin, expiresAt },
+        bindings().DASHBOARD_API_PROXY_TOKEN,
+      );
+      return {
+        base: `${bindings().VIDEO_API_URL.replace(/\/$/, "")}${path}`,
+        query: `${query}&mediaToken=${encodeURIComponent(token)}`,
+        expiresAt,
+      };
+    },
+  );
+  if (read) return read;
   const project = await database
     .prepare(`${select} WHERE p.id=?`)
     .bind(id)
@@ -483,15 +504,20 @@ export async function videoApi(
     (await loadChapterAudioSettings(database, project.kind))[project.locale][
       project.version_code
     ] || undefined;
-  const storedSettings = settingsSchema.parse(JSON.parse(project.settings));
+  // Persisted v1 settings were validated on write. Parse once and avoid cloning
+  // every saved verse offset again just to build the editor's read context.
+  const savedSettings = JSON.parse(project.settings);
+  let storedSettings =
+    savedSettings.voiceDefaultsVersion === 1
+      ? (savedSettings as z.infer<typeof settingsSchema>)
+      : settingsSchema.parse(savedSettings);
   if (storedSettings.voiceDefaultsVersion !== 1) {
-    const upgraded = JSON.stringify(
-      inheritVideoVoiceDefaults(
-        storedSettings,
-        baseVoiceDefaults,
-        styleDefaults,
-      ),
+    const resolved = inheritVideoVoiceDefaults(
+      storedSettings,
+      baseVoiceDefaults,
+      styleDefaults,
     );
+    const upgraded = JSON.stringify(resolved);
     const result = await database
       .prepare("UPDATE video_projects SET settings=? WHERE id=? AND settings=?")
       .bind(upgraded, id, project.settings)
@@ -502,12 +528,13 @@ export async function videoApi(
         409,
       );
     project.settings = upgraded;
+    storedSettings = resolved;
   }
   const generalVoiceParameters = resolveNarrationStyle(styles[project.locale]);
   const voiceParameters = selectedVoiceStyleParameters(
     generalVoiceParameters,
     styleDefaults,
-    JSON.parse(project.settings).voiceStylePresets,
+    storedSettings.voiceStylePresets,
     "intro",
   );
   const loudnessTarget = (await loadLoudnessSettings(database))[project.locale];
@@ -525,7 +552,7 @@ export async function videoApi(
     ...(voiceDecoder ? { voiceDecoder } : {}),
     voiceParameters: JSON.stringify(voiceParameters),
     baseVoice: projectBaseVoice(
-      JSON.parse(project.settings),
+      storedSettings,
       project.locale,
       "intro",
       baseVoiceDefaults,
@@ -588,12 +615,11 @@ export async function videoApi(
       if (input.settings.baseVoices)
         for (const role of voiceRoles)
           projectBaseVoice(input.settings, project.locale, role);
-      input.settings.baseVoices ??= JSON.parse(project.settings).baseVoices;
+      input.settings.baseVoices ??= storedSettings.baseVoices;
       input.settings.baseVoice = projectBaseVoice(
         {
           ...input.settings,
-          baseVoice:
-            input.settings.baseVoice ?? JSON.parse(project.settings).baseVoice,
+          baseVoice: input.settings.baseVoice ?? storedSettings.baseVoice,
         },
         project.locale,
       );
@@ -642,16 +668,6 @@ export async function videoApi(
       },
     });
   }
-  if (parts[2] === "alignment" && method === "GET") {
-    const response = await videoFetch(`/v1/projects/${id}/alignment?${query}`);
-    return new Response(response.body, {
-      status: response.status,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-      },
-    });
-  }
   if (parts[2] === "alignment" && parts[3] === "apply" && method === "POST") {
     const {
       jobId,
@@ -666,7 +682,9 @@ export async function videoApi(
       .parse(await req.json());
     if (["queued", "running"].includes((await state()).status))
       return json({ error: "Wait for generation to finish" }, 409);
-    const response = await videoFetch(`/v1/projects/${id}/alignment?${query}`);
+    const response = await videoFetch(
+      `/v1/projects/${id}/alignment?${query}&jobId=${encodeURIComponent(jobId)}`,
+    );
     if (!response.ok)
       return json(
         { error: "Could not load the timing analysis. Try again." },
@@ -691,16 +709,6 @@ export async function videoApi(
       return json({ error: applied.error }, applied.status);
     return json(applied);
   }
-  if (parts[2] === "voices" && method === "GET") {
-    const response = await videoFetch(`/v1/projects/${id}/voices?${query}`);
-    return new Response(response.body, {
-      status: response.status,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-      },
-    });
-  }
   if (
     method === "POST" &&
     ["analyze", "alignment", "voices", "render", "preview"].includes(parts[2])
@@ -709,13 +717,13 @@ export async function videoApi(
     let settings = settingsSchema.parse(
       parts[2] === "voices"
         ? {
-            ...JSON.parse(project.settings),
+            ...storedSettings,
             ...(values.settings ? settingsSchema.parse(values.settings) : {}),
           }
         : values,
     );
-    settings.baseVoices ??= JSON.parse(project.settings).baseVoices;
-    settings.baseVoice ??= JSON.parse(project.settings).baseVoice;
+    settings.baseVoices ??= storedSettings.baseVoices;
+    settings.baseVoice ??= storedSettings.baseVoice;
     settings = resolveProjectBaseVoices(
       settings,
       project.locale,
@@ -827,7 +835,7 @@ export async function videoApi(
         body: JSON.stringify({ ...common, part, verseReference, textOverride }),
       });
       if (response.ok) {
-        const stored = settingsSchema.parse(JSON.parse(project.settings));
+        const stored = settingsSchema.parse(storedSettings);
         if (
           stored.voiceTrims?.[part] ||
           JSON.stringify(stored.voiceStylePresets) !==

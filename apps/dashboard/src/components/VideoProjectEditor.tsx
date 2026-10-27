@@ -25,6 +25,12 @@ import {
   type AlignmentJob,
 } from "../../../../tools/video-project-api/src/forced-alignment-result";
 import type { VoicePart } from "../../../../tools/video-project-api/src/chapter-introductions";
+import {
+  mergeVideoAlignmentUpdates,
+  serializeVideoRefresh,
+  type VideoStateUpdate,
+  type VideoAlignmentUpdate,
+} from "../lib/video-editor-updates";
 import { pollWhileVisible } from "../lib/visible-polling";
 import Link from "next/link";
 import {
@@ -145,6 +151,8 @@ export function VideoProjectEditor({
   const [analyzing, setAnalyzing] = useState(false);
   const analysisRequest = useRef(0);
   const [alignmentJobs, setAlignmentJobs] = useState<AlignmentJob[]>([]);
+  const alignmentState = useRef(alignmentJobs);
+  alignmentState.current = alignmentJobs;
   const [alignmentLoaded, setAlignmentLoaded] = useState(false);
   const [pendingTasks, setPendingTasks] = useState<ReadonlySet<string>>(
     new Set(),
@@ -330,8 +338,34 @@ export function VideoProjectEditor({
   useEffect(() => {
     let live = true;
     let initialized = false;
-    const refresh = async () => {
+    let cursor: string | undefined;
+    const controller = new AbortController();
+    const refresh = serializeVideoRefresh(async (full) => {
       try {
+        if (initialized && !full) {
+          const data = await api<VideoStateUpdate>(
+            `${endpoint("state")}&updates=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+            {
+              signal: controller.signal,
+            },
+          );
+          if (!live) return;
+          cursor = data.cursor;
+          if (data.state) {
+            const state = data.state;
+            setProject((current) =>
+              current && String(current.project_id) === projectId
+                ? {
+                    ...current,
+                    status: state.status,
+                    progress: state.progress,
+                    result: state.result ? JSON.stringify(state.result) : null,
+                  }
+                : current,
+            );
+          }
+          return;
+        }
         const data = await api<{
           video: EditorProject;
           defaults: Settings;
@@ -339,7 +373,7 @@ export function VideoProjectEditor({
           baseVoiceDefaults: BaseVoiceDefaults["es"];
           voiceStyleDefaults: VoiceStylePresets;
           mediaAccess: NonNullable<typeof mediaAccess>;
-        }>(base);
+        }>(base, { signal: controller.signal });
         if (!live) return;
         setMediaAccess((current) =>
           current &&
@@ -367,39 +401,71 @@ export function VideoProjectEditor({
           initialized = true;
           void inspect(resolved);
         }
+        cursor = undefined;
         setProject(data.video);
       } catch (cause) {
         if (live) setError(userMessage(cause));
         throw cause;
       }
-    };
+    });
     const onFocus = () => {
-      void refresh().catch(() => {});
+      void refresh(true).catch(() => {});
     };
     window.addEventListener("focus", onFocus);
     const stopPolling = pollWhileVisible(
       refresh,
-      () =>
-        ["queued", "running"].includes(projectState.current?.status ?? "") ||
-        !mediaAccessRef.current ||
-        mediaAccessRef.current.expiresAt <= Date.now() + 15 * 60 * 1000,
+      () => ["queued", "running"].includes(projectState.current?.status ?? ""),
       15000,
     );
     return () => {
       live = false;
+      controller.abort();
       stopPolling();
       window.removeEventListener("focus", onFocus);
     };
-  }, [base, inspect]);
+  }, [base, inspect, endpoint, projectId]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const needsRenewal = () =>
+      Boolean(
+        mediaAccessRef.current &&
+        mediaAccessRef.current.expiresAt <= Date.now() + 15 * 60 * 1000,
+      );
+    const stop = pollWhileVisible(
+      async () => {
+        if (!needsRenewal()) return;
+        const data = await api<{
+          mediaAccess: NonNullable<typeof mediaAccess>;
+        }>(endpoint("media-access"), {
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) setMediaAccess(data.mediaAccess);
+      },
+      needsRenewal,
+      60_000,
+    );
+    return () => {
+      controller.abort();
+      stop();
+    };
+  }, [endpoint]);
   useEffect(() => {
     if (!project?.project_id) return;
     setVoicesLoaded(false);
     let live = true;
+    let cursor: string | undefined;
     const refresh = async () => {
       try {
-        const data = await api<{ voices: Voices }>(endpoint("voices"));
+        const data = await api<{
+          voices?: Voices;
+          cursor: string;
+          unchanged?: boolean;
+        }>(
+          `${endpoint("voices")}&updates=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+        );
         if (live) {
-          setVoices(data.voices);
+          cursor = data.cursor;
+          if (data.voices) setVoices(data.voices);
           setVoicesScope(base);
           setVoicesLoaded(true);
           setVoiceError("");
@@ -425,18 +491,19 @@ export function VideoProjectEditor({
   useEffect(() => {
     if (String(project?.project_id) !== projectId || !analysis) return;
     let live = true;
+    let cursor: string | undefined;
     const refresh = async () => {
       try {
-        const data = await api<{
-          jobs?: AlignmentJob[];
-          job: AlignmentJob | null;
-        }>(endpoint("alignment"));
+        const data = await api<VideoAlignmentUpdate>(
+          `${endpoint("alignment")}&updates=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+        );
         if (!live) return;
-        const jobs = data.jobs ?? (data.job ? [data.job] : []);
-        setAlignmentJobs((current) => [
-          ...jobs,
-          ...current.filter((item) => !jobs.some((job) => job.id === item.id)),
-        ]);
+        cursor = data.cursor;
+        const jobs = mergeVideoAlignmentUpdates(alignmentState.current, data);
+        if (jobs !== alignmentState.current) {
+          alignmentState.current = jobs;
+          setAlignmentJobs(jobs);
+        }
         setAlignmentLoaded(true);
         if (
           busyRef.current ||
@@ -893,7 +960,7 @@ export function VideoProjectEditor({
       }),
     });
     const current = await api<{ mediaAccess: NonNullable<typeof mediaAccess> }>(
-      base,
+      endpoint("media-access"),
     );
     setMediaAccess(current.mediaAccess);
     setSaved(true);

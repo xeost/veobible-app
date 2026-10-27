@@ -1,3 +1,7 @@
+import {
+  inspectionUpdate,
+  AlignmentInspectionUpdates,
+} from "./inspection-updates.js";
 import { localModelRemovalTargets } from "./local-models-contract.js";
 import { narrationModelSchema } from "./narration-models.js";
 import { normalizeAudio } from "./audio-loudness.js";
@@ -244,6 +248,7 @@ const cleaningOutputs = new Set<string>();
 const cleanupKey = (kind: string, environment: string) =>
   `${environment}:${kind}`;
 const alignmentJobs = new AlignmentJobStore();
+const alignmentUpdates = new AlignmentInspectionUpdates();
 const alignmentFile = (
   kind: string,
   environment: "production" | "development",
@@ -760,6 +765,19 @@ const server = http.createServer(async (req, res) => {
         );
         const file = alignmentFile(kind, environment, projectId);
         const jobs = await alignmentJobs.list(file);
+        if (url.searchParams.get("updates") === "1")
+          return json(
+            res,
+            200,
+            alignmentUpdates.read(file, jobs, url.searchParams.get("cursor")),
+          );
+        const jobId = url.searchParams.get("jobId");
+        if (jobId) {
+          z.string().uuid().parse(jobId);
+          return json(res, 200, {
+            job: jobs.find((job) => job.id === jobId) ?? null,
+          });
+        }
         return json(res, 200, { job: jobs.at(-1) ?? null, jobs });
       }
       if (req.method === "POST") {
@@ -894,12 +912,19 @@ const server = http.createServer(async (req, res) => {
           projectDir(kind, version, passage, environment),
           kind,
         ));
-      return json(res, 200, {
+      const state = {
         status: active?.status ?? (result ? "ready" : "draft"),
         stage: active?.stage ?? "",
         progress: active?.progress ?? (result ? 100 : 0),
         result,
-      });
+      };
+      return json(
+        res,
+        200,
+        url.searchParams.get("updates") === "1"
+          ? inspectionUpdate({ state }, url.searchParams.get("cursor"))
+          : state,
+      );
     }
     if (parts[1] === "projects" && parts[3] === "voices") {
       const projectId = z.coerce.number().int().positive().parse(parts[2]);
@@ -979,7 +1004,14 @@ const server = http.createServer(async (req, res) => {
             ] as const;
           }),
         );
-        return json(res, 200, { voices: Object.fromEntries(voices) });
+        const value = { voices: Object.fromEntries(voices) };
+        return json(
+          res,
+          200,
+          url.searchParams.get("updates") === "1"
+            ? inspectionUpdate(value, url.searchParams.get("cursor"))
+            : value,
+        );
       }
       if (req.method === "POST") {
         const input = analysisSchema

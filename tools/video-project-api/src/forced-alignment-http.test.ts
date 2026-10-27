@@ -228,10 +228,53 @@ await fs.writeFile(arg('--output'),JSON.stringify({model:'fixture',chapters:inpu
         ),
         ["Psalms 1:1"],
       );
+      const updatesRoute = `${route}?kind=short&outputEnvironment=development&updates=1`;
+      const initialUpdate = await (
+        await fetch(updatesRoute, { headers })
+      ).json();
+      assert.equal(initialUpdate.jobs.length, 2);
+      const unchanged = await (
+        await fetch(
+          `${updatesRoute}&cursor=${encodeURIComponent(initialUpdate.cursor)}`,
+          { headers },
+        )
+      ).json();
+      assert.equal(unchanged.unchanged, true);
+      assert.equal(unchanged.jobs, undefined);
+      assert.ok(JSON.stringify(unchanged).length < 100);
+      const selected = await (
+        await fetch(
+          `${route}?kind=short&outputEnvironment=development&jobId=${first.id}`,
+          { headers },
+        )
+      ).json();
+      assert.equal(selected.job.id, first.id);
+      assert.equal(selected.jobs, undefined);
+      for (const action of ["state", "voices"]) {
+        const inspect = `${base}/v1/projects/1/${action}?kind=short&version=kjv&passage=test&outputEnvironment=development&updates=1`;
+        const initial = await (await fetch(inspect, { headers })).json();
+        assert.ok(initial.cursor);
+        assert.ok(initial[action === "state" ? "state" : "voices"]);
+        const same = await (
+          await fetch(
+            `${inspect}&cursor=${encodeURIComponent(initial.cursor)}`,
+            { headers },
+          )
+        ).json();
+        assert.deepEqual(same, { cursor: initial.cursor, unchanged: true });
+      }
       child!.kill("SIGTERM");
       await once(child!, "exit");
       await start();
       const retained = await readAll();
+      const afterRestart = await (
+        await fetch(
+          `${updatesRoute}&cursor=${encodeURIComponent(initialUpdate.cursor)}`,
+          { headers },
+        )
+      ).json();
+      assert.equal(afterRestart.jobs.length, 2);
+      assert.notEqual(afterRestart.cursor, initialUpdate.cursor);
       assert.deepEqual(
         retained.find((job: { id: string }) => job.id === first.id),
         completed,

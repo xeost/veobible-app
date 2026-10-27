@@ -24,11 +24,16 @@ function matchesDefault(
 
 // Older projects stored copies of format defaults without selection provenance.
 // Upgrade once; explicit selections made after this upgrade stay explicit.
-export function inheritVideoVoiceDefaults(
-  settings: z.infer<typeof settingsSchema>,
-  defaults: BaseVoiceDefaults["en"],
-  styles: VoiceStylePresets,
-) {
+export function inheritVideoVoiceDefaults<
+  T extends Pick<
+    z.infer<typeof settingsSchema>,
+    | "voiceDefaultsVersion"
+    | "inheritedBaseVoiceRoles"
+    | "baseVoice"
+    | "baseVoices"
+    | "voiceStylePresets"
+  >,
+>(settings: T, defaults: BaseVoiceDefaults["en"], styles: VoiceStylePresets) {
   if (settings.voiceDefaultsVersion === 1) return settings;
   const inherited =
     settings.inheritedBaseVoiceRoles ??
