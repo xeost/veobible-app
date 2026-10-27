@@ -35,6 +35,20 @@ export const sampleRequestSchema = z
   .strict();
 const tasks = new Map<string, QueueJob>();
 const saving = new Set<string>();
+let previewMutation = Promise.resolve();
+async function mutatePreviews<T>(run: () => Promise<T>): Promise<T> {
+  const previous = previewMutation;
+  let release!: () => void;
+  previewMutation = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    return await run();
+  } finally {
+    release();
+  }
+}
 export class VoiceSampleConflict extends Error {}
 const samples = path.join(sharedVoiceDirectory, "samples");
 export const sampleFile = (id: string, model?: string) =>
@@ -49,6 +63,24 @@ const previewFile = (id: string, model: string, previewId: string) =>
     /-sample\.wav$/,
     `-preview-${z.string().uuid().parse(previewId)}.wav`,
   );
+async function removeOtherPreviews(keep: readonly string[] = []) {
+  const preserved = new Set(keep.map((file) => path.basename(file)));
+  for (const entry of await fs.readdir(samples, { withFileTypes: true })) {
+    if (!entry.isFile() || preserved.has(entry.name)) continue;
+    const match =
+      /^((?:es|en|pt)-[1-9]\d*)-(.+)-preview(?:-([0-9a-f-]{36}))?\.(wav|json)$/.exec(
+        entry.name,
+      );
+    if (!match || !narrationModelSchema.safeParse(match[2]).success) continue;
+    if (
+      match[4] === "wav"
+        ? !z.string().uuid().safeParse(match[3]).success
+        : Boolean(match[3])
+    )
+      continue;
+    await fs.rm(path.join(samples, entry.name), { force: true });
+  }
+}
 const previewMetadataSchema = z
   .object({
     voice: baseVoiceSchema,
@@ -104,26 +136,27 @@ export async function saveVoiceSample(
   saving.add(key);
   let staging: string | undefined;
   try {
-    const preview = await readPreview(id, model);
-    if (!preview || preview.metadata.previewId !== previewId)
-      throw new VoiceSampleConflict(
-        "This temporary example is no longer available. Generate another example.",
+    await mutatePreviews(async () => {
+      const preview = await readPreview(id, model);
+      if (!preview || preview.metadata.previewId !== previewId)
+        throw new VoiceSampleConflict(
+          "This temporary example is no longer available. Generate another example.",
+        );
+      staging = await fs.mkdtemp(path.join(samples, ".saving-"));
+      const { previewId: _, ...metadata } = preview.metadata;
+      await fs.copyFile(preview.file, path.join(staging, "sample.wav"));
+      await fs.writeFile(
+        path.join(staging, "metadata.json"),
+        JSON.stringify(metadata, null, 2) + "\n",
       );
-    staging = await fs.mkdtemp(path.join(samples, ".saving-"));
-    const { previewId: _, ...metadata } = preview.metadata;
-    await fs.copyFile(preview.file, path.join(staging, "sample.wav"));
-    await fs.writeFile(
-      path.join(staging, "metadata.json"),
-      JSON.stringify(metadata, null, 2) + "\n",
-    );
-    await fs.rename(path.join(staging, "sample.wav"), sampleFile(id, model));
-    await fs.rename(
-      path.join(staging, "metadata.json"),
-      sampleFile(id, model) + ".json",
-    );
-    await fs.unlink(previewMetadataFile(id, model));
-    await fs.unlink(preview.file);
-    tasks.delete(key);
+      await fs.rename(path.join(staging, "sample.wav"), sampleFile(id, model));
+      await fs.rename(
+        path.join(staging, "metadata.json"),
+        sampleFile(id, model) + ".json",
+      );
+      await removeOtherPreviews();
+      tasks.delete(key);
+    });
   } finally {
     try {
       if (staging) await fs.rm(staging, { recursive: true, force: true });
@@ -320,14 +353,19 @@ export async function queueVoiceSample(
             2,
           ) + "\n",
         );
-        const previous = await readPreview(input.voice, input.voiceModel);
-        await fs.rename(output, destination);
-        await fs.rename(
-          path.join(staging, "metadata.json"),
-          previewMetadataFile(input.voice, input.voiceModel),
-        );
-        published = true;
-        if (previous) await fs.rm(previous.file, { force: true });
+        const metadataFile = path.join(staging, "metadata.json");
+        await mutatePreviews(async () => {
+          await fs.rename(output, destination);
+          await fs.rename(
+            metadataFile,
+            previewMetadataFile(input.voice, input.voiceModel),
+          );
+          published = true;
+          await removeOtherPreviews([
+            destination,
+            previewMetadataFile(input.voice, input.voiceModel),
+          ]);
+        });
         task.stage = "Done";
         task.status = "done";
         task.progress = 100;

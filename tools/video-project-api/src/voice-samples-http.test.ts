@@ -52,6 +52,7 @@ const arg=k=>process.argv[process.argv.indexOf(k)+1];
 const scripts=JSON.parse(await fs.readFile(arg('--scripts'),'utf8'));
 const prompts=JSON.parse(await fs.readFile(arg('--voice-prompts'),'utf8'));
 await fs.appendFile(process.env.SAMPLE_LOG,JSON.stringify({args:process.argv,scripts,prompts})+'\\n');
+if(scripts.intro==='Queued English example.') { while(!(await fs.stat(process.env.SAMPLE_LOG+'.english-release').catch(()=>null))) await new Promise(r=>setTimeout(r,10)); }
 if(scripts.intro==='A literal {example}.') { while(!(await fs.stat(process.env.SAMPLE_LOG+'.release').catch(()=>null))) await new Promise(r=>setTimeout(r,10)); }
 await new Promise(r=>setTimeout(r,150));
 if(scripts.intro==='fail') process.exit(1);
@@ -307,6 +308,11 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         "RIFF-generated-A literal {example}.",
       );
       assert.equal((await settled("es-2")).available, true);
+      await fs.writeFile(
+        path.join(directory, "calls.jsonl.english-release"),
+        "release",
+      );
+      assert.equal((await settled("en-1")).available, true);
       const audio = await (
         await fetch(`${base}/es-2/sample`, { headers })
       ).text();
@@ -740,6 +746,122 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         await fs.readFile(path.join(voices, "es-2.mp3"), "utf8"),
         "original-es-2.mp3",
       );
+      // Legacy per-voice previews and orphaned audition files are swept globally.
+      const samplesDirectory = path.join(voices, "samples");
+      const permanentFiles = (await fs.readdir(samplesDirectory)).filter(
+        (name) => /-sample\.wav(?:\.json)?$/.test(name),
+      );
+      const permanent = new Map(
+        await Promise.all(
+          permanentFiles.map(
+            async (name) =>
+              [
+                name,
+                await fs.readFile(path.join(samplesDirectory, name)),
+              ] as const,
+          ),
+        ),
+      );
+      const legacyId = "1b696cda-22c6-4c04-b358-3bd60aaf65cc";
+      await fs.writeFile(
+        path.join(
+          samplesDirectory,
+          `en-1-cosyvoice3-base-0.5b-preview-${legacyId}.wav`,
+        ),
+        "legacy temporary audio",
+      );
+      await fs.writeFile(
+        path.join(samplesDirectory, "en-1-cosyvoice3-base-0.5b-preview.json"),
+        JSON.stringify({
+          voice: "en-1",
+          voiceModel: "cosyvoice3-base-0.5b",
+          previewId: legacyId,
+          text: "Legacy audition",
+          generatedAt: new Date().toISOString(),
+        }),
+      );
+      await fs.writeFile(
+        path.join(samplesDirectory, `es-1-latam-preview-${legacyId}.wav`),
+        "orphaned audition",
+      );
+      const previewFiles = async () =>
+        (await fs.readdir(samplesDirectory)).filter((name) =>
+          name.includes("-preview"),
+        );
+      let previous: { voice: string; model: string; id: string } | undefined;
+      for (const [voice, model] of [
+        ["es-2", "multilingual-v3"],
+        ["pt-1", "qwen3-base-0.6b"],
+        ["pt-1", "qwen3-base-1.7b"],
+        ["pt-1", "qwen3-base-1.7b"],
+      ]) {
+        const response = await request(
+          voice,
+          `Single global audition ${model}.`,
+          model,
+        );
+        assert.equal(response.status, 202);
+        const current = (await settled(voice, false)).samples.find(
+          (sample: any) => sample.voiceModel === model,
+        ).preview;
+        assert.ok(current);
+        assert.deepEqual(
+          (await previewFiles()).sort(),
+          [
+            `${voice}-${model}-preview-${current.id}.wav`,
+            `${voice}-${model}-preview.json`,
+          ].sort(),
+        );
+        const all = await catalog();
+        assert.equal(
+          all
+            .flatMap((voice) => voice.samples)
+            .filter((sample: any) => sample.preview).length,
+          1,
+        );
+        if (previous) {
+          assert.equal(
+            (
+              await fetch(
+                `${base}/${previous.voice}/sample?model=${previous.model}&preview=${previous.id}`,
+                { headers },
+              )
+            ).status,
+            404,
+          );
+          assert.equal(
+            (
+              await fetch(`${base}/${previous.voice}/sample`, {
+                method: "PUT",
+                headers,
+                body: JSON.stringify({
+                  model: previous.model,
+                  previewId: previous.id,
+                }),
+              })
+            ).status,
+            409,
+          );
+        }
+        for (const [name, bytes] of permanent)
+          assert.deepEqual(
+            await fs.readFile(path.join(samplesDirectory, name)),
+            bytes,
+          );
+        previous = { voice, model, id: current.id };
+      }
+      const latest = previous!;
+      const savedGlobalPreview = await fetch(`${base}/${latest.voice}/sample`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ model: latest.model, previewId: latest.id }),
+      });
+      assert.equal(
+        savedGlobalPreview.status,
+        200,
+        await savedGlobalPreview.text(),
+      );
+      assert.deepEqual(await previewFiles(), []);
       assert.equal((await request("es-99", "Missing.")).status, 500);
       assert.equal(
         (await request("en-1", "Invalid language model.", "latam")).status,

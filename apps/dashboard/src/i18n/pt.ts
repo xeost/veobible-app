@@ -1,4 +1,6 @@
 export const portuguese: Record<string, string> = {
+  "Only one temporary example is kept across all voices and models.":
+    "Apenas um exemplo temporário é mantido entre todas as vozes e modelos.",
   "Saving example…": "Salvando exemplo…",
   "Saved example": "Exemplo salvo",
   "Temporary example": "Exemplo temporário",

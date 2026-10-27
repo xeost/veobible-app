@@ -31,6 +31,8 @@ import {
   type VoiceLocale,
 } from "../lib/base-voices";
 
+const voiceSamplesChangedEvent = "veo-voice-samples-changed";
+
 export function BaseVoiceSelector({
   locale,
   value,
@@ -82,41 +84,50 @@ export function BaseVoiceSelector({
   const pending = useRef(false);
   useEffect(() => {
     let live = true;
+    let request = 0;
+    const source = Symbol();
     setLoading(true);
     setError("");
-    return (() => {
-      const stop = pollWhileVisible(
-        async () => {
-          try {
-            const data = await api<{
-              voices: BaseVoice[];
-              presets: NarrationPresetLibrary;
-            }>(`base-voices?locale=${locale}`);
-            if (!live) return;
-            const wasPending = pending.current;
-            pending.current = data.voices.some((voice) =>
-              ["queued", "running"].includes(voice.status),
-            );
-            if (wasPending && !pending.current)
-              window.dispatchEvent(new Event(queueChangedEvent));
-            setPresets(narrationPresetLibrarySchema.parse(data.presets));
-            setVoices(data.voices);
-            setError("");
-          } catch (cause) {
-            if (live) setError("Could not load voices. Try again.");
-            throw cause;
-          } finally {
-            if (live) setLoading(false);
-          }
-        },
-        () => pending.current,
-        2500,
-      );
-      return () => {
-        live = false;
-        stop();
-      };
-    })();
+    const refresh = async () => {
+      const revision = ++request;
+      try {
+        const data = await api<{
+          voices: BaseVoice[];
+          presets: NarrationPresetLibrary;
+        }>(`base-voices?locale=${locale}`);
+        if (!live || revision !== request) return;
+        const wasPending = pending.current;
+        pending.current = data.voices.some((voice) =>
+          ["queued", "running"].includes(voice.status),
+        );
+        setPresets(narrationPresetLibrarySchema.parse(data.presets));
+        setVoices(data.voices);
+        setError("");
+        if (wasPending && !pending.current) {
+          window.dispatchEvent(new Event(queueChangedEvent));
+          window.dispatchEvent(
+            new CustomEvent(voiceSamplesChangedEvent, { detail: source }),
+          );
+        }
+      } catch (cause) {
+        if (live && revision === request)
+          setError("Could not load voices. Try again.");
+        throw cause;
+      } finally {
+        if (live && revision === request) setLoading(false);
+      }
+    };
+    const changed = (event: Event) => {
+      if ((event as CustomEvent).detail !== source)
+        void refresh().catch(() => {});
+    };
+    window.addEventListener(voiceSamplesChangedEvent, changed);
+    const stop = pollWhileVisible(refresh, () => pending.current, 2500);
+    return () => {
+      live = false;
+      stop();
+      window.removeEventListener(voiceSamplesChangedEvent, changed);
+    };
   }, [locale]);
   const effectiveValue = value || defaultVoice || "";
   const systemPreset = presets?.[locale];
@@ -181,6 +192,25 @@ export function BaseVoiceSelector({
       generationSample &&
       ["queued", "running"].includes(generationSample.status),
     );
+  useEffect(() => {
+    if (
+      previewPlayback &&
+      !working &&
+      !playbackWorking &&
+      !playbackEntry?.preview
+    ) {
+      setPreviewPlayback(false);
+      if (!playbackEntry?.available && generationModel)
+        setPlaybackModel(generationModel);
+    }
+  }, [
+    previewPlayback,
+    working,
+    playbackWorking,
+    playbackEntry?.preview,
+    playbackEntry?.available,
+    generationModel,
+  ]);
   useEffect(() => {
     const player = audio.current;
     setPlaying(false);
@@ -274,6 +304,7 @@ export function BaseVoiceSelector({
       );
       setVoices(data.voices.filter((voice) => voice.locale === locale));
       setPreviewPlayback(false);
+      window.dispatchEvent(new Event(voiceSamplesChangedEvent));
     } catch {
       setError(
         "Could not save the voice example. Generate a new example and try again.",
@@ -564,6 +595,11 @@ export function BaseVoiceSelector({
           <p className="muted">
             {t(
               "Generated examples are temporary. Listen and compare them, then use the save button to replace the saved example for this voice and model.",
+            )}
+          </p>
+          <p className="muted">
+            {t(
+              "Only one temporary example is kept across all voices and models.",
             )}
           </p>
           <p className="muted">
