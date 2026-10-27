@@ -955,3 +955,82 @@ test("active editor polls stay compact and observe callbacks committed during in
     sqlite.close();
   }
 });
+
+test("editing cleanup persists approvals and final audio and fences concurrent changes", async () => {
+  const { sqlite, database, project } = fixture();
+  try {
+    project.settings.voiceDefaultsVersion = 1;
+    project.settings.inheritBaseVoice = false;
+    project.status = "done";
+    project.chapters["1"] = { file: "65-jude-1.mp3", revision: "final" };
+    project.recordings["1:1"] = {
+      file: "jude/1-1-old/intro.wav",
+      revision: "old",
+      duration: 2,
+    };
+    project.settings.trims["1:1"] = { startSeconds: 0.1, endSeconds: 1.8 };
+    project.settings.approvals = {
+      "1:1": audioVerseApproval(project, project.settings, "1:1")!,
+    };
+    await insertAudioProjects(database, [project]);
+    await assert.rejects(
+      beginAudioJob(
+        database,
+        project.edition,
+        project.book,
+        "production",
+        undefined,
+        project.revision + 1,
+      ),
+      /changed/,
+    );
+    const job = await beginAudioJob(
+      database,
+      project.edition,
+      project.book,
+      "production",
+      undefined,
+      project.revision,
+    );
+    await assert.rejects(
+      saveAudioProject(database, project.edition, project.book, {
+        revision: job.project.revision,
+        settings: job.project.settings,
+      }),
+      /Wait/,
+    );
+    const cleaned: AudioProject = structuredClone(job.project);
+    cleaned.status = "done";
+    cleaned.recordings = {};
+    cleaned.settings.trims = {};
+    cleaned.settings.approvals!["1:1"].editingFilesRemoved = true;
+    assert.equal(
+      (
+        await applyAudioEvent(database, job.id, job.jobId, {
+          sequence: 1,
+          project: cleaned,
+        })
+      ).applied,
+      true,
+    );
+    const stored = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.deepEqual(stored.recordings, {});
+    assert.deepEqual(stored.chapters, project.chapters);
+    assert.equal(isAudioVerseApproved(stored, stored.settings, "1:1"), true);
+    const saved = await saveAudioProject(
+      database,
+      project.edition,
+      project.book,
+      {
+        revision: stored.revision,
+        settings: stored.settings,
+      },
+    );
+    assert.deepEqual(saved.chapters, project.chapters);
+    assert.equal(isAudioVerseApproved(saved, saved.settings, "1:1"), true);
+  } finally {
+    sqlite.close();
+  }
+});

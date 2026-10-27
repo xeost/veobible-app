@@ -5,7 +5,10 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
 import { adaptNarrationText } from "./narration-text-adaptations.js";
-import { audioMixSettingsChanged } from "./audio-approvals.js";
+import {
+  audioMixSettingsChanged,
+  isAudioVerseApproved,
+} from "./audio-approvals.js";
 import { sharedAudioDirectory } from "./working-directories.js";
 import { availableBibleBooks } from "./bible-versions.js";
 import { readBibleDataFile } from "./bible-data.js";
@@ -417,6 +420,72 @@ export class AudioProjects {
     if (!asset) throw new AudioProjectError("Audio is not ready yet.", 404);
     return safeFile(verse ? internal : output, asset.file);
   }
+  async cleanChapterEditingFiles(
+    edition: string,
+    book: string,
+    chapter: number,
+  ) {
+    const id = key(edition, book);
+    if (this.pending.has(id))
+      throw new AudioProjectError("Wait for audio generation to finish.");
+    this.pending.add(id);
+    try {
+      const project = await this.read(edition, book);
+      if (
+        !Number.isInteger(chapter) ||
+        chapter < 1 ||
+        chapter > project.chapterCount
+      )
+        throw new AudioProjectError("Verse not found.", 400);
+      const { internal, output } = await this.owned(edition);
+      const finalFile = project.chapters[String(chapter)]?.file;
+      const finalStat = finalFile
+        ? await fs.lstat(await safeFile(output, finalFile)).catch((error) => {
+            if (missing(error)) return undefined;
+            throw error;
+          })
+        : undefined;
+      if (!finalStat?.isFile() || finalStat.size === 0)
+        throw new AudioProjectError(
+          "The final chapter audio is missing. Create it before cleaning editing files.",
+        );
+      const bookDirectory = await safeFile(internal, book);
+      const entries = await fs
+        .readdir(bookDirectory, { withFileTypes: true })
+        .catch((error) => {
+          if (missing(error)) return [];
+          throw error;
+        });
+      const directories: string[] = [];
+      const chapterDirectory = new RegExp(`^${chapter}-[1-9]\\d*-`);
+      for (const entry of entries) {
+        if (!chapterDirectory.test(entry.name)) continue;
+        // Validate every target before deleting anything; never follow links.
+        const directory = await safeFile(internal, `${book}/${entry.name}`);
+        if (entry.isDirectory()) directories.push(directory);
+      }
+      for (const directory of directories)
+        await fs.rm(directory, { recursive: true, force: true });
+      for (let verse = 1; verse <= project.verseCounts[chapter - 1]; verse++) {
+        const reference = `${chapter}:${verse}`;
+        if (!isAudioVerseApproved(project, project.settings, reference))
+          delete project.settings.approvals?.[reference];
+        else project.settings.approvals![reference].editingFilesRemoved = true;
+        delete project.recordings[reference];
+        delete project.settings.trims[reference];
+      }
+      project.status =
+        Object.keys(project.chapters).length === project.chapterCount
+          ? "done"
+          : "draft";
+      project.progress = 100;
+      project.revision++;
+      await this.write(project);
+      return project;
+    } finally {
+      this.pending.delete(id);
+    }
+  }
   /** Browser grants authorize audio within one book, without a hydrated DB snapshot. */
   async browserMediaScope(
     edition: string,
@@ -588,65 +657,76 @@ export class AudioProjects {
         project.settings.trims[ref] = trim;
         delete project.chapters[String(verse.chapter)];
       }
+      let generatedDirectory: string | undefined;
       if (needsGeneration) {
         const speechText = input.textOverride ?? verse.text;
         const revision = randomUUID();
         const relative = `${project.book}/${verse.chapter}-${verse.verse}-${revision}`;
         const directory = await safeFile(internal, relative);
         await fs.mkdir(directory, { recursive: true });
-        const task = { chapter: verse.chapter, verse: verse.verse };
-        taskReporter?.(task, "running", 0);
-        await dependencies.synthesize(
-          directory,
-          speechText,
-          project,
-          input,
-          (progress) =>
-            taskReporter?.(task, "running", Math.min(70, progress * 0.7)),
-        );
-        const wav = path.join(directory, "intro.wav");
-        const duration = await dependencies.duration(wav);
-        if (!Number.isFinite(duration) || duration <= 0.02)
-          throw new Error("Invalid generated audio duration");
-        // Publish the new recording only once its exact transcript is aligned.
-        // A failed regeneration must preserve the previous recording and trim.
-        const trim = validatedAudioTrim(
-          await dependencies.align(
-            wav,
-            duration,
-            adaptNarrationText(
-              speechText,
-              project.version.locale,
-              input.voiceTextAdaptations,
-            ),
-            project.version.locale,
+        try {
+          const task = { chapter: verse.chapter, verse: verse.verse };
+          taskReporter?.(task, "running", 0);
+          await dependencies.synthesize(
+            directory,
+            speechText,
+            project,
+            input,
             (progress) =>
-              taskReporter?.(
-                task,
-                "running",
-                Math.min(99, 70 + progress * 0.3),
+              taskReporter?.(task, "running", Math.min(70, progress * 0.7)),
+          );
+          const wav = path.join(directory, "verse.wav");
+          const duration = await dependencies.duration(wav);
+          if (!Number.isFinite(duration) || duration <= 0.02)
+            throw new Error("Invalid generated audio duration");
+          // Publish the new recording only once its exact transcript is aligned.
+          // A failed regeneration must preserve the previous recording and trim.
+          const trim = validatedAudioTrim(
+            await dependencies.align(
+              wav,
+              duration,
+              adaptNarrationText(
+                speechText,
+                project.version.locale,
+                input.voiceTextAdaptations,
               ),
-          ),
-          duration,
-        );
-        project.recordings[ref] = {
-          file: `${relative}/intro.wav`,
-          duration,
-          revision,
-          synthesis: {
-            model: input.voiceModel,
-            decoder:
-              input.voiceDecoder ??
-              (input.voiceModel === "latam"
-                ? "general"
-                : input.voiceModel === "pt-br"
-                  ? "v3"
-                  : undefined),
-            parameters: input.voiceParameters,
-          },
-        };
-        project.settings.trims[ref] = trim;
-        delete project.chapters[String(verse.chapter)];
+              project.version.locale,
+              (progress) =>
+                taskReporter?.(
+                  task,
+                  "running",
+                  Math.min(99, 70 + progress * 0.3),
+                ),
+            ),
+            duration,
+          );
+          await fs.writeFile(
+            path.join(directory, "verse.txt"),
+            verse.text.trim() + "\n",
+          );
+          project.recordings[ref] = {
+            file: `${relative}/verse.wav`,
+            duration,
+            revision,
+            synthesis: {
+              model: input.voiceModel,
+              decoder:
+                input.voiceDecoder ??
+                (input.voiceModel === "latam"
+                  ? "general"
+                  : input.voiceModel === "pt-br"
+                    ? "v3"
+                    : undefined),
+              parameters: input.voiceParameters,
+            },
+          };
+          project.settings.trims[ref] = trim;
+          delete project.chapters[String(verse.chapter)];
+          generatedDirectory = relative;
+        } catch (error) {
+          await fs.rm(directory, { recursive: true, force: true });
+          throw error;
+        }
       }
       project.progress = Math.round(
         ((index + 1) / verses.length) *
@@ -654,6 +734,23 @@ export class AudioProjects {
       );
       project.revision++;
       await this.write(project);
+      if (generatedDirectory) {
+        // Persist the replacement before removing earlier revisions, including
+        // folders left behind by older workers or interrupted attempts.
+        const bookDirectory = await safeFile(internal, project.book);
+        const prefix = `${verse.chapter}-${verse.verse}-`;
+        for (const entry of await fs.readdir(bookDirectory, {
+          withFileTypes: true,
+        })) {
+          if (!entry.isDirectory() || !entry.name.startsWith(prefix)) continue;
+          const relative = `${project.book}/${entry.name}`;
+          if (relative === generatedDirectory) continue;
+          await fs.rm(await safeFile(internal, relative), {
+            recursive: true,
+            force: true,
+          });
+        }
+      }
       if (needsGeneration || input.alignOnly)
         taskReporter?.(
           { chapter: verse.chapter, verse: verse.verse },
@@ -847,10 +944,7 @@ const productionDependencies: AudioGenerationDependencies = {
   },
   synthesize: async (directory, text, project, input, onProgress) => {
     // Adapted pronunciation text is a one-off request, never a saved transcript.
-    const staging =
-      input.textOverride === undefined
-        ? directory
-        : await fs.mkdtemp(path.join(directory, ".speech-"));
+    const staging = await fs.mkdtemp(path.join(directory, ".speech-"));
     try {
       await generateVoice(
         staging,
@@ -875,14 +969,12 @@ const productionDependencies: AudioGenerationDependencies = {
         "intro",
         onProgress,
       );
-      if (staging !== directory)
-        await fs.rename(
-          path.join(staging, "intro.wav"),
-          path.join(directory, "intro.wav"),
-        );
+      await fs.rename(
+        path.join(staging, "intro.wav"),
+        path.join(directory, "verse.wav"),
+      );
     } finally {
-      if (staging !== directory)
-        await fs.rm(staging, { recursive: true, force: true });
+      await fs.rm(staging, { recursive: true, force: true });
     }
   },
   duration: async (file) =>

@@ -41,7 +41,11 @@ export const audioSettingsSchema = z.object({
   approvals: z
     .record(
       z.string().regex(/^\d+:\d+$/),
-      z.object({ recordingRevision: z.string(), trim: audioTrimSchema }),
+      z.object({
+        recordingRevision: z.string(),
+        trim: audioTrimSchema,
+        editingFilesRemoved: z.boolean().optional(),
+      }),
     )
     .optional(),
   pauses: z

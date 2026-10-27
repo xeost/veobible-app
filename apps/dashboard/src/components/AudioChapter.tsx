@@ -10,7 +10,7 @@ import {
   AudioLines,
   ChevronDown,
   ChevronRight,
-  Download,
+  Trash2,
   Combine,
   UnfoldHorizontal,
   WandSparkles,
@@ -28,6 +28,7 @@ import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
 import { VersePronunciationEditor } from "./VersePronunciationEditor";
 import { OriginalVerseAudio } from "./OriginalVerseAudio";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { audioWaveformResourceKey } from "../lib/audio-editor-preparation";
 import { loadAudioWaveform } from "../lib/audio-waveform";
 import {
@@ -54,6 +55,7 @@ export function AudioChapter({
   selectedVerse,
   onSelectVerse,
   onPrepared,
+  cleanEditingFiles,
 }: {
   chapter: AudioProjectDetail["content"][number];
   project: AudioProjectDetail;
@@ -80,6 +82,7 @@ export function AudioChapter({
   selectedVerse?: number;
   onSelectVerse: (verse: number) => void;
   onPrepared: (key: string, success: boolean) => void;
+  cleanEditingFiles: (chapter: number) => Promise<boolean>;
 }) {
   const { t } = useI18n();
   const activeTask =
@@ -152,7 +155,31 @@ export function AudioChapter({
   const generationLocked =
     submitting ||
     tasks.some((task) => !task.verse || task.verse === verse.verse);
-  const final = project.chapters[String(chapter.chapter)];
+  const finalCandidate = project.chapters[String(chapter.chapter)];
+  const finalUrl = finalCandidate
+    ? media(chapter.chapter, undefined, finalCandidate.revision)
+    : undefined;
+  const [availableFinalUrl, setAvailableFinalUrl] = useState<string>();
+  const [confirmCleanup, setConfirmCleanup] = useState(false);
+  useEffect(() => {
+    if (!finalUrl) return;
+    const controller = new AbortController();
+    void fetch(finalUrl, {
+      method: "HEAD",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!controller.signal.aborted)
+          setAvailableFinalUrl(response.ok ? finalUrl : undefined);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAvailableFinalUrl(undefined);
+      });
+    return () => controller.abort();
+  }, [finalUrl]);
+  const final =
+    finalUrl && availableFinalUrl === finalUrl ? finalCandidate : undefined;
   const title = `${t("Chapter")} ${chapter.chapter}`;
   const picker = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLDivElement>(null);
@@ -307,6 +334,14 @@ export function AudioChapter({
                 .replace("{total}", String(chapter.verses.length))
                 .replace("{generated}", String(completed))
                 .replace("{approved}", String(approvedCount))}
+              {final && (
+                <>
+                  {" · "}
+                  <span className="audio-final-generated">
+                    {t("Final audio generated")}
+                  </span>
+                </>
+              )}
             </small>
           </span>
         </button>
@@ -381,14 +416,16 @@ export function AudioChapter({
         {final && (
           <>
             <span className="section-action-separator" aria-hidden="true" />
-            <a
+            <button
+              type="button"
               className="icon-button section-action-button"
-              href={`${media(chapter.chapter, undefined, final.revision)}&download=1`}
-              aria-label={`${t("Download chapter audio")} ${chapter.chapter}`}
-              data-tooltip={t("Download chapter audio")}
+              disabled={locked}
+              onClick={() => setConfirmCleanup(true)}
+              aria-label={`${t("Clean editing audio files")} · ${title}`}
+              data-tooltip={t("Clean editing audio files")}
             >
-              <Download size={17} aria-hidden="true" />
-            </a>
+              <Trash2 size={17} aria-hidden="true" />
+            </button>
           </>
         )}
         <button
@@ -590,6 +627,31 @@ export function AudioChapter({
             />
           )}
         </div>
+      )}
+      {confirmCleanup && (
+        <ConfirmDialog
+          title={`${t("Clean editing audio files")} · ${title}`}
+          confirmLabel={t("Delete editing files")}
+          destructive
+          busy={submitting}
+          close={() => setConfirmCleanup(false)}
+          onConfirm={() => {
+            void cleanEditingFiles(chapter.chapter).then((cleaned) => {
+              if (cleaned) setConfirmCleanup(false);
+            });
+          }}
+        >
+          <p>
+            {t(
+              "This will permanently delete all individual verse recordings, their text files, previous recording folders and saved verse cuts for this chapter to free disk space.",
+            )}
+          </p>
+          <p>
+            {t(
+              "The final chapter audio and existing verse approvals will be kept. To edit verse audio or cuts again, you will need to generate the verse voices again.",
+            )}
+          </p>
+        </ConfirmDialog>
       )}
     </section>
   );

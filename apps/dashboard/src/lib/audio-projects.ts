@@ -293,6 +293,7 @@ export async function beginAudioJob(
   book: string,
   environment: AudioProject["outputEnvironment"] = "production",
   versePauseSeconds?: number,
+  expectedRevision?: number,
 ) {
   const { row, project } = await findAudioProject(
     database,
@@ -308,6 +309,10 @@ export async function beginAudioJob(
           project.verseCounts,
           versePauseSeconds,
         );
+  if (expectedRevision !== undefined && project.revision !== expectedRevision)
+    throw new AudioDatabaseError(
+      "This audio project changed. Reload it before saving.",
+    );
   const jobId = crypto.randomUUID(),
     token = crypto.randomUUID() + crypto.randomUUID();
   const result = await database

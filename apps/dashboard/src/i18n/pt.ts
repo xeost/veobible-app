@@ -1,4 +1,17 @@
 export const portuguese: Record<string, string> = {
+  "Final audio generated": "Áudio final gerado",
+  "Clean editing audio files": "Limpar os arquivos de áudio de edição",
+  "Delete editing files": "Excluir arquivos de edição",
+  "This will permanently delete all individual verse recordings, their text files, previous recording folders and saved verse cuts for this chapter to free disk space.":
+    "Todas as gravações individuais dos versículos, seus arquivos de texto, as pastas de gravações anteriores e os cortes salvos deste capítulo serão excluídos permanentemente para liberar espaço em disco.",
+  "The final chapter audio and existing verse approvals will be kept. To edit verse audio or cuts again, you will need to generate the verse voices again.":
+    "O áudio final do capítulo e as aprovações dos versículos serão mantidos. Para voltar a editar o áudio dos versículos ou seus cortes, será necessário gerar as vozes novamente.",
+  "Editing audio files deleted. The final chapter audio and verse approvals were kept.":
+    "Arquivos de áudio de edição excluídos. O áudio final do capítulo e as aprovações dos versículos foram mantidos.",
+  "Could not clean editing audio files. Check that the final chapter audio is available and try again.":
+    "Não foi possível limpar os arquivos de áudio de edição. Verifique se o áudio final do capítulo está disponível e tente novamente.",
+  "The final chapter audio is missing. Create it before cleaning editing files.":
+    "O áudio final do capítulo não está disponível. Gere-o antes de limpar os arquivos de edição.",
   "Shared files are in use. Choose another model in settings before removing them.":
     "Há arquivos compartilhados em uso. Escolha outro modelo nas configurações antes de removê-los.",
   "Removing weights deletes the entire shared download, including older copies. Download each affected model again before using it.":

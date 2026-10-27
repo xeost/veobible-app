@@ -101,6 +101,7 @@ const arg=k=>process.argv[process.argv.indexOf(k)+1];
 await new Promise(resolve=>setTimeout(resolve,800));
 await fs.appendFile(process.env.AUDIO_TEST_LOG,await fs.readFile(arg('--scripts'),'utf8')+'\\n');
 await fs.writeFile(path.join(arg('--output-dir'),'intro.txt'), JSON.parse(await fs.readFile(arg('--scripts'),'utf8')).intro);
+await fs.writeFile(process.env.AUDIO_TEST_LOG + '.transcript', JSON.parse(await fs.readFile(arg('--scripts'),'utf8')).intro);
 await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavfi','-i','sine=frequency=440:duration=0.2',path.join(arg('--output-dir'),'intro.wav')]);`,
       );
       const start = async () => {
@@ -116,7 +117,6 @@ await promisify(execFile)(process.env.AUDIO_TEST_FFMPEG,['-v','error','-f','lavf
             VIDEO_LONG_TTS_PYTHON: process.execPath,
             AUDIO_TEST_LOG: path.join(root, "calls.log"),
             AUDIO_TEST_FFMPEG: config.ffmpegBin,
-            AUDIO_TEST_OVERRIDE: "Rrosa corrre rrápido.",
             VIDEO_ALIGNER_PYTHON: process.execPath,
             VIDEO_ALIGNER_SCRIPT: path.join(root, "align.mjs"),
           },
@@ -150,7 +150,7 @@ if (request.language !== 'es' || request.detectHeadings !== false) throw new Err
 const chapter = request.chapters[0];
 const text = await fs.readFile(chapter.audio.slice(0, -4) + '.txt', 'utf8').catch(error => {
   if (error.code !== 'ENOENT') throw error;
-  return process.env.AUDIO_TEST_OVERRIDE;
+  return fs.readFile(process.env.AUDIO_TEST_LOG + '.transcript', 'utf8');
 });
 if (chapter.segments.length !== 1 || chapter.segments[0].text.trim() !== text.trim()) throw new Error('Wrong verse transcript');
 await fs.appendFile(process.env.AUDIO_TEST_LOG + '.alignment', chapter.audio + '\\n');
@@ -367,7 +367,7 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
         2,
       );
       assert.equal(new Set(multiple.items.map((item: any) => item.id)).size, 2);
-      let state;
+      let state!: AudioProject;
       for (let attempt = 0; attempt < 150; attempt++) {
         state = await (
           await fetch(project, {
@@ -593,7 +593,95 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
             ),
           ),
         ),
-        ["intro.wav"],
+        ["verse.txt", "verse.wav"],
+      );
+      state.chapters = { "1": { file: "65-jude-1.mp3", revision: "final" } };
+      state.status = "done";
+      state.settings.approvals = Object.fromEntries(
+        Object.entries(state.recordings).map(
+          ([ref, recording]: [string, any]) => [
+            ref,
+            {
+              recordingRevision: recording.revision,
+              trim: state.settings.trims[ref],
+            },
+          ],
+        ),
+      );
+      const cleanBody = () =>
+        JSON.stringify({
+          outputEnvironment: "production",
+          project: state,
+          chapter: 1,
+        });
+      const missingFinal = await fetch(`${project}/clean-editing-files`, {
+        method: "POST",
+        headers,
+        body: cleanBody(),
+      });
+      assert.equal(missingFinal.status, 409, await missingFinal.text());
+      const finalFile = path.join(
+        root,
+        "material/audios/rv1909-v2/65-jude-1.mp3",
+      );
+      await fs.copyFile(path.join(voice, "es-1.mp3"), finalFile);
+      const finalBytes = await fs.readFile(finalFile);
+      const cleanedResponse = await fetch(`${project}/clean-editing-files`, {
+        method: "POST",
+        headers,
+        body: cleanBody(),
+      });
+      assert.equal(
+        cleanedResponse.status,
+        200,
+        await cleanedResponse.clone().text(),
+      );
+      const cleaned = await cleanedResponse.json();
+      assert.equal(cleaned.sequence, 1);
+      assert.deepEqual(cleaned.project.recordings, {});
+      assert.deepEqual(cleaned.project.settings.trims, {});
+      assert.deepEqual(cleaned.project.chapters, state.chapters);
+      assert.equal(
+        cleaned.project.settings.approvals["1:1"].editingFilesRemoved,
+        true,
+      );
+      assert.equal(
+        cleaned.project.settings.approvals["1:2"].editingFilesRemoved,
+        true,
+      );
+      assert.deepEqual(
+        await fs.readdir(
+          path.join(root, "material/audios/rv1909-v2_internal/jude"),
+        ),
+        [],
+      );
+      const head = await fetch(
+        `${project}/media?outputEnvironment=production&order=65&chapterCount=1&chapter=1&file=65-jude-1.mp3`,
+        {
+          method: "HEAD",
+          headers,
+        },
+      );
+      assert.equal(head.status, 200);
+      assert.equal(
+        Number(head.headers.get("content-length")),
+        finalBytes.length,
+      );
+      // A cold worker can play the final chapter with no editing recordings.
+      await stop();
+      await start();
+      const finalPlayback = await fetch(`${project}/media?chapter=1`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          outputEnvironment: "production",
+          project: cleaned.project,
+        }),
+      });
+      assert.equal(finalPlayback.status, 200);
+      assert.deepEqual(
+        Buffer.from(await finalPlayback.arrayBuffer()),
+        finalBytes,
       );
       await stop();
     } finally {

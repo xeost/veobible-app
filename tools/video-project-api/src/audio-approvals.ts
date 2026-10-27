@@ -25,6 +25,8 @@ export function isAudioVerseApproved(
 ) {
   const current = audioVerseApproval(project, settings, reference);
   const approved = settings.approvals?.[reference];
+  if (!project.recordings[reference])
+    return Boolean(approved?.editingFilesRemoved);
   return Boolean(
     current &&
     approved &&

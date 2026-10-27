@@ -302,6 +302,47 @@ export async function audioApi(
       jobId: row.active_job_id,
       sequence: row.job_sequence,
     };
+    if (parts[3] === "clean-editing-files" && req.method === "POST") {
+      const input = z
+        .object({
+          chapter: z.number().int().positive().max(project.chapterCount),
+          revision: z.number().int().nonnegative(),
+        })
+        .parse(await req.json());
+      const job = await beginAudioJob(
+        database,
+        edition,
+        book,
+        outputEnvironment,
+        undefined,
+        input.revision,
+      );
+      try {
+        const response = await forward(`${endpoint}/clean-editing-files`, {
+          project: job.project,
+          jobId: job.jobId,
+          sequence: 0,
+          chapter: input.chapter,
+        });
+        if (!response.ok) {
+          await failAudioJob(database, job.id, job.jobId);
+          return relay(response);
+        }
+        await applyAudioEvent(
+          database,
+          job.id,
+          job.jobId,
+          await response.json(),
+        );
+        return json(
+          (await findAudioProject(database, edition, book, outputEnvironment))
+            .project,
+        );
+      } catch (error) {
+        await failAudioJob(database, job.id, job.jobId);
+        throw error;
+      }
+    }
     if (parts.length === 3 && req.method === "PUT")
       return json(
         await saveAudioProject(

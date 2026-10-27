@@ -361,6 +361,18 @@ export async function audioProjectHttp(
             : {}),
           sequence: session?.sequence ?? 0,
         });
+      } else if (parts[2] === "clean-editing-files") {
+        const { chapter } = z
+          .object({ chapter: z.number().int().positive() })
+          .parse(raw);
+        const project = await projects.cleanChapterEditingFiles(
+          edition,
+          book,
+          chapter,
+        );
+        const session = sessions.get(id);
+        if (session) session.sequence++;
+        json({ project, sequence: session?.sequence ?? 1 });
       } else if (parts[2] === "generate") {
         const generation = z
           .object({

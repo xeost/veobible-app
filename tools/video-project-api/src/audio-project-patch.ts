@@ -41,6 +41,7 @@ export const audioPatchEventSchema = z.object({
                 .object({
                   recordingRevision: z.string(),
                   trim: audioTrimSchema,
+                  editingFilesRemoved: z.boolean().optional(),
                 })
                 .nullable(),
             )

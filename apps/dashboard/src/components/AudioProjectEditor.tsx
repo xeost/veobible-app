@@ -353,7 +353,9 @@ export function AudioProjectEditor({
         settings: nextSettings,
       }),
     });
-    setProject({ ...project, ...saved });
+    const updated = { ...project, ...saved };
+    projectRef.current = updated;
+    setProject(updated);
     setSettings(saved.settings);
     setDirty(false);
     dirtyRef.current = false;
@@ -432,6 +434,45 @@ export function AudioProjectEditor({
     return access && asset
       ? audioMediaUrl(access, chapter, verse, revision, asset.file)
       : `/api/${endpoint}/media?chapter=${chapter}${verse ? `&verse=${verse}` : ""}&revision=${encodeURIComponent(revision)}`;
+  };
+  const cleanEditingFiles = async (chapter: number) => {
+    if (!project || busyRef.current || pendingRef.current) return false;
+    setBusy(true);
+    busyRef.current = true;
+    Object.values(players.current).forEach((player) => player.pause());
+    try {
+      if (dirtyRef.current) await save();
+      const cleaned = await api<AudioProjectDetail>(
+        `${endpoint}/clean-editing-files`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            chapter,
+            revision: projectRef.current!.revision,
+          }),
+        },
+      );
+      const updated = { ...projectRef.current!, ...cleaned };
+      projectRef.current = updated;
+      setProject(updated);
+      setSettings(updated.settings);
+      setDirty(false);
+      dirtyRef.current = false;
+      notify(
+        "Editing audio files deleted. The final chapter audio and verse approvals were kept.",
+        "success",
+      );
+      return true;
+    } catch {
+      notify(
+        "Could not clean editing audio files. Check that the final chapter audio is available and try again.",
+        "error",
+      );
+      return false;
+    } finally {
+      setBusy(false);
+      busyRef.current = false;
+    }
   };
   if (!project || !settings)
     return (
@@ -619,6 +660,7 @@ export function AudioProjectEditor({
                 }
                 change={change}
                 generate={generate}
+                cleanEditingFiles={cleanEditingFiles}
                 onToggleApproval={toggleApproval}
                 media={media}
                 originalMedia={(chapter, revision) =>

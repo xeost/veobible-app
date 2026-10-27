@@ -41,7 +41,7 @@ function generation(failAt = Infinity) {
   const dependencies: AudioGenerationDependencies = {
     synthesize: async (directory, text) => {
       if (++count === failAt) throw new Error("test interruption");
-      await fs.writeFile(path.join(directory, "intro.wav"), text);
+      await fs.writeFile(path.join(directory, "verse.wav"), text);
     },
     duration: async () => 2,
     align: async () => ({ startSeconds: 0.17, endSeconds: 1.65 }),
@@ -292,6 +292,11 @@ test("generation resumes failures, preserves verses, saves trims and assembles c
       /:0.2:0.8/,
     );
     const before = await projects.read("rv1909-v2", "jude");
+    const bookDirectory = path.join(root, "rv1909-v2_internal", "jude");
+    const legacyDirectory = path.join(bookDirectory, "1-1-legacy");
+    await fs.mkdir(legacyDirectory);
+    await fs.writeFile(path.join(legacyDirectory, "intro.wav"), "legacy audio");
+    await fs.writeFile(path.join(legacyDirectory, "intro.txt"), "legacy text");
     await projects.queue(
       "rv1909-v2",
       "jude",
@@ -304,6 +309,33 @@ test("generation resumes failures, preserves verses, saves trims and assembles c
     await run();
     const after = await projects.read("rv1909-v2", "jude");
     assert.notEqual(after.recordings["1:1"].revision, first.revision);
+    const currentDirectory = path.dirname(
+      path.join(root, "rv1909-v2_internal", after.recordings["1:1"].file),
+    );
+    assert.equal(path.basename(after.recordings["1:1"].file), "verse.wav");
+    assert.deepEqual((await fs.readdir(currentDirectory)).sort(), [
+      "verse.txt",
+      "verse.wav",
+    ]);
+    assert.equal(
+      await fs.readFile(path.join(currentDirectory, "verse.txt"), "utf8"),
+      failed.content[0].verses[0].text.trim() + "\n",
+    );
+    assert.deepEqual(
+      (await fs.readdir(bookDirectory)).filter((name) =>
+        name.startsWith("1-1-"),
+      ),
+      [path.basename(currentDirectory)],
+    );
+    // The prefix for verse 1 must not remove verse 10 or any neighboring verse.
+    for (const [ref, recording] of Object.entries(before.recordings)) {
+      if (ref !== "1:1")
+        await fs.access(path.join(root, "rv1909-v2_internal", recording.file));
+    }
+    await assert.rejects(
+      fs.stat(path.join(root, "rv1909-v2_internal", first.file)),
+      { code: "ENOENT" },
+    );
     assert.deepEqual(after.settings.trims["1:1"], {
       startSeconds: 0.17,
       endSeconds: 1.65,
@@ -673,7 +705,30 @@ for (const environment of ["production", "development"] as const) {
             dependencies,
           );
           await run();
-          return projects.detail("rv1909-v2", "jude");
+          const result = await projects.detail("rv1909-v2", "jude");
+          const bookDirectory = path.join(
+            projects.root,
+            "rv1909-v2_internal",
+            "jude",
+          );
+          const folders = (await fs.readdir(bookDirectory)).filter((name) =>
+            name.startsWith("1-1-"),
+          );
+          assert.deepEqual(
+            folders,
+            result.recordings["1:1"]
+              ? [path.basename(path.dirname(result.recordings["1:1"].file))]
+              : [],
+          );
+          if (result.recordings["1:1"])
+            await fs.access(
+              path.join(
+                projects.root,
+                "rv1909-v2_internal",
+                result.recordings["1:1"].file,
+              ),
+            );
+          return result;
         };
         fail = true;
         const firstFailure = await queue();
@@ -1158,3 +1213,134 @@ test("pronunciation adaptations affect one synthesis and alignment without chang
     await clean();
   }
 });
+
+for (const environment of ["production", "development"] as const) {
+  test(`${environment}: cleaning chapter editing files preserves final audio, approvals and neighboring chapters`, async () => {
+    const { root, clean } = await fixture();
+    const projects = new AudioProjects(root, environment);
+    try {
+      await projects.create(version, "rv1909-v2");
+      const generated = generation();
+      let run!: () => Promise<void>;
+      await projects.queue(
+        "rv1909-v2",
+        "genesis",
+        { chapter: 1 },
+        (task) => {
+          run = task;
+        },
+        generated.dependencies,
+      );
+      await assert.rejects(
+        projects.cleanChapterEditingFiles("rv1909-v2", "genesis", 1),
+        /Wait/,
+      );
+      await run();
+      const before = await projects.read("rv1909-v2", "genesis");
+      const approvals = Object.fromEntries(
+        Object.keys(before.recordings).map((ref) => [
+          ref,
+          audioVerseApproval(before, before.settings, ref)!,
+        ]),
+      );
+      const approved = await projects.save("rv1909-v2", "genesis", {
+        revision: before.revision,
+        settings: { ...before.settings, approvals },
+      });
+      const internal = path.join(projects.root, "rv1909-v2_internal");
+      const bookDirectory = path.join(internal, "genesis");
+      const stale = path.join(bookDirectory, "1-1-legacy");
+      await fs.mkdir(stale);
+      await fs.writeFile(path.join(stale, "intro.wav"), "old voice");
+      for (const relative of [
+        "genesis/2-1-neighbor",
+        "genesis/10-1-neighbor",
+        "jude/1-1-neighbor",
+      ]) {
+        await fs.mkdir(path.join(internal, relative), { recursive: true });
+        await fs.writeFile(path.join(internal, relative, "verse.wav"), "keep");
+      }
+      const finalFile = await projects.media("rv1909-v2", "genesis", 1);
+      const finalBytes = await fs.readFile(finalFile);
+      await fs.rename(finalFile, `${finalFile}.saved`);
+      await assert.rejects(
+        projects.cleanChapterEditingFiles("rv1909-v2", "genesis", 1),
+        /final chapter audio is missing/,
+      );
+      assert.deepEqual(
+        (await projects.read("rv1909-v2", "genesis")).recordings,
+        approved.recordings,
+      );
+      await fs.rename(`${finalFile}.saved`, finalFile);
+      const linked = path.join(bookDirectory, "1-2-linked");
+      await fs.symlink(path.join(root, "rv1909"), linked);
+      await assert.rejects(
+        projects.cleanChapterEditingFiles("rv1909-v2", "genesis", 1),
+        /Linked/,
+      );
+      await fs.unlink(linked);
+      const cleaned = await projects.cleanChapterEditingFiles(
+        "rv1909-v2",
+        "genesis",
+        1,
+      );
+      assert.deepEqual(cleaned.recordings, {});
+      assert.deepEqual(cleaned.settings.trims, {});
+      assert.deepEqual(cleaned.chapters, before.chapters);
+      assert.deepEqual(await fs.readFile(finalFile), finalBytes);
+      assert.equal(
+        (await fs.readdir(bookDirectory)).some((name) => name.startsWith("1-")),
+        false,
+      );
+      for (const ref of Object.keys(approvals))
+        assert.equal(
+          isAudioVerseApproved(cleaned, cleaned.settings, ref),
+          true,
+        );
+      for (const relative of [
+        "genesis/2-1-neighbor",
+        "genesis/10-1-neighbor",
+        "jude/1-1-neighbor",
+      ])
+        assert.equal(
+          await fs.readFile(path.join(internal, relative, "verse.wav"), "utf8"),
+          "keep",
+        );
+      const repeated = await projects.cleanChapterEditingFiles(
+        "rv1909-v2",
+        "genesis",
+        1,
+      );
+      await projects.save("rv1909-v2", "genesis", {
+        revision: repeated.revision,
+        settings: repeated.settings,
+      });
+      await projects.queue(
+        "rv1909-v2",
+        "genesis",
+        { chapter: 1, verse: 1 },
+        (task) => {
+          run = task;
+        },
+        generated.dependencies,
+      );
+      await run();
+      const regenerated = await projects.read("rv1909-v2", "genesis");
+      assert.equal(
+        isAudioVerseApproved(regenerated, regenerated.settings, "1:1"),
+        false,
+      );
+      assert.equal(
+        isAudioVerseApproved(regenerated, regenerated.settings, "1:2"),
+        true,
+      );
+      assert.equal(regenerated.chapters["1"], undefined);
+      assert.equal(
+        await fs.readFile(path.join(root, "rv1909", "original.mp3"), "utf8"),
+        "irreplaceable original",
+      );
+    } finally {
+      await clean();
+    }
+  });
+}
