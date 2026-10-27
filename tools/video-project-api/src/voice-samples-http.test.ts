@@ -213,10 +213,29 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
             voiceParameters,
           }),
         });
-      const settled = async (id: string) => {
+      const settled = async (id: string, save = true) => {
         for (let attempt = 0; attempt < 100; attempt++) {
           const voice = (await catalog()).find((item) => item.id === id);
-          if (!["queued", "running"].includes(voice.status)) return voice;
+          if (!["queued", "running"].includes(voice.status)) {
+            // Most existing assertions exercise saved samples; explicitly promote
+            // their previews so generation itself never replaces a saved file.
+            if (save) {
+              for (const sample of voice.samples) {
+                if (!sample.preview || sample.status !== "done") continue;
+                const saved = await fetch(`${base}/${id}/sample`, {
+                  method: "PUT",
+                  headers,
+                  body: JSON.stringify({
+                    model: sample.voiceModel,
+                    previewId: sample.preview.id,
+                  }),
+                });
+                assert.equal(saved.status, 200, await saved.text());
+              }
+              return (await catalog()).find((item) => item.id === id);
+            }
+            return voice;
+          }
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
         throw new Error("Sample generation timed out");
@@ -269,6 +288,23 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
       await fs.writeFile(
         path.join(directory, "calls.jsonl.release"),
         "release",
+      );
+      const firstPreview = await settled("es-2", false);
+      assert.equal(firstPreview.available, false);
+      const firstId = firstPreview.samples.find(
+        (sample: any) => sample.voiceModel === "latam",
+      ).preview.id;
+      assert.equal(
+        (await fetch(`${base}/es-2/sample?model=latam`, { headers })).status,
+        404,
+      );
+      assert.equal(
+        await (
+          await fetch(`${base}/es-2/sample?model=latam&preview=${firstId}`, {
+            headers,
+          })
+        ).text(),
+        "RIFF-generated-A literal {example}.",
       );
       assert.equal((await settled("es-2")).available, true);
       const audio = await (
@@ -591,6 +627,119 @@ await fs.writeFile(path.join(arg('--output-dir'),'intro.wav'),'RIFF-generated-'+
         "RIFF-generated-Example qwen3-base-1.7b.",
       );
 
+      // Auditioning new text leaves the permanent pair byte-for-byte intact.
+      const savedFile = path.join(
+        voices,
+        "samples/es-2-multilingual-v3-sample.wav",
+      );
+      const savedBytes = await fs.readFile(savedFile);
+      const savedMetadata = await fs.readFile(savedFile + ".json", "utf8");
+      assert.ok(savedMetadata.includes('\n  "voice"'));
+      await request("es-2", "Temporary audition.");
+      let audition = (await settled("es-2", false)).samples.find(
+        (sample: any) => sample.voiceModel === "multilingual-v3",
+      ).preview;
+      assert.deepEqual(await fs.readFile(savedFile), savedBytes);
+      assert.equal(
+        await fs.readFile(savedFile + ".json", "utf8"),
+        savedMetadata,
+      );
+      assert.equal(
+        await (
+          await fetch(
+            `${base}/es-2/sample?model=multilingual-v3&preview=${audition.id}`,
+            { headers },
+          )
+        ).text(),
+        "RIFF-generated-Temporary audition.",
+      );
+      const oldId = audition.id;
+      await request("es-2", "Second temporary audition.");
+      const duringGeneration = await fetch(`${base}/es-2/sample`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ model: "multilingual-v3", previewId: oldId }),
+      });
+      assert.equal(duringGeneration.status, 409);
+      audition = (await settled("es-2", false)).samples.find(
+        (sample: any) => sample.voiceModel === "multilingual-v3",
+      ).preview;
+      assert.notEqual(audition.id, oldId);
+      const staleSave = await fetch(`${base}/es-2/sample`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ model: "multilingual-v3", previewId: oldId }),
+      });
+      assert.equal(staleSave.status, 409);
+      assert.equal(
+        (
+          await fetch(
+            `${base}/es-2/sample?model=multilingual-v3&preview=${oldId}`,
+            { headers },
+          )
+        ).status,
+        404,
+      );
+      assert.deepEqual(await fs.readFile(savedFile), savedBytes);
+      assert.equal(
+        (await fs.readdir(path.join(voices, "samples"))).filter((name) =>
+          /^es-2-multilingual-v3-preview-.*\.wav$/.test(name),
+        ).length,
+        1,
+      );
+      // A failed audition retains both the saved sample and the last usable preview.
+      await request("es-2", "fail");
+      const failedAudition = (await settled("es-2", false)).samples.find(
+        (sample: any) => sample.voiceModel === "multilingual-v3",
+      );
+      assert.equal(failedAudition.status, "failed");
+      assert.equal(failedAudition.preview.id, audition.id);
+      assert.deepEqual(await fs.readFile(savedFile), savedBytes);
+      // Temporary samples survive service restarts but stay unpublished.
+      await stop();
+      await start();
+      const restarted = (await catalog())
+        .find((voice) => voice.id === "es-2")
+        .samples.find((sample: any) => sample.voiceModel === "multilingual-v3");
+      assert.equal(restarted.preview.id, audition.id);
+      assert.equal(restarted.text, "Regenerated example.");
+      const promoted = await fetch(`${base}/es-2/sample`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          model: "multilingual-v3",
+          previewId: audition.id,
+        }),
+      });
+      assert.equal(promoted.status, 200, await promoted.text());
+      assert.equal(
+        await fs.readFile(savedFile, "utf8"),
+        "RIFF-generated-Second temporary audition.",
+      );
+      const promotedMetadata = JSON.parse(
+        await fs.readFile(savedFile + ".json", "utf8"),
+      );
+      assert.equal(promotedMetadata.text, "Second temporary audition.");
+      assert.equal(promotedMetadata.previewId, undefined);
+      assert.equal(
+        (
+          await fetch(
+            `${base}/es-2/sample?model=multilingual-v3&preview=${audition.id}`,
+            { headers },
+          )
+        ).status,
+        404,
+      );
+      assert.equal(
+        await (
+          await fetch(`${base}/es-2/sample?model=latam`, { headers })
+        ).text(),
+        "RIFF-generated-A literal {example}.",
+      );
+      assert.equal(
+        await fs.readFile(path.join(voices, "es-2.mp3"), "utf8"),
+        "original-es-2.mp3",
+      );
       assert.equal((await request("es-99", "Missing.")).status, 500);
       assert.equal(
         (await request("en-1", "Invalid language model.", "latam")).status,

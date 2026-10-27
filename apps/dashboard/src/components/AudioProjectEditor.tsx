@@ -131,7 +131,8 @@ export function AudioProjectEditor({
       if (!selected) return;
       rememberAudioVerseSelection(edition, book, selected);
       const fragment = audioVerseFragment(selected);
-      if (window.location.hash !== fragment) {
+      // Remembered selections must not add a fragment to a URL opened without one.
+      if (window.location.hash && window.location.hash !== fragment) {
         window.history.replaceState(
           window.history.state,
           "",

@@ -9,10 +9,55 @@ import {
   resolveProjectBaseVoices,
   baseVoiceDefaultsSchema,
   resolveAudioBaseVoice,
+  baseVoiceCatalogSchema,
 } from "./base-voices";
 import { settingsSchema } from "./video-schema";
 import { settingsSchema as workerSettingsSchema } from "../../../../tools/video-project-api/src/protocol";
 import { audioSettingsSchema } from "../../../../tools/video-project-api/src/audio-project-schema";
+
+test("voice catalogue preserves temporary auditions without marking them as saved", () => {
+  const preview = {
+    id: "7d79a360-612a-44fa-9ddf-e697ae1cc42e",
+    text: "A temporary example.",
+    generatedAt: "2026-10-27T12:00:00.000Z",
+    available: true,
+  };
+  const sample = {
+    voiceModel: "multilingual-v3",
+    available: false,
+    text: null,
+    generatedAt: null,
+    status: "done",
+    progress: 100,
+    preview,
+  };
+  const parsed = baseVoiceCatalogSchema.parse({
+    voices: [
+      {
+        id: "en-1",
+        locale: "en",
+        ...sample,
+        samples: [sample],
+      },
+    ],
+  });
+  assert.equal(parsed.voices[0].available, false);
+  assert.equal(parsed.voices[0].samples[0].available, false);
+  assert.deepEqual(parsed.voices[0].samples[0].preview, preview);
+  const { preview: _, ...legacy } = sample;
+  assert.doesNotThrow(() =>
+    baseVoiceCatalogSchema.parse({
+      voices: [
+        {
+          id: "en-1",
+          locale: "en",
+          ...legacy,
+          samples: [legacy],
+        },
+      ],
+    }),
+  );
+});
 
 test("audio projects inherit the current reading voice only when explicitly selected", () => {
   const defaults = defaultBaseVoices();

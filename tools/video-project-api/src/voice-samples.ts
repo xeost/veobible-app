@@ -34,12 +34,104 @@ export const sampleRequestSchema = z
   })
   .strict();
 const tasks = new Map<string, QueueJob>();
+const saving = new Set<string>();
+export class VoiceSampleConflict extends Error {}
 const samples = path.join(sharedVoiceDirectory, "samples");
 export const sampleFile = (id: string, model?: string) =>
   path.join(
     samples,
     `${baseVoiceSchema.parse(id)}${model ? `-${narrationModelSchema.parse(model)}` : ""}-sample.wav`,
   );
+const previewMetadataFile = (id: string, model: string) =>
+  sampleFile(id, model).replace(/-sample\.wav$/, "-preview.json");
+const previewFile = (id: string, model: string, previewId: string) =>
+  sampleFile(id, model).replace(
+    /-sample\.wav$/,
+    `-preview-${z.string().uuid().parse(previewId)}.wav`,
+  );
+const previewMetadataSchema = z
+  .object({
+    voice: baseVoiceSchema,
+    voiceModel: narrationModelSchema,
+    previewId: z.string().uuid(),
+    text: z.string(),
+    generatedAt: z.string(),
+  })
+  .passthrough();
+async function readPreview(id: string, model: string) {
+  try {
+    const metadata = previewMetadataSchema.parse(
+      JSON.parse(await fs.readFile(previewMetadataFile(id, model), "utf8")),
+    );
+    if (metadata.voice !== id || metadata.voiceModel !== model) return null;
+    const file = previewFile(id, model, metadata.previewId);
+    const stat = await fs.stat(file);
+    return stat.isFile() && stat.size > 0 ? { file, metadata } : null;
+  } catch (error) {
+    if (
+      (error as NodeJS.ErrnoException).code === "ENOENT" ||
+      error instanceof SyntaxError ||
+      error instanceof z.ZodError
+    )
+      return null;
+    throw error;
+  }
+}
+export async function storedPreviewFile(
+  id: string,
+  model: string,
+  previewId: string,
+) {
+  const preview = await readPreview(id, model);
+  return preview?.metadata.previewId === previewId ? preview.file : undefined;
+}
+export async function saveVoiceSample(
+  id: string,
+  model: string,
+  previewId: string,
+) {
+  baseVoiceSchema.parse(id);
+  narrationModelSchema.parse(model);
+  z.string().uuid().parse(previewId);
+  const key = `${id}:${model}`;
+  if (
+    saving.has(key) ||
+    ["queued", "running"].includes(tasks.get(key)?.status ?? "")
+  )
+    throw new VoiceSampleConflict(
+      "Wait for the voice example to finish before saving it.",
+    );
+  saving.add(key);
+  let staging: string | undefined;
+  try {
+    const preview = await readPreview(id, model);
+    if (!preview || preview.metadata.previewId !== previewId)
+      throw new VoiceSampleConflict(
+        "This temporary example is no longer available. Generate another example.",
+      );
+    staging = await fs.mkdtemp(path.join(samples, ".saving-"));
+    const { previewId: _, ...metadata } = preview.metadata;
+    await fs.copyFile(preview.file, path.join(staging, "sample.wav"));
+    await fs.writeFile(
+      path.join(staging, "metadata.json"),
+      JSON.stringify(metadata, null, 2) + "\n",
+    );
+    await fs.rename(path.join(staging, "sample.wav"), sampleFile(id, model));
+    await fs.rename(
+      path.join(staging, "metadata.json"),
+      sampleFile(id, model) + ".json",
+    );
+    await fs.unlink(previewMetadataFile(id, model));
+    await fs.unlink(preview.file);
+    tasks.delete(key);
+  } finally {
+    try {
+      if (staging) await fs.rm(staging, { recursive: true, force: true });
+    } finally {
+      saving.delete(key);
+    }
+  }
+}
 
 /** Legacy samples remain readable only under the model recorded in their metadata. */
 export async function storedSampleFile(id: string, model?: string) {
@@ -71,11 +163,20 @@ async function sampleState(id: string, model?: string) {
   try {
     metadata = JSON.parse(await fs.readFile(file + ".json", "utf8"));
   } catch {}
+  const preview = model ? await readPreview(id, model) : null;
   return {
     available: Boolean(stat?.isFile() && stat.size > 0),
     generatedAt:
       metadata.generatedAt ?? (stat ? stat.mtime.toISOString() : null),
     text: metadata.text ?? null,
+    preview: preview
+      ? {
+          id: preview.metadata.previewId,
+          text: preview.metadata.text,
+          generatedAt: preview.metadata.generatedAt,
+          available: true,
+        }
+      : null,
     status: tasks.get(`${id}:${model}`)?.status ?? "done",
     progress: tasks.get(`${id}:${model}`)?.progress ?? 0,
   };
@@ -136,6 +237,10 @@ export async function queueVoiceSample(
   if (!(await listBaseVoices()).some((voice) => voice.id === input.voice))
     throw new Error("Base voice not found");
   const key = `${input.voice}:${input.voiceModel}`;
+  if (saving.has(key))
+    throw new VoiceSampleConflict(
+      "Wait for the voice example to finish saving.",
+    );
   const current = tasks.get(key);
   if (current && ["queued", "running"].includes(current.status)) return current;
   const task: QueueJob = {
@@ -159,6 +264,8 @@ export async function queueVoiceSample(
       task.status = "running";
       task.stage = "Generating voice";
       let staging: string | undefined;
+      let published = false;
+      const destination = previewFile(input.voice, input.voiceModel, task.id);
       try {
         await fs.mkdir(samples, { recursive: true });
         staging = await fs.mkdtemp(path.join(samples, ".generating-"));
@@ -191,28 +298,36 @@ export async function queueVoiceSample(
           throw new Error("Empty voice sample");
         await fs.writeFile(
           path.join(staging, "metadata.json"),
-          JSON.stringify({
-            ...input,
-            ...narrationModelIdentity(input.voiceModel),
-            voiceParameters: effectiveNarrationParameters(
-              input.voiceParameters,
-              input.voiceModel,
-            ),
-            voiceDecoder:
-              input.voiceDecoder ??
-              (input.voiceModel === "latam"
-                ? "general"
-                : input.voiceModel === "pt-br"
-                  ? "v3"
-                  : undefined),
-            generatedAt: new Date().toISOString(),
-          }),
+          JSON.stringify(
+            {
+              ...input,
+              previewId: task.id,
+              ...narrationModelIdentity(input.voiceModel),
+              voiceParameters: effectiveNarrationParameters(
+                input.voiceParameters,
+                input.voiceModel,
+              ),
+              voiceDecoder:
+                input.voiceDecoder ??
+                (input.voiceModel === "latam"
+                  ? "general"
+                  : input.voiceModel === "pt-br"
+                    ? "v3"
+                    : undefined),
+              generatedAt: new Date().toISOString(),
+            },
+            null,
+            2,
+          ) + "\n",
         );
-        await fs.rename(output, sampleFile(input.voice, input.voiceModel));
+        const previous = await readPreview(input.voice, input.voiceModel);
+        await fs.rename(output, destination);
         await fs.rename(
           path.join(staging, "metadata.json"),
-          sampleFile(input.voice, input.voiceModel) + ".json",
+          previewMetadataFile(input.voice, input.voiceModel),
         );
+        published = true;
+        if (previous) await fs.rm(previous.file, { force: true });
         task.stage = "Done";
         task.status = "done";
         task.progress = 100;
@@ -221,6 +336,7 @@ export async function queueVoiceSample(
         task.status = "failed";
         console.error("Voice sample generation failed", error);
       } finally {
+        if (!published) await fs.rm(destination, { force: true });
         if (staging) await fs.rm(staging, { recursive: true, force: true });
       }
     },

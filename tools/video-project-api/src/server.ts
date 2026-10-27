@@ -94,6 +94,9 @@ const {
   listBaseVoices,
   queueVoiceSample,
   storedSampleFile,
+  storedPreviewFile,
+  saveVoiceSample,
+  VoiceSampleConflict,
   sampleRequestSchema,
 } = await import("./voice-samples.js");
 const { stopAlignmentWorkers } = await import("./forced-alignment.js");
@@ -402,6 +405,14 @@ const server = http.createServer(async (req, res) => {
       parts[3] === "sample"
     ) {
       const voice = baseVoiceSchema.parse(parts[2]);
+      if (req.method === "PUT") {
+        const input = z
+          .object({ model: narrationModelSchema, previewId: z.string().uuid() })
+          .strict()
+          .parse(await body(req));
+        await saveVoiceSample(voice, input.model, input.previewId);
+        return json(res, 200, { saved: true, voices: await listBaseVoices() });
+      }
       if (req.method === "POST") {
         const input = sampleRequestSchema.parse({
           ...(await body(req)),
@@ -414,14 +425,26 @@ const server = http.createServer(async (req, res) => {
         const model = narrationModelSchema
           .optional()
           .parse(url.searchParams.get("model") ?? undefined);
-        const file = model
-          ? await storedSampleFile(voice, model)
-          : await storedSampleFile(
-              voice,
-              (await listBaseVoices()).find((item) => item.id === voice)
-                ?.voiceModel,
-            );
-        const stat = await fsp.stat(file).catch(() => null);
+        const previewId = z
+          .string()
+          .uuid()
+          .optional()
+          .parse(url.searchParams.get("preview") ?? undefined);
+        if (previewId && !model)
+          return json(res, 400, {
+            error: "Choose a model for the temporary example.",
+          });
+        const file =
+          previewId && model
+            ? await storedPreviewFile(voice, model, previewId)
+            : model
+              ? await storedSampleFile(voice, model)
+              : await storedSampleFile(
+                  voice,
+                  (await listBaseVoices()).find((item) => item.id === voice)
+                    ?.voiceModel,
+                );
+        const stat = file ? await fsp.stat(file).catch(() => null) : null;
         if (!stat?.isFile() || !stat.size)
           return json(res, 404, { error: "Sample not generated" });
         res.writeHead(200, {
@@ -429,7 +452,7 @@ const server = http.createServer(async (req, res) => {
           "Content-Length": stat.size,
           "Cache-Control": "no-store",
         });
-        const stream = fs.createReadStream(file);
+        const stream = fs.createReadStream(file!);
         stream.on("error", () => res.destroy());
         res.on("close", () => stream.destroy());
         stream.pipe(res);
@@ -1424,9 +1447,17 @@ const server = http.createServer(async (req, res) => {
     }
     json(res, 404, { error: "Route not found" });
   } catch (error) {
-    json(res, error instanceof z.ZodError ? 400 : 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    json(
+      res,
+      error instanceof z.ZodError
+        ? 400
+        : error instanceof VoiceSampleConflict
+          ? 409
+          : 500,
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
   }
 });
 const port = Number(process.env.PORT ?? 8422);

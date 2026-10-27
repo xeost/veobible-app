@@ -1,4 +1,13 @@
 export const portuguese: Record<string, string> = {
+  "Saving example…": "Salvando exemplo…",
+  "Saved example": "Exemplo salvo",
+  "Temporary example": "Exemplo temporário",
+  "Save as the voice and model's default example":
+    "Salvar como exemplo definitivo para esta voz e este modelo",
+  "Could not save the voice example. Generate a new example and try again.":
+    "Não foi possível salvar o exemplo de voz. Gere um novo exemplo e tente novamente.",
+  "Generated examples are temporary. Listen and compare them, then use the save button to replace the saved example for this voice and model.":
+    "Os exemplos gerados são temporários. Ouça e compare; depois use o botão de salvar para substituir o exemplo salvo desta voz e deste modelo.",
   "Final audio generated": "Áudio final gerado",
   "Clean editing audio files": "Limpar os arquivos de áudio de edição",
   "Delete editing files": "Excluir arquivos de edição",

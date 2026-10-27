@@ -1,6 +1,13 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import { Play, Pause, WandSparkles, RotateCcw, CircleHelp } from "lucide-react";
+import {
+  Play,
+  Pause,
+  WandSparkles,
+  RotateCcw,
+  CircleHelp,
+  Save,
+} from "lucide-react";
 import { api } from "./api";
 import { useI18n } from "../i18n/context";
 import { queueChangedEvent } from "../lib/generation-queue";
@@ -57,8 +64,10 @@ export function BaseVoiceSelector({
   const canGenerate = Boolean(narrationSettings);
   const generationModel = narrationSettings?.models[locale];
   const [playbackModel, setPlaybackModel] = useState(generationModel ?? "");
+  const [previewPlayback, setPreviewPlayback] = useState(false);
   useEffect(() => {
     setPlaybackModel(generationModel ?? "");
+    setPreviewPlayback(false);
   }, [generationModel, value, defaultVoice]);
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -69,6 +78,7 @@ export function BaseVoiceSelector({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [savingSample, setSavingSample] = useState(false);
   const pending = useRef(false);
   useEffect(() => {
     let live = true;
@@ -127,15 +137,19 @@ export function BaseVoiceSelector({
   const selected = voices.find((voice) => voice.id === effectiveValue);
   const generationSample = generationModel
     ? selected?.samples?.find((sample) => sample.voiceModel === generationModel)
-    : selected;
-  const playbackSample = canGenerate
+    : undefined;
+  const playbackEntry = canGenerate
     ? selected?.samples?.find((sample) => sample.voiceModel === playbackModel)
-    : selected;
+    : selected && { ...selected, preview: undefined };
+  const playbackSample =
+    canGenerate && previewPlayback ? playbackEntry?.preview : playbackEntry;
   const playbackWorking = Boolean(
-    playbackSample && ["queued", "running"].includes(playbackSample.status),
+    playbackEntry && ["queued", "running"].includes(playbackEntry.status),
   );
-  const savedSamples =
-    selected?.samples?.filter((sample) => sample.available) ?? [];
+  const availableSamples =
+    selected?.samples?.filter(
+      (sample) => sample.available || sample.preview?.available,
+    ) ?? [];
   const formatPresetLabel = defaultPreset
     ? Object.hasOwn(builtInNarrationLabels, defaultPreset.id)
       ? t(
@@ -148,10 +162,21 @@ export function BaseVoiceSelector({
         : defaultPreset.name
     : systemPresetLabel;
   useEffect(() => {
-    setText(generationSample?.text || sampleTexts[locale]);
-  }, [selected?.id, generationSample?.text, generationModel, locale]);
+    setText(
+      generationSample?.preview?.text ??
+        generationSample?.text ??
+        sampleTexts[locale],
+    );
+  }, [
+    selected?.id,
+    generationSample?.preview?.text,
+    generationSample?.text,
+    generationModel,
+    locale,
+  ]);
   const working =
     submitting ||
+    savingSample ||
     Boolean(
       generationSample &&
       ["queued", "running"].includes(generationSample.status),
@@ -162,7 +187,13 @@ export function BaseVoiceSelector({
     return () => {
       player?.pause();
     };
-  }, [effectiveValue, locale, playbackModel, playbackSample?.generatedAt]);
+  }, [
+    effectiveValue,
+    locale,
+    playbackModel,
+    previewPlayback,
+    playbackSample?.generatedAt,
+  ]);
   useEffect(() => {
     if (playbackWorking) {
       audio.current?.pause();
@@ -170,7 +201,7 @@ export function BaseVoiceSelector({
     }
   }, [playbackWorking]);
   const togglePlayback = async () => {
-    if (playbackWorking) return;
+    if (playbackWorking || savingSample) return;
     const player = audio.current;
     if (!player) return;
     if (!player.paused) {
@@ -190,6 +221,7 @@ export function BaseVoiceSelector({
     setPlaying(false);
     setSubmitting(true);
     setPlaybackModel(generationModel ?? "");
+    setPreviewPlayback(true);
     setError("");
     try {
       await api(`base-voices/${effectiveValue}/sample`, {
@@ -218,6 +250,38 @@ export function BaseVoiceSelector({
       setSubmitting(false);
     }
   };
+  const saveSample = async () => {
+    const preview = playbackEntry?.preview;
+    if (
+      !canGenerate ||
+      !previewPlayback ||
+      !preview ||
+      working ||
+      playbackWorking
+    )
+      return;
+    setSavingSample(true);
+    setError("");
+    audio.current?.pause();
+    setPlaying(false);
+    try {
+      const data = await api<{ voices: BaseVoice[] }>(
+        `base-voices/${effectiveValue}/sample`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ model: playbackModel, previewId: preview.id }),
+        },
+      );
+      setVoices(data.voices.filter((voice) => voice.locale === locale));
+      setPreviewPlayback(false);
+    } catch {
+      setError(
+        "Could not save the voice example. Generate a new example and try again.",
+      );
+    } finally {
+      setSavingSample(false);
+    }
+  };
   const playbackButton = (
     <button
       type="button"
@@ -232,7 +296,9 @@ export function BaseVoiceSelector({
             ? "Pause voice example"
             : "Listen to the generated example",
       )}
-      disabled={loading || playbackWorking || !playbackSample?.available}
+      disabled={
+        loading || playbackWorking || savingSample || !playbackSample?.available
+      }
       onClick={() => void togglePlayback()}
     >
       {playing ? (
@@ -417,11 +483,14 @@ export function BaseVoiceSelector({
             >
               <WandSparkles size={17} aria-hidden="true" />
               {t(
-                working
-                  ? "Generating example…"
-                  : generationSample?.available
-                    ? "Regenerate example"
-                    : "Generate example",
+                savingSample
+                  ? "Saving example…"
+                  : working
+                    ? "Generating example…"
+                    : generationSample?.available ||
+                        generationSample?.preview?.available
+                      ? "Regenerate example"
+                      : "Generate example",
               )}
             </button>
           </div>
@@ -431,13 +500,15 @@ export function BaseVoiceSelector({
           <div className="base-voice-select-row">
             <select
               id={`${id}-sample-model`}
-              value={playbackModel}
-              disabled={loading || !selected}
+              value={`${playbackModel}${previewPlayback ? ":preview" : ""}`}
+              disabled={loading || !selected || working}
               onChange={(event) => {
                 audio.current?.pause();
                 setPlaying(false);
                 setError("");
-                setPlaybackModel(event.target.value);
+                const [model, source] = event.target.value.split(":");
+                setPlaybackModel(model);
+                setPreviewPlayback(source === "preview");
               }}
             >
               {narrationModelOptions[locale]
@@ -445,26 +516,54 @@ export function BaseVoiceSelector({
                 .filter(
                   (option) =>
                     option.value === generationModel ||
-                    savedSamples.some(
+                    availableSamples.some(
                       (sample) => sample.voiceModel === option.value,
                     ),
                 )
-                .map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {t(option.label)}
-                    {!savedSamples.some(
-                      (sample) => sample.voiceModel === option.value,
-                    )
-                      ? ` · ${t("Not generated yet")}`
-                      : ""}
-                  </option>
-                ))}
+                .flatMap((option) => {
+                  const sample = selected?.samples?.find(
+                    (item) => item.voiceModel === option.value,
+                  );
+                  return [
+                    <option key={option.value} value={option.value}>
+                      {t(option.label)}
+                      {` · ${t(sample?.available ? "Saved example" : "Not generated yet")}`}
+                    </option>,
+                    ...(sample?.preview
+                      ? [
+                          <option
+                            key={`${option.value}:preview`}
+                            value={`${option.value}:preview`}
+                          >
+                            {t(option.label)} · {t("Temporary example")}
+                          </option>,
+                        ]
+                      : []),
+                  ];
+                })}
             </select>
             {playbackButton}
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("Save as the voice and model's default example")}
+              data-tooltip={t("Save as the voice and model's default example")}
+              disabled={
+                disabled ||
+                loading ||
+                working ||
+                playbackWorking ||
+                !previewPlayback ||
+                !playbackEntry?.preview
+              }
+              onClick={() => void saveSample()}
+            >
+              <Save size={18} aria-hidden="true" />
+            </button>
           </div>
           <p className="muted">
             {t(
-              "One example is saved per voice and model. Regenerating replaces only that model’s example.",
+              "Generated examples are temporary. Listen and compare them, then use the save button to replace the saved example for this voice and model.",
             )}
           </p>
           <p className="muted">
@@ -474,7 +573,7 @@ export function BaseVoiceSelector({
           </p>
         </>
       )}
-      {canGenerate && working && (
+      {canGenerate && working && !savingSample && (
         <p className="muted" role="status">
           {t(
             generationSample?.status === "queued"
@@ -502,8 +601,8 @@ export function BaseVoiceSelector({
             setError("Could not play the example. Try again.");
           }}
           preload="none"
-          key={`${effectiveValue}:${playbackModel}:${playbackSample.generatedAt}`}
-          src={`/api/base-voices/${effectiveValue}/sample?${canGenerate ? `model=${encodeURIComponent(playbackModel)}&` : ""}revision=${encodeURIComponent(playbackSample.generatedAt ?? "")}`}
+          key={`${effectiveValue}:${playbackModel}:${previewPlayback}:${playbackSample.generatedAt}`}
+          src={`/api/base-voices/${effectiveValue}/sample?${canGenerate ? `model=${encodeURIComponent(playbackModel)}&` : ""}${canGenerate && previewPlayback && playbackEntry?.preview ? `preview=${encodeURIComponent(playbackEntry.preview.id)}&` : ""}revision=${encodeURIComponent(playbackSample.generatedAt ?? "")}`}
         />
       )}
       {error && (

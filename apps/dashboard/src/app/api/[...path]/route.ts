@@ -640,12 +640,48 @@ async function handle(req: Request, lang: Language) {
     }
     if (parts.length === 3 && parts[2] === "sample") {
       const voice = baseVoiceSchema.parse(parts[1]);
+      if (method === "PUT") {
+        admin();
+        const input = z
+          .object({ model: narrationModelSchema, previewId: z.string().uuid() })
+          .strict()
+          .parse(await body());
+        const response = await videoFetch(`/v1/base-voices/${voice}/sample`, {
+          method: "PUT",
+          body: JSON.stringify(input),
+        });
+        if (!response.ok)
+          return json(
+            {
+              error:
+                "Could not save the voice example. Generate a new example and try again.",
+            },
+            response.status === 409 ? 409 : 502,
+          );
+        return json({
+          saved: true,
+          ...baseVoiceCatalogSchema.parse(await response.json()),
+        });
+      }
       if (method === "GET") {
         const model = narrationModelSchema
           .optional()
           .parse(url.searchParams.get("model") ?? undefined);
+        const previewId = z
+          .string()
+          .uuid()
+          .optional()
+          .parse(url.searchParams.get("preview") ?? undefined);
+        if (previewId && !model)
+          return json(
+            { error: "No example has been generated for this voice yet." },
+            404,
+          );
+        const query = new URLSearchParams();
+        if (model) query.set("model", model);
+        if (previewId) query.set("preview", previewId);
         const response = await videoFetch(
-          `/v1/base-voices/${voice}/sample${model ? `?model=${encodeURIComponent(model)}` : ""}`,
+          `/v1/base-voices/${voice}/sample?${query}`,
         );
         if (!response.ok)
           return json(

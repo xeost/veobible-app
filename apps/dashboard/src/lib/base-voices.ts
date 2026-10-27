@@ -77,6 +77,15 @@ export const baseVoiceCatalogSchema = z.object({
             text: z.string().nullable(),
             status: z.enum(["queued", "running", "done", "failed"]),
             progress: z.number(),
+            preview: z
+              .object({
+                id: z.string().uuid(),
+                text: z.string(),
+                generatedAt: z.string(),
+                available: z.literal(true),
+              })
+              .nullable()
+              .optional(),
           }),
         )
         .default([]),
