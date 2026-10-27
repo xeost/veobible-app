@@ -33,8 +33,7 @@ import { useEditorErrorNotifications } from "./useEditorErrorNotifications";
 import { pollWhileVisible } from "../lib/visible-polling";
 import {
   audioVerseFragment,
-  restoreAudioVerseSelection,
-  rememberAudioVerseSelection,
+  parseAudioVerseFragment,
   type AudioVerseSelection,
 } from "../lib/audio-verse-fragment";
 import {
@@ -85,7 +84,7 @@ export function AudioProjectEditor({
       current[key] === success ? current : { ...current, [key]: success },
     );
   }, []);
-  const [expanded, setExpanded] = useState(new Set([1]));
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [activeVerse, setActiveVerse] = useState<AudioVerseSelection | null>(
     null,
   );
@@ -103,7 +102,7 @@ export function AudioProjectEditor({
     setPreparedEditor(null);
     setSelectionRestored(null);
     setPreparedWaveforms({});
-    setExpanded(new Set([1]));
+    setExpanded(new Set());
     setActiveVerse(null);
     setError("");
     setDirty(false);
@@ -120,19 +119,22 @@ export function AudioProjectEditor({
     )
       return;
     let frame: number | undefined;
-    const restore = () => {
-      const selected = restoreAudioVerseSelection(
-        edition,
-        book,
+    const restore = (event?: HashChangeEvent) => {
+      const selected = parseAudioVerseFragment(
         window.location.hash,
         verseCountsKey.split(",").map(Number),
       );
       setSelectionRestored(endpoint);
-      if (!selected) return;
-      rememberAudioVerseSelection(edition, book, selected);
+      if (!selected) {
+        if (frame !== undefined) cancelAnimationFrame(frame);
+        if (event && !window.location.hash) {
+          setActiveVerse(null);
+          setExpanded(new Set());
+        }
+        return;
+      }
       const fragment = audioVerseFragment(selected);
-      // Remembered selections must not add a fragment to a URL opened without one.
-      if (window.location.hash && window.location.hash !== fragment) {
+      if (window.location.hash !== fragment) {
         window.history.replaceState(
           window.history.state,
           "",
@@ -168,7 +170,6 @@ export function AudioProjectEditor({
   ]);
   const selectVerse = (selected: AudioVerseSelection) => {
     setActiveVerse(selected);
-    rememberAudioVerseSelection(edition, book, selected);
     const fragment = audioVerseFragment(selected);
     if (window.location.hash !== fragment) {
       window.history.replaceState(

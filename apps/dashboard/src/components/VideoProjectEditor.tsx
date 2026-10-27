@@ -696,9 +696,16 @@ export function VideoProjectEditor({
     const targets: VideoVerseTarget[] = JSON.parse(verseTargetsKey);
     if (!targets.length || String(project?.project_id) !== projectId) return;
     let frame: number | undefined;
-    const restore = () => {
+    const restore = (event?: HashChangeEvent) => {
       const target = parseVideoVerseFragment(window.location.hash, targets);
-      if (!target) return;
+      if (!target) {
+        if (frame !== undefined) cancelAnimationFrame(frame);
+        if (event && !window.location.hash) {
+          setActiveVerse(null);
+          setExpanded(new Set());
+        }
+        return;
+      }
       setActiveVerse({ ...target, project: base });
       setExpanded(
         (current) => new Set([...current, `reading-${target.section}`]),
