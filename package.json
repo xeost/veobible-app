@@ -2,13 +2,11 @@
   "name": "veobible-app-root",
   "private": true,
   "scripts": {
-    "audio:enhance": "python3 tools/audio-enhancer/cli.py",
+    "dev:site": "pnpm --dir apps/frontend dev",
     "dev:dashboard": "pnpm --dir apps/dashboard dev",
+    "dev:api-proxy": "node tools/api-proxy/src/index.mjs",
     "build:dashboard": "pnpm --dir apps/dashboard build",
-    "start:api-proxy": "node tools/api-proxy/src/index.mjs",
-    "tunnel:api-proxy": "node tools/api-proxy/scripts/tunnel.mjs",
-    "start:video-project": "pnpm --dir tools/video-project-api start",
-    "db:dashboard:local": "pnpm --dir apps/dashboard db:migrate:local",
-    "db:dashboard:remote": "pnpm --dir apps/dashboard db:migrate:remote"
+    "tunnel": "node tools/api-proxy/scripts/tunnel.mjs",
+    "audio:enhance": "python3 tools/audio-enhancer/cli.py"
   }
 }
