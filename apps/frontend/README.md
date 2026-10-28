@@ -1,294 +1,54 @@
-<div align="center">
+# VeoBible frontend
 
-<img src="material/favicon-for-app/icon1.png" alt="VeoBible" width="96" height="96" />
+Next.js exports the public home/version pages and localized reader shells. Chapter text stays in `public/bible-data`; no chapter HTML or RSC payload is generated.
 
-# VeoBible
+## Routes and deployment
 
-**A modern Bible reading app — clean, fast, and installable.**
+- `/es/leer/rv1909/genesis/1`, `/en/read/kjv/genesis/1`, `/pt/ler/arc/genesis/1`: interactive reader, `noindex` in initial HTML and HTTP headers.
+- `/{language}/{version}`: indexable version presentation.
+- Legacy chapter/book URLs redirect to the localized reader. The Worker validates book/chapter ranges before serving the static shell.
+- `/api/v1/*`: Hono API with Supabase bearer authentication and the existing reader D1 database. JSON, fonts, scripts and public HTML are served directly by Workers Static Assets. Reader deep-link resolution and API calls invoke Worker code; moving between chapters inside the reader does not request HTML/RSC.
 
-Read the King James Version and Reina Valera 1909 across English and Spanish interfaces, with bookmarks, per-version reading sessions, and full offline support via PWA.
-
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white)](https://nextjs.org)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![PWA](https://img.shields.io/badge/PWA-ready-5a0fc8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
-
-</div>
-
----
-
-## ✨ Features
-
-| Feature | Details |
-|---------|---------|
-| 📖 **Multiple Bible versions** | KJV (English) and Reina Valera 1909 (Spanish) |
-| 🌐 **Bilingual UI** | Interface language (EN/ES) is independent of the Bible version selected |
-| 🔖 **Text bookmarks** | Select any passage → floating toolbar → saved instantly |
-| 📌 **Reading sessions** | Position is saved per-version and restored on return |
-| 🌙 **Light / Dark / System theme** | Smooth transitions, warm amber accent palette |
-| 📱 **PWA** | Installable from browser, works offline |
-| ⚡ **Static generation** | All 2,386 chapter pages are pre-rendered at build time |
-| 🔍 **SEO-optimized** | Title, description, Open Graph, canonical URL, and JSON-LD breadcrumbs on every chapter |
-| 🔄 **Sync-ready architecture** | Local storage today — designed for remote sync without refactoring |
-
----
-
-## 🗂 Project Structure
-
-```
-src/
-├── app/
-│   ├── page.tsx                        # / → auto-detects locale, redirects
-│   └── [lang]/
-│       ├── page.tsx                    # /en  /es — version selection homepage
-│       └── [version]/
-│           ├── page.tsx                # /en/kjv — book list
-│           └── [book]/[chapter]/
-│               └── page.tsx            # /en/kjv/genesis/1 — chapter reader (SSG)
-├── components/
-│   ├── ui/          # Toast, Sheet, Dropdown
-│   ├── layout/      # Header, Sidebar
-│   ├── reader/      # ChapterReader, VerseItem, SelectionToolbar
-│   └── bookmarks/   # BookmarksList, BookmarkCard
-├── hooks/
-│   ├── useBookmarks.ts        # Optimistic add/remove
-│   ├── useReadingPosition.ts  # Debounced scroll-position persistence
-│   └── useTextSelection.ts    # DOM selection → verse range detection
-└── lib/
-    ├── bible/     # types, config (version registry), loader (build-time)
-    ├── storage/   # StorageRepository interface + LocalStorageAdapter
-    └── i18n/      # EN/ES translations, React context, server getter
-```
-
----
-
-## 🚀 Getting Started
-
-**Prerequisites:** Node.js 18+, pnpm
-
-```bash
-# Install dependencies
+```sh
 pnpm install
-
-# Start the development server
-pnpm dev
+pnpm dev                      # Next development; localized deep links rewrite to shells
+pnpm build                    # export, optimize images, generate hashes + offline shell
+pnpm exec wrangler dev        # production preview, including API and deep-link routing
+pnpm type-check
+pnpm test                     # Node 22.15+ / 24+; includes SQLite-backed API tests
+pnpm test:e2e                 # Chromium, with preview running on localhost:8790
 ```
 
-Then open [http://localhost:3000](http://localhost:3000).
+For the full preview use `pnpm exec wrangler dev --port 8790`. For development with hot reload, run `pnpm dev:site` and `pnpm dev:api` from the repository root in separate terminals. Next proxies `/api/*` to the local API at `127.0.0.1:8787`, stripping the `/api` prefix. Reading and local saves work without the API; cross-device synchronization requires it. Production serves both from the frontend Worker.
 
-### Environment variables
+The API implementation and D1 migrations live in `worker/api/` and `worker/migrations/`. `dev:api` runs `scripts/dev-api.mjs`, deriving an ignored API-only Wrangler config from `wrangler.jsonc`; it requires no Next.js build. Development API and full preview share `worker/.wrangler/state`, preserving the former backend's local database.
 
-Copy [`.env.example`](.env.example) to `.env.local` and adjust as needed:
+Initialize local D1 from the repository root:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NEXT_PUBLIC_READER_RECOMMENDED_CONTENT` | *(disabled)* | Set to `true` to show the **Recommended Content** section below verses in the chapter reader. |
-
-> `NEXT_PUBLIC_*` variables are inlined at build time. Restart the dev server (or rebuild for production) after changing them.
-
-```bash
-# Production build (generates all 2,386 static pages)
-pnpm build
-
-# Serve production build
-pnpm start
+```sh
+pnpm --dir apps/frontend db:migrate:local
 ```
 
----
+Copy `.dev.vars.example` to `.dev.vars` in `apps/frontend` for local Worker authentication settings. Production configuration and D1 bindings have a single source: `wrangler.jsonc`.
 
-## 🌐 URL Structure
+Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for the frontend build, and the matching `SUPABASE_URL` for the Worker. HS256 projects also require the `SUPABASE_JWT_SECRET` Worker secret; ES256 uses Supabase JWKS. Local overrides belong in ignored `.env.local`/`.dev.vars`. Never combine a development Supabase project with production authentication settings.
 
-```
-/                               → redirect to /en or /es (locale detection)
-/en                             → English homepage
-/es                             → Spanish homepage
-/en/kjv                         → KJV book list
-/es/rv1909                     → Reina Valera 1909 book list
-/en/kjv/genesis/1               → Genesis chapter 1 (KJV)
-/es/rv1909/genesis/1           → Génesis capítulo 1 (rv1909)
-```
+`pnpm deploy` builds and deploys the single `veobible-app` Worker, including the reader API at `/api/v1`. Migrations are applied separately with `pnpm db:migrate` (remote) or `pnpm db:migrate:local`; creating a migration uses `pnpm db:migration:new <name>`. The existing production D1 database ID is preserved. There is no separate backend package or API Worker deployment.
 
-> Note: Spanish book slugs follow the rv1909 index (e.g. `exodo`, `levitico`, `1-reyes`).
+## Offline content
 
----
+The service worker precaches reader/home shells for all three languages, bundled JS/CSS/fonts and installation icons. Authenticated requests are never cached. Activation preserves Bible downloads and previous shell caches for open tabs. The update banner activates a waiting worker only when selected.
 
-## 🔖 Bookmarks & Reading Position
+`build-offline.mjs` generates a SHA-256 manifest of the JSON corpus. Books are downloaded as one file, checked against the manifest, and persisted before completion is shown. Reads use memory/Cache Storage before the network. Legacy cache entries remain readable offline. Downloads resume by reusing cached books and request persistent browser storage where available. Browser eviction remains possible.
 
-User data is stored in the browser via `localStorage`. The storage layer uses a **repository pattern** designed for future remote sync:
+The reader uses native links and the History API for chapter changes, including bookmarks, search, back/forward and verse fragments. It has one online/offline rendering path.
 
-```
-StorageRepository (interface)
-    └── LocalStorageAdapter   ← active today
-    └── RemoteAdapter         ← swap here when adding sync
-```
+## User data
 
-All methods are `async` / `Promise`-based. The `useBookmarks` hook uses **optimistic UI**: the bookmark appears in the list immediately and rolls back silently if the write fails. No UI changes are needed when a remote adapter is introduced.
+IndexedDB holds account-scoped bookmarks, folders, reading positions, ribbons and preferences. Each local change and its pending operation are committed together. The outbox coalesces edits and retries on connection recovery, focus, periodic sync and manual sync. Acknowledgements remove only the operation that was sent, preserving edits made while the request was in flight.
 
----
+Legacy localStorage data is imported once and retained as a backup. Guest data is transferred on an explicit sign-in; switching accounts never reimports another account's data. Sign-out defaults to preserving device data, with an explicit erase option. Note conflicts create a separate bookmark rather than discarding either note. Full server snapshots propagate hard-deleted ribbons and avoid timestamp cursor gaps; their cost grows with the user's saved data.
 
-## 📦 Bible Data
+## Release verification
 
-JSON files live under `material/bible-versions/`:
-
-```
-material/bible-versions/
-├── en/kjv/
-│   ├── index.json              # Version metadata + book list
-│   └── genesis/
-│       ├── 1.json              # Array of { verse, text }
-│       └── ...
-└── es/rv1909/
-    ├── index.json
-    └── genesis/
-        └── 1.json
-```
-
-At build time, chapters are read by [`src/lib/bible/loader.ts`](src/lib/bible/loader.ts) via Node `fs`. At runtime, the same files are also served from `public/bible-data/` for future SPA / mobile dynamic loading.
-
----
-
-## 🎨 Design System
-
-The UI uses **CSS custom properties** for all semantic colors, making the theme switch instantaneous without JavaScript re-renders.
-
-| Token | Light | Dark |
-|-------|-------|------|
-| `--bg-page` | `#f8f8fc` | `#0f0e17` |
-| `--bg-card` | `#ffffff` | `#1a1828` |
-| `--brand` | Violet 500 (`#8b5cf6`) | Violet 400 (`#a78bfa`) |
-| `--reader-bg` | `#fafafa` | `#120f1e` |
-
-**Fonts:**
-
-- **Inter** — UI elements, navigation, labels
-- **Lora** (serif) — Bible body text for comfortable long-form reading
-
----
-
-## 📱 PWA & Offline Support
-
-The app is installable from any modern browser. The service worker is generated automatically by [`next-pwa`](https://github.com/shadowwalker/next-pwa) during `pnpm build`.
-
-### Caching architecture
-
-| Cache | Strategy | Contents |
-|-------|----------|----------|
-| Precache (Workbox) | Instant (no network) | All 2,525 HTML pages, JS chunks, CSS, fonts |
-| `pages` | `StaleWhileRevalidate` | Same-origin navigation requests |
-| `veobible-bible-data` | `CacheFirst` (1 year) | Bible JSON files downloaded for offline reading |
-| `static-js-assets` | `StaleWhileRevalidate` | JS chunks |
-| `static-style-assets` | `StaleWhileRevalidate` | CSS |
-| `google-fonts-webfonts` | `CacheFirst` (1 year) | Font files |
-
-When a page is not found in any cache and there is no network, the SW serves **`/offline`** — a self-contained fallback page that auto-reloads when connectivity is restored.
-
-### ⚠️ The service worker is disabled in development
-
-`next-pwa` sets `disable: true` when `NODE_ENV === 'development'`, so **`pnpm dev` cannot be used to test offline behaviour**. You must build and serve the static export instead.
-
-### Testing offline — step by step
-
-**1. Build and serve the static export**
-
-```bash
-pnpm build
-npx serve out/ -p 3000
-```
-
-**2. Open Chrome and register the service worker**
-
-Open [http://localhost:3000](http://localhost:3000) in Chrome. Wait a few seconds for the SW to install. You can confirm it is active in:
-
-> DevTools → Application → Service Workers → check that `/sw.js` shows **"activated and is running"**
-
-**3. Go offline**
-
-> DevTools → Network tab → throttle dropdown → **Offline**
-
-Or simply disconnect your machine from the internet.
-
-**4. What to verify**
-
-| Test | Expected result |
-| ------ | ---------------- |
-| Navigate to `/en` or `/es` | Homepage loads instantly from cache |
-| Navigate to `/en/kjv/genesis/1` | Chapter loads with full text |
-| Navigate between chapters (Prev / Next) | Instant navigation, no network needed |
-| Navigate to a URL that was never visited | The `/offline` fallback page is shown |
-| Reconnect to the internet | The `/offline` page auto-reloads |
-
-**5. Testing the offline Bible download**
-
-With the network online, open any chapter, then click the **cloud icon** in the reader header to download a version for offline use. After the download completes, go offline and try reading chapters from that version — they will be served from `veobible-bible-data` cache.
-
-**6. Inspecting caches**
-
-> DevTools → Application → Cache Storage
-
-You should see entries for `workbox-precache-*`, `pages`, `veobible-bible-data`, `static-js-assets`, etc.
-
-### Installing as a PWA
-
-After the SW is registered, Chrome/Edge will show an install prompt in the address bar. On mobile, use **Share → Add to Home Screen** (iOS Safari) or the browser menu (Android Chrome). Once installed, the app launches in standalone mode and works fully offline.
-
----
-
-## 🔍 SEO
-
-Every chapter page generates:
-
-- `<title>` — e.g. *Genesis 1 - KJV | VeoBible*
-- `<meta name="description">` — first verse of the chapter
-- Open Graph (`og:title`, `og:description`, `og:url`)
-- `<link rel="canonical">`
-- JSON-LD `BreadcrumbList`
-- `<html lang="...">` set per locale
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | [Next.js 14](https://nextjs.org) (App Router, SSG) |
-| Styling | [Tailwind CSS v3](https://tailwindcss.com) + CSS custom properties |
-| Language | TypeScript 5 |
-| Fonts | Google Fonts (Inter, Lora) |
-| Theming | [next-themes](https://github.com/pacocoursey/next-themes) |
-| PWA | [next-pwa](https://github.com/shadowwalker/next-pwa) |
-| Package manager | [pnpm](https://pnpm.io) |
-
----
-
-## ☁️ Deployment
-
-Deployment is handled automatically via the **native Cloudflare Workers × GitHub integration**. Every push to `main` that includes changes under `apps/frontend/` triggers a new deploy.
-
-### Cloudflare dashboard configuration
-
-Connect the repository at **Cloudflare Dashboard → Workers & Pages → Create → Import a repository**, then set:
-
-| Setting | Value |
-|---------|-------|
-| **Root directory** | `/apps/frontend` |
-| **Build command** | `pnpm run build` |
-| **Deploy command** | `pnpm wrangler deploy` |
-
-After moving the app, update the existing Cloudflare project's root directory to `apps/frontend` (and its watched build path, if configured). Repository changes do not update dashboard settings automatically.
-
----
-
-## 📄 Bible Version Licensing
-
-| Version | Language | Copyright |
-|---------|----------|-----------|
-| King James Version (KJV) | English | Public Domain (Crown Copyright in the UK) |
-| Reina Valera 1909 (rv1909) | Spanish | Public Domain |
-
----
-
-<div align="center">
-
-Made with ✦ and a lot of coffee.
-
-</div>
+Run unit/API tests, type checks, production build and browser tests before deployment. Test real sign-in, token refresh and two-device synchronization with a staging Supabase account/D1 database. After release, verify legacy redirects and `noindex` in Search Console. Existing installed PWAs must accept the application update before using the new reader.

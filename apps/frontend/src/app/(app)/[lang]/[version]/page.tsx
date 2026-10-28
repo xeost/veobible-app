@@ -1,5 +1,6 @@
+import { readerSegment } from '@/lib/reader/routes'
 import React from 'react'
-import Link from 'next/link'
+import Link from '@/components/reader/ReaderLink'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { loadBibleIndex } from '@/lib/bible/loader'
@@ -23,8 +24,8 @@ export async function generateMetadata({ params }: VersionPageProps): Promise<Me
   const t = getTranslations(lang as any)
   return {
     title: versionInfo.name,
-    description: `Read the complete ${versionInfo.name} Bible online.`,
-    alternates: { canonical: `/${lang}/${version}` },
+    description: lang === 'es' ? `Lee ${versionInfo.name} con notas, marcadores y lectura sin conexión.` : lang === 'pt' ? `Leia ${versionInfo.name} com notas, marcadores e leitura offline.` : `Read ${versionInfo.name} with notes, bookmarks and offline reading.`,
+    alternates: { canonical: `/${lang}/${version}`, languages: {} },
   }
 }
 
@@ -48,7 +49,7 @@ export default async function VersionPage({ params }: VersionPageProps) {
         {books.map((book) => (
           <Link
             key={book.slug}
-            href={`/${lang}/${version}/${book.slug}/1`}
+            href={`/${lang}/${readerSegment(lang)}/${version}/${book.slug}/1`}
             className="book-link-card rounded-xl px-3 py-3 transition-all duration-150 text-sm"
             style={{
               background: 'var(--bg-card)',

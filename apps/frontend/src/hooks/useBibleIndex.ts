@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { BookInfo } from '@/lib/bible/types'
+import { fetchAndCacheIndex, readIndexFromCache } from '@/lib/bible/bibleDataCache'
 import { BIBLE_VERSIONS } from '@/lib/bible/config'
 
 interface BibleIndexState {
@@ -22,13 +23,9 @@ export function useBibleIndex(versionSlug: string): BibleIndexState {
       return
     }
 
-    const url = `/bible-data/${version.publicPath}/index.json`
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        setBooks((data as { books: BookInfo[] }).books ?? [])
-      })
+    fetchAndCacheIndex(version.langCode, version.slug)
+      .then(() => readIndexFromCache(version.langCode, version.slug))
+      .then(data => setBooks(data?.books ?? []))
       .catch(() => {
         // Non-critical: if fetch fails we just won't sort by canonical order
         setBooks([])

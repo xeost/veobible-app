@@ -1,7 +1,9 @@
 'use client'
 
+import { readerSegment } from '@/lib/reader/routes'
+
 import React, { useState, useRef, useEffect } from 'react'
-import Link from 'next/link'
+import Link from '@/components/reader/ReaderLink'
 import type { Bookmark } from '@/lib/storage'
 import { useI18n } from '@/lib/i18n/client'
 import { toast } from '@/components/ui/Toast'
@@ -216,7 +218,7 @@ export function BookmarkCard({
   const [isDragging, setIsDragging] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
 
-  const href = `/${lang}/${bookmark.versionSlug}/${bookmark.bookSlug}/${bookmark.chapter}#verse-${bookmark.verseStart}`
+  const href = `/${lang}/${readerSegment(lang)}/${bookmark.versionSlug}/${bookmark.bookSlug}/${bookmark.chapter}#verse-${bookmark.verseStart}`
   const date = new Date(bookmark.createdAt).toLocaleDateString()
 
   // Verse reference with optional book name prefix
@@ -495,6 +497,7 @@ export function BookmarkCard({
           {!confirming ? (
             <div className="flex items-center gap-2">
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{date}</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{bookmark.syncStatus === 'synced' ? (lang === 'es' ? 'Sincronizado' : lang === 'pt' ? 'Sincronizado' : 'Synced') : (lang === 'es' ? 'Guardado en este dispositivo · pendiente' : lang === 'pt' ? 'Salvo neste dispositivo · pendente' : 'Saved on this device · pending')}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
                 className="ml-auto btn-icon p-1"

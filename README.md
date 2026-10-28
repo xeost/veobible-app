@@ -8,14 +8,17 @@
 
 ## Repository Structure
 
-This is a monorepo with two independent packages and shared design documentation.
+The reader and dashboard are independent applications. The reader API is part of the frontend Worker.
 
 ```
 veobible-app/
 ├── apps/
-│   └── frontend/ # Next.js PWA — static site, offline reader, i18n
-├── backend/     # Cloudflare Workers API — sync, bookmarks, preferences
-└── design/      # Architecture and API design documents
+│   ├── frontend/         # Next.js PWA + veobible-app Worker
+│   │   └── worker/
+│   │       ├── api/      # Reader API: auth, bookmarks, sync
+│   │       └── migrations/ # Reader D1 migrations
+│   └── dashboard/        # Independent dashboard application
+└── design/               # Architecture and API design documents
 ```
 
 ---
@@ -26,51 +29,42 @@ A Next.js 14 PWA with full static export (`output: 'export'`), deployed to **Clo
 
 **Key features:**
 - Multi-version, multi-language Bible reader (English & Spanish)
-- ~2,400 statically generated chapter pages for optimal SEO
+- Indexable version pages and client-side chapter reading with noindex
 - Offline reading via Service Worker + Cache API (user-selected versions)
 - Bookmarks with folders, reading ribbon, auto-saved reading position
 - Typography customization (font family, size, line height, content width)
 - Light / dark / system theme
-- Optimistic UI + TanStack Query (planned, for cloud sync)
-- Optional Supabase authentication (planned)
+- Optimistic UI with account-scoped IndexedDB and a durable sync outbox
+- Optional Supabase authentication
 
-**Stack:** Next.js · TypeScript · Tailwind CSS · next-pwa (Workbox) · Cloudflare Workers
+**Stack:** Next.js · TypeScript · Tailwind CSS · Service Worker · Cloudflare Workers
 
 ```bash
 cd apps/frontend
 pnpm install
 pnpm dev          # local dev server
 pnpm build        # static export → out/
-pnpm prod-preview # build + serve via wrangler pages dev
+pnpm prod-preview # build + serve the combined Worker
 ```
 
 See [`apps/frontend/`](./apps/frontend) and [`design/frontend-design.md`](./design/frontend-design.md).
 
 ---
 
-## Backend
+## Reader API
 
-A lightweight REST API for cross-device synchronization of user data, deployed to **Cloudflare Workers**.
+The API lives in `apps/frontend/worker/api/` and is deployed with the frontend as **veobible-app**. Supabase Auth verifies identity and the existing D1 database stores bookmarks, reading positions, ribbons and preferences.
 
-**Key features:**
-- Bookmarks & bookmark folders (soft-delete for sync)
-- Reading positions & ribbons per Bible version
-- Syncable user preferences
-- Incremental sync with last-write-wins conflict resolution
-- Optional — the frontend works fully without it
-- Supabase JWT authentication (HS256)
-
-**Stack:** Cloudflare Workers · Hono · D1 (SQLite) · Supabase Auth
+For local development, run these in separate terminals from the repository root:
 
 ```bash
-cd backend
-pnpm install
-pnpm dev          # local dev with wrangler
-pnpm deploy       # deploy to Cloudflare Workers
+pnpm dev:site       # Next.js on port 3000, proxies /api/*
+pnpm dev:api    # API on port 8787, using the frontend package
 ```
 
-See [`backend/README.md`](./backend/README.md) for full setup and configuration instructions.
+Initialize local D1 with `pnpm --dir apps/frontend db:migrate:local`. Both the API development server and full Worker preview share `apps/frontend/worker/.wrangler/state`.
 
+See [`apps/frontend/README.md`](./apps/frontend/README.md) for authentication, migrations and deployment.
 ---
 
 ## Design Documents

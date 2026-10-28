@@ -1,5 +1,5 @@
 import React from 'react'
-import Link from 'next/link'
+import Link from '@/components/reader/ReaderLink'
 
 interface FooterProps {
   lang: string

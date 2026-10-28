@@ -8,7 +8,7 @@
 'use client'
 
 import React from 'react'
-import { usePathname } from 'next/navigation'
+import { useReaderPath } from '@/lib/reader/navigation'
 import { storage } from '@/lib/storage'
 import type {
   ReaderFontFamily,
@@ -307,7 +307,7 @@ const Context = React.createContext<ReaderPreferencesContext>({
 
 // ── Provider ───────────────────────────────────────────────────────────────────
 export function ReaderPreferencesProvider({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
+  const pathname = useReaderPath()
 
   // Track page transitions on window object
   React.useEffect(() => {

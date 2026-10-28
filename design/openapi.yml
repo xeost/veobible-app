@@ -14,7 +14,7 @@ info:
     identifier: MIT
 
 servers:
-  - url: https://api.veobible.com/v1
+  - url: https://veobible.com/api/v1
     description: Production
   - url: http://127.0.0.1:8787/v1
     description: Local development (wrangler dev)

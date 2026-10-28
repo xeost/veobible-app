@@ -7,7 +7,7 @@ import type {
 } from '@/lib/storage/types'
 
 const API_BASE =
-  (process.env.NEXT_PUBLIC_API_URL ?? 'https://api.veobible.com') + '/v1'
+  '/api/v1'
 
 export const SYNCABLE_PREFERENCE_KEYS = [
   'locale',

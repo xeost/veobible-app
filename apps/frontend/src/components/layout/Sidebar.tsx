@@ -1,7 +1,9 @@
 'use client'
 
+import { readerSegment } from '@/lib/reader/routes'
+
 import React from 'react'
-import Link from 'next/link'
+import Link from '@/components/reader/ReaderLink'
 import type { BookInfo } from '@/lib/bible/types'
 import { useI18n } from '@/lib/i18n/client'
 import { Tooltip } from '@/components/ui/Tooltip'
@@ -17,8 +19,8 @@ interface SidebarProps {
 
 function isReaderPath(path: string): boolean {
   const segments = path.split('/').filter(Boolean)
-  if (segments.length !== 4) return false
-  const chapter = parseInt(segments[3], 10)
+  if (segments.length !== 5) return false
+  const chapter = parseInt(segments[4], 10)
   return !isNaN(chapter)
 }
 
@@ -107,7 +109,7 @@ export function Sidebar({ lang, version, versionName, books, currentBookSlug, cu
                   return (
                     <Link
                       key={ch}
-                      href={`/${lang}/${version}/${book.slug}/${ch}`}
+                      href={`/${lang}/${readerSegment(lang)}/${version}/${book.slug}/${ch}`}
                       className={`flex items-center justify-center text-xs rounded-md py-1.5 sidebar-chapter-btn ${
                         isCurrentCh ? 'is-current' : ''
                       }`}

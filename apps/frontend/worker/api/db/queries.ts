@@ -40,8 +40,9 @@ export async function upsertBookmark(
   db: D1Database,
   data: Omit<Bookmark, 'userId'> & { deletedAt?: string | null },
   userId: string,
-): Promise<void> {
-  await db.prepare(`
+  expectedUpdatedAt?: string,
+): Promise<boolean> {
+  const result = await db.prepare(`
     INSERT INTO bookmarks
       (id, userId, versionSlug, bookSlug, chapter, verseStart, verseEnd,
        selectedText, title, note, folderId, createdAt, updatedAt, deletedAt)
@@ -58,12 +59,15 @@ export async function upsertBookmark(
       folderId     = excluded.folderId,
       updatedAt    = excluded.updatedAt,
       deletedAt    = excluded.deletedAt
+    WHERE bookmarks.userId = excluded.userId
+      AND (? IS NULL OR bookmarks.updatedAt = ? OR bookmarks.note IS excluded.note)
   `).bind(
     data.id, userId, data.versionSlug, data.bookSlug,
     data.chapter, data.verseStart, data.verseEnd, data.selectedText,
     data.title ?? null, data.note ?? null, data.folderId ?? null,
-    data.createdAt, data.updatedAt, data.deletedAt ?? null,
+    data.createdAt, data.updatedAt, data.deletedAt ?? null, expectedUpdatedAt ?? null, expectedUpdatedAt ?? null,
   ).run()
+  return (result.meta.changes ?? 0) > 0
 }
 
 export async function softDeleteBookmark(
@@ -119,6 +123,7 @@ export async function upsertFolder(
       "order"     = excluded."order",
       updatedAt   = excluded.updatedAt,
       deletedAt   = excluded.deletedAt
+    WHERE bookmark_folders.userId = excluded.userId
   `).bind(
     data.id, userId, data.versionSlug, data.bookSlug,
     data.name, data.order, data.createdAt, data.updatedAt, data.deletedAt ?? null,

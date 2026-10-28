@@ -2,28 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { hybridStorage } from '@/lib/storage'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthModal } from './AuthModal'
 import { SignOutDialog } from './SignOutDialog'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { toast } from '@/components/ui/Toast'
 import { useSyncStatus, formatCountdown, formatLastSync } from '@/hooks/useSyncStatus'
-
-// ── Local data helpers ────────────────────────────────────────────────────────
-
-/** Prefix used by all veobible localStorage keys (matches local-adapter.ts). */
-const LOCAL_DATA_PREFIX = 'veobible_'
-
-/** Remove all veobible_* keys from localStorage. */
-function clearLocalAppData(): void {
-  if (typeof window === 'undefined') return
-  const keysToRemove: string[] = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (key?.startsWith(LOCAL_DATA_PREFIX)) keysToRemove.push(key)
-  }
-  keysToRemove.forEach((k) => localStorage.removeItem(k))
-}
 
 // ── i18n ─────────────────────────────────────────────────────────────────────
 
@@ -65,7 +50,7 @@ export function AuthButton({ className }: { className?: string }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [signOutDialogOpen, setSignOutDialogOpen] = useState(false)
-  const [clearLocalData, setClearLocalData] = useState(true)
+  const [clearLocalData, setClearLocalData] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const avatarRef = useRef<HTMLButtonElement>(null)
@@ -109,7 +94,7 @@ export function AuthButton({ className }: { className?: string }) {
   const handleSignOutConfirm = async () => {
     setSigningOut(true)
     if (clearLocalData) {
-      clearLocalAppData()
+      await hybridStorage.clearDeviceData()
     }
     await signOut()
     setSigningOut(false)

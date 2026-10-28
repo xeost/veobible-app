@@ -39,13 +39,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = getSupabaseClient()
 
+    // Recover the UI identity without waiting for a network token refresh.
+    try {
+      const key = `sb-${new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]}-auth-token`
+      const cached = JSON.parse(localStorage.getItem(key) ?? 'null') as Session | null
+      if (cached?.user) setState({ user: cached.user, session: cached, loading: false })
+      else setState(previous => ({ ...previous, loading: false }))
+    } catch { setState(previous => ({ ...previous, loading: false })) }
     supabase.auth.getSession().then(({ data }) => {
       setState({
         user: data.session?.user ?? null,
         session: data.session,
         loading: false,
       })
-    })
+    }).catch(() => setState(previous => ({ ...previous, loading: false })))
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setState({

@@ -120,7 +120,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 
 ## 5. Database Schema (D1)
 
-The schema is managed via **Wrangler D1 migrations** in the `migrations/` directory (see §13). The initial schema (`0001_initial_schema.sql`):
+The schema is managed via **Wrangler D1 migrations** in the `apps/frontend/worker/migrations/` directory (see §13). The initial schema (`0001_initial_schema.sql`):
 
 ```sql
 -- Users table (minimal — auth is in Supabase)
@@ -222,7 +222,7 @@ CREATE TABLE user_preferences (
 ### Base URL
 
 ```
-https://api.veobible.com/v1
+https://veobible.com/api/v1
 ```
 
 ### Route Overview
@@ -378,68 +378,33 @@ Implemented via Cloudflare's built-in rate limiting or a simple D1-backed counte
 
 ## 11. Project Structure
 
-```
-backend/
-├── migrations/
-│   └── 0001_initial_schema.sql   # D1 migration (schema)
-├── src/
-│   ├── index.ts                  # Hono app entry, route registration
-│   ├── middleware/
-│   │   ├── auth.ts               # JWT verification (ES256/HS256)
-│   │   └── error.ts              # Global error handler
-│   ├── routes/
-│   │   ├── health.ts             # /health (public)
-│   │   ├── bookmarks.ts          # /bookmarks CRUD
-│   │   ├── folders.ts            # /bookmarks/folders CRUD
-│   │   ├── reading.ts            # /reading/positions & ribbons
-│   │   ├── preferences.ts        # /preferences
-│   │   └── sync.ts               # /sync pull & push
-│   ├── db/
-│   │   └── queries.ts            # Typed query helpers
-│   ├── types/
-│   │   └── index.ts              # Shared types (mirrors frontend models)
-│   └── utils/
-│       ├── validation.ts         # Request body validation
-│       └── timestamps.ts         # ISO 8601 helpers
-├── wrangler.toml                 # Workers config (D1 binding, env vars)
-├── .dev.vars.example             # Template for local secrets
-├── package.json
-└── tsconfig.json
-```
+The reader backend is part of the frontend package:
 
----
+```
+apps/frontend/
+├── worker/
+│   ├── index.ts                  # /api/v1 routing + reader shell routing
+│   ├── api/
+│   │   ├── index.ts              # Hono routes, auth and error handlers
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── db/queries.ts
+│   │   ├── types/
+│   │   └── utils/
+│   ├── migrations/               # Numbered D1 SQL migrations
+│   └── tsconfig.json
+├── scripts/dev-api.mjs           # API-only local Wrangler launcher
+├── wrangler.jsonc                # Single production Worker + D1 config
+└── .dev.vars.example             # Template for local secrets
+```
 
 ## 12. Wrangler Configuration
 
-```toml
-name = "veobible-api"
-main = "src/index.ts"
-compatibility_date = "2024-06-01"
+`apps/frontend/wrangler.jsonc` deploys `veobible-app` with static assets and the API. The D1 binding retains the existing `veobible-prod` database identity; `migrations_dir` is `worker/migrations`.
 
-[vars]
-ENVIRONMENT = "production"
-SUPABASE_URL = "https://<project>.supabase.co"
+Run `pnpm dev:api` from the repository root to start only the Hono API on port 8787. The launcher derives a temporary, ignored config from the production config and loads `apps/frontend/.dev.vars`. Both API-only development and the full preview persist local D1 to `worker/.wrangler/state`.
 
-[[d1_databases]]
-binding = "DB"
-database_name = "veobible-prod"
-database_id = "<d1-database-id>"
-migrations_dir = "migrations"
-
-# Secrets (set via `wrangler secret put`):
-# - SUPABASE_JWT_SECRET
-```
-
-### Local development
-
-For local dev, create `.dev.vars` (git-ignored) from `.dev.vars.example`:
-
-```
-SUPABASE_URL=https://<project>.supabase.co
-SUPABASE_JWT_SECRET=<your-jwt-secret>
-```
-
-Wrangler loads `.dev.vars` automatically on `wrangler dev`.
+There is no independent API Worker or backend package. See `apps/frontend/README.md` for current setup and deployment commands.
 
 ---
 
@@ -447,19 +412,21 @@ Wrangler loads `.dev.vars` automatically on `wrangler dev`.
 
 ### Commands
 
+Run these commands from `apps/frontend`.
+
 | Command | Action |
 |---------|--------|
-| `wrangler dev` | Local development (D1 local SQLite + hot reload) |
-| `wrangler d1 migrations apply veobible-prod --local` | Apply pending migrations to local D1 |
-| `wrangler d1 migrations apply veobible-prod --remote` | Apply pending migrations to production D1 |
+| `pnpm dev:api` | Local API development (D1 local SQLite + hot reload) |
+| `pnpm db:migrate:local` | Apply pending migrations to local D1 |
+| `pnpm db:migrate` | Apply pending migrations to production D1 |
 | `wrangler d1 migrations create veobible-prod <name>` | Create a new numbered migration file |
-| `wrangler d1 migrations list veobible-prod --local` | List applied migrations locally |
+| `pnpm exec wrangler d1 migrations list veobible-prod --local --persist-to worker/.wrangler/state` | List applied migrations locally |
 | `wrangler d1 migrations list veobible-prod --remote` | List applied migrations in production |
 | `wrangler deploy` | Deploy Worker to Cloudflare |
 
 ### Migration workflow
 
-Migration SQL files live in `migrations/` (configured via `migrations_dir` in `wrangler.toml`) and are numbered sequentially (`0001_initial_schema.sql`, `0002_name.sql`, …). Wrangler tracks which migrations have been applied in an internal `d1_migrations` table inside D1.
+Migration SQL files live in `worker/migrations/` (configured via `migrations_dir` in `apps/frontend/wrangler.jsonc`) and are numbered sequentially (`0001_initial_schema.sql`, `0002_name.sql`, …). Wrangler tracks which migrations have been applied in an internal `d1_migrations` table inside D1.
 
 Migrations are **not** applied automatically on `wrangler deploy`. The recommended CI/CD order is:
 
@@ -472,18 +439,19 @@ Migrations are **not** applied automatically on `wrangler deploy`. The recommend
 
 ```bash
 pnpm exec wrangler d1 migrations create veobible-prod add_some_column
-# → creates migrations/0002_add_some_column.sql (empty)
+# → creates worker/migrations/0002_add_some_column.sql (empty)
 # Edit the file with the SQL DDL, then apply locally to test:
-pnpm exec wrangler d1 migrations apply veobible-prod --local
+pnpm db:migrate:local
 ```
 
 ### Local development flow
 
 ```bash
-pnpm dev              # starts wrangler dev (auto-applies pending local migrations)
+pnpm db:migrate:local # explicitly apply local migrations
+pnpm dev:api          # start API-only development, without a Next.js build
 ```
 
-`wrangler dev` automatically applies any pending local migrations on startup, so the local D1 database is always up to date.
+Apply local migrations explicitly before starting the API; the development server does not apply them automatically.
 
 ---
 

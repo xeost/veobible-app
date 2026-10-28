@@ -14,7 +14,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://veobible.app'),
+  metadataBase: new URL('https://veobible.com'),
   title: {
     default: 'VeoBible — Read the Bible',
     template: '%s | VeoBible',

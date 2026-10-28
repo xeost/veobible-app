@@ -1,7 +1,9 @@
 'use client'
 
+import { readerSegment } from '@/lib/reader/routes'
+
 import React, { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import Link from '@/components/reader/ReaderLink'
 import { VerseItem } from './VerseItem'
 import { SelectionToolbar } from './SelectionToolbar'
 import { BookmarkTitleModal } from '@/components/bookmarks/BookmarkTitleModal'
@@ -129,7 +131,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
   }
 
   const buildNavUrl = (nav: { bookSlug: string; chapter: number }) =>
-    `/${lang}/${version}/${nav.bookSlug}/${nav.chapter}`
+    `/${lang}/${readerSegment(lang)}/${version}/${nav.bookSlug}/${nav.chapter}`
 
   return (
     <div className="relative">

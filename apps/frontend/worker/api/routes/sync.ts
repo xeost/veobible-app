@@ -66,8 +66,8 @@ sync.post('/', async (c) => {
       const serverTs = serverMap.get(bm.id)
       if (serverTs && serverTs > bm.updatedAt) {
         const server = await c.env.DB.prepare(
-          'SELECT * FROM bookmarks WHERE id = ?',
-        ).bind(bm.id).first<Bookmark>()
+          'SELECT * FROM bookmarks WHERE id = ? AND userId = ?',
+        ).bind(bm.id, userId).first<Bookmark>()
         conflicts.push({ type: 'bookmark', id: bm.id, serverVersion: server })
       } else {
         await upsertBookmark(c.env.DB, bm, userId)
@@ -92,8 +92,8 @@ sync.post('/', async (c) => {
       const serverTs = serverMap.get(fo.id)
       if (serverTs && serverTs > fo.updatedAt) {
         const server = await c.env.DB.prepare(
-          'SELECT * FROM bookmark_folders WHERE id = ?',
-        ).bind(fo.id).first<BookmarkFolder>()
+          'SELECT * FROM bookmark_folders WHERE id = ? AND userId = ?',
+        ).bind(fo.id, userId).first<BookmarkFolder>()
         conflicts.push({ type: 'bookmarkFolder', id: fo.id, serverVersion: server })
       } else {
         await upsertFolder(c.env.DB, fo, userId)

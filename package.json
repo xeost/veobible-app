@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev:site": "pnpm --dir apps/frontend dev",
+    "dev:api": "pnpm --dir apps/frontend dev:api",
     "dev:dashboard": "pnpm --dir apps/dashboard dev",
     "dev:api-proxy": "node tools/api-proxy/src/index.mjs",
     "build:dashboard": "pnpm --dir apps/dashboard build",

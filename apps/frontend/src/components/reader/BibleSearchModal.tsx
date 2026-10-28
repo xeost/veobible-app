@@ -1,7 +1,9 @@
 'use client'
 
+import { readerSegment } from '@/lib/reader/routes'
+
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import Link from '@/components/reader/ReaderLink'
 import { useI18n } from '@/lib/i18n/client'
 import { fetchBook } from '@/lib/bible/bibleDataCache'
 import type { BookInfo } from '@/lib/bible/types'
@@ -244,7 +246,7 @@ function BookGroupCard({ group, lang, version, onNavigate, initiallyOpen = false
           {group.hits.map((hit, idx) => (
             <Link
               key={`${hit.chapter}-${hit.verse}`}
-              href={`/${lang}/${version}/${hit.bookSlug}/${hit.chapter}#verse-${hit.verse}`}
+              href={`/${lang}/${readerSegment(lang)}/${version}/${hit.bookSlug}/${hit.chapter}#verse-${hit.verse}`}
               onClick={() => onNavigate(hit.bookSlug, hit.chapter)}
               className="block px-4 py-3 transition-all duration-150 group"
               style={{

@@ -16,7 +16,7 @@ export function LanguageToggle() {
 
   const handleLangChange = async () => {
     await storage.setPreference('locale', nextLang as any)
-    router.push(`/${nextLang}`)
+    window.location.assign(`/${nextLang}`)
   }
 
   return (

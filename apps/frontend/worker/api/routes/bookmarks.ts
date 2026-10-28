@@ -33,7 +33,20 @@ bookmarks.post('/', async (c) => {
     )
   }
 
-  await upsertBookmark(c.env.DB, body, userId)
+  const existing = await getBookmark(c.env.DB, body.id, userId)
+  if (existing && body.baseUpdatedAt && body.baseUpdatedAt !== existing.updatedAt && body.note !== existing.note) {
+    if (typeof body.conflictId !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.conflictId)) return c.json({ error: 'conflict' }, 409)
+    body.id = body.conflictId
+    body.title = `${body.title || 'Note'} (conflict)`
+  }
+  body.updatedAt = now()
+  const applied = await upsertBookmark(c.env.DB, body, userId, body.baseUpdatedAt)
+  if (!applied) {
+    if (!body.conflictId) return c.json({ error: 'conflict' }, 409)
+    body.id = body.conflictId
+    body.title = `${body.title || 'Note'} (conflict)`
+    await upsertBookmark(c.env.DB, body, userId)
+  }
   const created = await getBookmark(c.env.DB, body.id, userId)
   return c.json({ data: created }, 201)
 })

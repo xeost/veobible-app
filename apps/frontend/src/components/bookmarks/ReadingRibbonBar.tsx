@@ -1,7 +1,9 @@
 'use client'
 
+import { readerSegment } from '@/lib/reader/routes'
+
 import React, { useState } from 'react'
-import Link from 'next/link'
+import Link from '@/components/reader/ReaderLink'
 import { useReadingRibbon } from '@/hooks/useReadingRibbon'
 import { useBibleIndex } from '@/hooks/useBibleIndex'
 import { useI18n } from '@/lib/i18n/client'
@@ -105,7 +107,7 @@ export function ReadingRibbonBar({
 
   // href to navigate to the ribbon position
   const ribbonHref = ribbon
-    ? `/${lang}/${versionSlug}/${ribbon.bookSlug}/${ribbon.chapter}`
+    ? `/${lang}/${readerSegment(lang)}/${versionSlug}/${ribbon.bookSlug}/${ribbon.chapter}`
     : null
 
   const handleSet = async () => {

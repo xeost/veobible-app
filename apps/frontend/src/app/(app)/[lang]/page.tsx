@@ -1,7 +1,9 @@
 'use client'
 
+import { readerSegment } from '@/lib/reader/routes'
+
 import React, { useEffect, useState } from 'react'
-import Link from 'next/link'
+import Link from '@/components/reader/ReaderLink'
 import { HomeHeader } from '@/components/layout/HomeHeader'
 import { Footer } from '@/components/layout/Footer'
 import { SupportBanner } from '@/components/ui/SupportBanner'
@@ -184,7 +186,7 @@ function VerseOfTheDay({ locale, versionSlug }: { locale: string; versionSlug: s
             — {reference}
           </p>
           <Link
-            href={`/${locale}/${versionSlug}/${bookSlug}/${dailyVerse.chapter}`}
+            href={`/${locale}/${readerSegment(locale)}/${versionSlug}/${bookSlug}/${dailyVerse.chapter}`}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105"
             style={{
               background: 'rgba(255,255,255,0.2)',
@@ -369,8 +371,8 @@ function OtherVersionCard({
   lastPosition: ReadingPosition | null
 }) {
   const href = lastPosition
-    ? `/${lang}/${version.slug}/${lastPosition.bookSlug}/${lastPosition.chapter}`
-    : `/${lang}/${version.slug}/genesis/1`
+    ? `/${lang}/${readerSegment(lang)}/${version.slug}/${lastPosition.bookSlug}/${lastPosition.chapter}`
+    : `/${lang}/${readerSegment(lang)}/${version.slug}/genesis/1`
 
   return (
     <Link
@@ -479,8 +481,8 @@ function FeaturedVersionCard({
   const { t } = useI18n()
 
   const href = lastPosition
-    ? `/${lang}/${version.slug}/${lastPosition.bookSlug}/${lastPosition.chapter}`
-    : `/${lang}/${version.slug}/genesis/1`
+    ? `/${lang}/${readerSegment(lang)}/${version.slug}/${lastPosition.bookSlug}/${lastPosition.chapter}`
+    : `/${lang}/${readerSegment(lang)}/${version.slug}/genesis/1`
 
   return (
     <div

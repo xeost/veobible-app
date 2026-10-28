@@ -71,13 +71,17 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
     setIsDownloading(true)
     setStatus('checking')
     setProgress({ done: 0, total: totalBooks })
+    await navigator.storage?.persist?.().catch(() => false)
 
     // Cache index.json so the offline reader shell can reconstruct chapter
     // data without requiring the page HTML to be in the SW pages cache.
     try {
-      await fetchAndCacheIndex(lang, version, ctrl.signal)
+      await fetchAndCacheIndex(lang, version, ctrl.signal, true)
     } catch {
-      // Non-critical — continue download even if this fails
+      setIsDownloading(false)
+      setProgress(null)
+      setStatus('partial')
+      return
     }
     if (ctrl.signal.aborted) {
       setIsDownloading(false)
@@ -95,7 +99,7 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
         if (ctrl.signal.aborted) return
         const book = books[bookIdx++]
         try {
-          await fetchBook(lang, version, book.id, book.chapters, ctrl.signal)
+          await fetchBook(lang, version, book.id, book.chapters, ctrl.signal, true)
         } catch {
           if (ctrl.signal.aborted) return
           failed++
@@ -110,7 +114,8 @@ export function useOfflineVersion(lang: string, version: string, books: BookInfo
 
     if (!ctrl.signal.aborted) {
       setIsDownloading(false)
-      setStatus(failed === 0 ? 'available' : 'partial')
+      const count = await getCachedBookCount(lang, version)
+      setStatus(failed === 0 && count === totalBooks ? 'available' : 'partial')
       setProgress(null)
     }
   }, [lang, version, books, totalBooks, isDownloading])

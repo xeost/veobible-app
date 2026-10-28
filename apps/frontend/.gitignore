@@ -56,3 +56,14 @@ coverage/
 # Misc
 .vercel
 .turbo
+
+# Browser verification artifacts
+/test-results/
+/playwright-report/
+
+# Worker local secrets and generated API-only dev config
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+worker/.dev.vars*
+.wrangler.api-dev.json

@@ -1,6 +1,5 @@
 // Storage factory — exports the active adapter as a singleton.
-// HybridStorageAdapter delegates to LocalStorageAdapter when the user is not
-// authenticated, and also syncs mutations to the API when they are.
+// Account-scoped IndexedDB storage with a durable synchronization outbox.
 
 import { HybridStorageAdapter } from './hybrid-adapter'
 import type { StorageRepository } from './types'
@@ -10,7 +9,7 @@ const adapter = new HybridStorageAdapter()
 export const storage: StorageRepository = adapter
 
 /** Narrowly-typed handle for UI operations not in the base repository contract. */
-export const hybridStorage: Pick<HybridStorageAdapter, 'manualSync'> = adapter
+export const hybridStorage: Pick<HybridStorageAdapter, 'manualSync' | 'clearDeviceData'> = adapter
 
 /** Auto-sync interval in milliseconds — keep in sync with hybrid-adapter.ts. */
 export const SYNC_INTERVAL_MS = 5 * 60 * 1000

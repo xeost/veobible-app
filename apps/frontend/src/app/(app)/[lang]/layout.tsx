@@ -101,7 +101,7 @@ export async function generateMetadata({ params }: LangLayoutProps): Promise<Met
   const t = getTranslations(lang as Locale)
 
   return {
-    metadataBase: new URL('https://veobible.app'),
+    metadataBase: new URL('https://veobible.com'),
     title: {
       default: t.meta.homeTitle,
       template: `%s | VeoBible`,
@@ -181,13 +181,7 @@ export default async function LangLayout({ children, params }: LangLayoutProps) 
         <Script id="sw-registration" strategy="afterInteractive">
           {`
             if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-              window.addEventListener('load', function () {
-                navigator.serviceWorker
-                  .register('/sw.js')
-                  .catch(function (err) {
-                    console.warn('[SW] Registration failed:', err);
-                  });
-              });
+              navigator.serviceWorker.register('/sw.js').catch(console.warn);
             }
           `}
         </Script>

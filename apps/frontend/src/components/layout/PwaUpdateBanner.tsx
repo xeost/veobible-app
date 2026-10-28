@@ -85,10 +85,12 @@ export function PwaUpdateBanner() {
     }
   }, [])
 
-  const handleUpdate = () => {
-    // The new SW is already active (skipWaiting:true) — just reload to serve
-    // the new assets. No postMessage needed.
-    window.location.reload()
+  const handleUpdate = async () => {
+    const registration = await navigator.serviceWorker.getRegistration()
+    if (registration?.waiting) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true })
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+    } else window.location.reload()
   }
 
   const handleDismiss = () => setVisible(false)

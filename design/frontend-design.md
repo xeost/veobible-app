@@ -34,7 +34,7 @@ VeoBible is a Progressive Web App (PWA) for reading the Bible. It is statically 
 ```
 veobible-app/
 ├── apps/frontend/    # Next.js PWA (this document)
-├── backend/     # Cloudflare Workers + Hono + D1 (see backend-design.md)
+│   └── worker/      # Reader API + D1 migrations (see backend-design.md)
 └── design/      # Design documents
 ```
 

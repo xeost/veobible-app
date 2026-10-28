@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useReaderLocation } from '@/lib/reader/navigation'
 import { ReaderHeader } from '@/components/layout/ReaderHeader'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ReaderSettingsPanel } from '@/components/reader/ReaderSettingsPanel'
@@ -35,7 +35,7 @@ export function ReaderLayoutClient({
 
   // Read the current book/chapter from the URL so the sidebar can highlight
   // the active item without requiring a full remount on navigation.
-  const params = useParams<{ book?: string; chapter?: string }>()
+  const params = useReaderLocation()
   const currentBookSlug = params.book
   const currentChapterRaw = params.chapter ? parseInt(params.chapter, 10) : undefined
   const currentChapter =

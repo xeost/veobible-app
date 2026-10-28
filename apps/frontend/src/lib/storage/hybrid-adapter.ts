@@ -1,441 +1,150 @@
-import type {
-  Bookmark,
-  BookmarkFolder,
-  ReadingPosition,
-  RibbonPosition,
-  StorageRepository,
-  UserPreferences,
-} from './types'
-import { LocalStorageAdapter } from './local-adapter'
-import { ApiClient, SYNCABLE_PREFERENCE_KEYS, type SyncablePreferenceKey } from '@/lib/api/client'
+import type { Bookmark, BookmarkFolder, ReadingPosition, RibbonPosition, StorageRepository, UserPreferences } from './types'
+import { ApiClient, SYNCABLE_PREFERENCE_KEYS } from '@/lib/api/client'
 import { getSupabaseClient } from '@/lib/supabase/client'
+import { importGuest, transaction, type State, type Operation } from './database'
 
-// localStorage key constants — must match local-adapter.ts
-const LS_BOOKMARKS = 'veobible_bookmarks'
-const LS_FOLDERS   = 'veobible_bookmark_folders'
-const LS_POSITIONS = 'veobible_reading_positions'
-const LS_RIBBONS   = 'veobible_reading_ribbons'
-const LAST_SYNC_KEY = 'veobible_last_sync'
-
-// Background sync interval (5 minutes)
-const SYNC_INTERVAL_MS = 5 * 60 * 1000
-
-function lsGet<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : fallback
-  } catch { return fallback }
+const emit = (name = 'sync') => window.dispatchEvent(new Event(`veobible:${name}`))
+const timestamp = () => new Date().toISOString()
+const enqueue = (s: State, key: string, method: string, ...args: unknown[]) => {
+  s.queue = s.queue.filter(op => op.key !== key)
+  s.queue.push({ id: crypto.randomUUID(), key, method, args })
 }
-
-function getLastSync(): string {
-  if (typeof window === 'undefined') return new Date(0).toISOString()
-  return localStorage.getItem(LAST_SYNC_KEY) ?? new Date(0).toISOString()
-}
-
-function setLastSync(time: string): void {
-  if (typeof window !== 'undefined') localStorage.setItem(LAST_SYNC_KEY, time)
-}
-
-/**
- * Dispatches a custom event that hooks can listen for to re-read storage.
- * This is the signal that localStorage contents have changed due to a
- * sync operation (initial login pull, background pull, or sign-out clear).
- */
-function dispatchSyncEvent(): void {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('veobible:sync'))
-  }
-}
-
-/** Dispatches a custom event to signal that a sync is in progress. */
-function dispatchSyncingEvent(): void {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('veobible:syncing'))
-  }
-}
-
-function getAllPositions(): ReadingPosition[] {
-  const record = lsGet<Record<string, ReadingPosition>>(LS_POSITIONS, {})
-  return Object.values(record)
-}
-
-function getAllRibbons(): RibbonPosition[] {
-  const record = lsGet<Record<string, RibbonPosition>>(LS_RIBBONS, {})
-  return Object.values(record)
-}
-
-function buildSyncablePrefs(
-  prefs: UserPreferences,
-): Partial<Pick<UserPreferences, SyncablePreferenceKey>> {
-  const out: Partial<Pick<UserPreferences, SyncablePreferenceKey>> = {}
-  for (const key of SYNCABLE_PREFERENCE_KEYS) {
-    if (prefs[key] !== undefined) {
-      (out as Record<string, unknown>)[key] = prefs[key]
-    }
-  }
-  return out
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// HybridStorageAdapter
-//
-// Writes always go to localStorage first (offline-safe), then are sent to
-// the API in the background when authenticated. On first login, a full sync
-// is performed: local data is pushed to the server and remote data is pulled.
-// Returning authenticated users get an incremental pull on app focus/interval.
-// ────────────────────────────────────────────────────────────────────────────
 export class HybridStorageAdapter implements StorageRepository {
-  private readonly local: LocalStorageAdapter
-  private readonly api: ApiClient
-  private accessToken: string | null = null
-  private isSyncing = false
-  private syncInterval: ReturnType<typeof setInterval> | null = null
-
+  private scope = 'guest'
+  private token: string | null = null
+  private syncing = new Set<string>()
+  private timer?: ReturnType<typeof setTimeout>
+  private initialized: Promise<unknown> = Promise.resolve()
   constructor() {
-    this.local = new LocalStorageAdapter()
-    this.api = new ApiClient(() => this.accessToken)
-
-    if (typeof window !== 'undefined') {
-      const supabase = getSupabaseClient()
-
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        const wasAuthenticated = this.accessToken !== null
-        this.accessToken = session?.access_token ?? null
-
-        if (session) {
-          if (event === 'SIGNED_IN' && !wasAuthenticated) {
-            // Fresh login: push local data then pull everything from server
-            this.performInitialSync().catch(console.error)
-          } else if (event === 'INITIAL_SESSION') {
-            // App opened while already logged in: incremental pull only
-            this.backgroundSync().catch(console.error)
-          }
-          this.startBackgroundSync()
-        } else {
-          // Signed out — notify hooks so they re-read the (now possibly
-          // cleared) localStorage and update their in-memory state.
-          this.stopBackgroundSync()
-          dispatchSyncEvent()
-        }
-      })
-    }
-  }
-
-  private get isAuthenticated(): boolean {
-    return this.accessToken !== null
-  }
-
-  // ── Background sync scheduling ───────────────────────────────────────────
-
-  private startBackgroundSync(): void {
-    if (this.syncInterval) return
-
-    // Sync on tab focus
-    document.addEventListener('visibilitychange', this.onVisibilityChange)
-
-    // Sync on interval
-    this.syncInterval = setInterval(() => {
-      if (!document.hidden) this.backgroundSync().catch(console.error)
-    }, SYNC_INTERVAL_MS)
-  }
-
-  private stopBackgroundSync(): void {
-    document.removeEventListener('visibilitychange', this.onVisibilityChange)
-    if (this.syncInterval) {
-      clearInterval(this.syncInterval)
-      this.syncInterval = null
-    }
-  }
-
-  private onVisibilityChange = () => {
-    if (!document.hidden && this.isAuthenticated) {
-      this.backgroundSync().catch(console.error)
-    }
-  }
-
-  // ── Initial sync (on first login) ────────────────────────────────────────
-
-  async performInitialSync(): Promise<void> {
-    if (!this.isAuthenticated || this.isSyncing) return
-    this.isSyncing = true
-    dispatchSyncingEvent()
-    try {
-      const [bookmarks, allFolders, allPositions, allRibbons, prefs] = await Promise.all([
-        this.local.getBookmarks(),
-        Promise.resolve(lsGet<BookmarkFolder[]>(LS_FOLDERS, [])),
-        Promise.resolve(getAllPositions()),
-        Promise.resolve(getAllRibbons()),
-        this.local.getPreferences(),
-      ])
-
-      const pushResponse = await this.api.push({
-        bookmarks: bookmarks.map(({ syncStatus: _s, deletedAt: _d, ...b }) => b),
-        bookmarkFolders: allFolders,
-        readingPositions: allPositions,
-        readingRibbons: allRibbons,
-        preferences: buildSyncablePrefs(prefs),
-      })
-
-      if (pushResponse.conflicts.length > 0) {
-        const { toast } = await import('@/components/ui/Toast')
-        toast(`Sync: ${pushResponse.conflicts.length} conflict(s) resolved by server`, 'info')
-      }
-
-      // Pull everything since epoch so server state wins for any conflicts
-      const pullResponse = await this.api.pull(new Date(0).toISOString())
-      await this.applyPull(pullResponse)
-    } finally {
-      this.isSyncing = false
-    }
-  }
-
-  // ── Incremental background sync ──────────────────────────────────────────
-
-  async backgroundSync(): Promise<void> {
-    if (!this.isAuthenticated || this.isSyncing) return
-    this.isSyncing = true
-    dispatchSyncingEvent()
-    try {
-      const pullResponse = await this.api.pull(getLastSync())
-      await this.applyPull(pullResponse)
-    } catch {
-      // Silent failure — will retry on next trigger
-      window.dispatchEvent(new CustomEvent('veobible:sync-error'))
-    } finally {
-      this.isSyncing = false
-    }
-  }
-
-  // ── Public API ───────────────────────────────────────────────────────────
-
-  /**
-   * Triggers an immediate incremental sync if authenticated and not already
-   * syncing. Intended for use by the UI (e.g. a "Sync now" button).
-   */
-  public async manualSync(): Promise<void> {
-    await this.backgroundSync()
-  }
-
-  // ── Apply pulled server data (LWW) ───────────────────────────────────────
-
-  private async applyPull(
-    pull: Awaited<ReturnType<ApiClient['pull']>>,
-  ): Promise<void> {
     if (typeof window === 'undefined') return
-
-    // ── Bookmarks ──────────────────────────────────────────────────────────
-    // Work on a mutable copy so multiple insertions don't clobber each other
-    const bookmarks = lsGet<Bookmark[]>(LS_BOOKMARKS, [])
-    let bookmarksChanged = false
-
-    for (const remote of pull.bookmarks) {
-      const localIdx = bookmarks.findIndex((b) => b.id === remote.id)
-      const localTs  = localIdx !== -1 ? bookmarks[localIdx].updatedAt : undefined
-      const wins     = !remote.updatedAt || !localTs || remote.updatedAt >= localTs
-
-      if (!wins) continue
-
-      if (remote.deletedAt) {
-        if (localIdx !== -1) { bookmarks.splice(localIdx, 1); bookmarksChanged = true }
-      } else {
-        const entry: Bookmark = { ...remote, syncStatus: 'synced' }
-        if (localIdx === -1) {
-          bookmarks.unshift(entry)
-        } else {
-          bookmarks[localIdx] = entry
+    // Recover account identity locally; token refresh must never gate local reads.
+    const client = getSupabaseClient()
+    const key = `sb-${new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]}-auth-token`
+    try { const session = JSON.parse(localStorage.getItem(key) ?? 'null'); if (session?.user?.id) { this.scope = session.user.id; this.token = session.access_token } } catch {}
+    this.initialized = this.migrate(this.scope)
+    client.auth.onAuthStateChange((event, session) => {
+      const previous = this.scope
+      this.scope = session?.user.id ?? 'guest'
+      this.token = session?.access_token ?? null
+      if (previous !== this.scope) {
+        const scope = this.scope
+        this.initialized = this.initialized.then(() => this.migrate(scope)).then(() => event === 'SIGNED_IN' && previous === 'guest' && scope !== 'guest' ? importGuest(scope) : undefined)
+      }
+      localStorage.removeItem('veobible_last_sync')
+      this.initialized.then(() => { emit(); this.schedule() }).catch(console.error)
+    })
+    window.addEventListener('online', () => this.schedule())
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.schedule() })
+    setInterval(() => { if (!document.hidden) this.schedule() }, 5 * 60 * 1000)
+  }
+  private async migrate(scope: string) {
+    // Legacy keys remain untouched as a backup. Claim once, to the locally known account.
+    if (!localStorage.getItem('veobible_idb_migrated')) {
+      const read = (key: string, fallback: unknown) => { try { return JSON.parse(localStorage.getItem(`veobible_${key}`) ?? 'null') ?? fallback } catch { return fallback } }
+      await transaction(scope, s => {
+        if (s.bookmarks.length || s.lastSync) return
+        s.bookmarks = read('bookmarks', []) as Bookmark[]
+        s.folders = read('bookmark_folders', []) as BookmarkFolder[]
+        s.positions = read('reading_positions', {}) as State['positions']
+        s.ribbons = read('reading_ribbons', {}) as State['ribbons']
+        s.preferences = read('preferences', {}) as UserPreferences
+        for (const b of s.bookmarks) enqueue(s, `bookmark:${b.id}`, 'createBookmark', b)
+        for (const f of s.folders) enqueue(s, `folder:${f.id}`, 'createFolder', f)
+        for (const p of Object.values(s.positions)) enqueue(s, `position:${p.versionSlug}`, 'upsertReadingPosition', p)
+        for (const r of Object.values(s.ribbons)) enqueue(s, `ribbon:${r.versionSlug}`, 'upsertReadingRibbon', r)
+      })
+      localStorage.setItem('veobible_idb_migrated', scope)
+    }
+  }
+  private async access<T>(update: (s: State) => T, mutate = false) {
+    const scope = this.scope
+    await this.initialized
+    const result = await transaction(scope, update)
+    if (mutate) this.schedule()
+    return result
+  }
+  private schedule() {
+    if (this.timer) clearTimeout(this.timer)
+    this.timer = setTimeout(() => this.manualSync().catch(() => {}), 1000)
+  }
+  async manualSync() {
+    const scope = this.scope, token = this.token
+    if (!token || scope === 'guest' || this.syncing.has(scope) || !navigator.onLine) return
+    await this.initialized
+    this.syncing.add(scope); emit('syncing')
+    const api = new ApiClient(() => token)
+    try {
+      for (;;) {
+        const op = await transaction(scope, s => [...s.queue].sort((a, b) => {
+          const rank = (o: Operation) => o.method === 'createFolder' ? 0 : o.method === 'deleteFolder' ? 3 : o.method.startsWith('delete') ? 2 : 1
+          return rank(a) - rank(b)
+        })[0])
+        if (!op || this.scope !== scope) break
+        try {
+          const fn = api[op.method as keyof ApiClient] as (...args: unknown[]) => Promise<unknown>
+          await fn.apply(api, op.args)
+        } catch (error) {
+          if (!(op.method.startsWith('delete') && (error as { status?: number }).status === 404)) throw error
         }
-        bookmarksChanged = true
+        await transaction(scope, s => { s.queue = s.queue.filter(q => q.id !== op.id) })
       }
-    }
-    if (bookmarksChanged) localStorage.setItem(LS_BOOKMARKS, JSON.stringify(bookmarks))
-
-    // ── Folders ────────────────────────────────────────────────────────────
-    const folders = lsGet<BookmarkFolder[]>(LS_FOLDERS, [])
-    let foldersChanged = false
-
-    for (const remote of pull.bookmarkFolders) {
-      const idx = folders.findIndex((f) => f.id === remote.id)
-      const localTs = idx !== -1 ? folders[idx].updatedAt : undefined
-      if (!localTs || remote.updatedAt >= localTs) {
-        if (idx === -1) { folders.push(remote) } else { folders[idx] = remote }
-        foldersChanged = true
-      }
-    }
-    if (foldersChanged) localStorage.setItem(LS_FOLDERS, JSON.stringify(folders))
-
-    // ── Reading positions ──────────────────────────────────────────────────
-    for (const pos of pull.readingPositions) {
-      const local = await this.local.getReadingPosition(pos.versionSlug)
-      if (!local || pos.updatedAt >= local.updatedAt) {
-        await this.local.setReadingPosition(pos)
-      }
-    }
-
-    // ── Reading ribbons ────────────────────────────────────────────────────
-    for (const ribbon of pull.readingRibbons) {
-      const local = await this.local.getRibbonPosition(ribbon.versionSlug)
-      if (!local || ribbon.updatedAt >= local.updatedAt) {
-        await this.local.setRibbonPosition(ribbon)
-      }
-    }
-
-    // ── Preferences ────────────────────────────────────────────────────────
-    if (pull.preferences && Object.keys(pull.preferences).length > 0) {
-      // Strip server-internal fields (e.g. updatedAt) before storing
-      const { updatedAt: _ts, ...cleanPrefs } = pull.preferences as typeof pull.preferences & { updatedAt?: string }
-      await this.local.setPreferences(cleanPrefs)
-    }
-
-    setLastSync(pull.serverTime)
-
-    // Notify React hooks that localStorage has been updated
-    dispatchSyncEvent()
-  }
-
-  // ── StorageRepository implementation ────────────────────────────────────
-  // All methods: write to local first, then fire-and-forget to API.
-
-  async getBookmarks(): Promise<Bookmark[]> {
-    return this.local.getBookmarks()
-  }
-
-  async getBookmarksByVersion(versionSlug: string): Promise<Bookmark[]> {
-    return this.local.getBookmarksByVersion(versionSlug)
-  }
-
-  async getBookmark(id: string): Promise<Bookmark | null> {
-    return this.local.getBookmark(id)
-  }
-
-  async addBookmark(data: Omit<Bookmark, 'id' | 'createdAt' | 'syncStatus'>): Promise<Bookmark> {
-    const saved = await this.local.addBookmark(data)
-    if (this.isAuthenticated) {
-      const { syncStatus: _s, ...payload } = saved
-      this.api.createBookmark(payload).catch(console.error)
-    }
-    return saved
-  }
-
-  async updateBookmark(
-    id: string,
-    patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>,
-  ): Promise<Bookmark> {
-    const updated = await this.local.updateBookmark(id, patch)
-    if (this.isAuthenticated) {
-      // Send the merged result so the required `updatedAt` is always present
-      this.api.updateBookmark(id, {
-        title: updated.title,
-        note: updated.note,
-        folderId: updated.folderId,
-        updatedAt: updated.updatedAt,
-      }).catch(console.error)
-    }
-    return updated
-  }
-
-  async removeBookmark(id: string): Promise<void> {
-    await this.local.removeBookmark(id)
-    if (this.isAuthenticated) {
-      this.api.deleteBookmark(id).catch(console.error)
-    }
-  }
-
-  async clearBookmarks(): Promise<void> {
-    return this.local.clearBookmarks()
-  }
-
-  async getFoldersByVersion(versionSlug: string): Promise<BookmarkFolder[]> {
-    return this.local.getFoldersByVersion(versionSlug)
-  }
-
-  async addFolder(
-    data: Omit<BookmarkFolder, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<BookmarkFolder> {
-    const saved = await this.local.addFolder(data)
-    if (this.isAuthenticated) {
-      this.api.createFolder(saved).catch(console.error)
-    }
-    return saved
-  }
-
-  async updateFolder(
-    id: string,
-    patch: Partial<Omit<BookmarkFolder, 'id' | 'createdAt'>>,
-  ): Promise<BookmarkFolder> {
-    const updated = await this.local.updateFolder(id, patch)
-    if (this.isAuthenticated) {
-      // Send the merged result so the required `updatedAt` is always present
-      this.api.updateFolder(id, {
-        name: updated.name,
-        order: updated.order,
-        updatedAt: updated.updatedAt,
-      }).catch(console.error)
-    }
-    return updated
-  }
-
-  async removeFolder(id: string): Promise<void> {
-    await this.local.removeFolder(id)
-    if (this.isAuthenticated) {
-      this.api.deleteFolder(id).catch(console.error)
-    }
-  }
-
-  async getReadingPosition(versionSlug: string): Promise<ReadingPosition | null> {
-    return this.local.getReadingPosition(versionSlug)
-  }
-
-  async setReadingPosition(position: ReadingPosition): Promise<void> {
-    await this.local.setReadingPosition(position)
-    if (this.isAuthenticated) {
-      this.api.upsertReadingPosition(position).catch(console.error)
-    }
-  }
-
-  async getRibbonPosition(versionSlug: string): Promise<RibbonPosition | null> {
-    return this.local.getRibbonPosition(versionSlug)
-  }
-
-  async setRibbonPosition(position: RibbonPosition): Promise<void> {
-    await this.local.setRibbonPosition(position)
-    if (this.isAuthenticated) {
-      this.api.upsertReadingRibbon(position).catch(console.error)
-    }
-  }
-
-  async clearRibbonPosition(versionSlug: string): Promise<void> {
-    await this.local.clearRibbonPosition(versionSlug)
-    if (this.isAuthenticated) {
-      this.api.deleteReadingRibbon(versionSlug).catch(console.error)
-    }
-  }
-
-  async getPreferences(): Promise<UserPreferences> {
-    return this.local.getPreferences()
-  }
-
-  async setPreference<K extends keyof UserPreferences>(
-    key: K,
-    value: UserPreferences[K],
-  ): Promise<void> {
-    await this.local.setPreference(key, value)
-    if (this.isAuthenticated && (SYNCABLE_PREFERENCE_KEYS as readonly string[]).includes(key as string)) {
-      this.api.putPreferences({ [key]: value } as Partial<Pick<UserPreferences, SyncablePreferenceKey>>).catch(console.error)
-    }
-  }
-
-  async setPreferences(patch: Partial<UserPreferences>): Promise<void> {
-    await this.local.setPreferences(patch)
-    if (this.isAuthenticated) {
-      const syncable: Partial<Pick<UserPreferences, SyncablePreferenceKey>> = {}
-      for (const key of SYNCABLE_PREFERENCE_KEYS) {
-        if (key in patch) {
-          (syncable as Record<string, unknown>)[key] = patch[key]
+      if (this.scope !== scope) return
+      // Full snapshots also propagate hard-deleted ribbons and avoid timestamp cursor gaps.
+      const remote = await api.pull(new Date(0).toISOString())
+      await transaction(scope, s => {
+        const pending = new Set(s.queue.map(op => op.key))
+        const merge = <T extends { id: string; deletedAt?: string }>(local: T[], incoming: T[], kind: string) => {
+          const map = new Map(local.map(b => [b.id, b]))
+          for (const b of incoming) if (!pending.has(`${kind}:${b.id}`)) { if (b.deletedAt) map.delete(b.id); else map.set(b.id, b) }
+          return Array.from(map.values())
         }
-      }
-      if (Object.keys(syncable).length > 0) {
-        this.api.putPreferences(syncable).catch(console.error)
-      }
-    }
+        s.bookmarks = merge(s.bookmarks, remote.bookmarks.map(b => ({ ...b, syncStatus: 'synced' as const })), 'bookmark')
+        s.folders = merge(s.folders, remote.bookmarkFolders, 'folder')
+        for (const p of remote.readingPositions) if (!pending.has(`position:${p.versionSlug}`)) s.positions[p.versionSlug] = p
+        const ribbons = Object.fromEntries(remote.readingRibbons.map(r => [r.versionSlug, r]))
+        for (const key of Object.keys(s.ribbons)) if (pending.has(`ribbon:${key}`)) ribbons[key] = s.ribbons[key]
+        for (const key of Object.keys(ribbons)) if (pending.has(`ribbon:${key}`) && !s.ribbons[key]) delete ribbons[key]
+        s.ribbons = ribbons
+        if (!pending.has('preferences')) Object.assign(s.preferences, remote.preferences)
+        s.lastSync = remote.serverTime
+      })
+      if (scope === this.scope) { localStorage.setItem('veobible_last_sync', remote.serverTime); emit() }
+    } catch (error) { emit('sync-error'); throw error }
+    finally { this.syncing.delete(scope) }
   }
+  async clearDeviceData() {
+    const scope = this.scope
+    await this.initialized
+    await transaction(scope, s => { Object.assign(s, { bookmarks: [], folders: [], positions: {}, ribbons: {}, preferences: {}, queue: [], lastSync: '' }) })
+    // Remove only legacy user data; keep the migration marker to prevent reimport.
+    for (const key of ['bookmarks', 'bookmark_folders', 'reading_positions', 'reading_ribbons', 'preferences', 'last_sync']) localStorage.removeItem(`veobible_${key}`)
+    emit()
+  }
+  getBookmarks() { return this.access(s => s.bookmarks) }
+  getBookmarksByVersion(version: string) { return this.access(s => s.bookmarks.filter(b => b.versionSlug === version)) }
+  getBookmark(id: string) { return this.access(s => s.bookmarks.find(b => b.id === id) ?? null) }
+  addBookmark(data: Omit<Bookmark, 'id' | 'createdAt' | 'syncStatus'>) {
+    return this.access(s => { const b: Bookmark = { ...data, id: crypto.randomUUID(), createdAt: timestamp(), updatedAt: timestamp(), syncStatus: 'pending' }; s.bookmarks.unshift(b); enqueue(s, `bookmark:${b.id}`, 'createBookmark', b); return b }, true)
+  }
+  updateBookmark(id: string, patch: Partial<Omit<Bookmark, 'id' | 'createdAt'>>) {
+    return this.access(s => { const b = s.bookmarks.find(b => b.id === id); if (!b) throw new Error('Bookmark missing'); const queued = s.queue.find(o => o.key === `bookmark:${id}`)?.args[0] as { baseUpdatedAt?: string } | undefined; const baseUpdatedAt = queued?.baseUpdatedAt ?? b.updatedAt; Object.assign(b, patch, { updatedAt: timestamp(), syncStatus: 'pending' }); enqueue(s, `bookmark:${id}`, 'createBookmark', { ...b, baseUpdatedAt, conflictId: crypto.randomUUID() }); return b }, true)
+  }
+  removeBookmark(id: string) { return this.access(s => { s.bookmarks = s.bookmarks.filter(b => b.id !== id); enqueue(s, `bookmark:${id}`, 'deleteBookmark', id) }, true) }
+  clearBookmarks() { return this.access(s => { for (const b of s.bookmarks) enqueue(s, `bookmark:${b.id}`, 'deleteBookmark', b.id); s.bookmarks = [] }, true) }
+  getFoldersByVersion(version: string) { return this.access(s => s.folders.filter(f => f.versionSlug === version).sort((a,b) => a.order - b.order)) }
+  addFolder(data: Omit<BookmarkFolder, 'id' | 'createdAt' | 'updatedAt'>) {
+    return this.access(s => { const f = { ...data, id: crypto.randomUUID(), createdAt: timestamp(), updatedAt: timestamp() }; s.folders.push(f); enqueue(s, `folder:${f.id}`, 'createFolder', f); return f }, true)
+  }
+  updateFolder(id: string, patch: Partial<Omit<BookmarkFolder, 'id' | 'createdAt'>>) {
+    return this.access(s => { const f = s.folders.find(f => f.id === id); if (!f) throw new Error('Folder missing'); Object.assign(f, patch, { updatedAt: timestamp() }); enqueue(s, `folder:${id}`, 'createFolder', f); return f }, true)
+  }
+  removeFolder(id: string) { return this.access(s => { s.folders = s.folders.filter(f => f.id !== id); for (const b of s.bookmarks) if (b.folderId === id) { b.folderId = undefined; enqueue(s, `bookmark:${b.id}`, 'createBookmark', b) } enqueue(s, `folder:${id}`, 'deleteFolder', id) }, true) }
+  getReadingPosition(version: string) { return this.access(s => s.positions[version] ?? null) }
+  setReadingPosition(p: ReadingPosition) { return this.access(s => { s.positions[p.versionSlug] = p; enqueue(s, `position:${p.versionSlug}`, 'upsertReadingPosition', p) }, true) }
+  getRibbonPosition(version: string) { return this.access(s => s.ribbons[version] ?? null) }
+  setRibbonPosition(r: RibbonPosition) { return this.access(s => { s.ribbons[r.versionSlug] = r; enqueue(s, `ribbon:${r.versionSlug}`, 'upsertReadingRibbon', r) }, true) }
+  clearRibbonPosition(version: string) { return this.access(s => { delete s.ribbons[version]; enqueue(s, `ribbon:${version}`, 'deleteReadingRibbon', version) }, true) }
+  getPreferences() { return this.access(s => s.preferences) }
+  setPreference<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) { return this.setPreferences({ [key]: value }) }
+  setPreferences(patch: Partial<UserPreferences>) { return this.access(s => { Object.assign(s.preferences, patch); const syncable = Object.fromEntries(SYNCABLE_PREFERENCE_KEYS.filter(k => s.preferences[k] !== undefined).map(k => [k, s.preferences[k]])); enqueue(s, 'preferences', 'putPreferences', syncable) }, true) }
 }
