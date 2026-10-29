@@ -1,74 +1,30 @@
-import React from 'react'
 import Link from '@/components/reader/ReaderLink'
+import { discovery } from '@/lib/i18n/discovery'
+import { sections, type Locale } from '../../../../../packages/website/content'
 
-interface FooterProps {
-  lang: string
-}
-
-export function Footer({ lang }: FooterProps) {
-  const isEs = lang === 'es'
-  const isPt = lang === 'pt'
-
-  const readingLinks = [
-    { href: `/en/kjv`, label: 'King James Version (KJV)' },
-    { href: `/es/rv1909`, label: 'Reina Valera 1909 (RV1909)' },
-    { href: `/pt/arc`, label: 'Almeida Revista e Corrigida (ARC)' },
-  ]
-
-  return (
-    <footer
-      className="w-full border-t py-12 px-6 mt-auto transition-colors duration-200"
-      style={{
-        background: 'var(--bg-card)',
-        borderColor: 'var(--border)',
-      }}
-    >
-      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Brand Section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span
-              className="font-bold text-xl tracking-tight"
-              style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}
-            >
-              VeoBible
-            </span>
-          </div>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            {isPt
-              ? 'Uma experiência moderna e focada para ler e estudar as Escrituras Sagradas.'
-              : isEs
-              ? 'Una experiencia moderna y enfocada para leer y estudiar las Sagradas Escrituras.'
-              : 'A modern, focused experience for reading and studying the Holy Scriptures.'}
-          </p>
-          <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
-            &copy; {new Date().getFullYear()} VeoBible. {isPt ? 'Todos os direitos reservados.' : isEs ? 'Todos los derechos reservados.' : 'All rights reserved.'}
-          </p>
-        </div>
-
-        {/* Read Column */}
-        <div className="space-y-4">
-          <h3
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--brand)' }}
-          >
-            {isPt ? 'Leitura' : isEs ? 'Lectura' : 'Read'}
-          </h3>
-          <ul className="space-y-2">
-            {readingLinks.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="text-sm transition-colors hover:opacity-85"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+export function Footer({ lang }: { lang: string }) {
+  const locale = lang as Locale
+  const copy = discovery[locale]
+  const s = sections[locale]
+  return <footer className="site-footer">
+    <div className="site-container">
+      <div className="footer-grid">
+        <div><Link href={`/${lang}`} className="footer-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" width={34} height={34} alt="" />VeoBible
+        </Link><p>{copy.footer}</p></div>
+        <div><h2>{copy.nav[0]}</h2><ul>
+          <li><Link href="/es/rv1909">Reina Valera 1909</Link></li>
+          <li><Link href="/en/kjv">King James Version</Link></li>
+          <li><Link href="/pt/arc">Almeida Revista e Corrigida</Link></li>
+          <li><Link href={`/${lang}#versions`}>{copy.all}</Link></li>
+        </ul></div>
+        <div><h2>{copy.explore}</h2><ul>
+          <li><Link href={`/${lang}/${s.short}`}>{s.shortTitle}</Link></li>
+          <li><Link href={`/${lang}/${s.long}`}>{s.longTitle}</Link></li>
+        </ul></div>
       </div>
-    </footer>
-  )
+      <p className="footer-bottom">© {new Date().getFullYear()} VeoBible · {copy.free}</p>
+    </div>
+  </footer>
 }

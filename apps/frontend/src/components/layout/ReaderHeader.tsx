@@ -85,8 +85,8 @@ export function ReaderHeader({
   const [offlinePanelOpen, setOfflinePanelOpen] = useState(false)
 
   return (
-    <header className="app-header app-header-height sticky top-0 z-30">
-      <div className="max-w-[1600px] mx-auto px-4 h-16 flex items-center justify-between gap-2 relative">
+    <header className="reader-header app-header app-header-height sticky top-0 z-30">
+      <div className="reader-header-inner max-w-[1600px] mx-auto px-4 h-16 flex items-center justify-between gap-2 relative">
         {/* Left side: Logo, Version, and ToC menu on mobile */}
         <div className="flex items-center gap-2 md:gap-3 justify-start min-w-0 z-10">
           <Logo currentLang={currentLang} />
@@ -94,7 +94,7 @@ export function ReaderHeader({
           {/* Mobile: ToC button — always visible when handler provided */}
           <button
             onClick={onOpenSidebar}
-            className="btn-icon md:hidden flex-shrink-0"
+            className="btn-icon xl:hidden flex-shrink-0"
             aria-label={t.nav.tableOfContents}
             id="open-sidebar-btn"
           >
@@ -103,7 +103,7 @@ export function ReaderHeader({
         </div>
 
         {/* Center: Reading Mode & Typography Icon Buttons with Custom Tooltips */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center">
+        <div className="reader-tools absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center">
           <div
             className="flex items-center gap-0.5 p-0.5 rounded-xl border shadow-sm"
             style={{
@@ -112,7 +112,7 @@ export function ReaderHeader({
             }}
           >
             {/* Reading mode toggle — only in the reader, only desktop */}
-            <Tooltip content={readingModeLabel} className="hidden md:flex">
+            <Tooltip content={readingModeLabel} className="hidden xl:flex">
               <button
                 onClick={onToggleReadingMode}
                 className="btn-icon flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200"
@@ -168,11 +168,11 @@ export function ReaderHeader({
           {/* Mobile: Bookmarks button — always visible when handler provided */}
           <button
             onClick={onOpenBookmarks}
-            className="btn-icon md:hidden flex-shrink-0"
+            className="btn-icon xl:hidden flex-shrink-0"
             aria-label={t.nav.bookmarks}
             id="open-bookmarks-btn"
           >
-            <MenuIcon />
+            <BookmarkIcon />
           </button>
         </div>
       </div>

@@ -203,7 +203,7 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
   }
 
   return (
-    <div className="mx-auto my-12 relative rounded-3xl overflow-hidden transition-all duration-300 group w-full"
+    <div className="support-banner mx-auto my-8 relative rounded-3xl overflow-hidden transition-all duration-300 group w-full"
       style={{
         maxWidth: '42rem',
         border: '1px solid var(--border)',
@@ -211,13 +211,6 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
         background: 'var(--bg-card)',
       }}
     >
-      {/* Background gradients and glow */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at top, color-mix(in srgb, var(--brand) 12%, transparent) 0%, transparent 70%)',
-      }} />
-      <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full pointer-events-none blur-3xl opacity-20 bg-red-500" />
-      <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full pointer-events-none blur-3xl opacity-20 bg-brand" />
-
       {isClosable && (
         <div className="absolute top-4 right-4 z-20">
           <Tooltip content={text.closeTooltip} placement="top">
@@ -235,11 +228,11 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
 
       <div className="relative z-10 p-8 md:p-10 flex flex-col items-center text-center">
         {/* Main Icon */}
-        <div className="w-16 h-16 rounded-2xl mb-6 flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500"
+        <div className="w-16 h-16 rounded-2xl mb-6 flex items-center justify-center transition-colors"
           style={{
-            background: 'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)',
+            background: '#b52337',
             color: '#fff',
-            boxShadow: '0 8px 32px rgba(255,0,0,0.35)'
+            boxShadow: 'none'
           }}
         >
           <YoutubeIcon />
@@ -251,9 +244,9 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
         </h3>
 
         {/* Description */}
-        <p className="text-base md:text-lg leading-relaxed mb-8 max-w-xl mx-auto font-medium opacity-90" style={{ color: 'var(--text-secondary)' }}>
+        <div className="text-base md:text-lg leading-relaxed mb-8 max-w-xl mx-auto font-medium opacity-90" style={{ color: 'var(--text-secondary)' }}>
           {text.mainMsg}
-        </p>
+        </div>
 
         {/* YouTube Button */}
         <div className={`flex flex-col sm:flex-row gap-3 w-full justify-center items-center ${DONATION_PLATFORMS.length > 0 && showDonations ? 'mb-10' : (DONATION_PLATFORMS.length > 0 && !showDonations ? 'mb-6' : '')}`}>
@@ -266,7 +259,7 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 shadow-sm hover:shadow-xl transform hover:-translate-y-1 w-full sm:w-auto"
                 style={{
-                  background: 'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)',
+                  background: '#b52337',
                   color: '#ffffff',
                   border: 'none',
                 }}

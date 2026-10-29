@@ -1,3 +1,6 @@
+import { HomeHeader } from '@/components/layout/HomeHeader'
+import { Footer } from '@/components/layout/Footer'
+import { discovery } from '@/lib/i18n/discovery'
 import { sections, type Locale } from '@/lib/website/content'
 import { WebsiteListing } from '@/components/ui/WebsiteListing'
 import { readerSegment } from '@/lib/reader/routes'
@@ -77,12 +80,14 @@ export default async function VersionPage({ params }: VersionPageProps) {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
-      <div className="max-w-5xl mx-auto px-4 py-10">
+      <HomeHeader currentLang={lang} />
+      <main id="main-content" className="site-container version-main">
         {/* Back link */}
         <BackButton fallbackHref={`/${lang}`} label={t.nav.back} />
 
-        <div className="mb-10 max-w-2xl">
-          <h1 className="text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-lora), Georgia, serif' }}>
+        <div className="version-intro">
+          <p className="eyebrow">{discovery[lang].libraryLabel}</p>
+          <h1>
             {index.metadata.name}
           </h1>
           {index.metadata.description && (
@@ -97,7 +102,8 @@ export default async function VersionPage({ params }: VersionPageProps) {
 
         {renderGroup(oldTestament, t.testament.old)}
         {renderGroup(newTestament, t.testament.new)}
-      </div>
+      </main>
+      <Footer lang={lang} />
     </div>
   )
 }

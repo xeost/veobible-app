@@ -152,7 +152,7 @@ export function ReaderLayoutClient({
 
   return (
     <ReaderContext.Provider value={{ addBookmark, isBookmarked }}>
-      <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
+      <div className="min-h-screen reader-shell" style={{ background: 'var(--bg-page)' }}>
         {/* ── Header ────────────────────────────────────────────────────────── */}
         <ReaderHeader
           currentLang={lang}
@@ -197,7 +197,7 @@ export function ReaderLayoutClient({
         />
 
         {/* ── Desktop: unified 3-column layout ──────────────────────────────── */}
-        <div className="hidden md:flex mx-auto w-full" style={{ maxWidth: '1600px' }}>
+        <div className="hidden xl:flex mx-auto w-full" style={{ maxWidth: '1600px' }}>
           {/* Left sidebar — Table of Contents */}
           <aside
             className="flex-shrink-0 sticky overflow-hidden sidebar"
@@ -247,7 +247,7 @@ export function ReaderLayoutClient({
         </div>
 
         {/* ── Mobile: full-width ─────────────────────────────────────────────── */}
-        <div className="md:hidden">
+        <div className="xl:hidden">
           <main
             className="px-6 py-8"
             id="main-content-mobile"

@@ -18,7 +18,7 @@ import type {
 } from '@/lib/storage/types'
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
-export const DEFAULT_FONT_FAMILY: ReaderFontFamily = 'im-fell-english'
+export const DEFAULT_FONT_FAMILY: ReaderFontFamily = 'lora'
 export const DEFAULT_FONT_SIZE: ReaderFontSize = 'lg'
 export const DEFAULT_LINE_HEIGHT: ReaderLineHeight = 'relaxed'
 export const DEFAULT_CONTENT_WIDTH: ReaderContentWidth = 'normal'

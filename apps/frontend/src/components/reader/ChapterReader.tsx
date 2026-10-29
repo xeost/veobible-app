@@ -151,7 +151,7 @@ export function ChapterReader({ data, lang, version, addBookmark, isBookmarked }
       />
 
       {/* Chapter header */}
-      <div className="mb-10 text-center mx-auto" style={{ maxWidth: 'var(--reader-max-width)' }}>
+      <div className="reader-chapter-heading mb-10 text-center mx-auto" style={{ maxWidth: 'var(--reader-max-width)' }}>
         <p className="text-sm font-medium mb-1" style={{ color: 'var(--brand)' }}>
           <Link
             href={`/${lang}/${version}`}

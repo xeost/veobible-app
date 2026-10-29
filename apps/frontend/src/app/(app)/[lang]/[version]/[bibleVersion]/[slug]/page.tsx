@@ -1,3 +1,5 @@
+import { HomeHeader } from '@/components/layout/HomeHeader'
+import { Footer } from '@/components/layout/Footer'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import {
@@ -93,26 +95,22 @@ export default async function VideoPage({
     )
   const i = siblings.findIndex((v) => v.projectId === p.projectId)
   return (
-    <main
-      className="min-h-screen px-4 py-10"
-      style={{ background: 'var(--bg-page)', color: 'var(--text-primary)' }}
-    >
-      <article className="max-w-3xl mx-auto">
-        <a href={`/${p.locale}/${s[p.kind]}`}>
+    <div className="site-page">
+      <HomeHeader currentLang={p.locale} />
+      <main id="main-content" className="site-container publication-main">
+      <article className="publication-article">
+        <a className="breadcrumb" href={`/${p.locale}/${s[p.kind]}`}>
           ← {s[p.kind === 'short' ? 'shortTitle' : 'longTitle']}
         </a>
-        <p className="mt-8 text-sm">
+        <p className="publication-meta">
           {loadBibleIndex(p.locale, p.version).metadata.name}
           {p.kind === 'long' ? ` · ${s.day} ${p.passage.episode}` : ''}
         </p>
-        <h1
-          className="text-3xl md:text-4xl font-bold mt-3 mb-6"
-          style={{ fontFamily: 'var(--font-lora), Georgia, serif' }}
-        >
+        <h1>
           {p.title}
         </h1>
         {p.description && (
-          <p className="mb-8 whitespace-pre-line leading-relaxed">
+          <p className="publication-description">
             {p.description}
           </p>
         )}
@@ -122,7 +120,7 @@ export default async function VideoPage({
           label={s.play}
           short={p.kind === 'short'}
         />
-        <div className="my-10 space-y-8">
+        <div className="passage-content">
           {passages.map(({ book, chapter, verses }) => (
             <section key={`${book.id}/${chapter}`}>
               <h2 className="text-xl font-semibold mb-4">
@@ -143,12 +141,13 @@ export default async function VideoPage({
           ))}
         </div>
         <a
+          className="site-button primary"
           href={`/${p.locale}/${readerSegment(p.locale)}/${p.version}/${first.book.slug}/${first.chapter}`}
         >
           {s.read} →
         </a>
         <nav
-          className="flex justify-between gap-6 border-t mt-10 pt-6"
+          className="publication-pagination"
           style={{ borderColor: 'var(--border)' }}
         >
           {siblings[i - 1] ? (
@@ -165,6 +164,8 @@ export default async function VideoPage({
           )}
         </nav>
       </article>
-    </main>
+      </main>
+      <Footer lang={p.locale} />
+    </div>
   )
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { hybridStorage } from '@/lib/storage'
+import { useI18n } from '@/lib/i18n/client'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthModal } from './AuthModal'
 import { SignOutDialog } from './SignOutDialog'
@@ -46,6 +47,7 @@ function detectLang(): Lang {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function AuthButton({ className }: { className?: string }) {
+  const { locale } = useI18n()
   const { user, loading, signOut } = useAuth()
   const [modalOpen, setModalOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -341,7 +343,7 @@ export function AuthButton({ className }: { className?: string }) {
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
           <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
         </svg>
-        Sign in
+        {locale === 'es' ? 'Ingresar' : locale === 'pt' ? 'Entrar' : 'Sign in'}
       </button>
       <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </>

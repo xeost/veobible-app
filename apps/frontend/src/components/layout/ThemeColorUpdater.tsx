@@ -7,9 +7,9 @@ export function ThemeColorUpdater() {
   const { resolvedTheme } = useTheme()
 
   useEffect(() => {
-    // #faf9f7 is the light background color (colors.surface.50)
+    // #f8f9fc is the light background color (colors.surface.50)
     // #0f0e17 is the dark background color
-    const themeColor = resolvedTheme === 'dark' ? '#0f0e17' : '#faf9f7'
+    const themeColor = resolvedTheme === 'dark' ? '#0f0e17' : '#f8f9fc'
 
     // Update or create a theme-color meta tag without a media attribute
     let metaTag = document.querySelector('meta[name="theme-color"]:not([media])') as HTMLMetaElement

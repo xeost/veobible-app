@@ -9,15 +9,16 @@ export function Logo({ currentLang }: LogoProps) {
   return (
     <Link
       href={`/${currentLang}`}
-      className="flex items-center gap-3 mr-auto font-semibold text-lg"
+      aria-label="VeoBible"
+      className="flex items-center gap-2.5 mr-auto font-bold text-xl tracking-tight brand-logo"
       style={{ color: 'var(--text-primary)' }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/logo.png"
         alt="VeoBible"
-        width={28}
-        height={28}
+        width={34}
+        height={34}
         loading="eager"
         // Graceful offline fallback: if the image fails to load (e.g. before
         // the SW precache is populated), hide the broken-image icon and reveal
