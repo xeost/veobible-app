@@ -9,6 +9,7 @@ import {
   Clapperboard,
   Film,
   Rocket,
+  Globe,
   LogOut,
   UserRound,
   Menu,
@@ -43,6 +44,7 @@ const items = [
   ["/long-videos", "Long Videos", Film],
   ["/book-videos", "Book Videos", Film],
   ["/audios", "Audios", AudioLines],
+  ["/website", "Website", Globe],
   ["/deployments", "Publications", Rocket],
   ["/settings", "Settings", Settings],
   ["/admin-tools", "Admin Tools", Wrench],
@@ -189,7 +191,9 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
               .filter(
                 ([href]) =>
                   !["/settings", "/admin-tools"].includes(href) &&
-                  (!["/deployments", "/bible-versions"].includes(href) ||
+                  (!["/website", "/deployments", "/bible-versions"].includes(
+                    href,
+                  ) ||
                     user.role === "admin"),
               )
               .map(([href, label, Icon]) => (

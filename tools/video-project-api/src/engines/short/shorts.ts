@@ -1,3 +1,4 @@
+import { publicationTitle } from "../../publication.js";
 import fs from "node:fs/promises";
 import { readBibleDataFile } from "../../bible-data.js";
 import path from "node:path";
@@ -101,7 +102,8 @@ export async function refineAudioRange(
   if (
     !silenceDetectionEnabled() ||
     (estimate.start === 0 && estimate.end === duration)
-  ) return estimate;
+  )
+    return estimate;
   let stderr: string;
   try {
     ({ stderr } = await analyzeMedia(
@@ -181,16 +183,13 @@ export function introTitle(
   passageReference: string,
   versionName: string,
 ): IntroTitle {
-  const titles: Record<Version["locale"], string> = {
-    es: "Esta es tu dosis diaria de la palabra de Dios",
-    en: "This is your daily dose of the word of God",
-    pt: "Esta é a sua dose diária da palavra de Deus",
-  };
-  return {
-    title: titles[locale],
-    reference: passageReference,
-    version: versionName,
-  };
+  const { title, reference, version } = publicationTitle(
+    locale,
+    passageReference,
+    versionName,
+    "short",
+  );
+  return { title, reference, version };
 }
 
 export async function readIndex(version: Version): Promise<BibleIndex> {

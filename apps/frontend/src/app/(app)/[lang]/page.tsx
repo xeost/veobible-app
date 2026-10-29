@@ -1,5 +1,8 @@
 'use client'
 
+import { WebsiteSections } from '@/components/ui/WebsiteSections'
+import type { Locale } from '@/lib/website/content'
+
 import { readerSegment } from '@/lib/reader/routes'
 
 import React, { useEffect, useState } from 'react'
@@ -691,6 +694,7 @@ export default function LangHomePage({ params: _params }: LangHomePageProps) {
         </div>
       </div>
 
+      <div className="max-w-5xl mx-auto px-4"><WebsiteSections locale={locale as Locale}/></div>
       <Footer lang={locale} />
     </div>
   )

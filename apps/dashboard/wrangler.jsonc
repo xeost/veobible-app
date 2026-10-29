@@ -20,12 +20,16 @@
       "migrations_dir": "migrations",
     },
   ],
+  "services": [{"binding":"SITE_API","service":"veobible-app","entrypoint":"SiteAdmin"}],
   "vars": {
     "VIDEO_API_URL": "http://127.0.0.1:8430",
+    "SITE_DEV_URL": "http://localhost:3000",
+    "SITE_LOCAL": "true",
   },
   "env": {
     "production": {
       "name": "veobible-dashboard",
+      "services": [{"binding":"SITE_API","service":"veobible-app","entrypoint":"SiteAdmin"}],
       "d1_databases": [
         {
           "binding": "DB",

@@ -1,6 +1,8 @@
 // ── Cloudflare Workers environment bindings ───────────────────────────────────
 
 export type Bindings = {
+  SITE_EXPORT_TOKEN?: string
+  SITE_LOCAL?: string
   DB: D1Database
   SUPABASE_JWT_SECRET: string
   SUPABASE_URL: string

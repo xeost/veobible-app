@@ -7,6 +7,7 @@ export type VideoRow = {
   progress: number;
   settings: string | null;
   published: number;
+  social_video_ids?: string;
   version_id: number;
   version_code: string;
   locale: string;

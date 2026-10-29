@@ -20,10 +20,10 @@ declare global {
 }
 
 declare namespace VinextRouteTypes {
-  type PageRoute = "/" | "/admin-tools" | "/audios" | "/audios/[edition]/[book]" | "/bible-versions" | "/book-videos" | "/book-videos/[id]" | "/current-projects" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/settings" | "/short-videos" | "/short-videos/[id]";
+  type PageRoute = "/" | "/admin-tools" | "/audios" | "/audios/[edition]/[book]" | "/bible-versions" | "/book-videos" | "/book-videos/[id]" | "/current-projects" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/settings" | "/short-videos" | "/short-videos/[id]" | "/website";
   type LayoutRoute = "/" | "/(studio)";
   type RouteHandlerRoute = "/api/[...path]";
-  type AppRoute = "/" | "/(studio)" | "/admin-tools" | "/api/[...path]" | "/audios" | "/audios/[edition]/[book]" | "/bible-versions" | "/book-videos" | "/book-videos/[id]" | "/current-projects" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/settings" | "/short-videos" | "/short-videos/[id]";
+  type AppRoute = "/" | "/(studio)" | "/admin-tools" | "/api/[...path]" | "/audios" | "/audios/[edition]/[book]" | "/bible-versions" | "/book-videos" | "/book-videos/[id]" | "/current-projects" | "/deployments" | "/login" | "/long-videos" | "/long-videos/[id]" | "/settings" | "/short-videos" | "/short-videos/[id]" | "/website";
 
   interface ParamMap {
     "/": {};
@@ -43,6 +43,7 @@ declare namespace VinextRouteTypes {
     "/settings": {};
     "/short-videos": {};
     "/short-videos/[id]": { id: string; };
+    "/website": {};
   }
 
   interface LayoutSlotMap {

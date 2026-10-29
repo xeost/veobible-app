@@ -49,3 +49,24 @@ export function fillPublicationTemplate(
     (_, field: (typeof publicationFields)[number]) => values[field],
   );
 }
+
+/** Match the same sections that are exported as individual publication text files. */
+export function publicationTemplateSections(template: string) {
+  const headings = [
+    ...template.matchAll(/^ {0,3}#{1,6}[ \t]+([^\r\n]+)(?:\r?\n|$)/gm),
+  ];
+  return headings.length
+    ? headings.map((heading, index) => {
+        const start = heading.index! + heading[0].length;
+        const end = headings[index + 1]?.index ?? template.length;
+        const prefix =
+          index === 0 ? template.slice(0, heading.index).trim() : "";
+        return {
+          heading: heading[1].trim(),
+          template: [prefix, template.slice(start, end).trim()]
+            .filter(Boolean)
+            .join("\n\n"),
+        };
+      })
+    : [{ heading: "", template }];
+}

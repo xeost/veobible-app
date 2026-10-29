@@ -74,3 +74,6 @@ See [`apps/frontend/README.md`](./apps/frontend/README.md) for authentication, m
 | [`design/frontend-design.md`](./design/frontend-design.md) | Frontend architecture, routing, data models, PWA strategy, planned cloud sync |
 | [`design/backend-design.md`](./design/backend-design.md) | Backend architecture, D1 schema, API design, sync protocol |
 | [`design/openapi.yml`](./design/openapi.yml) | OpenAPI 3.1.0 specification for the REST API |
+
+La publicación de videos en el sitio se administra desde `/website` y `/deployments`.
+Consulta [la configuración y el flujo de publicación](design/website-publication.md).

@@ -10,7 +10,8 @@ const config = JSON.parse(await readFile(resolve(root, 'wrangler.jsonc'), 'utf8'
 // Derive API-only development from the production bindings, without static assets
 // or public domain routes. Keeping the config beside .dev.vars preserves loading.
 const { assets, routes, ...apiConfig } = config
-apiConfig.main = 'worker/api/index.ts'
+apiConfig.main = 'worker/api-dev.ts'
+apiConfig.vars = { ...apiConfig.vars, SITE_LOCAL: 'true' }
 await writeFile(configPath, JSON.stringify(apiConfig, null, 2) + '\n', { mode: 0o600 })
 
 const require = createRequire(import.meta.url)

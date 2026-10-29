@@ -3,6 +3,7 @@ import type { RenderRequest } from "./protocol.js";
 import {
   fillPublicationTemplate,
   publicationPlatforms,
+  publicationTemplateSections,
   type PublicationTemplates,
 } from "./publication-templates.js";
 
@@ -119,26 +120,13 @@ export function publicationDescriptions(
               : "BibliaTikTok"
             : "";
     // Split template headings before substitution so Bible text cannot create sections.
-    const headings = [
-      ...template.matchAll(/^ {0,3}#{1,6}[ \t]+[^\r\n]+(?:\r?\n|$)/gm),
-    ];
-    const sections = headings.length
-      ? headings.map((heading, index) => {
-          const start = heading.index! + heading[0].length;
-          const end = headings[index + 1]?.index ?? template.length;
-          const prefix =
-            index === 0 ? template.slice(0, heading.index).trim() : "";
-          return [prefix, template.slice(start, end).trim()]
-            .filter(Boolean)
-            .join("\n\n");
-        })
-      : [template];
+    const sections = publicationTemplateSections(template);
     for (const [index, section] of sections.entries()) {
-      const filename = headings.length
+      const filename = sections[0].heading
         ? publicationFilenames[platform].replace("-", `.${index + 1}-`)
         : publicationFilenames[platform];
       result[filename] =
-        fillPublicationTemplate(section, {
+        fillPublicationTemplate(section.template, {
           title: title.title,
           episode:
             kind === "long" && title.episode !== undefined
@@ -153,4 +141,38 @@ export function publicationDescriptions(
     }
   }
   return result;
+}
+
+/** Visual title values shared by video generation and publication matching. */
+export function publicationTitle(
+  locale: "es" | "en" | "pt",
+  reference: string,
+  version: string,
+  kind: "short" | "long" | "book",
+  episode?: number,
+) {
+  const titles = {
+    short: {
+      es: "Esta es tu dosis diaria de la palabra de Dios",
+      en: "This is your daily dose of the word of God",
+      pt: "Esta é a sua dose diária da palavra de Deus",
+    },
+    long: {
+      es: "La Biblia en 365 días",
+      en: "The Bible in 365 days",
+      pt: "A Bíblia em 365 dias",
+    },
+    book: {
+      es: "Libros de la Biblia",
+      en: "Books of the Bible",
+      pt: "Livros da Bíblia",
+    },
+  };
+  return {
+    title: titles[kind][locale],
+    reference,
+    version,
+    episode,
+    dayLabel: { es: "Día", en: "Day", pt: "Dia" }[locale],
+  };
 }

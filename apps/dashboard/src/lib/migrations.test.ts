@@ -76,14 +76,18 @@ test("migrations preserve numeric project tables and only the requested admin", 
     for (const name of migrations.slice(1))
       db.exec(readFileSync(new URL(name, directory), "utf8"));
     assert.deepEqual(
-      db.prepare("SELECT * FROM video_projects ORDER BY id").all(),
-      before,
+      db
+        .prepare("SELECT * FROM video_projects ORDER BY id")
+        .all()
+        .map((row) => ({ ...row })),
+      before.map((row) => ({ ...row, social_video_ids: "{}" })),
     );
     const columns = db
       .prepare("PRAGMA table_info(video_projects)")
       .all()
       .map((row) => row.name);
     assert.ok(columns.includes("published"));
+    assert.ok(columns.includes("social_video_ids"));
     assert.ok(!columns.includes("used"));
     assert.ok(columns.includes("slug"));
     assert.ok(!columns.includes("passage_id"));

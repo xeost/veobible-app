@@ -1,3 +1,4 @@
+import { exportContent } from '../site/export'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { authMiddleware } from './middleware/auth.ts'
@@ -22,6 +23,7 @@ app.use('*', cors({
 
 // ── Public routes ─────────────────────────────────────────────────────────────
 app.route('/v1/health', health)
+app.get('/site-export', c => exportContent(c.req.raw, c.env))
 
 // ── Authenticated routes ──────────────────────────────────────────────────────
 app.use('/v1/*', authMiddleware)

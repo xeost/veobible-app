@@ -1,5 +1,9 @@
+import type { WebsiteService } from "./website";
 import { env } from "cloudflare:workers";
 export interface Bindings {
+  SITE_API?: WebsiteService;
+  SITE_DEV_URL?: string;
+  SITE_LOCAL?: string;
   DB: D1Database;
   JWT_SECRET: string;
   VIDEO_API_URL: string;

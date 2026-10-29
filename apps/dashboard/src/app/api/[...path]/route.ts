@@ -1,3 +1,10 @@
+import { websiteApi } from "../../../lib/website-api";
+import {
+  publicationContent,
+  contentRevision,
+  websiteState,
+  publicationChanges,
+} from "../../../lib/website";
 import { narrationModelSchema } from "../../../../../../tools/video-project-api/src/narration-models";
 import { signMediaAccess } from "../../../../../../tools/api-proxy/src/media-access.mjs";
 import {
@@ -174,6 +181,10 @@ async function handle(req: Request, lang: Language) {
   const admin = () => {
     if (user.role !== "admin") throw new Error("Administrator required");
   };
+  if (parts[0] === "website") {
+    admin();
+    return websiteApi(req, database, String(user.id), json);
+  }
   if (
     parts[0] === "settings" &&
     parts[1] === "visual-shortcuts" &&
@@ -893,11 +904,102 @@ async function handle(req: Request, lang: Language) {
   if (parts[0] === "deployments") {
     admin();
     const env = bindings();
+    if (parts[1] === "dev-build" && method === "POST") {
+      if (env.SITE_LOCAL !== "true")
+        return json({ error: "Route not found" }, 404);
+      if (!env.SITE_API)
+        return json(
+          { error: "Could not connect. Try again in a few moments." },
+          503,
+        );
+      const input = z
+        .object({ expectedRevision: z.string().length(64) })
+        .strict()
+        .parse(await body());
+      const content = await publicationContent(database);
+      if (input.expectedRevision !== (await contentRevision(content)))
+        return json(
+          { error: "Website content changed. Review it before publishing." },
+          409,
+        );
+      const revision = await env.SITE_API.devBuild(content, String(user.id));
+      return json({ revision });
+    }
     const hookRow = await database
       .prepare("SELECT value FROM site_settings WHERE key=?")
       .bind("deploy_hook:veobible:site")
       .first<{ value: string }>();
     const hookUrl = hookRow?.value ?? "";
+    if (parts.length === 3 && parts[2] === "resolve" && method === "POST") {
+      z.object({ stopped: z.literal(true) }).parse(await body());
+      const pending = await database
+        .prepare(
+          "SELECT id,status,external_id,content_revision,details FROM deployments WHERE id=? AND target='site'",
+        )
+        .bind(parts[1])
+        .first<{
+          id: number;
+          status: string;
+          external_id: string | null;
+          content_revision: string | null;
+          details: string | null;
+        }>();
+      if (
+        !pending ||
+        !["requested", "queued", "building", "deploying", "unknown"].includes(
+          pending.status,
+        )
+      )
+        return json(
+          {
+            error:
+              "Review the information and settings you entered before continuing.",
+          },
+          409,
+        );
+      if (
+        pending.external_id &&
+        env.CLOUDFLARE_ACCOUNT_ID &&
+        env.CLOUDFLARE_API_TOKEN
+      ) {
+        const response = await fetch(
+          `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/builds/builds/${encodeURIComponent(pending.external_id)}`,
+          {
+            headers: { Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` },
+            signal: AbortSignal.timeout(10000),
+          },
+        );
+        const status = (await response.json()) as {
+          success: boolean;
+          result?: BuildStatus;
+        };
+        if (!response.ok || !status.success || !status.result)
+          return json(
+            { error: "Could not connect. Try again in a few moments." },
+            503,
+          );
+        if (!["failed", "cancelled"].includes(deploymentStatus(status.result)))
+          return json({ error: "An update is in progress." }, 409);
+      }
+      if (pending.content_revision) {
+        if (!env.SITE_API)
+          return json(
+            { error: "Could not connect. Try again in a few moments." },
+            503,
+          );
+        await env.SITE_API.finish(pending.content_revision, false);
+      }
+      await database
+        .prepare(
+          "UPDATE deployments SET status='cancelled',completed_at=CURRENT_TIMESTAMP,details=? WHERE id=?",
+        )
+        .bind(
+          JSON.stringify({ resolvedBy: user.id, previous: pending.details }),
+          pending.id,
+        )
+        .run();
+      return json({ ok: true });
+    }
     if (parts[1] === "settings") {
       if (method === "GET") return json({ hookUrl });
       if (method === "POST") {
@@ -941,14 +1043,35 @@ async function handle(req: Request, lang: Language) {
             400,
           );
         const input = z
-          .object({ message: z.string().trim().max(500).default("") })
+          .object({
+            message: z.string().trim().max(500).default(""),
+            expectedRevision: z.string().length(64),
+          })
           .parse(await body());
-        const creation = await database
-          .prepare(
-            "INSERT INTO deployments(status,created_by,message,target) VALUES ('requested',?,?,'site')",
-          )
-          .bind(user.id, input.message)
-          .run();
+        const content = await publicationContent(database);
+        if (input.expectedRevision !== (await contentRevision(content)))
+          return json(
+            { error: "Website content changed. Review it before publishing." },
+            409,
+          );
+        if (!env.SITE_API)
+          return json(
+            { error: "Could not connect. Try again in a few moments." },
+            503,
+          );
+        const revision = await env.SITE_API.stage(content, String(user.id));
+        let creation;
+        try {
+          creation = await database
+            .prepare(
+              "INSERT INTO deployments(status,created_by,message,target,content_revision) VALUES ('requested',?,?,'site',?)",
+            )
+            .bind(user.id, input.message, revision)
+            .run();
+        } catch (error) {
+          await env.SITE_API.finish(revision, false);
+          throw error;
+        }
         const id = creation.meta.last_row_id;
         let status = "unknown";
         try {
@@ -967,6 +1090,7 @@ async function handle(req: Request, lang: Language) {
           }
           status =
             response.ok && result.success !== false ? "requested" : "failed";
+          if (status === "failed") await env.SITE_API.finish(revision, false);
           await database
             .prepare(
               "UPDATE deployments SET status=?,external_id=?,details=? WHERE id=?",
@@ -994,9 +1118,13 @@ async function handle(req: Request, lang: Language) {
         if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN) {
           const pending = await database
             .prepare(
-              "SELECT id,external_id FROM deployments WHERE target='site' AND external_id IS NOT NULL AND status IN ('requested','queued','building','deploying') ORDER BY created_at DESC LIMIT 5",
+              "SELECT id,external_id,content_revision FROM deployments WHERE target='site' AND external_id IS NOT NULL AND status IN ('requested','queued','building','deploying') ORDER BY created_at DESC LIMIT 5",
             )
-            .all<{ id: string; external_id: string }>();
+            .all<{
+              id: string;
+              external_id: string;
+              content_revision: string | null;
+            }>();
           const updates = await Promise.all(
             pending.results.map(async (record) => {
               try {
@@ -1016,6 +1144,15 @@ async function handle(req: Request, lang: Language) {
                 if (!response.ok || !data.success || !data.result)
                   throw new Error("Build status unavailable");
                 const build = data.result;
+                const state = deploymentStatus(build);
+                if (
+                  record.content_revision &&
+                  ["success", "failed", "cancelled"].includes(state)
+                )
+                  await env.SITE_API?.finish(
+                    record.content_revision,
+                    state === "success",
+                  );
                 const started =
                   build.running_on || build.initializing_on || build.created_on;
                 const duration =
@@ -1046,7 +1183,75 @@ async function handle(req: Request, lang: Language) {
           );
           if (statements.length) await database.batch(statements);
         }
+        // The deployed static marker also reconciles builds without tracking credentials.
+        const unresolved = (
+          await database
+            .prepare(
+              "SELECT id,content_revision FROM deployments WHERE target='site' AND content_revision IS NOT NULL AND status IN ('requested','queued','building','deploying','unknown')",
+            )
+            .all<{ id: number; content_revision: string }>()
+        ).results;
+        if (unresolved.length) {
+          try {
+            const live = await fetch(
+              "https://veobible.com/website-release.json",
+              { cache: "no-store", signal: AbortSignal.timeout(5000) },
+            );
+            if (live.ok) {
+              const marker = (await live.json()) as { revision: string };
+              for (const record of unresolved)
+                if (record.content_revision === marker.revision) {
+                  await database
+                    .prepare(
+                      "UPDATE deployments SET status='success',completed_at=CURRENT_TIMESTAMP WHERE id=?",
+                    )
+                    .bind(record.id)
+                    .run();
+                  await env.SITE_API?.finish(record.content_revision, true);
+                }
+            }
+          } catch (error) {
+            console.error("Website release check failed", error);
+          }
+        }
+        const website = await websiteState(database);
+        let previous = null;
+        try {
+          previous = (await env.SITE_API?.deployed()) ?? null;
+        } catch (error) {
+          console.error("Previous website release unavailable", error);
+        }
+
+        const revision = await contentRevision(website.content);
+        let devBuild = null;
+        if (env.SITE_LOCAL === "true") {
+          devBuild = { available: false, changed: true };
+          try {
+            if (env.SITE_API) {
+              const current = await env.SITE_API.development();
+              devBuild = {
+                available: true,
+                changed: current?.revision !== revision,
+              };
+            }
+          } catch (error) {
+            console.error("Development content unavailable", error);
+          }
+        }
         return json({
+          devBuild,
+          website: {
+            changes: publicationChanges(website.content, previous),
+            ready: website.projects.filter((p) => p.included && !p.issue)
+              .length,
+            blocked: website.projects.filter((p) => p.included && p.issue)
+              .length,
+            books: website.content.bookVideos.length,
+            revision,
+            pages: website.projects
+              .filter((p) => p.included)
+              .map((p) => ({ title: p.title, path: p.path, issue: p.issue })),
+          },
           configured: Boolean(hookUrl),
           syncError,
           trackingAvailable: Boolean(
@@ -1084,6 +1289,14 @@ async function route(req: Request) {
         },
         400,
       );
+    if (
+      error instanceof Error &&
+      [
+        "Review website videos before publishing.",
+        "A website update is already in progress",
+      ].includes(error.message)
+    )
+      return json({ error: error.message }, 409);
     const message = error instanceof Error ? error.message : "Internal error";
     console.error(message);
     const status = /Se requiere administrador|Administrator required/i.test(

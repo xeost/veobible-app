@@ -86,6 +86,14 @@ const voiceMessages = [
   "No example has been generated for this voice yet.",
 ];
 const messages = new Set([
+  "Review website videos before publishing.",
+  "A website update is already in progress",
+  "Website content changed. Review it before publishing.",
+  "Enter a valid YouTube video link.",
+  "Review website sources.",
+  "Could not import YouTube videos.",
+  "Use the YouTube channel ID to import recent videos.",
+  "An update is in progress.",
   ...voiceMessages.flatMap((message) => [
     message,
     ...(["es", "pt"] as const).map((lang) => translateServer(message, lang)),

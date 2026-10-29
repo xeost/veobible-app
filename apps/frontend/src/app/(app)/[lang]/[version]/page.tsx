@@ -1,3 +1,5 @@
+import { sections, type Locale } from '@/lib/website/content'
+import { WebsiteListing } from '@/components/ui/WebsiteListing'
 import { readerSegment } from '@/lib/reader/routes'
 import React from 'react'
 import Link from '@/components/reader/ReaderLink'
@@ -14,11 +16,14 @@ interface VersionPageProps {
 }
 
 export async function generateStaticParams() {
-  return BIBLE_VERSIONS.map((v) => ({ lang: v.langCode, version: v.slug }))
+  return [...BIBLE_VERSIONS.map((v) => ({ lang: v.langCode, version: v.slug })), ...Object.entries(sections).flatMap(([lang,s])=>[s.short,s.long].map(version=>({lang,version})))]
 }
 
 export async function generateMetadata({ params }: VersionPageProps): Promise<Metadata> {
   const { lang, version } = await params
+  const section=sections[lang as Locale]
+  const kind=section && (version===section.short?'short':version===section.long?'long':null)
+  if(kind) return {title:section[kind==='short'?'shortTitle':'longTitle'],alternates:{canonical:`/${lang}/${version}`,languages:{}},robots:{index:true,follow:true}}
   const versionInfo = findVersion(lang, version)
   if (!versionInfo) return {}
   const t = getTranslations(lang as any)
@@ -33,6 +38,8 @@ export default async function VersionPage({ params }: VersionPageProps) {
   const { lang, version } = await params
 
   if (!isValidLocale(lang)) notFound()
+  const section=sections[lang as Locale]
+  if(version===section.short || version===section.long) return <WebsiteListing locale={lang as Locale} kind={version===section.short?'short':'long'}/>
   const versionInfo = findVersion(lang, version)
   if (!versionInfo) notFound()
 

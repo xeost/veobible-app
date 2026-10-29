@@ -1,3 +1,4 @@
+import { publicationTitle } from "../../publication.js";
 import fs from "node:fs/promises";
 import { readBibleDataFile } from "../../bible-data.js";
 import path from "node:path";
@@ -104,7 +105,8 @@ export async function refineAudioRange(
   if (
     !silenceDetectionEnabled() ||
     (estimate.start === 0 && estimate.end === duration)
-  ) return estimate;
+  )
+    return estimate;
   let stderr: string;
   try {
     ({ stderr } = await analyzeMedia(
@@ -189,25 +191,13 @@ export function introTitle(
   episode?: number,
   completeBook = false,
 ): IntroTitle {
-  const titles: Record<Version["locale"], string> = {
-    es: "La Biblia en 365 días",
-    en: "The Bible in 365 days",
-    pt: "A Bíblia em 365 dias",
-  };
-  const day = { es: "Día", en: "Day", pt: "Dia" }[locale];
-  return {
-    title: completeBook
-      ? {
-          es: "Libros de la Biblia",
-          en: "Books of the Bible",
-          pt: "Livros da Bíblia",
-        }[locale]
-      : titles[locale],
-    reference: passageReference,
-    version: versionName,
+  return publicationTitle(
+    locale,
+    passageReference,
+    versionName,
+    completeBook ? "book" : "long",
     episode,
-    dayLabel: day,
-  };
+  );
 }
 
 export async function readIndex(version: Version): Promise<BibleIndex> {

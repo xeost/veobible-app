@@ -8,6 +8,7 @@ const pageLabels: Record<string, string> = {
   "/book-videos": "Book Videos",
   "/audios": "Audios",
   "/deployments": "Publications",
+  "/website": "Website",
   "/settings": "System settings",
   "/admin-tools": "Admin tools",
 };

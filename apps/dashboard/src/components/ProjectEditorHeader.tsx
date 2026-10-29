@@ -7,6 +7,7 @@ import { useI18n } from "../i18n/context";
 export function ProjectEditorHeader({
   title,
   version,
+  versionAction,
   backHref,
   showDescription = true,
   eyebrow = "PROJECT EDITOR",
@@ -14,6 +15,7 @@ export function ProjectEditorHeader({
 }: {
   title: string;
   version: string;
+  versionAction?: ReactNode;
   backHref: string;
   showDescription?: boolean;
   eyebrow?: string;
@@ -33,13 +35,16 @@ export function ProjectEditorHeader({
         <div className="project-studio-title-row">
           <div className="project-studio-title">
             <h1 title={title}>{title}</h1>
-            <span
-              className="project-studio-version"
-              aria-label={`${t("Bible version")}: ${version.toUpperCase()}`}
-              title={version.toUpperCase()}
-            >
-              {version.toUpperCase()}
-            </span>
+            <div className="project-studio-version-actions">
+              <span
+                className="project-studio-version"
+                aria-label={`${t("Bible version")}: ${version.toUpperCase()}`}
+                title={version.toUpperCase()}
+              >
+                {version.toUpperCase()}
+              </span>
+              {versionAction}
+            </div>
           </div>
           <div className="project-top-actions">{children}</div>
         </div>

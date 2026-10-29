@@ -67,3 +67,5 @@ coverage/
 !.dev.vars.example
 worker/.dev.vars*
 .wrangler.api-dev.json
+
+/src/generated/website.json*

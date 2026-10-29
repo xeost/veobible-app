@@ -91,6 +91,7 @@ import {
   type VideoPreviewView,
   type PreviewPlaybackHandle,
 } from "./VideoProjectPreview";
+import { ProjectYouTubeLink } from "./ProjectYouTubeLink";
 import { ProjectEditorHeader } from "./ProjectEditorHeader";
 import { EditorPreparation, type PreparationTask } from "./EditorPreparation";
 import { scrollEditorSectionIntoView } from "../lib/editor-section-scroll";
@@ -2041,6 +2042,9 @@ export function VideoProjectEditor({
           showDescription={false}
           title={project.title}
           version={project.version_code ?? ""}
+          versionAction={
+            <ProjectYouTubeLink socialVideoIds={project.social_video_ids} />
+          }
           backHref={backHref}
         >
           <button

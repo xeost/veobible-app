@@ -1,4 +1,141 @@
 export const spanish: Record<string, string> = {
+  "Could not connect to the local site. Restart the development services and try again.":
+    "No se pudo conectar con el sitio local. Reinicia los servicios de desarrollo y vuelve a intentarlo.",
+  "Review or exclude the included pages that need attention.":
+    "Revisa o excluye las páginas incluidas que requieren atención.",
+  "The local site already has these changes.":
+    "El sitio local ya tiene estos cambios.",
+  "Apply saved website changes to the local site.":
+    "Aplicar los cambios guardados al sitio local.",
+  "Review the YouTube title in Publication templates for the video format and language.":
+    "Revisa el título de YouTube en Plantillas de publicación para el formato y el idioma del video.",
+  "Included pages with a valid YouTube link, passage, Bible version and episode when required. They will be added or updated when you publish.":
+    "Páginas incluidas con un enlace de YouTube, pasaje, versión bíblica y episodio válidos cuando corresponde. Se añadirán o actualizarán al publicar.",
+  "Included pages with a missing or invalid YouTube link, passage, Bible version or episode. They block publishing and Dev Build. Review them in Website or exclude them; excluded pages are not counted.":
+    "Páginas incluidas cuyo enlace de YouTube, pasaje, versión bíblica o episodio falta o no es válido. Bloquean la publicación y Dev Build. Revísalas en Sitio web o exclúyelas; las páginas excluidas no se cuentan.",
+  "Book video links available for each Bible version, including existing links and detected links from published book video projects. These do not create pages in either series.":
+    "Enlaces a videos de libros disponibles para cada versión bíblica, incluidos los existentes y los detectados en proyectos de video de libros publicados. No generan páginas en ninguna de las dos series.",
+  "Dev Build": "Dev Build",
+  "Development content updated.": "Contenido de desarrollo actualizado.",
+  pages: "páginas",
+  Included: "Incluida",
+  Excluded: "Excluida",
+  "Included pages": "Incluidas",
+  "Excluded pages": "Excluidas",
+  "Search pages": "Buscar páginas",
+  "Find a page or video project…": "Buscar una página o un proyecto de video…",
+  "Filter pages": "Filtrar páginas",
+  "All pages": "Todas las páginas",
+  Page: "Página",
+  Inclusion: "Inclusión",
+  "Edit page": "Editar página",
+  "Loading pages…": "Cargando páginas…",
+  "No pages match these filters.": "Ninguna página coincide con estos filtros.",
+  "pages · page": "páginas · página",
+  "Daily dose of God": "Dosis diaria de Dios",
+  "Bible in 365 days": "Biblia en 365 días",
+  "Exclude page": "Excluir página",
+  "Include page": "Incluir página",
+
+  "Pending projects": "Proyectos pendientes",
+  "No matching videos were found in the available catalog.":
+    "No se encontraron videos coincidentes en el catálogo disponible.",
+  "YouTube asked us to wait. Try again later.":
+    "YouTube solicitó una pausa. Inténtalo de nuevo más tarde.",
+  "Some videos could not be matched with certainty.":
+    "Algunos videos no se pudieron asociar con certeza.",
+  "The search paused after checking several catalog pages. You can continue later.":
+    "La búsqueda se pausó después de revisar varias páginas del catálogo. Puedes continuar más tarde.",
+  "The YouTube catalog could not be read. Try again later.":
+    "No se pudo leer el catálogo de YouTube. Inténtalo de nuevo más tarde.",
+
+  "Watch on YouTube": "Ver en YouTube",
+  "YouTube video not detected yet": "Video de YouTube aún no detectado",
+  "Detecting videos…": "Detectando videos…",
+
+  "Not configured": "Sin configurar",
+  "Videos on social media": "Videos en redes sociales",
+  "Import YouTube videos to find links for published video projects. Existing links are kept. Ambiguous matches require review.":
+    "Importa videos de YouTube para encontrar enlaces de proyectos de video publicados. Se conservan los enlaces existentes. Las coincidencias ambiguas requieren revisión.",
+  "YouTube channels are configured in Settings. Without full history access, only recent channel videos are available.":
+    "Los canales de YouTube se configuran en Ajustes. Sin acceso al historial completo, solo están disponibles los videos recientes del canal.",
+  "YouTube links belong to the video project and are shared with website publications.":
+    "Los enlaces de YouTube pertenecen al proyecto de video y se comparten con las publicaciones del sitio.",
+
+  "Resolve pending update": "Resolver actualización pendiente",
+  "I verified that this update stopped. Allow another publication.":
+    "Verifiqué que esta actualización se detuvo. Permitir otra publicación.",
+  Confirm: "Confirmar",
+  "Loading…": "Cargando…",
+  "Watch video": "Ver video",
+  "New page": "Página nueva",
+  "Updated page": "Página actualizada",
+  "Page to remove": "Página por retirar",
+  Website: "Sitio web",
+  Ready: "Listo",
+  Enabled: "Habilitado",
+  "Manage website": "Gestionar sitio web",
+  "Prepare website pages from videos already published on social media.":
+    "Prepara páginas del sitio con videos ya publicados en redes sociales.",
+  "Pages for publication": "Páginas para publicar",
+  "YouTube imports": "Importación de YouTube",
+  "Only short and long projects marked as published on social media appear here. Their social publication status is managed in the video editor.":
+    "Aquí aparecen los proyectos cortos y largos marcados como publicados en redes sociales. Ese estado se gestiona en el editor de videos.",
+  "Needs review": "Requiere revisión",
+  "Detect YouTube links": "Detectar enlaces de YouTube",
+  "Update preview": "Actualizar vista previa",
+  "Preview updated.": "Vista previa actualizada.",
+  "No published video projects yet.":
+    "Todavía no hay proyectos de video publicados.",
+  "Import channel videos to find links for projects and Bible books. Existing links are kept. Ambiguous matches require review.":
+    "Importa videos del canal para encontrar enlaces de proyectos y libros bíblicos. Se conservan los enlaces existentes. Las coincidencias ambiguas requieren revisión.",
+  "Without full history access, only the recent channel feed is available. Use a channel ID if its handle cannot be resolved.":
+    "Sin acceso al historial completo, solo están disponibles los videos recientes del canal. Usa el identificador del canal si no se puede encontrar por su nombre.",
+  "YouTube channel": "Canal de YouTube",
+  "First publication date": "Fecha de primera publicación",
+  "When a channel contains several Bible versions, the latest first publication date before each video determines its version.":
+    "Cuando un canal contiene varias versiones bíblicas, la fecha de inicio más reciente anterior a cada video determina su versión.",
+  "Continue importing": "Continuar importación",
+  "Import videos": "Importar videos",
+  "Bible book videos": "Videos de libros bíblicos",
+  "These links replace the old book video import and are included in the next website publication.":
+    "Estos enlaces reemplazan la importación anterior de videos de libros y se incluyen en la próxima publicación del sitio.",
+  "YouTube video link": "Enlace del video de YouTube",
+  "Videos imported": "Videos importados",
+  "Projects matched": "Proyectos asociados",
+  "Books matched": "Libros asociados",
+  "Matches requiring review": "Coincidencias por revisar",
+  "Only recent videos were imported. Full channel history requires administrator setup.":
+    "Solo se importaron videos recientes. El historial completo requiere configuración del administrador.",
+  "More videos are available. Continue importing.":
+    "Hay más videos disponibles. Continúa la importación.",
+  "Channel history imported.": "Historial del canal importado.",
+  "Daily dose": "Dosis diaria",
+  "The Bible in 365 days": "La Biblia en 365 días",
+  "Website description": "Descripción para el sitio",
+  "Include in the next publication": "Incluir en la próxima publicación",
+  "View website page": "Ver página del sitio",
+  "Missing YouTube video": "Falta el video de YouTube",
+  "Review the passage, episode and Bible version":
+    "Revisa el pasaje, el episodio y la versión bíblica",
+  "Website content": "Contenido del sitio",
+  "Publishing an update applies the latest changes to all included pages. Pages are removed if you exclude them or their video project is no longer marked as published on social media.":
+    "Al publicar una actualización, se aplican los últimos cambios a todas las páginas incluidas. Se retiran las páginas que hayas excluido o cuyo proyecto de video ya no esté marcado como publicado en redes sociales.",
+  "Review website pages": "Revisar páginas del sitio",
+  "Review website videos before publishing.":
+    "Revisa los videos del sitio antes de publicar.",
+  "A website update is already in progress":
+    "Ya hay una actualización del sitio en curso",
+  "Website content changed. Review it before publishing.":
+    "El contenido del sitio cambió. Revísalo antes de publicar.",
+  "Enter a valid YouTube video link.":
+    "Introduce un enlace válido de video de YouTube.",
+  "Review website sources.":
+    "Revisa los canales, las fechas y las versiones bíblicas.",
+  "Could not import YouTube videos.":
+    "No se pudieron importar los videos de YouTube. Inténtalo nuevamente.",
+  "Use the YouTube channel ID to import recent videos.":
+    "Usa el identificador del canal de YouTube para importar videos recientes.",
   "Only one temporary example is kept across all voices and models.":
     "Solo se conserva una muestra temporal entre todas las voces y modelos.",
   "Saving example…": "Guardando muestra…",

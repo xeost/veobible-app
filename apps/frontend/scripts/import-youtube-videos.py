@@ -2,6 +2,9 @@
 """
 import-youtube-videos.py
 
+Legacy utility. Use the dashboard /website YouTube imports tab for website
+publications. See design/website-publication.md for setup and deployment.
+
 This script automatically fetches the latest videos from configured YouTube channels
 via RSS feeds and updates the corresponding Bible version's index.json files.
 For each book, it looks for a video title matching the book name.
