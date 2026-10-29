@@ -1,3 +1,11 @@
+import {
+  saveDevelopment,
+  readDevelopment,
+  readPublished,
+  prepareRelease,
+  reconcileReleases,
+  pruneReleases,
+} from "../../../lib/website-releases";
 import { websiteApi } from "../../../lib/website-api";
 import {
   publicationContent,
@@ -907,7 +915,7 @@ async function handle(req: Request, lang: Language) {
     if (parts[1] === "dev-build" && method === "POST") {
       if (env.SITE_LOCAL !== "true")
         return json({ error: "Route not found" }, 404);
-      if (!env.SITE_API)
+      if (!env.WEBSITE_CONTENT)
         return json(
           { error: "Could not connect. Try again in a few moments." },
           503,
@@ -922,7 +930,7 @@ async function handle(req: Request, lang: Language) {
           { error: "Website content changed. Review it before publishing." },
           409,
         );
-      const revision = await env.SITE_API.devBuild(content, String(user.id));
+      const revision = await saveDevelopment(env, content);
       return json({ revision });
     }
     const hookRow = await database
@@ -981,23 +989,16 @@ async function handle(req: Request, lang: Language) {
         if (!["failed", "cancelled"].includes(deploymentStatus(status.result)))
           return json({ error: "An update is in progress." }, 409);
       }
-      if (pending.content_revision) {
-        if (!env.SITE_API)
-          return json(
-            { error: "Could not connect. Try again in a few moments." },
-            503,
-          );
-        await env.SITE_API.finish(pending.content_revision, false);
-      }
       await database
         .prepare(
-          "UPDATE deployments SET status='cancelled',completed_at=CURRENT_TIMESTAMP,details=? WHERE id=?",
+          "UPDATE deployments SET status='cancelled',completed_at=CURRENT_TIMESTAMP,details=? WHERE id=? AND status IN ('requested','queued','building','deploying','unknown')",
         )
         .bind(
           JSON.stringify({ resolvedBy: user.id, previous: pending.details }),
           pending.id,
         )
         .run();
+      await pruneReleases(env);
       return json({ ok: true });
     }
     if (parts[1] === "settings") {
@@ -1026,7 +1027,11 @@ async function handle(req: Request, lang: Language) {
       }
     } else if (parts.length === 1) {
       if (method === "POST") {
-        if (!hookUrl)
+        if (
+          !hookUrl ||
+          !env.WEBSITE_CONTENT ||
+          (env.SITE_LOCAL !== "true" && !env.SITE_EXPORT_TOKEN)
+        )
           return json(
             {
               error:
@@ -1054,25 +1059,18 @@ async function handle(req: Request, lang: Language) {
             { error: "Website content changed. Review it before publishing." },
             409,
           );
-        if (!env.SITE_API)
+        if (!env.WEBSITE_CONTENT)
           return json(
             { error: "Could not connect. Try again in a few moments." },
             503,
           );
-        const revision = await env.SITE_API.stage(content, String(user.id));
-        let creation;
-        try {
-          creation = await database
-            .prepare(
-              "INSERT INTO deployments(status,created_by,message,target,content_revision) VALUES ('requested',?,?,'site',?)",
-            )
-            .bind(user.id, input.message, revision)
-            .run();
-        } catch (error) {
-          await env.SITE_API.finish(revision, false);
-          throw error;
-        }
-        const id = creation.meta.last_row_id;
+        await reconcileReleases(env);
+        const { id } = await prepareRelease(
+          env,
+          content,
+          user.id,
+          input.message,
+        );
         let status = "unknown";
         try {
           const response = await fetch(hookUrl, {
@@ -1081,19 +1079,25 @@ async function handle(req: Request, lang: Language) {
             signal: AbortSignal.timeout(15000),
           });
           const details = (await response.text()).slice(0, 6000);
-          let result: { success?: boolean; result?: { build_uuid?: string } } =
-            {};
+          let result: {
+            success?: boolean;
+            result?: { build_uuid?: string; already_exists?: boolean };
+          } = {};
           try {
             result = JSON.parse(details);
           } catch {
             /* Some providers return an empty response. */
           }
           status =
-            response.ok && result.success !== false ? "requested" : "failed";
-          if (status === "failed") await env.SITE_API.finish(revision, false);
+            response.ok && result.success !== false
+              ? result.result?.build_uuid && !result.result.already_exists
+                ? "requested"
+                : "unknown"
+              : "failed";
+
           await database
             .prepare(
-              "UPDATE deployments SET status=?,external_id=?,details=? WHERE id=?",
+              "UPDATE deployments SET status=?,external_id=?,details=? WHERE id=? AND status='requested'",
             )
             .bind(
               status,
@@ -1107,117 +1111,20 @@ async function handle(req: Request, lang: Language) {
         } catch (error) {
           console.error("Deployment request could not be confirmed", error);
           await database
-            .prepare("UPDATE deployments SET status='unknown' WHERE id=?")
+            .prepare(
+              "UPDATE deployments SET status='unknown' WHERE id=? AND status='requested'",
+            )
             .bind(id)
             .run();
         }
         return json({ ok: status === "requested", id, status });
       }
       if (method === "GET") {
-        let syncError = false;
-        if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN) {
-          const pending = await database
-            .prepare(
-              "SELECT id,external_id,content_revision FROM deployments WHERE target='site' AND external_id IS NOT NULL AND status IN ('requested','queued','building','deploying') ORDER BY created_at DESC LIMIT 5",
-            )
-            .all<{
-              id: string;
-              external_id: string;
-              content_revision: string | null;
-            }>();
-          const updates = await Promise.all(
-            pending.results.map(async (record) => {
-              try {
-                const response = await fetch(
-                  `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID!)}/builds/builds/${encodeURIComponent(record.external_id)}`,
-                  {
-                    headers: {
-                      Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
-                    },
-                    signal: AbortSignal.timeout(10000),
-                  },
-                );
-                const data = (await response.json()) as {
-                  success: boolean;
-                  result: BuildStatus;
-                };
-                if (!response.ok || !data.success || !data.result)
-                  throw new Error("Build status unavailable");
-                const build = data.result;
-                const state = deploymentStatus(build);
-                if (
-                  record.content_revision &&
-                  ["success", "failed", "cancelled"].includes(state)
-                )
-                  await env.SITE_API?.finish(
-                    record.content_revision,
-                    state === "success",
-                  );
-                const started =
-                  build.running_on || build.initializing_on || build.created_on;
-                const duration =
-                  started && build.stopped_on
-                    ? Math.max(
-                        0,
-                        Date.parse(build.stopped_on) - Date.parse(started),
-                      )
-                    : null;
-                return database
-                  .prepare(
-                    "UPDATE deployments SET status=?,completed_at=?,duration_ms=? WHERE id=?",
-                  )
-                  .bind(
-                    deploymentStatus(build),
-                    build.stopped_on ?? null,
-                    Number.isFinite(duration) ? duration : null,
-                    record.id,
-                  );
-              } catch (error) {
-                console.error("Deployment synchronization failed", error);
-                syncError = true;
-              }
-            }),
-          );
-          const statements = updates.filter(
-            (statement): statement is D1PreparedStatement => Boolean(statement),
-          );
-          if (statements.length) await database.batch(statements);
-        }
-        // The deployed static marker also reconciles builds without tracking credentials.
-        const unresolved = (
-          await database
-            .prepare(
-              "SELECT id,content_revision FROM deployments WHERE target='site' AND content_revision IS NOT NULL AND status IN ('requested','queued','building','deploying','unknown')",
-            )
-            .all<{ id: number; content_revision: string }>()
-        ).results;
-        if (unresolved.length) {
-          try {
-            const live = await fetch(
-              "https://veobible.com/website-release.json",
-              { cache: "no-store", signal: AbortSignal.timeout(5000) },
-            );
-            if (live.ok) {
-              const marker = (await live.json()) as { revision: string };
-              for (const record of unresolved)
-                if (record.content_revision === marker.revision) {
-                  await database
-                    .prepare(
-                      "UPDATE deployments SET status='success',completed_at=CURRENT_TIMESTAMP WHERE id=?",
-                    )
-                    .bind(record.id)
-                    .run();
-                  await env.SITE_API?.finish(record.content_revision, true);
-                }
-            }
-          } catch (error) {
-            console.error("Website release check failed", error);
-          }
-        }
+        const syncError = await reconcileReleases(env);
         const website = await websiteState(database);
         let previous = null;
         try {
-          previous = (await env.SITE_API?.deployed()) ?? null;
+          previous = await readPublished(env);
         } catch (error) {
           console.error("Previous website release unavailable", error);
         }
@@ -1227,8 +1134,8 @@ async function handle(req: Request, lang: Language) {
         if (env.SITE_LOCAL === "true") {
           devBuild = { available: false, changed: true };
           try {
-            if (env.SITE_API) {
-              const current = await env.SITE_API.development();
+            if (env.WEBSITE_CONTENT) {
+              const current = await readDevelopment(env);
               devBuild = {
                 available: true,
                 changed: current?.revision !== revision,
@@ -1252,7 +1159,11 @@ async function handle(req: Request, lang: Language) {
               .filter((p) => p.included)
               .map((p) => ({ title: p.title, path: p.path, issue: p.issue })),
           },
-          configured: Boolean(hookUrl),
+          configured: Boolean(
+            hookUrl &&
+            env.WEBSITE_CONTENT &&
+            (env.SITE_LOCAL === "true" || env.SITE_EXPORT_TOKEN),
+          ),
           syncError,
           trackingAvailable: Boolean(
             env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN,
@@ -1293,7 +1204,7 @@ async function route(req: Request) {
       error instanceof Error &&
       [
         "Review website videos before publishing.",
-        "A website update is already in progress",
+        "An update is in progress.",
       ].includes(error.message)
     )
       return json({ error: error.message }, 409);

@@ -1,6 +1,9 @@
 # JWT signing key; use an independent random secret of at least 32 bytes
 JWT_SECRET=replace-with-long-random-jwt-signing-secret
 DASHBOARD_API_PROXY_TOKEN=replace-with-long-random-shared-token
-# Public site publishing; the saved site_settings value takes precedence
+# Optional build tracking credentials
 CLOUDFLARE_ACCOUNT_ID=
 CLOUDFLARE_API_TOKEN=
+
+# Dedicated build-only credential for /api/site-export; independent of session secrets.
+SITE_EXPORT_TOKEN=replace-with-an-independent-random-secret

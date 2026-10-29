@@ -1,4 +1,3 @@
-export { SiteAdmin } from './site/entrypoint'
 import api from './api/index'
 import catalog from './catalog.json'
 

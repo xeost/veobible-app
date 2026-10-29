@@ -71,6 +71,8 @@ test("deploying a development or stale generated configuration is rejected", () 
     { d1_databases: source.d1_databases },
     { workers_dev: true },
     { routes: [] },
+    { r2_buckets: [] },
+    { triggers: {} },
   ]) {
     assert.throws(
       () =>
@@ -94,6 +96,15 @@ test("runtime secrets require signing and generation credentials and never reuse
   assert.throws(
     () => runtimeSecrets({ ...env, DASHBOARD_JWT_SECRET: "short" }),
     /32 bytes/,
+  );
+  assert.throws(
+    () => runtimeSecrets({ ...env, DASHBOARD_SITE_EXPORT_TOKEN: "short" }),
+    /32 bytes/,
+  );
+  assert.equal(
+    runtimeSecrets({ ...env, DASHBOARD_SITE_EXPORT_TOKEN: "e".repeat(32) })
+      .SITE_EXPORT_TOKEN,
+    "e".repeat(32),
   );
   assert.deepEqual(runtimeSecrets(env), {
     JWT_SECRET: env.DASHBOARD_JWT_SECRET,

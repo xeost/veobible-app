@@ -4,6 +4,3 @@
 
 SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_JWT_SECRET=your_supabase_jwt_secret_here
-
-# Required as a Worker secret in production, also set as a secret build variable.
-# SITE_EXPORT_TOKEN=replace-with-an-independent-random-secret

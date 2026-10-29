@@ -52,3 +52,11 @@ Legacy localStorage data is imported once and retained as a backup. Guest data i
 ## Release verification
 
 Run unit/API tests, type checks, production build and browser tests before deployment. Test real sign-in, token refresh and two-device synchronization with a staging Supabase account/D1 database. After release, verify legacy redirects and `noindex` in Search Console. Existing installed PWAs must accept the application update before using the new reader.
+
+## Website content publication
+
+Website content is exported by the dashboard to private R2 storage. Production builds fetch the immutable artifact assigned to `WORKERS_CI_BUILD_UUID` from `https://dash.veobible.com/api/site-export`, using the dedicated `SITE_EXPORT_TOKEN` build secret. The frontend Worker has no access to dashboard data or publishing storage. Each deployed marker includes the content hash and deployment ID.
+
+Development previews read the local dashboard on port 3003. Offline builds can explicitly set `SITE_CONTENT_FILE`; empty test builds can set `SITE_ALLOW_EMPTY=1`. Production updates must be initiated through the dashboard so each build is registered; unregistered builds stop rather than using potentially incorrect content.
+
+See [publication architecture, retention and setup](../../docs/website-publishing.md).

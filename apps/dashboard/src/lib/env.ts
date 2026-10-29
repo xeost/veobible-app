@@ -1,7 +1,7 @@
-import type { WebsiteService } from "./website";
 import { env } from "cloudflare:workers";
 export interface Bindings {
-  SITE_API?: WebsiteService;
+  WEBSITE_CONTENT: R2Bucket;
+  SITE_EXPORT_TOKEN?: string;
   SITE_DEV_URL?: string;
   SITE_LOCAL?: string;
   DB: D1Database;

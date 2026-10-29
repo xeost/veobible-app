@@ -7,7 +7,6 @@ import {
   youtubeId,
   type Publication,
   type SiteContent,
-  type SiteSnapshot,
 } from "../../../../packages/website/content";
 export type WebsiteProject = {
   id: number;
@@ -23,13 +22,6 @@ export type WebsiteProject = {
   issue?: string;
   path?: string;
 };
-export interface WebsiteService {
-  deployed(): Promise<SiteSnapshot | null>;
-  development(): Promise<SiteSnapshot | null>;
-  devBuild(content: SiteContent, actor: string): Promise<string>;
-  stage(content: SiteContent, actor: string): Promise<string>;
-  finish(revision: string, success: boolean): Promise<void>;
-}
 export const defaultSources = [
   {
     locale: "es",

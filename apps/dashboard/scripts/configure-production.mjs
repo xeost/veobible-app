@@ -77,6 +77,8 @@ export function assertProductionBuild(build, source) {
     build.vars?.VIDEO_API_URL !== expected.vars.VIDEO_API_URL ||
     build.workers_dev !== false ||
     build.preview_urls !== false ||
+    JSON.stringify(build.r2_buckets) !== JSON.stringify(expected.r2_buckets) ||
+    JSON.stringify(build.triggers) !== JSON.stringify(expected.triggers) ||
     JSON.stringify(build.routes) !== JSON.stringify(expected.routes) ||
     build.d1_databases?.find((binding) => binding.binding === "DB")
       ?.database_id !==
@@ -127,6 +129,13 @@ export function runtimeSecrets(environment = process.env) {
     if (Buffer.byteLength(environment[inputName]) < 32)
       throw new Error(`${inputName} must contain at least 32 bytes.`);
     secrets[name] = environment[inputName];
+  }
+  if (environment.DASHBOARD_SITE_EXPORT_TOKEN) {
+    if (Buffer.byteLength(environment.DASHBOARD_SITE_EXPORT_TOKEN) < 32)
+      throw new Error(
+        "DASHBOARD_SITE_EXPORT_TOKEN must contain at least 32 bytes.",
+      );
+    secrets.SITE_EXPORT_TOKEN = environment.DASHBOARD_SITE_EXPORT_TOKEN;
   }
   if (environment.DASHBOARD_PUBLISH_API_TOKEN) {
     secrets.CLOUDFLARE_API_TOKEN = environment.DASHBOARD_PUBLISH_API_TOKEN;

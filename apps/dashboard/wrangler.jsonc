@@ -1,6 +1,6 @@
 {
   "name": "veobible-dashboard-dev",
-  "main": "vinext/server/fetch-handler",
+  "main": "src/worker.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": [
     "nodejs_compat"
@@ -20,7 +20,7 @@
       "migrations_dir": "migrations",
     },
   ],
-  "services": [{"binding":"SITE_API","service":"veobible-app","entrypoint":"SiteAdmin"}],
+  "r2_buckets": [{"binding":"WEBSITE_CONTENT","bucket_name":"veobible-website-content"}],
   "vars": {
     "VIDEO_API_URL": "http://127.0.0.1:8430",
     "SITE_DEV_URL": "http://localhost:3000",
@@ -29,7 +29,8 @@
   "env": {
     "production": {
       "name": "veobible-dashboard",
-      "services": [{"binding":"SITE_API","service":"veobible-app","entrypoint":"SiteAdmin"}],
+      "triggers": {"crons": ["*/5 * * * *"]},
+      "r2_buckets": [{"binding":"WEBSITE_CONTENT","bucket_name":"veobible-website-content"}],
       "d1_databases": [
         {
           "binding": "DB",

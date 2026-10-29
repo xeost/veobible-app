@@ -15,7 +15,7 @@ for (const b of snapshot.bookVideos) {
   book.video=`https://www.youtube.com/watch?v=${b.youtubeId}`
   await writeFile(path,JSON.stringify(index,null,2)+'\n')
 }
-await writeFile('out/website-release.json',JSON.stringify({revision:snapshot.revision}))
+await writeFile('out/website-release.json',JSON.stringify({revision:snapshot.revision,deploymentId:snapshot.deploymentId}))
 const json = (await files('out/bible-data')).filter(p => p.endsWith('.json') && !p.endsWith('/manifest.json'))
 const entries = {}
 const catalog = {}
