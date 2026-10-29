@@ -6,10 +6,11 @@ import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthButton } from '@/components/auth/AuthButton'
+import { HomeUserMenu } from './HomeUserMenu'
 import { discovery } from '@/lib/i18n/discovery'
 import { sections, type Locale } from '../../../../../packages/website/content'
 
-export function HomeHeader({ currentLang }: { currentLang: string }) {
+export function HomeHeader({ currentLang, variant = 'default' }: { currentLang: string; variant?: 'default' | 'home' }) {
   const locale = currentLang as Locale
   const copy = discovery[locale]
   const s = sections[locale]
@@ -17,7 +18,7 @@ export function HomeHeader({ currentLang }: { currentLang: string }) {
   const links = [`/${locale}#versions`, `/${locale}/${s.short}`, `/${locale}/${s.long}`]
   const icons = [BookOpen, Sun, CalendarDays]
   return (
-    <header className="app-header site-header sticky top-0 z-30">
+    <header className={`app-header site-header sticky top-0 z-30${variant === 'home' ? ' home-header' : ''}`}>
       <a className="skip-link" href="#main-content">{copy.skip}</a>
       <div className="site-container site-header-inner">
         <Logo currentLang={locale} />
@@ -30,7 +31,7 @@ export function HomeHeader({ currentLang }: { currentLang: string }) {
             </a>
           })}
         </nav>
-        <div className="site-header-actions"><LanguageToggle /><ThemeToggle /><AuthButton /></div>
+        <div className="site-header-actions">{variant === 'home' ? <HomeUserMenu /> : <><LanguageToggle /><ThemeToggle /><AuthButton /></>}</div>
       </div>
     </header>
   )

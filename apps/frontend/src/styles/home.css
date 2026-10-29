@@ -1,0 +1,171 @@
+/* This visual exploration is deliberately scoped to the home page. */
+.cloud-home { --home-ink: #26104f; --home-muted: #5d5276; background: #faf9fe; color: var(--home-ink); }
+.cloud-home .site-header { position: absolute; top: 20px; left: 0; right: 0; width: min(1180px, calc(100% - 48px)); margin: auto; border: 1px solid #fff; border-radius: 18px; background: #ffffffdc; box-shadow: 0 0 0 5px #ffffff35, 0 8px 32px #3e206b05; }
+.cloud-home .site-header-inner { width: 100%; padding-inline: 24px; min-height: 76px; }
+.cloud-home .site-header .brand-logo { color: var(--home-ink) !important; }
+.cloud-home .site-nav a, .cloud-home .site-header .btn-icon { color: var(--home-ink); }
+.home-sky { position: relative; isolation: isolate; overflow: hidden; background: #e6eafa; }
+.home-sky::after { content: ''; position: absolute; inset: auto 0 0; height: 150px; background: linear-gradient(transparent, #faf9fe); pointer-events: none; }
+.cloud-scene { position: absolute; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
+/* Full-frame assets overscan the viewport: their clipped edges stay outside
+   at both ends of each boomerang. Only cloud-3 is a free-floating cutout. */
+.cloud-layer {
+  position: absolute;
+  background-repeat: no-repeat;
+  animation: cloud-free 26s ease-in-out infinite alternate;
+  animation-duration: var(--cloud-duration, 26s) !important;
+  animation-iteration-count: infinite !important;
+  will-change: transform;
+}
+.cloud-base {
+  inset: -12%;
+  background-image: url('/images/home/cloud-1.png');
+  background-size: cover;
+  background-position: center;
+  animation-name: cloud-pan;
+  --cloud-duration: 24s;
+}
+/* cloud-2 is clipped on the right, so its right edge stays beyond the scene.
+   The maximum horizontal travel is 6% of this layer, below the 18vw overhang. */
+.cloud-left {
+  width: 80%;
+  aspect-ratio: 1078 / 558;
+  right: -18%;
+  top: 36%;
+  background: url('/images/home/cloud-2.png') center / contain no-repeat;
+  /* Its tinted transparent sky also needs a soft join at the top and left.
+     The clipped right edge is hidden geometrically, not by this feather. */
+  mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+  mask-composite: intersect;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 30%), linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+  -webkit-mask-composite: source-in;
+  animation-name: cloud-bank;
+  --cloud-duration: 24s;
+  animation-delay: -8s;
+}
+.cloud-right {
+  width: 64%;
+  aspect-ratio: 1071 / 588;
+  right: -22%;
+  top: 48%;
+  background: url('/images/home/cloud-3.png') center / contain no-repeat;
+  --cloud-duration: 18s;
+  animation-delay: -12s;
+}
+.cloud-front {
+  inset: -16%;
+  background: url('/images/home/cloud-4.png') center / cover no-repeat;
+  opacity: .5;
+  animation-name: cloud-pan;
+  --cloud-duration: 32s;
+  animation-delay: -23s;
+  /* Blend the sky into the existing gradient, retaining the lower cloud bank. */
+  mask-image: linear-gradient(transparent 15%, #000 65%);
+  -webkit-mask-image: linear-gradient(transparent 15%, #000 65%);
+}
+@keyframes cloud-pan {
+  from { transform: translate3d(-5%, -2%, 0); }
+  to { transform: translate3d(5%, 2%, 0); }
+}
+@keyframes cloud-bank {
+  from { transform: translate3d(-6%, 0, 0); }
+  to { transform: translate3d(6%, -4%, 0); }
+}
+@keyframes cloud-free {
+  from { transform: translate3d(-20%, 0, 0); }
+  to { transform: translate3d(10%, -8%, 0); }
+}
+.cloud-home .home-hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 64px; align-items: center; text-align: left; padding: 180px 0 100px; position: relative; }
+.cloud-home .hero-copy { max-width: 600px; margin: 0; }
+.cloud-home .hero-copy > .eyebrow { justify-content: flex-start; width: fit-content; margin: 0; background: #ffffffd9; border: 1px solid white; border-radius: 100px; padding: 9px 20px; letter-spacing: .07em; color: #56378e; box-shadow: 0 3px 12px #683b9e09; }
+.cloud-home .hero-copy h1 { font-size: clamp(38px, 4.2vw, 58px); font-weight: 500; letter-spacing: -.065em; line-height: 1.08; margin-block: 26px; color: var(--home-ink); }
+.cloud-home .hero-copy h1 > span { color: var(--home-ink); }
+.cloud-home .hero-intro { max-width: 490px; margin-inline: 0; color: #4d3c67; font-size: 17px; line-height: 1.8; }
+.cloud-home .hero-actions { justify-content: flex-start; margin-top: 32px; gap: 12px; }
+.cloud-home .site-button.primary { border: 1px solid #a88bea; border-radius: 100px; padding: 15px 24px; color: white; background: linear-gradient(180deg, #9775ed, #6f45d1); box-shadow: inset 0 2px 3px #ffffff60, 0 5px 15px #6738b52b; }
+/* Two background layers keep the gradient border crisp around the pill. */
+.cloud-home .hero-actions .reading-cta {
+  border: 3px solid transparent;
+  background:
+    linear-gradient(135deg, #7540cd, #4e2499) padding-box,
+    linear-gradient(110deg, #62b5ffbf 0%, #62b5ffbf 16%, #d1adff 82%, #d1adff 100%) border-box;
+  box-shadow: inset 0 1px 0 #ffffff24, 0 6px 18px #542a9d24;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.cloud-home .hero-actions .reading-cta:hover {
+  background:
+    linear-gradient(135deg, #824bdc, #582aaa) padding-box,
+    linear-gradient(110deg, #85c6ffbf 0%, #85c6ffbf 16%, #e0c5ff 82%, #e0c5ff 100%) border-box;
+  box-shadow: inset 0 1px 0 #ffffff38, 0 8px 24px #663ab93b;
+  transform: translateY(-2px);
+}
+.cloud-home .hero-actions .reading-cta:active { transform: translateY(0); }
+.cloud-home .hero-actions .reading-cta > svg:last-child { transition: transform .2s ease; }
+.cloud-home .hero-actions .reading-cta:hover > svg:last-child { transform: translateX(3px); }
+.cloud-home .hero-actions > .text-link { background: #ffffffdc; border: 1px solid white; border-radius: 100px; padding: 15px 24px; color: #39215e; }
+.cloud-home .hero-notes { justify-content: flex-start; color: #625575; font-size: 12px; }
+
+.cloud-home .daily-verse { padding: 30px 34px; background: #ffffffc9; color: var(--home-ink); border: 1px solid white; border-radius: 24px; box-shadow: 0 0 0 8px #ffffff70, 0 24px 80px #58388c12; backdrop-filter: blur(16px); max-width: 900px; margin: auto; }
+.cloud-home .verse-heading { color: #634785; }
+.cloud-home .verse-heading svg, .cloud-home .verse-quote { color: #9270c7; }
+.cloud-home .verse-dot { background: #9775ed; }
+.cloud-home .verse-body { min-height: 0; padding-block: 18px 24px; }
+.cloud-home .verse-body blockquote { font-size: clamp(22px, 2vw, 26px); line-height: 1.55; }
+.cloud-home .verse-reference { color: #7048a8; }
+.cloud-home .verse-reference span { color: #78658f; }
+.cloud-home .verse-context { border-color: #e7dff0; color: #6a439c; }
+.cloud-home .section-heading { text-align: left; display: flex; margin-bottom: 28px; }
+.cloud-home .section-heading .eyebrow { justify-content: flex-start; }
+.cloud-home .section-heading h2 { font-weight: 500; font-size: clamp(26px, 3vw, 34px); letter-spacing: -.05em; }
+.cloud-home .section-heading > p { margin: 0; max-width: 340px; color: var(--home-muted); font-size: 16px; }
+.cloud-home .discovery-card { border-radius: 24px; padding: 38px; border: 1px solid #e8e0f3; box-shadow: inset 0 2px white, 0 12px 32px #4a267006; }
+.cloud-home .discovery-dose { background: linear-gradient(135deg, #fff, #f0e9fb); color: #362052; }
+.cloud-home .discovery-journey { background: linear-gradient(135deg, #f5f0fd, #e6e4fc); color: #362052; }
+.cloud-home .discovery-card h3 { font-weight: 500; font-size: 34px; }
+.cloud-home .library-section { background: linear-gradient(#f4f0fb, #faf9fe); border: 0; padding-block: 64px; }
+.cloud-home .language-tabs { justify-content: flex-start; }
+.cloud-home .version-card { background: #ffffffb8; border-color: #e7e0f1; border-radius: 22px; padding: 32px; }
+.cloud-home .feature-grid { gap: 24px; }
+.cloud-home .feature-item { padding: 28px; border: 1px solid #e7e0f1; border-radius: 22px; background: white; }
+.cloud-home .install-panel { background: linear-gradient(120deg, #ede6fa, #e7edfc); border: 1px solid white; border-radius: 24px; }
+.cloud-home .community-section { padding-top: 64px; }
+.dark .cloud-home { --home-ink: #eee7ff; --home-muted: #bcb0d0; background: #15101f; }
+.dark .cloud-home .home-sky { background-color: #211a39; background-blend-mode: multiply; }
+.dark .cloud-home .home-sky::after { background: linear-gradient(transparent, #15101f); }
+.dark .cloud-home .cloud-scene { opacity: .17; }
+.dark .cloud-home .site-header { background: #20192fe8; border-color: #57466f; }
+.dark .cloud-home .hero-copy > .eyebrow, .dark .cloud-home .hero-actions > .text-link { background: #312542d9; border-color: #68527e; color: #e0cef7; }
+.dark .cloud-home .hero-intro, .dark .cloud-home .hero-notes { color: #d3c5e5; }
+.dark .cloud-home .daily-verse, .dark .cloud-home .version-card, .dark .cloud-home .feature-item { background: #241c31; border-color: #463353; box-shadow: 0 0 0 6px #ffffff04; }
+.dark .cloud-home .verse-heading, .dark .cloud-home .verse-reference, .dark .cloud-home .verse-context { color: #c5a4f1; }
+.dark .cloud-home .verse-reference span { color: #b7a7c7; }
+.dark .cloud-home .discovery-card, .dark .cloud-home .install-panel { background: linear-gradient(130deg, #30223f, #24203d); color: #eee7ff; border-color: #4e3c62; box-shadow: none; }
+.dark .cloud-home .library-section { background: #1b1426; }
+@media (max-width: 767px) {
+  .cloud-home .site-header { width: calc(100% - 24px); top: 12px; }
+  .cloud-home .site-header-inner { padding-inline: 12px; }
+  .cloud-home .home-hero { grid-template-columns: 1fr; gap: 36px; padding-block: 160px 100px; }
+  .cloud-home .section-heading { display: block; }
+  .cloud-home .section-heading > p { margin-top: 14px; }
+  .cloud-home .hero-copy h1 { font-size: clamp(38px, 8.6vw, 64px); }
+  .cloud-home .hero-copy > .eyebrow { font-size: 9px; padding-inline: 12px; }
+  .cloud-home .hero-intro { font-size: 16px; }
+  .cloud-home .hero-notes { font-size: 10px; }
+  .cloud-home .hero-actions { gap: 12px; }
+  .cloud-home .hero-actions > a { font-size: 13px; padding: 13px 18px; }
+  .cloud-left { width: 140%; right: -40%; top: 36%; }
+  .cloud-right { width: 130%; right: -60%; top: 55%; }
+
+  .cloud-home .daily-verse { padding: 26px; }
+  .cloud-home .discovery-card { padding: 28px; }
+  .cloud-home .discovery-card h3 { font-size: 28px; }
+  .cloud-home .library-section { padding-block: 60px; }
+}
+/* Decorative clouds run continuously, independently of the global motion reset. */
+
+
+.cloud-home .home-discover { padding-top: 32px; }
+@media (min-width: 768px) and (max-width: 1100px) {
+  .cloud-home .home-hero { gap: 32px; }
+  .cloud-home .hero-copy h1 { font-size: 42px; }
+}

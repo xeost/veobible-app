@@ -1,5 +1,7 @@
 'use client'
 
+import '@/styles/home.css'
+import '@/styles/home-header.css'
 import { useEffect, useState } from 'react'
 import { ArrowRight, BookOpen, Bookmark, Check, Download, Globe2, Monitor, Smartphone, Type } from 'lucide-react'
 import Link from '@/components/reader/ReaderLink'
@@ -39,16 +41,20 @@ export default function LangHomePage() {
     { title: t.home.installDesktopSafari, icon: Monitor, steps: [t.home.installDesktopSafariStep1, t.home.installDesktopSafariStep2, t.home.installDesktopSafariStep3] },
   ]
   const featureIcons = [Type, Bookmark, Download]
-  return <div className="site-page">
-    <HomeHeader currentLang={locale} />
+  return <div className="site-page cloud-home">
+    <HomeHeader currentLang={locale} variant="home" />
     <main id="main-content">
-      <section className="site-container home-hero">
+      <section className="home-sky">
+        <div className="cloud-scene" aria-hidden="true">
+          <div className="cloud-layer cloud-base" /><div className="cloud-layer cloud-left" /><div className="cloud-layer cloud-right" /><div className="cloud-layer cloud-front" />
+        </div>
+        <div className="site-container home-hero">
         <div className="hero-copy">
           <p className="eyebrow"><span className="eyebrow-line" />{copy.eyebrow}</p>
           <h1>{copy.title}<br /><span>{copy.titleAccent}</span></h1>
           <p className="hero-intro">{copy.intro}</p>
           <div className="hero-actions">
-            {primaryVersion && <Link id={`start-reading-${primaryVersion.slug}`} href={readingHref(primaryVersion.slug)} className="site-button primary">
+            {primaryVersion && <Link id={`start-reading-${primaryVersion.slug}`} href={readingHref(primaryVersion.slug)} className="site-button primary reading-cta">
               <BookOpen size={20} aria-hidden="true" />{lastPositions[primaryVersion.slug] ? t.home.continueReading : t.home.startReading}<ArrowRight size={18} aria-hidden="true" />
             </Link>}
             <a href="#versions" className="text-link">{copy.choose}<ArrowRight size={17} aria-hidden="true" /></a>
@@ -56,6 +62,7 @@ export default function LangHomePage() {
           <div className="hero-notes"><span><Check size={15} aria-hidden="true" />{copy.free}</span><span><Globe2 size={15} aria-hidden="true" />{copy.languages}</span></div>
         </div>
         {primaryVersion && <DailyVerse locale={locale} versionSlug={primaryVersion.slug} />}
+        </div>
       </section>
 
       <section className="site-container home-discover" aria-labelledby="discover-title">
