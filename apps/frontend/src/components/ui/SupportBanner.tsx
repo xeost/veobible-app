@@ -205,10 +205,10 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
   return (
     <div className="support-banner mx-auto my-8 relative rounded-3xl overflow-hidden transition-all duration-300 group w-full"
       style={{
-        maxWidth: '42rem',
+        maxWidth: 'var(--support-max-width, 42rem)',
         border: '1px solid var(--border)',
         boxShadow: 'var(--shadow-lg)',
-        background: 'var(--bg-card)',
+        background: 'var(--support-background, var(--bg-card))',
       }}
     >
       {isClosable && (
@@ -230,8 +230,8 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
         {/* Main Icon */}
         <div className="w-16 h-16 rounded-2xl mb-6 flex items-center justify-center transition-colors"
           style={{
-            background: '#b52337',
-            color: '#fff',
+            background: 'var(--support-accent, #b52337)',
+            color: 'var(--support-on-accent, #fff)',
             boxShadow: 'none'
           }}
         >
@@ -259,8 +259,8 @@ export function SupportBanner({ isClosable = false }: SupportBannerProps) {
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 shadow-sm hover:shadow-xl transform hover:-translate-y-1 w-full sm:w-auto"
                 style={{
-                  background: '#b52337',
-                  color: '#ffffff',
+                  background: 'var(--support-accent, #b52337)',
+                  color: 'var(--support-on-accent, #ffffff)',
                   border: 'none',
                 }}
               >

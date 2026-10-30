@@ -1,5 +1,4 @@
-import { HomeHeader } from '@/components/layout/HomeHeader'
-import { Footer } from '@/components/layout/Footer'
+import { PublicPage } from '@/components/layout/PublicPage'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import {
@@ -95,8 +94,7 @@ export default async function VideoPage({
     )
   const i = siblings.findIndex((v) => v.projectId === p.projectId)
   return (
-    <div className="site-page">
-      <HomeHeader currentLang={p.locale} />
+    <PublicPage locale={p.locale}>
       <main id="main-content" className="site-container publication-main">
       <article className="publication-article">
         <a className="breadcrumb" href={`/${p.locale}/${s[p.kind]}`}>
@@ -165,7 +163,6 @@ export default async function VideoPage({
         </nav>
       </article>
       </main>
-      <Footer lang={p.locale} />
-    </div>
+    </PublicPage>
   )
 }

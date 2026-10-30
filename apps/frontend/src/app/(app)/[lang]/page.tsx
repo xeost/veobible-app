@@ -5,6 +5,7 @@ import '@/styles/home-header.css'
 import { useEffect, useState } from 'react'
 import { ArrowRight, BookOpen, Bookmark, Check, Download, Globe2, Monitor, Smartphone, Type } from 'lucide-react'
 import Link from '@/components/reader/ReaderLink'
+import { CloudScene } from '@/components/layout/CloudScene'
 import { HomeHeader } from '@/components/layout/HomeHeader'
 import { Footer } from '@/components/layout/Footer'
 import { SupportBanner } from '@/components/ui/SupportBanner'
@@ -45,9 +46,7 @@ export default function LangHomePage() {
     <HomeHeader currentLang={locale} variant="home" />
     <main id="main-content">
       <section className="home-sky">
-        <div className="cloud-scene" aria-hidden="true">
-          <div className="cloud-layer cloud-base" /><div className="cloud-layer cloud-left" /><div className="cloud-layer cloud-right" /><div className="cloud-layer cloud-front" />
-        </div>
+        <CloudScene />
         <div className="site-container home-hero">
         <div className="hero-copy">
           <p className="eyebrow"><span className="eyebrow-line" />{copy.eyebrow}</p>

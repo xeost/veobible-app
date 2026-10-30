@@ -42,6 +42,7 @@ export function AudioChapter({
   project,
   settings,
   locked,
+  approvalLocked,
   submitting,
   tasks,
   open,
@@ -61,6 +62,7 @@ export function AudioChapter({
   project: AudioProjectDetail;
   settings: AudioSettings;
   locked: boolean;
+  approvalLocked: boolean;
   submitting: boolean;
   tasks: GenerationQueueItem[];
   open: boolean;
@@ -511,7 +513,7 @@ export function AudioChapter({
                     data-tooltip={t(
                       approved ? "Remove verse approval" : "Approve verse",
                     )}
-                    disabled={locked}
+                    disabled={approvalLocked}
                     onClick={() => void onToggleApproval(reference)}
                   >
                     <CircleCheck size={16} aria-hidden="true" />

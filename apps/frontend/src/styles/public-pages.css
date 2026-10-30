@@ -1,0 +1,55 @@
+/* Explicit public-page boundary: none of these rules apply to the Bible reader. */
+.cloud-page {
+  position: relative;
+  isolation: isolate;
+  --bg-page: #faf9fe;
+  --bg-card: #ffffffdc;
+  --bg-secondary: #eee6fa;
+  --bg-soft: #e6dcfa;
+  --border: #ddccef;
+  --border-strong: #bda2db;
+  --text-primary: #26104f;
+  --text-secondary: #5d5276;
+  --text-muted: #6f5b86;
+  --brand: #7048a8;
+  --brand-light: #e9dcf9;
+  --home-action: linear-gradient(135deg, #7540cd, #4e2499);
+  --home-edge: linear-gradient(110deg, #62b5ffbf 16%, #d1adff 82%);
+}
+.cloud-page .page-sky { position: absolute; inset: 0 0 auto; height: 760px; z-index: -1; pointer-events: none; }
+.cloud-page > main { padding-top: 142px; }
+.cloud-page .breadcrumb { color: var(--brand); }
+.cloud-page .collection-hero, .cloud-page .version-intro { border: 1px solid #ffffffb0; border-radius: 24px; box-shadow: 0 0 0 5px #ffffff35, 0 12px 32px #542a9d0d; }
+.cloud-page .collection-hero h1, .cloud-page .version-intro h1 { font-weight: 500; letter-spacing: -.05em; }
+.cloud-page .version-intro { background: linear-gradient(120deg, #d1adffb0, #bcdcffc0); }
+.cloud-page .publication-article > h1 { font-weight: 500; letter-spacing: -.05em; }
+.cloud-page .collection-count { color: #fff; background: var(--home-action); border: 1px solid #a88bea; border-radius: 100px; }
+.cloud-page .publication-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 22px; box-shadow: 0 6px 24px #58388c0d; }
+.cloud-page .publication-card:hover, .cloud-page .book-link-card:hover { box-shadow: 0 0 0 2px #d1adff, 0 10px 24px #542a9d1a; transform: translateY(-3px); }
+.cloud-page .publication-card .eyebrow, .cloud-page .publication-card .card-link, .cloud-page .publication-meta { color: var(--brand); }
+.cloud-page .publication-play { background: var(--home-action); border: 1px solid #d1adff; }
+.cloud-page .passage-content { background: var(--bg-card); border-color: var(--border); border-radius: 24px; box-shadow: 0 0 0 5px #ffffff35; }
+.cloud-page .passage-content h2 { color: var(--brand); }
+.cloud-page .publication-pagination a { border-radius: 18px; background: linear-gradient(120deg, var(--bg-secondary), var(--bg-card)); }
+.cloud-page .site-button.primary { border: 2px solid transparent; background: var(--home-action) padding-box, var(--home-edge) border-box; box-shadow: inset 0 1px #ffffff24, 0 6px 18px #542a9d24; }
+.cloud-page .site-button.primary:hover { filter: brightness(1.1); }
+.cloud-page .collection-empty { border: 1px solid var(--border); background: var(--bg-card); border-radius: 24px; }
+.cloud-page .testament-header { color: var(--brand); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 100px; padding: 10px 18px; width: fit-content; }
+.cloud-page .book-link-card { box-shadow: 0 3px 12px #58388c08; }
+.cloud-page :is(.publication-card, .book-link-card, .site-button):focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
+.cloud-page .utility-main, .cloud-page .offline-page { display: flex; justify-content: center; align-items: center; min-height: calc(100dvh - 260px); padding-bottom: 80px; background: transparent; }
+.cloud-page .utility-main > div { border-radius: 24px; box-shadow: 0 0 0 6px #ffffff40, 0 20px 64px #542a9d18; }
+.cloud-page .offline-page { padding-top: 160px; }
+.cloud-page .offline-card { background: var(--bg-card); border-color: #ffffffc0; box-shadow: 0 0 0 6px #ffffff40, 0 20px 64px #542a9d18; }
+.cloud-page .offline-btn-primary { background: var(--home-action); border: 2px solid #d1adff; border-radius: 100px; }
+.dark .cloud-page { --bg-page: #15101f; --bg-card: #281c3ce8; --bg-secondary: #39274f; --bg-soft: #30223f; --border: #5b3e78; --border-strong: #785698; --text-primary: #eee7ff; --text-secondary: #cfc0e3; --text-muted: #bcb0d0; --brand: #d1adff; --brand-light: #3d2a53; }
+.dark .cloud-page .page-sky { background: #211a39; }
+.dark .cloud-page .collection-hero, .dark .cloud-page .version-intro { border-color: #785698; box-shadow: 0 0 0 5px #ffffff05; }
+.dark .cloud-page .version-intro { background: linear-gradient(120deg, #442b61, #28466e); }
+.dark .cloud-page .passage-content, .dark .cloud-page .offline-card { border-color: var(--border); box-shadow: 0 0 0 5px #ffffff05; }
+.dark .cloud-page .utility-main > div { box-shadow: 0 0 0 5px #ffffff05; }
+@media (max-width: 767px) {
+  .cloud-page > main, .cloud-page .offline-page { padding-top: 166px; }
+  .cloud-page .page-sky { height: 660px; }
+  .cloud-page .collection-hero, .cloud-page .version-intro { padding: 28px; }
+}

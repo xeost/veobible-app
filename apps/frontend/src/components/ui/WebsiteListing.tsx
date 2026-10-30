@@ -1,11 +1,10 @@
 import Image from 'next/image'
-import { ArrowLeft, ArrowRight, BookOpen, Play } from 'lucide-react'
+import { ArrowRight, BookOpen, Play } from 'lucide-react'
 import { websiteContent, sections, publicationPath, type Locale } from '@/lib/website/content'
 import { discovery } from '@/lib/i18n/discovery'
 import { getDefaultVersionForLang } from '@/lib/bible/config'
 import { readerSegment } from '@/lib/reader/routes'
-import { HomeHeader } from '@/components/layout/HomeHeader'
-import { Footer } from '@/components/layout/Footer'
+import { PublicPage } from '@/components/layout/PublicPage'
 import { WebsiteSections } from './WebsiteSections'
 
 export function WebsiteListing({ locale, kind }: { locale: Locale; kind: 'short' | 'long' }) {
@@ -15,10 +14,8 @@ export function WebsiteListing({ locale, kind }: { locale: Locale; kind: 'short'
     .filter(p => p.locale === locale && p.kind === kind)
     .sort((a, b) => kind === 'long' ? (a.passage.episode ?? 0) - (b.passage.episode ?? 0) : b.projectId - a.projectId)
   const defaultVersion = getDefaultVersionForLang(locale)!
-  return <div className="site-page">
-    <HomeHeader currentLang={locale} />
+  return <PublicPage locale={locale}>
     <main id="main-content" className="site-container collection-main">
-      <a href={`/${locale}`} className="breadcrumb"><ArrowLeft size={16} aria-hidden="true" />{s.back}</a>
       <header className={`collection-hero ${kind === 'short' ? 'discovery-dose' : 'discovery-journey'}`}>
         <p className="eyebrow">{kind === 'short' ? copy.shortLabel : copy.longLabel}</p>
         <h1>{s[kind === 'short' ? 'shortTitle' : 'longTitle']}</h1>
@@ -47,6 +44,5 @@ export function WebsiteListing({ locale, kind }: { locale: Locale; kind: 'short'
       </>}
       <section className="collection-other" aria-label={copy.explore}><WebsiteSections locale={locale} /></section>
     </main>
-    <Footer lang={locale} />
-  </div>
+  </PublicPage>
 }

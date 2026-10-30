@@ -3,11 +3,17 @@ import { withAudioVersePause } from "./audio-settings";
 import { inheritAudioVoiceDefaults } from "./project-voice-defaults";
 import { loadBaseVoiceDefaults } from "./base-voices";
 import { loadVoiceStyleDefaults } from "./voice-style-presets";
-import { audioMixSettingsChanged } from "../../../../tools/video-project-api/src/audio-approvals";
+import {
+  audioMixSettingsChanged,
+  audioVerseApproval,
+  isAudioVerseApproved,
+} from "../../../../tools/video-project-api/src/audio-approvals";
+import { z } from "zod";
 import {
   audioProjectSchema,
   audioSaveSchema,
   audioEventSchema,
+  audioSettingsSchema,
   type AudioProject,
   type AudioProjectSummary,
 } from "../../../../tools/video-project-api/src/audio-project-schema";
@@ -287,6 +293,71 @@ export async function saveAudioProject(
     );
   return (await findAudioProject(database, edition, book, environment)).project;
 }
+/** Review metadata can be saved independently of a generation session. */
+export async function saveAudioVerseApproval(
+  database: D1Database,
+  edition: string,
+  book: string,
+  value: unknown,
+  environment: AudioProject["outputEnvironment"] = "production",
+) {
+  const input = z
+    .object({
+      reference: z.string().regex(/^[1-9]\d*:[1-9]\d*$/),
+      approval: audioSettingsSchema.shape.approvals.unwrap().valueSchema,
+      approved: z.boolean(),
+    })
+    .parse(value);
+  // Progress callbacks advance revisions too. Retry against the same recording
+  // and cut, never against a newly generated or edited verse.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { row, project } = await findAudioProject(
+      database,
+      edition,
+      book,
+      environment,
+    );
+    if (
+      !project.recordings[input.reference] ||
+      !isAudioVerseApproved(
+        project,
+        {
+          ...project.settings,
+          approvals: { [input.reference]: input.approval },
+        },
+        input.reference,
+      )
+    )
+      throw new AudioDatabaseError(
+        "This audio project changed. Reload it before saving.",
+      );
+    const path = `$.approvals."${input.reference}"`;
+    const result = await database
+      .prepare(
+        `UPDATE audio_projects SET settings=${input.approved ? "json_set(settings,?,json(?))" : "json_remove(settings,?)"},revision=revision+1,updated_at=? WHERE id=? AND revision=?`,
+      )
+      .bind(
+        path,
+        ...(input.approved
+          ? [
+              JSON.stringify(
+                audioVerseApproval(project, project.settings, input.reference),
+              ),
+            ]
+          : []),
+        now(),
+        row.id,
+        row.revision,
+      )
+      .run();
+    if (result.meta.changes)
+      return (await findAudioProject(database, edition, book, environment))
+        .project;
+  }
+  throw new AudioDatabaseError(
+    "This audio project changed. Reload it before saving.",
+  );
+}
 export async function beginAudioJob(
   database: D1Database,
   edition: string,
@@ -412,10 +483,19 @@ export async function applyAudioEvent(
       throw new AudioDatabaseError("Invalid audio file.", 400);
   const result = await database
     .prepare(
-      `UPDATE audio_projects SET settings=?,recordings=?,chapters=?,status=?,progress=?,job_sequence=?,revision=revision+1,updated_at=? WHERE id=? AND active_job_id=? AND job_sequence<? AND status IN ('queued','running')`,
+      `UPDATE audio_projects SET settings=json_set(?, '$.approvals', json_patch(COALESCE(json_extract(settings,'$.approvals'),'{}'),?)),recordings=?,chapters=?,status=?,progress=?,job_sequence=?,revision=revision+1,updated_at=? WHERE id=? AND active_job_id=? AND job_sequence<? AND status IN ('queued','running')`,
     )
     .bind(
       JSON.stringify(project.settings),
+      // The editor owns approvals. Only editing-file cleanup changes them in
+      // generation snapshots; retained snapshots may predate a user's review.
+      JSON.stringify(
+        Object.fromEntries(
+          Object.keys(JSON.parse(row.recordings) as AudioProject["recordings"])
+            .filter((ref) => !project.recordings[ref])
+            .map((ref) => [ref, project.settings.approvals?.[ref] ?? null]),
+        ),
+      ),
       JSON.stringify(project.recordings),
       JSON.stringify(project.chapters),
       project.status,

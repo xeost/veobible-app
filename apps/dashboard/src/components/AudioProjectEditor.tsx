@@ -16,6 +16,7 @@ import type {
 import { useI18n } from "../i18n/context";
 import { api } from "./api";
 import { refreshAudioEditor } from "../lib/audio-editor-refresh";
+import { audioReviewLocked } from "../lib/audio-review-lock";
 import { AudioChapter } from "./AudioChapter";
 import { audioMediaUrl, type AudioMediaAccess } from "../lib/audio-media";
 import { BaseVoiceSelector } from "./BaseVoiceSelector";
@@ -221,7 +222,7 @@ export function AudioProjectEditor({
           voiceStyleDefaults: extras.voiceStyleDefaults,
         });
       if (!dirtyRef.current && !busyRef.current) {
-        if (value) {
+        if (value && value.revision >= (projectRef.current?.revision ?? 0)) {
           projectRef.current = value;
           setProject(value);
           setSettings(value.settings);
@@ -371,17 +372,32 @@ export function AudioProjectEditor({
     dirtyRef.current = false;
   };
   const toggleApproval = async (reference: string) => {
-    if (!project || !settings || busyRef.current || pendingRef.current) return;
+    if (
+      !project ||
+      !settings ||
+      busyRef.current ||
+      audioReviewLocked(
+        Number(reference.split(":")[0]),
+        pendingRef.current,
+        queueTasks,
+      )
+    )
+      return;
     const approval = audioVerseApproval(project, settings, reference);
     if (!approval) return;
-    const approvals = { ...settings.approvals };
-    if (isAudioVerseApproved(project, settings, reference))
-      delete approvals[reference];
-    else approvals[reference] = approval;
+    const approved = !isAudioVerseApproved(project, settings, reference);
     setBusy(true);
     busyRef.current = true;
     try {
-      await save({ ...settings, approvals });
+      if (dirtyRef.current) await save();
+      const saved = await api<AudioProjectDetail>(`${endpoint}/approval`, {
+        method: "PUT",
+        body: JSON.stringify({ reference, approval, approved }),
+      });
+      const updated = { ...projectRef.current!, ...saved };
+      projectRef.current = updated;
+      setProject(updated);
+      setSettings(updated.settings);
     } catch {
       notify("Could not save the verse approval. Try again.", "error");
     } finally {
@@ -658,6 +674,10 @@ export function AudioProjectEditor({
                 }
                 onPrepared={onWaveformPrepared}
                 locked={locked}
+                approvalLocked={
+                  busy ||
+                  audioReviewLocked(chapter.chapter, pending, queueTasks)
+                }
                 submitting={busy}
                 tasks={queueTasks.filter(
                   (task) => task.chapter === chapter.chapter,

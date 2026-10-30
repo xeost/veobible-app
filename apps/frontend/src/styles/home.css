@@ -114,21 +114,70 @@
 .cloud-home .verse-reference { color: #7048a8; }
 .cloud-home .verse-reference span { color: #78658f; }
 .cloud-home .verse-context { border-color: #e7dff0; color: #6a439c; }
+/* Carry the hero palette through the rest of the home. */
+.cloud-home :is(.home-discover, .library-section, .everyday-section, .community-section, .site-footer) {
+  --home-action: linear-gradient(135deg, #7540cd, #4e2499);
+  --home-edge: linear-gradient(110deg, #62b5ffbf 16%, #d1adff 82%);
+}
 .cloud-home .section-heading { text-align: left; display: flex; margin-bottom: 28px; }
-.cloud-home .section-heading .eyebrow { justify-content: flex-start; }
+.cloud-home .section-heading .eyebrow { justify-content: flex-start; color: #7048a8; }
 .cloud-home .section-heading h2 { font-weight: 500; font-size: clamp(26px, 3vw, 34px); letter-spacing: -.05em; }
 .cloud-home .section-heading > p { margin: 0; max-width: 340px; color: var(--home-muted); font-size: 16px; }
-.cloud-home .discovery-card { border-radius: 24px; padding: 38px; border: 1px solid #e8e0f3; box-shadow: inset 0 2px white, 0 12px 32px #4a267006; }
-.cloud-home .discovery-dose { background: linear-gradient(135deg, #fff, #f0e9fb); color: #362052; }
-.cloud-home .discovery-journey { background: linear-gradient(135deg, #f5f0fd, #e6e4fc); color: #362052; }
+.cloud-home .discovery-card { border-radius: 24px; padding: 38px; border: 1px solid #d1adff; box-shadow: inset 0 1px #ffffff50, 0 12px 32px #542a9d18; }
+.cloud-home .discovery-dose { background: radial-gradient(ellipse at top right, #9775ed80, transparent 65%), linear-gradient(135deg, #7540cd, #4e2499); color: white; }
+.cloud-home .discovery-journey { background: linear-gradient(130deg, #62b5ff, #d1adff); color: #26104f; }
 .cloud-home .discovery-card h3 { font-weight: 500; font-size: 34px; }
-.cloud-home .library-section { background: linear-gradient(#f4f0fb, #faf9fe); border: 0; padding-block: 64px; }
-.cloud-home .language-tabs { justify-content: flex-start; }
-.cloud-home .version-card { background: #ffffffb8; border-color: #e7e0f1; border-radius: 22px; padding: 32px; }
+.cloud-home .discovery-dose p, .cloud-home .discovery-dose .eyebrow { color: #f0e6ff; }
+.cloud-home .discovery-card .card-link { width: fit-content; padding: 12px 17px; border: 1px solid #ffffff70; border-radius: 100px; background: #ffffff20; }
+.cloud-home .discovery-journey .card-link { border-color: #ffffffc0; background: #ffffff70; }
+.cloud-home .discovery-art { opacity: .18; }
+.cloud-home .journey-art { opacity: .13; }
+.cloud-home .discovery-card:hover { box-shadow: inset 0 1px #ffffff70, 0 16px 36px #542a9d28; }
+.cloud-home .discovery-card:focus-visible { outline: 3px solid #7048a8; outline-offset: 5px; }
+.cloud-home .library-section { background: linear-gradient(125deg, #e2d0f8, #d5e8ff 75%, #e6dcfa); border-block: 1px solid #d1b8ed; padding-block: 64px; }
+.cloud-home .language-tabs { justify-content: flex-start; gap: 8px; }
+.cloud-home .language-tabs a { color: #4d3c67; background: #ffffff50; border: 1px solid #ffffff90; border-radius: 100px; }
+.cloud-home .language-tabs a:hover { background: #ffffffa0; }
+.cloud-home .language-tabs a[aria-current] { background: var(--home-action); color: white; border-color: #a88bea; box-shadow: inset 0 1px #ffffff30, 0 3px 10px #6738b520; }
+.cloud-home .version-card { background: #ffffffe6; border: 1px solid white; border-radius: 22px; padding: 32px; box-shadow: 0 6px 24px #58388c0d; }
+.cloud-home .version-monogram { color: white; background: var(--home-action); border-color: #9775ed; border-left-color: #bca0f0; box-shadow: inset 0 1px #ffffff40; }
+.cloud-home .version-card .eyebrow { color: #7048a8; }
+.cloud-home .version-position { color: var(--home-muted); }
+.cloud-home .version-actions { border-color: #dfd1f1; }
+.cloud-home .version-actions .text-link { padding: 11px 17px; min-height: 44px; border: 2px solid transparent; border-radius: 100px; background: var(--home-action) padding-box, var(--home-edge) border-box; color: white; font-size: 13px; box-shadow: inset 0 1px #ffffff24, 0 3px 10px #6738b51a; }
+.cloud-home .version-actions .text-link:hover { filter: brightness(1.1); }
+.cloud-home .version-actions > a:last-child { color: #63379c; }
 .cloud-home .feature-grid { gap: 24px; }
-.cloud-home .feature-item { padding: 28px; border: 1px solid #e7e0f1; border-radius: 22px; background: white; }
-.cloud-home .install-panel { background: linear-gradient(120deg, #ede6fa, #e7edfc); border: 1px solid white; border-radius: 24px; }
+.cloud-home .feature-item { padding: 28px; border: 1px solid #c8aaea; border-radius: 22px; background: linear-gradient(135deg, #eee0ff, #e1c9fa); }
+.cloud-home .feature-item:nth-child(2) { background: linear-gradient(135deg, #e0efff, #bedcff); border-color: #a5c9f1; }
+.cloud-home .feature-item:nth-child(3) { background: linear-gradient(135deg, #ece1ff, #d0cef7); border-color: #b9b1e9; }
+.cloud-home .feature-item > svg { box-sizing: content-box; padding: 12px; border: 1px solid #ffffff60; border-radius: 15px; background: var(--home-action); color: white; box-shadow: inset 0 1px #ffffff30, 0 4px 12px #6738b518; }
+.cloud-home .feature-item p { color: #4d3c67; }
+.cloud-home .install-panel { background: linear-gradient(120deg, #c9aff0, #bcdcff); border: 1px solid white; border-radius: 24px; box-shadow: 0 0 0 5px #d1adff20; }
+.cloud-home .install-icon { background: var(--home-action); color: white; box-shadow: inset 0 1px #ffffff40; }
+.cloud-home .install-panel p { color: #4d3c67; }
+.cloud-home .install-options { display: grid; align-content: start; gap: 8px; }
+.cloud-home .install-options details { border: 1px solid #ffffff90; border-radius: 13px; background: #ffffff65; padding-inline: 16px; }
+.cloud-home .install-options summary { color: #39215e; }
+.cloud-home .install-options summary::after, .cloud-home .install-options li > span { color: #63379c; }
+.cloud-home .install-options ol { color: #4d3c67; }
 .cloud-home .community-section { padding-top: 64px; }
+.cloud-home .community-section > .eyebrow { color: #7048a8; }
+.cloud-home .community-section .support-banner {
+  --support-background: radial-gradient(ellipse at top right, #9775ed90, transparent 65%), linear-gradient(135deg, #7540cd, #4e2499);
+  --support-accent: #ffffff;
+  --support-on-accent: #63379c;
+  --support-max-width: 100%;
+  --text-primary: #ffffff;
+  --text-secondary: #f0e6ff;
+  --text-muted: #e0cef7;
+  --border: #bba1eb;
+}
+.cloud-home .site-footer { color: #fff; background: linear-gradient(120deg, #26104f, #4e2499); border-top: 3px solid #bca0f0; }
+.cloud-home .footer-grid h2 { color: #d1adff; }
+.cloud-home .footer-grid p, .cloud-home .footer-grid li a { color: #eee3ff; }
+.cloud-home .footer-grid li a:hover { color: #fff; }
+.cloud-home .footer-bottom { border-color: #ffffff25; color: #dfcff4; }
 .dark .cloud-home { --home-ink: #eee7ff; --home-muted: #bcb0d0; background: #15101f; }
 .dark .cloud-home .home-sky { background-color: #211a39; background-blend-mode: multiply; }
 .dark .cloud-home .home-sky::after { background: linear-gradient(transparent, #15101f); }
@@ -136,11 +185,27 @@
 .dark .cloud-home .site-header { background: #20192fe8; border-color: #57466f; }
 .dark .cloud-home .hero-copy > .eyebrow, .dark .cloud-home .hero-actions > .text-link { background: #312542d9; border-color: #68527e; color: #e0cef7; }
 .dark .cloud-home .hero-intro, .dark .cloud-home .hero-notes { color: #d3c5e5; }
-.dark .cloud-home .daily-verse, .dark .cloud-home .version-card, .dark .cloud-home .feature-item { background: #241c31; border-color: #463353; box-shadow: 0 0 0 6px #ffffff04; }
+.dark .cloud-home .daily-verse { background: #241c31; border-color: #463353; box-shadow: 0 0 0 6px #ffffff04; }
 .dark .cloud-home .verse-heading, .dark .cloud-home .verse-reference, .dark .cloud-home .verse-context { color: #c5a4f1; }
 .dark .cloud-home .verse-reference span { color: #b7a7c7; }
-.dark .cloud-home .discovery-card, .dark .cloud-home .install-panel { background: linear-gradient(130deg, #30223f, #24203d); color: #eee7ff; border-color: #4e3c62; box-shadow: none; }
-.dark .cloud-home .library-section { background: #1b1426; }
+.dark .cloud-home .section-heading .eyebrow, .dark .cloud-home .community-section > .eyebrow { color: #c5a4f1; }
+.dark .cloud-home .discovery-journey { background: linear-gradient(130deg, #284d82, #643c94); color: #fff; }
+.dark .cloud-home .discovery-journey .card-link { background: #ffffff12; border-color: #ffffff50; }
+.dark .cloud-home .library-section { background: linear-gradient(125deg, #2d1d43, #1c2c49); border-color: #554174; }
+.dark .cloud-home .language-tabs a { color: #eee3ff; background: #ffffff08; border-color: #ffffff20; }
+.dark .cloud-home .language-tabs a:hover { background: #ffffff15; }
+.dark .cloud-home .language-tabs a[aria-current] { background: var(--home-action); border-color: #a88bea; }
+.dark .cloud-home .version-card { background: #281c3c; border-color: #6a4b8c; }
+.dark .cloud-home .version-card .eyebrow, .dark .cloud-home .version-actions > a:last-child { color: #d1adff; }
+.dark .cloud-home .version-actions { border-color: #5b3e78; }
+.dark .cloud-home .feature-item { background: linear-gradient(135deg, #39244f, #492c68); border-color: #755194; }
+.dark .cloud-home .feature-item:nth-child(2) { background: linear-gradient(135deg, #23344e, #29476f); border-color: #4b6c97; }
+.dark .cloud-home .feature-item:nth-child(3) { background: linear-gradient(135deg, #302548, #423568); border-color: #6c5a96; }
+.dark .cloud-home .feature-item p, .dark .cloud-home .install-panel p, .dark .cloud-home .install-options ol { color: #e0d4ef; }
+.dark .cloud-home .install-panel { background: linear-gradient(120deg, #442b61, #28466e); border-color: #71558e; }
+.dark .cloud-home .install-options details { background: #ffffff09; border-color: #ffffff25; }
+.dark .cloud-home .install-options summary { color: #eee7ff; }
+.dark .cloud-home .install-options summary::after, .dark .cloud-home .install-options li > span { color: #d1adff; }
 @media (max-width: 767px) {
   .cloud-home .site-header { width: calc(100% - 24px); top: 12px; }
   .cloud-home .site-header-inner { padding-inline: 12px; }
@@ -159,6 +224,7 @@
   .cloud-home .daily-verse { padding: 26px; }
   .cloud-home .discovery-card { padding: 28px; }
   .cloud-home .discovery-card h3 { font-size: 28px; }
+  .cloud-home .feature-item { grid-template-columns: 52px minmax(0, 1fr); column-gap: 18px; }
   .cloud-home .library-section { padding-block: 60px; }
 }
 /* Decorative clouds run continuously, independently of the global motion reset. */

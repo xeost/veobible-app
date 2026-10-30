@@ -1,5 +1,4 @@
-import { HomeHeader } from '@/components/layout/HomeHeader'
-import { Footer } from '@/components/layout/Footer'
+import { PublicPage } from '@/components/layout/PublicPage'
 import { discovery } from '@/lib/i18n/discovery'
 import { sections, type Locale } from '@/lib/website/content'
 import { WebsiteListing } from '@/components/ui/WebsiteListing'
@@ -12,7 +11,6 @@ import { loadBibleIndex } from '@/lib/bible/loader'
 import { findVersion, BIBLE_VERSIONS } from '@/lib/bible/config'
 import { isValidLocale } from '@/lib/i18n/config'
 import { getTranslations } from '@/lib/i18n/server'
-import { BackButton } from './BackButton'
 
 interface VersionPageProps {
   params: Promise<{ lang: string; version: string }>
@@ -79,12 +77,8 @@ export default async function VersionPage({ params }: VersionPageProps) {
   )
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
-      <HomeHeader currentLang={lang} />
+    <PublicPage locale={lang}>
       <main id="main-content" className="site-container version-main">
-        {/* Back link */}
-        <BackButton fallbackHref={`/${lang}`} label={t.nav.back} />
-
         <div className="version-intro">
           <p className="eyebrow">{discovery[lang].libraryLabel}</p>
           <h1>
@@ -103,7 +97,6 @@ export default async function VersionPage({ params }: VersionPageProps) {
         {renderGroup(oldTestament, t.testament.old)}
         {renderGroup(newTestament, t.testament.new)}
       </main>
-      <Footer lang={lang} />
-    </div>
+    </PublicPage>
   )
 }

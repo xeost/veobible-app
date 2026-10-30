@@ -39,6 +39,7 @@ import {
   listAudioProjects,
   insertAudioProjects,
   saveAudioProject,
+  saveAudioVerseApproval,
   beginAudioJob,
   failAudioJob,
   applyAudioEvent,
@@ -343,6 +344,16 @@ export async function audioApi(
         throw error;
       }
     }
+    if (parts.length === 4 && parts[3] === "approval" && req.method === "PUT")
+      return json(
+        await saveAudioVerseApproval(
+          database,
+          edition,
+          book,
+          await req.json(),
+          outputEnvironment,
+        ),
+      );
     if (parts.length === 3 && req.method === "PUT")
       return json(
         await saveAudioProject(

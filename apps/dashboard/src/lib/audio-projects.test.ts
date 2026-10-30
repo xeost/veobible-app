@@ -12,6 +12,7 @@ import {
   listAudioProjects,
   findAudioProject,
   saveAudioProject,
+  saveAudioVerseApproval,
   beginAudioJob,
   applyAudioEvent,
   failAudioJob,
@@ -638,6 +639,187 @@ test("verse approvals persist without invalidating completed chapter audio and f
     ).project;
     assert.deepEqual(after.settings.approvals, saved.settings.approvals);
     assert.equal(isAudioVerseApproved(after, after.settings, "1:1"), false);
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("verse reviews survive queued work, incremental callbacks and retained full snapshots", async () => {
+  const { applyAudioPatch } = await import("./audio-projects");
+  const { audioProjectPatch } =
+    await import("../../../../tools/video-project-api/src/audio-project-patch");
+  const { sqlite, database, project } = fixture();
+  try {
+    project.chapterCount = 2;
+    project.verseCounts = [25, 1];
+    project.settings.voiceDefaultsVersion = 1;
+    project.recordings["2:1"] = {
+      file: "jude/2-1/intro.wav",
+      duration: 2,
+      revision: "verse",
+    };
+    await insertAudioProjects(database, [project]);
+    const job = await beginAudioJob(database, project.edition, project.book);
+    const approval = audioVerseApproval(
+      job.project,
+      job.project.settings,
+      "2:1",
+    )!;
+    const review = (approved: boolean) =>
+      saveAudioVerseApproval(database, project.edition, project.book, {
+        reference: "2:1",
+        approval,
+        approved,
+      });
+    const saved = await review(true);
+    assert.equal(saved.status, "queued");
+    assert.equal(isAudioVerseApproved(saved, saved.settings, "2:1"), true);
+    const worker: AudioProject = structuredClone(job.project);
+    worker.status = "running";
+    await applyAudioPatch(
+      database,
+      job.id,
+      job.jobId,
+      {
+        sequence: 1,
+        baseSequence: 0,
+        patch: audioProjectPatch(job.project, worker),
+      },
+      job.token,
+    );
+    // Full snapshot recovery still carries the old approvals from dispatch.
+    worker.chapters["1"] = { file: "65-jude-1.mp3", revision: "final" };
+    await applyAudioEvent(
+      database,
+      job.id,
+      job.jobId,
+      { sequence: 2, project: worker },
+      job.token,
+    );
+    let stored = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.equal(isAudioVerseApproved(stored, stored.settings, "2:1"), true);
+    assert.deepEqual(stored.chapters, worker.chapters);
+    assert.equal(
+      (await findAudioProject(database, project.edition, project.book)).row
+        .job_sequence,
+      2,
+    );
+    worker.settings.approvals = { "2:1": approval };
+    await review(false);
+    worker.status = "done";
+    await applyAudioEvent(
+      database,
+      job.id,
+      job.jobId,
+      { sequence: 3, project: worker },
+      job.token,
+    );
+    stored = (await findAudioProject(database, project.edition, project.book))
+      .project;
+    assert.equal(isAudioVerseApproved(stored, stored.settings, "2:1"), false);
+    assert.equal(stored.status, "done");
+    await assert.rejects(
+      saveAudioVerseApproval(database, project.edition, project.book, {
+        reference: "2:1",
+        approval: { ...approval, recordingRevision: "stale" },
+        approved: true,
+      }),
+      /changed/,
+    );
+    await assert.rejects(
+      saveAudioVerseApproval(database, project.edition, project.book, {
+        reference: "2:1",
+        approval: { ...approval, trim: { startSeconds: 0.2, endSeconds: 2 } },
+        approved: true,
+      }),
+      /changed/,
+    );
+    await assert.rejects(
+      saveAudioVerseApproval(database, project.edition, project.book, {
+        reference: "3:1",
+        approval: { ...approval, editingFilesRemoved: true },
+        approved: true,
+      }),
+      /changed/,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("review retries a concurrent progress callback without interrupting the job", async () => {
+  const { sqlite, database, project } = fixture();
+  try {
+    project.recordings["1:1"] = {
+      file: "jude/1-1/intro.wav",
+      duration: 2,
+      revision: "voice",
+    };
+    await insertAudioProjects(database, [project]);
+    const job = await beginAudioJob(database, project.edition, project.book);
+    let raced = false;
+    const concurrent = {
+      ...database,
+      prepare(query: string) {
+        const statement = database.prepare(query);
+        if (
+          !query.startsWith(
+            "UPDATE audio_projects SET settings=json_set(settings",
+          )
+        )
+          return statement;
+        return {
+          bind(...args: unknown[]) {
+            const bound = statement.bind(...args);
+            return {
+              async run() {
+                if (!raced) {
+                  raced = true;
+                  await applyAudioEvent(
+                    database,
+                    job.id,
+                    job.jobId,
+                    {
+                      sequence: 1,
+                      project: {
+                        ...job.project,
+                        status: "running",
+                        progress: 50,
+                      },
+                    },
+                    job.token,
+                  );
+                }
+                return bound.run();
+              },
+            };
+          },
+        };
+      },
+    } as D1Database;
+    const saved = await saveAudioVerseApproval(
+      concurrent,
+      project.edition,
+      project.book,
+      {
+        reference: "1:1",
+        approval: audioVerseApproval(job.project, job.project.settings, "1:1"),
+        approved: true,
+      },
+    );
+    assert.equal(raced, true);
+    assert.equal(isAudioVerseApproved(saved, saved.settings, "1:1"), true);
+    assert.equal(saved.progress, 50);
+    const { row } = await findAudioProject(
+      database,
+      project.edition,
+      project.book,
+    );
+    assert.equal(row.active_job_id, job.jobId);
+    assert.equal(row.job_sequence, 1);
+    assert.equal(row.status, "running");
   } finally {
     sqlite.close();
   }

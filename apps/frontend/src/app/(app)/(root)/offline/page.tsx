@@ -10,6 +10,8 @@
  */
 
 import type { Metadata } from 'next'
+import Script from 'next/script'
+import { UtilityPage } from '@/components/layout/UtilityPage'
 
 export const metadata: Metadata = {
   title: 'Offline — VeoBible',
@@ -19,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function OfflinePage() {
   return (
-    <>
+    <UtilityPage>
       <style>{`
         .offline-page {
           min-height: 100dvh;
@@ -136,7 +138,7 @@ export default function OfflinePage() {
         }
       `}</style>
 
-      <div className="offline-page">
+      <main id="main-content" className="offline-page">
         <div className="offline-card">
           {/* WiFi-off icon */}
           <div className="offline-icon-wrap" aria-hidden="true">
@@ -181,11 +183,12 @@ export default function OfflinePage() {
             <strong>Tip:</strong>{' '}Download a Bible version from the reader to always have it available offline — even without internet.
           </div>
         </div>
-      </div>
+      </main>
 
       {/* Client-side: localize text + auto-reload when back online */}
-      <script
+      <Script
         id="offline-init"
+        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
 (function () {
@@ -252,6 +255,6 @@ export default function OfflinePage() {
           `,
         }}
       />
-    </>
+    </UtilityPage>
   )
 }

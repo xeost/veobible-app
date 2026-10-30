@@ -12,9 +12,9 @@
 .cloud-home .home-header .site-nav { gap: 4px; margin: 0; width: auto; }
 .cloud-home .home-header .site-nav a { position: relative; gap: 8px; min-height: 42px; padding: 0 14px; border-radius: 11px; color: var(--home-muted); font-size: 12px; font-weight: 500; transition: color .18s, background .18s; }
 .cloud-home .home-header .site-nav svg { display: block; color: var(--menu-accent); width: 16px; height: 16px; stroke-width: 1.6; }
-.cloud-home .home-header .site-nav a:hover { color: var(--home-ink); background: var(--menu-selected); }
-.cloud-home .home-header .site-nav a:first-child { color: var(--menu-accent); background: var(--menu-soft); }
-.cloud-home .home-header .site-nav a:first-child:hover { background: var(--menu-selected); }
+.cloud-home .home-header .site-nav a:hover { color: var(--menu-accent); background: var(--menu-selected); }
+.cloud-home .home-header .site-nav a[aria-current] { color: var(--menu-accent); background: var(--menu-soft); box-shadow: none; }
+.cloud-home .home-header .site-nav a[aria-current]:hover { background: var(--menu-selected); }
 .cloud-home .home-header .site-header-actions { justify-self: end; margin: 0; }
 .cloud-home .home-header :is(a, button):focus-visible { outline: 2px solid var(--menu-accent); outline-offset: 4px; }
 

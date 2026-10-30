@@ -20,7 +20,7 @@ for (const locale of locales) {
       await expect(page).toHaveURL(new RegExp(`${path}$`))
       await expect(page.locator('h1')).toBeVisible()
       await expect(page.locator(`.site-nav a[href="${path}"]`)).toHaveAttribute('aria-current', 'page')
-      await page.locator('.breadcrumb').click()
+      await page.locator('.site-header .brand-logo').click()
     }
     await page.locator(`#start-reading-${locale.version}`).click()
     await expect(page).toHaveURL(new RegExp(`/${locale.lang}/${locale.reader}/${locale.version}/genesis/1$`))
