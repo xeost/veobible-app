@@ -918,6 +918,93 @@ test("chapter voices generate missing verse recordings without assembling final 
   }
 });
 
+test("Genesis 2 Qwen failure after thirteen verses resumes only the remaining twelve", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    const generated = generation(3);
+    const synthesized: string[] = [];
+    const dependencies: AudioGenerationDependencies = {
+      ...generated.dependencies,
+      synthesize: async (...args) => {
+        synthesized.push(args[1]);
+        await generated.dependencies.synthesize(...args);
+      },
+      alignBlock: async (_file, duration, texts) =>
+        texts.map((_, i) => ({
+          startSeconds: (i * duration) / texts.length,
+          endSeconds: ((i + 1) * duration) / texts.length,
+        })),
+      extract: async (source, target) => {
+        await fs.copyFile(source, target);
+      },
+      assemble: async () =>
+        assert.fail("Generating voices must not assemble audio"),
+    };
+    const runChapter = async (expectedVerses: number[]) => {
+      let run!: () => Promise<void>;
+      await projects.queue(
+        "rv1909-v2",
+        "genesis",
+        {
+          chapter: 2,
+          voicesOnly: true,
+          regenerate: false,
+          voiceModel: "qwen3-base-1.7b",
+        },
+        (task, tasks) => {
+          run = task;
+          assert.deepEqual(
+            tasks.map((t) => t.verse),
+            expectedVerses,
+          );
+        },
+        dependencies,
+      );
+      await run();
+      return projects.read("rv1909-v2", "genesis");
+    };
+    const failed = await runChapter(
+      Array.from({ length: 25 }, (_, i) => i + 1),
+    );
+    assert.equal(failed.status, "failed");
+    assert.equal(Object.keys(failed.recordings).length, 13);
+    assert.equal(synthesized.length, 3);
+    const savedFiles = await Promise.all(
+      Object.keys(failed.recordings).map(async (ref) => {
+        const file = await projects.media(
+          "rv1909-v2",
+          "genesis",
+          2,
+          Number(ref.split(":")[1]),
+        );
+        return {
+          file,
+          contents: await fs.readFile(file),
+          mtime: (await fs.stat(file)).mtimeMs,
+        };
+      }),
+    );
+    const resumed = await runChapter(
+      Array.from({ length: 12 }, (_, i) => i + 14),
+    );
+    assert.equal(resumed.status, "draft");
+    assert.equal(Object.keys(resumed.recordings).length, 25);
+    assert.equal(synthesized.length, 5);
+    for (const ref of Object.keys(failed.recordings)) {
+      assert.deepEqual(resumed.recordings[ref], failed.recordings[ref]);
+      assert.deepEqual(resumed.settings.trims[ref], failed.settings.trims[ref]);
+    }
+    for (const saved of savedFiles) {
+      assert.deepEqual(await fs.readFile(saved.file), saved.contents);
+      assert.equal((await fs.stat(saved.file)).mtimeMs, saved.mtime);
+    }
+    assert.deepEqual(resumed.chapters, {});
+  } finally {
+    await clean();
+  }
+});
+
 test("regenerating chapter voices replaces existing recordings and generates missing ones", async () => {
   const { projects, clean } = await fixture();
   try {
@@ -1388,8 +1475,11 @@ test("continuous Qwen blocks synthesize once and phrase corrections replace only
       "rv1909-v2",
       "jude",
       { chapter: 1, voicesOnly: true, voiceModel: "qwen3-base-1.7b" },
-      (task) => {
+      (task, tasks) => {
         run = task;
+        assert.equal(tasks.length, 2);
+        assert.ok(tasks[0].speechBlock);
+        assert.equal(tasks[0].speechBlock, tasks[1].speechBlock);
       },
       dependencies,
     );

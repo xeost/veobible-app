@@ -315,3 +315,51 @@ test("voice examples share project turns and contribute to progress without a pr
   assert.ok(queue.snapshot()[1].finishedAt);
   assert.equal(queue.pendingCount, 0);
 });
+
+test("speech blocks expose one stable row, range and summary throughout generation", async () => {
+  const queue = new GenerationQueue();
+  const jobs = [job("v1"), job("v2"), job("v3")];
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  queue.enqueueGroup(
+    jobs.map((job, i) => ({
+      metadata: {
+        projectId: 1,
+        kind: "audio" as const,
+        type: "audio-verse" as const,
+        chapter: 1,
+        verse: i + 1,
+        speechBlock: i < 2 ? "request:block1" : "request:block2",
+      },
+      job,
+    })),
+    () => gate,
+  );
+  assert.equal(queue.snapshot().length, 2);
+  assert.equal(queue.snapshot()[0].verseEnd, 2);
+  assert.equal(queue.snapshot()[1].position, 2);
+  assert.equal(queue.summary().total, 2);
+  for (const j of jobs.slice(0, 2)) {
+    j.status = "running";
+    j.progress = 14;
+  }
+  assert.equal(queue.snapshot()[0].status, "running");
+  assert.equal(queue.snapshot()[0].progress, 14);
+  const id = queue.snapshot()[0].id;
+  jobs[0].status = "done";
+  assert.equal(queue.snapshot()[0].status, "running");
+  assert.equal(queue.summary().completed, 0);
+  jobs[1].status = "done";
+  assert.equal(queue.snapshot()[0].status, "done");
+  assert.equal(queue.snapshot()[0].id, id);
+  assert.equal(queue.summary().completed, 1);
+  jobs[2].status = "failed";
+  release();
+  await gate;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(queue.snapshot().length, 2);
+  assert.equal(queue.snapshot()[1].status, "failed");
+  assert.equal(queue.summary().progress, 100);
+});

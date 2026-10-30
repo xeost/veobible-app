@@ -437,6 +437,9 @@ export async function audioProjectHttp(
                     outputEnvironment: environment,
                     groupId: generation.jobId,
                     ...task,
+                    ...(task.speechBlock
+                      ? { speechBlock: `${requestId}:${task.speechBlock}` }
+                      : {}),
                   },
                   job,
                 };

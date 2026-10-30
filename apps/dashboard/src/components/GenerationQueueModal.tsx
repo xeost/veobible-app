@@ -53,13 +53,12 @@ export function GenerationQueueModal({
   return (
     <dialog
       ref={dialog}
-      className="generation-queue-dialog"
+      className="generation-queue-dialog generation-queue-modal"
       aria-labelledby="generation-queue-title"
       {...dismiss}
     >
       <div className="generation-queue-heading">
         <div>
-          <p className="eyebrow">{t("VIDEO PRODUCTION")}</p>
           <h2 id="generation-queue-title">
             <ListOrdered size={22} />
             {t("Generation queue")}
@@ -74,191 +73,193 @@ export function GenerationQueueModal({
           <X size={20} />
         </button>
       </div>
-      <p className="muted">
-        {t(
-          "You can keep editing other projects while narration, reading timings and videos are prepared.",
-        )}
-      </p>
-      <div className="generation-queue-summary">
-        <span className={state.connected ? "dot green" : "dot"} />
-        <span>
-          {state.connected
-            ? t("Generation available")
-            : t("Generation unavailable")}
-        </span>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label={t("Refresh queue")}
-          data-tooltip={t("Refresh queue")}
-          onClick={refresh}
-        >
-          <RefreshCw size={16} />
-        </button>
-      </div>
-      <div
-        className="preview-source-tabs queue-view-tabs"
-        role="tablist"
-        aria-label={t("Generation queue")}
-      >
-        <button
-          type="button"
-          role="tab"
-          id="generation-queue-tab"
-          aria-controls="generation-queue-panel"
-          aria-selected={view === "queue"}
-          onClick={() => setView("queue")}
-        >
-          <ListOrdered size={16} /> {t("Queue")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="generation-history-tab"
-          aria-controls="generation-queue-panel"
-          aria-selected={view === "history"}
-          onClick={() => setView("history")}
-        >
-          <History size={16} /> {t("History")}
-        </button>
-      </div>
-      {view === "queue" && pending.length > 0 && (
-        <GenerationProgress
-          value={state.summary?.progress ?? 0}
-          label={t("Entire queue")}
-        />
-      )}
-      {!state.connected && (
-        <p className="notice">
-          {t("Could not refresh the queue. Try again in a moment.")}
+      <div className="generation-queue-content">
+        <p className="muted">
+          {t(
+            "You can keep editing other projects while narration, reading timings and videos are prepared.",
+          )}
         </p>
-      )}
-      <div
-        className="generation-queue-list"
-        id="generation-queue-panel"
-        role="tabpanel"
-        aria-labelledby={
-          view === "queue" ? "generation-queue-tab" : "generation-history-tab"
-        }
-      >
-        {view === "queue" && pending.length === 0 && (
-          <p className="empty">{t("There are no pending generations.")}</p>
-        )}
-        {view === "history" && (
-          <p className="muted queue-history-hint">
-            {t(
-              "Recent generations are kept until the generation service restarts.",
-            )}
-          </p>
-        )}
-        {view === "history" && history.length === 0 && (
-          <p className="empty">
-            {t(
-              state.history === undefined && state.connected
-                ? "Loading history…"
-                : "There are no recent generations.",
-            )}
-          </p>
-        )}
+        <div className="generation-queue-summary">
+          <span className={state.connected ? "dot green" : "dot"} />
+          <span>
+            {state.connected
+              ? t("Generation available")
+              : t("Generation unavailable")}
+          </span>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={t("Refresh queue")}
+            data-tooltip={t("Refresh queue")}
+            onClick={refresh}
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
+        <div
+          className="preview-source-tabs queue-view-tabs"
+          role="tablist"
+          aria-label={t("Generation queue")}
+        >
+          <button
+            type="button"
+            role="tab"
+            id="generation-queue-tab"
+            aria-controls="generation-queue-panel"
+            aria-selected={view === "queue"}
+            onClick={() => setView("queue")}
+          >
+            <ListOrdered size={16} /> {t("Queue")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="generation-history-tab"
+            aria-controls="generation-queue-panel"
+            aria-selected={view === "history"}
+            onClick={() => setView("history")}
+          >
+            <History size={16} /> {t("History")}
+          </button>
+        </div>
         {view === "queue" && pending.length > 0 && (
-          <h3>{t("In progress and waiting")}</h3>
+          <GenerationProgress
+            value={state.summary?.progress ?? 0}
+            label={t("Entire queue")}
+          />
         )}
-        {visibleItems.map((item) => (
-          <div key={item.id}>
-            <Link
-              href={item.href}
-              onClick={close}
-              className={`generation-queue-item ${item.status}`}
-            >
-              <span className="generation-queue-icon">
-                {item.type.startsWith("alignment") ? (
-                  <ScanText size={19} />
-                ) : item.type === "video" ? (
-                  <Film size={19} />
-                ) : (
-                  <Mic size={19} />
-                )}
-              </span>
-              <span className="generation-queue-details">
-                <strong>
-                  {item.type === "voice-sample"
-                    ? t("Voice {number}").replace(
-                        "{number}",
-                        item.voice?.split("-")[1] ?? "",
-                      )
-                    : item.title}
-                </strong>
-                <small>
-                  {t(
-                    item.type === "voice-sample"
-                      ? "Voice example"
-                      : item.type === "audio-verse"
-                        ? "Generate verse audio"
-                        : item.type === "audio-chapter"
-                          ? "Generate chapter audio"
-                          : item.type.startsWith("alignment")
-                            ? "Reading timing analysis"
-                            : item.type === "video"
-                              ? "Final video"
-                              : item.type === "intro"
-                                ? "Introduction narration"
-                                : item.type === "outro"
-                                  ? "Closing narration"
-                                  : item.type.startsWith("reading-")
-                                    ? "Generated passage reading"
-                                    : "Chapter introduction",
-                  )}{" "}
-                  {item.type.startsWith("alignment-") &&
-                    ` · ${t("Reading")} ${Number(item.type.split("-")[1]) + 1}`}
-                  {item.kind === "audio" &&
-                    ` · ${t("Chapter")} ${item.chapter}${item.verse ? `:${item.verse}` : ""}`}{" "}
-                  ·{" "}
-                  {item.type === "voice-sample"
-                    ? t(
-                        { en: "English", es: "Spanish", pt: "Portuguese" }[
-                          item.locale ?? "en"
-                        ],
-                      )
-                    : item.version.toUpperCase()}
-                </small>
-                <span>
-                  {t(
-                    item.type.startsWith("alignment") &&
-                      item.status === "running"
-                      ? "Analyzing reading timings…"
-                      : statusLabel(item.status),
+        {!state.connected && (
+          <p className="notice">
+            {t("Could not refresh the queue. Try again in a moment.")}
+          </p>
+        )}
+        <div
+          className="generation-queue-list"
+          id="generation-queue-panel"
+          role="tabpanel"
+          aria-labelledby={
+            view === "queue" ? "generation-queue-tab" : "generation-history-tab"
+          }
+        >
+          {view === "queue" && pending.length === 0 && (
+            <p className="empty">{t("There are no pending generations.")}</p>
+          )}
+          {view === "history" && (
+            <p className="muted queue-history-hint">
+              {t(
+                "Recent generations are kept until the generation service restarts.",
+              )}
+            </p>
+          )}
+          {view === "history" && history.length === 0 && (
+            <p className="empty">
+              {t(
+                state.history === undefined && state.connected
+                  ? "Loading history…"
+                  : "There are no recent generations.",
+              )}
+            </p>
+          )}
+          {view === "queue" && pending.length > 0 && (
+            <h3>{t("In progress and waiting")}</h3>
+          )}
+          {visibleItems.map((item) => (
+            <div key={item.id}>
+              <Link
+                href={item.href}
+                onClick={close}
+                className={`generation-queue-item ${item.status}`}
+              >
+                <span className="generation-queue-icon">
+                  {item.type.startsWith("alignment") ? (
+                    <ScanText size={19} />
+                  ) : item.type === "video" ? (
+                    <Film size={19} />
+                  ) : (
+                    <Mic size={19} />
                   )}
-                  {item.status === "queued"
-                    ? ` · ${t("Position")} ${item.position}`
-                    : item.status === "running" && item.type === "video"
-                      ? ` · ${t(generationStage(item.stage, item.status))}`
-                      : ""}
                 </span>
-                {view === "history" && (
-                  <time dateTime={item.finishedAt ?? item.createdAt}>
-                    {dateFormatter.format(
-                      new Date(item.finishedAt ?? item.createdAt),
+                <span className="generation-queue-details">
+                  <strong>
+                    {item.type === "voice-sample"
+                      ? t("Voice {number}").replace(
+                          "{number}",
+                          item.voice?.split("-")[1] ?? "",
+                        )
+                      : item.title}
+                  </strong>
+                  <small>
+                    {t(
+                      item.type === "voice-sample"
+                        ? "Voice example"
+                        : item.type === "audio-verse"
+                          ? "Generate verse audio"
+                          : item.type === "audio-chapter"
+                            ? "Generate chapter audio"
+                            : item.type.startsWith("alignment")
+                              ? "Reading timing analysis"
+                              : item.type === "video"
+                                ? "Final video"
+                                : item.type === "intro"
+                                  ? "Introduction narration"
+                                  : item.type === "outro"
+                                    ? "Closing narration"
+                                    : item.type.startsWith("reading-")
+                                      ? "Generated passage reading"
+                                      : "Chapter introduction",
+                    )}{" "}
+                    {item.type.startsWith("alignment-") &&
+                      ` · ${t("Reading")} ${Number(item.type.split("-")[1]) + 1}`}
+                    {item.kind === "audio" &&
+                      ` · ${t("Chapter")} ${item.chapter}${item.verse ? `:${item.verse}${item.verseEnd && item.verseEnd !== item.verse ? `–${item.verseEnd}` : ""}` : ""}`}{" "}
+                    ·{" "}
+                    {item.type === "voice-sample"
+                      ? t(
+                          { en: "English", es: "Spanish", pt: "Portuguese" }[
+                            item.locale ?? "en"
+                          ],
+                        )
+                      : item.version.toUpperCase()}
+                  </small>
+                  <span>
+                    {t(
+                      item.type.startsWith("alignment") &&
+                        item.status === "running"
+                        ? "Analyzing reading timings…"
+                        : statusLabel(item.status),
                     )}
-                  </time>
-                )}
-                {view === "queue" && (
-                  <GenerationProgress
-                    value={item.progress}
-                    label={t("Progress")}
-                  />
-                )}
-              </span>
-              <ArrowUpRight
-                size={18}
-                aria-label={t(
-                  item.type === "voice-sample"
-                    ? "Open voice examples"
-                    : "Open project",
-                )}
-              />
-            </Link>
-          </div>
-        ))}
+                    {item.status === "queued"
+                      ? ` · ${t("Position")} ${item.position}`
+                      : item.status === "running" && item.type === "video"
+                        ? ` · ${t(generationStage(item.stage, item.status))}`
+                        : ""}
+                  </span>
+                  {view === "history" && (
+                    <time dateTime={item.finishedAt ?? item.createdAt}>
+                      {dateFormatter.format(
+                        new Date(item.finishedAt ?? item.createdAt),
+                      )}
+                    </time>
+                  )}
+                  {view === "queue" && (
+                    <GenerationProgress
+                      value={item.progress}
+                      label={t("Progress")}
+                    />
+                  )}
+                </span>
+                <ArrowUpRight
+                  size={18}
+                  aria-label={t(
+                    item.type === "voice-sample"
+                      ? "Open voice examples"
+                      : "Open project",
+                  )}
+                />
+              </Link>
+            </div>
+          ))}
+        </div>
       </div>
     </dialog>
   );

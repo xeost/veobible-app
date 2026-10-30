@@ -25,6 +25,8 @@ type Entry = {
   chapter?: number;
   verse?: number;
   groupId?: string;
+  speechBlock?: string;
+  verseEnd?: number;
   type: GenerationType;
   job: QueueJob;
   createdAt: string;
@@ -131,9 +133,63 @@ export class GenerationQueue {
       }
     });
   }
+  private visibleEntries(entries: Entry[]) {
+    const result: Entry[] = [];
+    const blocks = new Map<string, Entry[]>();
+    for (const entry of entries) {
+      if (!entry.speechBlock) {
+        result.push(entry);
+        continue;
+      }
+      const members = blocks.get(entry.speechBlock);
+      if (members) members.push(entry);
+      else {
+        blocks.set(entry.speechBlock, [entry]);
+        result.push(entry);
+      }
+    }
+    return result.map((entry) => {
+      const members = entry.speechBlock
+        ? blocks.get(entry.speechBlock)!
+        : [entry];
+      if (members.length === 1) return entry;
+      const pending = members.filter((e) =>
+        ["queued", "running"].includes(e.job.status),
+      );
+      const status = pending.length
+        ? members.some((e) => e.job.status !== "queued")
+          ? "running"
+          : "queued"
+        : members.some((e) => e.job.status === "failed")
+          ? "failed"
+          : "done";
+      const progress =
+        members.reduce(
+          (sum, e) =>
+            sum +
+            (e.job.status === "done"
+              ? 100
+              : e.job.status === "queued"
+                ? 0
+                : clampProgress(e.job.progress ?? 0)),
+          0,
+        ) / members.length;
+      return {
+        ...entry,
+        verseEnd: Math.max(...members.map((e) => e.verse ?? 0)),
+        finishedAt: pending.length
+          ? undefined
+          : members
+              .map((e) => e.finishedAt ?? "")
+              .sort()
+              .at(-1),
+        job: { ...entry.job, id: entry.speechBlock!, status, progress },
+      } satisfies Entry;
+    });
+  }
   snapshot() {
     let position = 0;
-    return this.entries.map(({ job, ...entry }) => ({
+    return this.visibleEntries(this.entries).map(({ job, ...entry }) => ({
       ...entry,
       id: job.id,
       status: job.status,
@@ -148,7 +204,7 @@ export class GenerationQueue {
     }));
   }
   summary(environment?: "production" | "development") {
-    const entries = this.batch.filter(
+    const entries = this.visibleEntries(this.batch).filter(
       (entry) =>
         !environment ||
         (entry.outputEnvironment ?? "production") === environment,

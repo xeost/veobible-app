@@ -24,6 +24,7 @@ export type GenerationQueueItem = {
   locale?: "en" | "es" | "pt";
   chapter?: number;
   verse?: number;
+  verseEnd?: number;
   groupId?: string;
   version: string;
   href: string;

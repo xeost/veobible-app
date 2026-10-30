@@ -29,6 +29,7 @@ import { VerseWaveform } from "./VerseWaveform";
 import { VersePronunciationEditor } from "./VersePronunciationEditor";
 import { OriginalVerseAudio } from "./OriginalVerseAudio";
 import { AudioPhrasePatch } from "./AudioPhrasePatch";
+import { AudioChapterVoiceMenu } from "./AudioChapterVoiceMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { audioWaveformResourceKey } from "../lib/audio-editor-preparation";
 import { loadAudioWaveform } from "../lib/audio-waveform";
@@ -381,26 +382,19 @@ export function AudioChapter({
             </small>
           </span>
         </button>
-        <button
-          type="button"
-          className="icon-button section-action-button"
+        <AudioChapterVoiceMenu
+          title={title}
+          completed={completed}
+          total={chapter.verses.length}
           disabled={submitting || tasks.length > 0}
-          aria-label={`${t(completed > 0 ? "Regenerate all verse voices" : "Generate all verse voices")} · ${title}`}
-          data-tooltip={t(
-            completed > 0
-              ? "Regenerate all verse voices"
-              : "Generate all verse voices",
-          )}
-          onClick={() =>
+          generate={(regenerate) =>
             void generate({
               chapter: chapter.chapter,
               voicesOnly: true,
-              regenerate: completed > 0,
+              regenerate,
             })
           }
-        >
-          <WandSparkles size={17} aria-hidden="true" />
-        </button>
+        />
         <span className="section-action-separator" aria-hidden="true" />
         <button
           type="button"

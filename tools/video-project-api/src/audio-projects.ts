@@ -1,3 +1,4 @@
+import { audioSpeechBlocks } from "./audio-speech-blocks.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -89,7 +90,11 @@ async function atomicJson(file: string, value: unknown) {
     await fs.unlink(temporary).catch(() => {});
   }
 }
-export type AudioTask = { chapter: number; verse?: number };
+export type AudioTask = {
+  chapter: number;
+  verse?: number;
+  speechBlock?: string;
+};
 export type AudioTaskReporter = (
   task: AudioTask,
   status: "running" | "done",
@@ -102,6 +107,32 @@ export function audioTasks(
   const chapters = project.content.filter(
     (c) => !input.chapter || c.chapter === input.chapter,
   );
+  const blockByVerse = new Map<string, string>();
+  if (
+    input.voiceModel === "qwen3-base-1.7b" &&
+    !input.verse &&
+    !input.alignOnly &&
+    !input.assembleOnly
+  ) {
+    const missing = chapters.flatMap((c) =>
+      c.verses
+        .filter(
+          (v) =>
+            input.regenerate || !project.recordings[`${c.chapter}:${v.verse}`],
+        )
+        .map((v) => ({
+          ...v,
+          chapter: c.chapter,
+          text:
+            project.settings.pronunciation?.[`${c.chapter}:${v.verse}`] ??
+            v.text,
+        })),
+    );
+    for (const block of audioSpeechBlocks(missing)) {
+      const id = `${block[0].chapter}:${block[0].verse}`;
+      for (const v of block) blockByVerse.set(`${v.chapter}:${v.verse}`, id);
+    }
+  }
   return [
     ...chapters.flatMap((c) =>
       c.verses
@@ -116,7 +147,13 @@ export function audioTasks(
                 input.textOverride !== undefined ||
                 !project.recordings[`${c.chapter}:${v.verse}`]),
         )
-        .map((v) => ({ chapter: c.chapter, verse: v.verse })),
+        .map((v) => ({
+          chapter: c.chapter,
+          verse: v.verse,
+          ...(blockByVerse.has(`${c.chapter}:${v.verse}`)
+            ? { speechBlock: blockByVerse.get(`${c.chapter}:${v.verse}`) }
+            : {}),
+        })),
     ),
     ...(!input.verse && !input.voicesOnly && !input.alignOnly
       ? chapters.map((c) => ({ chapter: c.chapter }))
