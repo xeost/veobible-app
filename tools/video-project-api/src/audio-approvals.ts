@@ -57,7 +57,15 @@ export function audioMixSettingsChanged(
   previous: AudioSettings,
   next: AudioSettings,
 ) {
-  const { approvals: _previousApprovals, ...previousMix } = previous;
-  const { approvals: _nextApprovals, ...nextMix } = next;
+  const {
+    approvals: _previousApprovals,
+    pronunciation: _previousPronunciation,
+    ...previousMix
+  } = previous;
+  const {
+    approvals: _nextApprovals,
+    pronunciation: _nextPronunciation,
+    ...nextMix
+  } = next;
   return !sameSettingsValue(previousMix, nextMix);
 }

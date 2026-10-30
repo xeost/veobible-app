@@ -37,6 +37,9 @@ export const audioSettingsSchema = z.object({
   baseVoice: baseVoiceSchema,
   inheritBaseVoice: z.boolean().optional(),
   narrationPreset: narrationPresetSelectionSchema.optional(),
+  pronunciation: z
+    .record(z.string().regex(/^\d+:\d+$/), z.string().trim().min(1).max(5000))
+    .optional(),
   trims: z.record(z.string().regex(/^\d+:\d+$/), audioTrimSchema).default({}),
   approvals: z
     .record(
@@ -64,6 +67,15 @@ export const audioGenerateSchema = z
     assembleOnly: z.boolean().default(false),
     voicesOnly: z.boolean().default(false),
     alignOnly: z.boolean().default(false),
+    patch: z
+      .object({
+        start: z.number().int().nonnegative(),
+        end: z.number().int().positive(),
+        text: z.string().trim().min(1).max(1000),
+        sourceText: z.string().min(1).max(5000),
+      })
+      .refine((v) => v.end > v.start && v.end <= v.sourceText.length)
+      .optional(),
     textOverride: z.string().trim().min(1).max(5000).optional(),
     voiceModel: narrationModelSchema.optional(),
     voiceDecoder: narrationDecoderSchema.optional(),
@@ -71,6 +83,14 @@ export const audioGenerateSchema = z
     voiceTextAdaptations: narrationTextAdaptationsSchema.optional(),
   })
   .refine((v) => !v.verse || !!v.chapter)
+  .refine(
+    (v) =>
+      !v.patch ||
+      (!!v.verse &&
+        !v.alignOnly &&
+        !v.assembleOnly &&
+        v.textOverride === undefined),
+  )
   .refine(
     (v) => !v.assembleOnly || (!v.verse && !v.regenerate && !v.voicesOnly),
   )

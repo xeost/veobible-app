@@ -132,14 +132,14 @@ test("auth, aggregate health, forwarding and unavailable upstream", async () => 
   }
 });
 
-test("audio requests retain authentication, environment, body and media ranges through the proxy", async () => {
+for (const environment of ["production", "development"]) test(`audio requests retain ${environment}, authentication, body and media ranges through the proxy`, async () => {
   const token = "audio-proxy-test-token";
   const upstream = http.createServer(async (req, res) => {
     const chunks=[]; for await (const chunk of req) chunks.push(chunk);
     const body=JSON.parse(Buffer.concat(chunks).toString());
     if(req.url.includes('/media')) {
       assert.equal(req.headers.range,'bytes=0-3');
-      assert.equal(body.outputEnvironment,'development');
+      assert.equal(body.outputEnvironment,environment);
       res.writeHead(206,{'Content-Type':'audio/wav','Content-Length':'4','Content-Range':'bytes 0-3/100','Accept-Ranges':'bytes'}); res.end('RIFF');
     } else {
       res.writeHead(200,{'Content-Type':'application/json'});
@@ -151,7 +151,7 @@ test("audio requests retain authentication, environment, body and media ranges t
   proxy.listen(0,'127.0.0.1');await once(proxy,'listening');
   const base=`http://127.0.0.1:${proxy.address().port}`;
   try {
-    const body={outputEnvironment:'development',versions:[{id:1,code:'rv1909',locale:'es',label:'Reina Valera 1909'}]};
+    const body={outputEnvironment:environment,versions:[{id:1,code:'rv1909',locale:'es',label:'Reina Valera 1909'}]};
     for(const path of ['/v1/audio-projects/options','/v1/audio-projects','/v1/audio-projects/rv1909-v2/jude','/v1/audio-projects/rv1909-v2/jude/generate']) {
       assert.equal((await fetch(base+path,{method:'POST',body:JSON.stringify(body)})).status,401);
       const response=await fetch(base+path,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});

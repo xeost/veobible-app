@@ -51,9 +51,9 @@ def synthesize_qwen(model, text, language, reference, args):
         for key in ("temperature", "top_p", "repetition_penalty")
         if getattr(args, key, None) is not None
     }
+    prompt = prepared_clone_prompt(model, reference, ref_text, args.model)
     waves, rate = model.generate_voice_clone(
-        text=text, language=LANGUAGES[language], ref_audio=str(reference),
-        ref_text=ref_text or None, x_vector_only_mode=not bool(ref_text),
+        text=text, language=LANGUAGES[language], voice_clone_prompt=prompt,
         top_k=args.top_k, max_new_tokens=args.max_new_tokens, **options,
     )
     if not waves or not isinstance(rate, (int, float)) or rate <= 0:
@@ -65,3 +65,40 @@ def synthesize_qwen(model, text, language, reference, args):
     if len(wave) / rate >= (args.max_new_tokens - 1) / 12:
         raise RuntimeError("VOICE_TRUNCATED: speech reached its generation limit")
     return wave, rate
+
+
+def prepared_clone_prompt(model, reference, transcript, kind):
+    """Cache derived reference features, never model weights or target speech."""
+    import pickle
+    import hashlib
+    import os
+    import tempfile
+    from dataclasses import asdict
+    import torch
+    from qwen_tts.inference.qwen3_tts_model import VoiceClonePromptItem
+    from importlib.metadata import version
+
+    digest = hashlib.sha256(Path(reference).read_bytes())
+    digest.update((kind + version("qwen-tts") + (transcript or "")).encode())
+    root = Path(tempfile.gettempdir()) / f"veobible-qwen-prompts-{os.getuid()}"
+    root.mkdir(mode=0o700, exist_ok=True)
+    cache = root / (digest.hexdigest() + ".pt")
+    try:
+        items = torch.load(cache, map_location=model.device, weights_only=True)
+        return [VoiceClonePromptItem(**item) for item in items]
+    except (OSError, ValueError, RuntimeError, TypeError, EOFError, pickle.UnpicklingError):
+        pass
+    items = model.create_voice_clone_prompt(ref_audio=str(reference), ref_text=transcript or None,
+                                          x_vector_only_mode=not bool(transcript))
+    data = [{key: value.detach().cpu() if isinstance(value, torch.Tensor) else value
+             for key, value in asdict(item).items()} for item in items]
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=root, delete=False) as handle:
+            temporary = Path(handle.name)
+            torch.save(data, handle)
+        temporary.replace(cache)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    return items

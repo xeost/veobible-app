@@ -98,3 +98,70 @@ test("migrations preserve numeric project tables and only the requested admin", 
     db.close();
   }
 });
+
+test("audio reset migration drops old projects and the environment column while preserving other tables", () => {
+  const sqlite = new DatabaseSync(":memory:");
+  try {
+    const migrations = readdirSync(directory)
+      .filter((name) => name.endsWith(".sql"))
+      .sort();
+    for (const name of migrations.filter((name) => name < "0008"))
+      sqlite.exec(readFileSync(new URL(name, directory), "utf8"));
+    sqlite.exec(`
+      INSERT INTO bible_versions(id,locale,code,label) VALUES(1,'es','rv1909','Reina Valera 1909');
+      INSERT INTO video_projects(kind,bible_version_id,slug,title,passage) VALUES('short',1,'kept','Kept','{}');
+      INSERT INTO site_settings(key,value) VALUES('kept','{}');
+      INSERT INTO audio_projects(output_environment,bible_version_id,edition,book,title,book_order,chapter_count,verse_counts,settings)
+        VALUES('production',1,'rv1909-v2','jude','Judas',65,1,'[25]','{}'),
+              ('development',1,'rv1909-v3','jude','Judas',65,1,'[25]','{}');
+    `);
+    const kept = [
+      "bible_versions",
+      "video_projects",
+      "site_settings",
+      "dashboard_users",
+    ].map((table) => ({
+      table,
+      rows: sqlite.prepare(`SELECT * FROM ${table}`).all(),
+    }));
+    sqlite.exec(
+      readFileSync(new URL("0008_reset_audio_projects.sql", directory), "utf8"),
+    );
+    assert.equal(
+      sqlite.prepare("SELECT count(*) total FROM audio_projects").get()?.total,
+      0,
+    );
+    assert.ok(
+      !sqlite
+        .prepare("PRAGMA table_info(audio_projects)")
+        .all()
+        .some((row) => row.name === "output_environment"),
+    );
+    for (const { table, rows } of kept)
+      assert.deepEqual(sqlite.prepare(`SELECT * FROM ${table}`).all(), rows);
+    const insert = `INSERT INTO audio_projects(bible_version_id,edition,book,title,book_order,chapter_count,verse_counts,settings) VALUES(1,'rv1909-v2','jude','Judas',65,1,'[25]','{}')`;
+    sqlite.exec(insert);
+    assert.equal(sqlite.prepare("SELECT id FROM audio_projects").get()?.id, 1);
+    assert.throws(() => sqlite.exec(insert), /UNIQUE/);
+    assert.throws(
+      () => sqlite.exec("UPDATE bible_versions SET code='changed' WHERE id=1"),
+      /audio projects/,
+    );
+    assert.throws(
+      () => sqlite.exec("UPDATE audio_projects SET bible_version_id=999"),
+      /FOREIGN KEY/,
+    );
+    const indexNames = sqlite
+      .prepare("PRAGMA index_list(audio_projects)")
+      .all()
+      .map((row) => row.name);
+    for (const name of [
+      "audio_projects_version_edition",
+      "audio_projects_bible_version",
+      "audio_projects_status",
+    ])
+      assert.ok(indexNames.includes(name));
+  } finally {
+    sqlite.close();
+  }
+});

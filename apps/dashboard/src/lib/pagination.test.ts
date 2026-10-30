@@ -39,6 +39,15 @@ function fixture() {
       "utf8",
     ),
   );
+  sqlite.exec(
+    readFileSync(
+      new URL(
+        "../../migrations/0008_reset_audio_projects.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const insert = sqlite.prepare(
     "INSERT INTO video_projects(kind,bible_version_id,slug,title,passage,published,settings) VALUES(?,?,?,?,?,?,?)",
   );

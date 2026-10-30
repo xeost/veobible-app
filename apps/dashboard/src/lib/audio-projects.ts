@@ -1,3 +1,4 @@
+import { outputEnvironment } from "./output-environment";
 import { audioPatchEventSchema } from "../../../../tools/video-project-api/src/audio-project-patch";
 import { withAudioVersePause } from "./audio-settings";
 import { inheritAudioVoiceDefaults } from "./project-voice-defaults";
@@ -28,7 +29,6 @@ export class AudioDatabaseError extends Error {
 export type AudioProjectRow = {
   id: number;
   bible_version_id: number;
-  output_environment: AudioProject["outputEnvironment"];
   edition: string;
   book: string;
   title: string;
@@ -60,11 +60,14 @@ export const audioTokenHash = async (token: string) =>
     ),
     (v) => v.toString(16).padStart(2, "0"),
   ).join("");
-export function audioProjectFromRow(row: Row): AudioProject {
+export function audioProjectFromRow(
+  row: Row,
+  environment: AudioProject["outputEnvironment"] = outputEnvironment(),
+): AudioProject {
   // Every write validates external input. Revalidating the entire persisted book
   // here clones thousands of recordings and trims on every editor request.
   return {
-    outputEnvironment: row.output_environment,
+    outputEnvironment: environment,
     edition: row.edition,
     book: row.book,
     title: row.title,
@@ -90,13 +93,11 @@ export async function findAudioProjectRow(
   database: D1Database,
   edition: string,
   book: string,
-  environment: AudioProject["outputEnvironment"] = "production",
+  environment: AudioProject["outputEnvironment"] = outputEnvironment(),
 ) {
   const row = await database
-    .prepare(
-      `${select} WHERE p.edition=? AND p.book=? AND p.output_environment=?`,
-    )
-    .bind(edition, book, environment)
+    .prepare(`${select} WHERE p.edition=? AND p.book=?`)
+    .bind(edition, book)
     .first<Row>();
   if (!row) throw new AudioDatabaseError("Audio project not found.", 404);
   return row;
@@ -105,10 +106,10 @@ export async function findAudioProject(
   database: D1Database,
   edition: string,
   book: string,
-  environment: AudioProject["outputEnvironment"] = "production",
+  environment: AudioProject["outputEnvironment"] = outputEnvironment(),
 ) {
   const row = await findAudioProjectRow(database, edition, book, environment);
-  const project = audioProjectFromRow(row);
+  const project = audioProjectFromRow(row, environment);
   if (project.settings.voiceDefaultsVersion !== 1) {
     const [defaults, styles] = await Promise.all([
       loadBaseVoiceDefaults(database, "audio"),
@@ -135,22 +136,21 @@ export async function findAudioProject(
 }
 export async function listAudioProjects(
   database: D1Database,
-  environment: AudioProject["outputEnvironment"] = "production",
+  environment: AudioProject["outputEnvironment"] = outputEnvironment(),
 ): Promise<AudioProjectSummary[]> {
   // Listing is independent of the generation service and does not transfer verse recordings.
   const rows = (
     await database
       .prepare(
-        `SELECT p.output_environment,p.edition,p.book,p.title,p.book_order,
+        `SELECT p.edition,p.book,p.title,p.book_order,
       p.chapter_count,p.verse_counts,p.bible_version_id,p.chapters,p.status,p.progress,p.updated_at,
       v.code,v.locale,v.label FROM audio_projects p JOIN bible_versions v ON v.id=p.bible_version_id
-      WHERE p.output_environment=? ORDER BY v.label,p.edition,p.book_order`,
+      ORDER BY v.label,p.edition,p.book_order`,
       )
-      .bind(environment)
       .all<Row>()
   ).results;
   return rows.map((row) => ({
-    outputEnvironment: row.output_environment,
+    outputEnvironment: environment,
     edition: row.edition,
     book: row.book,
     title: row.title,
@@ -172,7 +172,7 @@ export async function listAudioProjects(
 export async function insertAudioProjects(
   database: D1Database,
   values: unknown[],
-  environment: AudioProject["outputEnvironment"] = "production",
+  environment: AudioProject["outputEnvironment"] = outputEnvironment(),
 ) {
   const projects = values.map((value) => audioProjectSchema.parse(value));
   if (!projects.length)
@@ -195,10 +195,9 @@ export async function insertAudioProjects(
     projects.map((p) =>
       database
         .prepare(
-          `INSERT INTO audio_projects(output_environment,bible_version_id,edition,book,title,book_order,chapter_count,verse_counts,settings,recordings,chapters,status,progress,revision,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          `INSERT INTO audio_projects(bible_version_id,edition,book,title,book_order,chapter_count,verse_counts,settings,recordings,chapters,status,progress,revision,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         )
         .bind(
-          p.outputEnvironment,
           p.version.id,
           p.edition,
           p.book,
@@ -235,6 +234,7 @@ function validateSettings(project: AudioProject) {
     );
   const refs = validReferences(project);
   for (const ref of [
+    ...Object.keys(project.settings.pronunciation ?? {}),
     ...Object.keys(project.settings.trims),
     ...Object.keys(project.settings.pauses),
     ...Object.keys(project.settings.approvals ?? {}),
@@ -256,7 +256,7 @@ export async function saveAudioProject(
   edition: string,
   book: string,
   value: unknown,
-  environment: AudioProject["outputEnvironment"] = "production",
+  environment: AudioProject["outputEnvironment"] = outputEnvironment(),
 ) {
   const input = audioSaveSchema.parse(value),
     { row, project } = await findAudioProject(
@@ -299,7 +299,7 @@ export async function saveAudioVerseApproval(
   edition: string,
   book: string,
   value: unknown,
-  environment: AudioProject["outputEnvironment"] = "production",
+  environment: AudioProject["outputEnvironment"] = outputEnvironment(),
 ) {
   const input = z
     .object({
@@ -362,7 +362,7 @@ export async function beginAudioJob(
   database: D1Database,
   edition: string,
   book: string,
-  environment: AudioProject["outputEnvironment"] = "production",
+  environment: AudioProject["outputEnvironment"] = outputEnvironment(),
   versePauseSeconds?: number,
   expectedRevision?: number,
 ) {
@@ -452,7 +452,7 @@ export async function applyAudioEvent(
     return { applied: false };
   const project = event.project;
   if (
-    project.outputEnvironment !== row.output_environment ||
+    project.outputEnvironment !== outputEnvironment() ||
     project.edition !== row.edition ||
     project.book !== row.book ||
     project.version.id !== row.bible_version_id ||
@@ -555,6 +555,7 @@ export async function applyAudioPatch(
   const verseCounts = JSON.parse(row.verse_counts) as number[];
   const refs = new Set([
     ...Object.keys(patch.recordings),
+    ...Object.keys(patch.settings.pronunciation ?? {}),
     ...Object.keys(patch.settings.trims ?? {}),
     ...Object.keys(patch.settings.pauses ?? {}),
     ...Object.keys(patch.settings.approvals ?? {}),

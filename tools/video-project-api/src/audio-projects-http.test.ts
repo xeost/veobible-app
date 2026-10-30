@@ -577,7 +577,7 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
         previousRecordings["1:1"].revision,
       );
       assert.deepEqual(state.recordings["1:2"], previousRecordings["1:2"]);
-      assert.equal(JSON.stringify(state).includes(adapted), false);
+      assert.equal(state.settings.pronunciation?.["1:1"], adapted);
       assert.ok(
         (await fs.readFile(path.join(root, "calls.log"), "utf8")).includes(
           "Rrosa corrre rrápido.",

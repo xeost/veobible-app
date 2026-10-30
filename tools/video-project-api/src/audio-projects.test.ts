@@ -1145,7 +1145,7 @@ test("approving saved voices preserves final audio and regenerated voices need r
   }
 });
 
-test("pronunciation adaptations affect one synthesis and alignment without changing saved Bible text", async () => {
+test("pronunciation adaptations persist for regeneration without changing saved Bible text", async () => {
   const { projects, clean } = await fixture();
   try {
     await projects.create(version, "rv1909-v2");
@@ -1180,7 +1180,7 @@ test("pronunciation adaptations affect one synthesis and alignment without chang
     assert.deepEqual(adaptedProject.content, before.content);
     assert.deepEqual(spoken, [adapted]);
     assert.deepEqual(aligned, [adapted]);
-    assert.equal(JSON.stringify(adaptedProject).includes(adapted), false);
+    assert.equal(adaptedProject.settings.pronunciation?.["1:1"], adapted);
     const adaptedRevision = adaptedProject.recordings["1:1"].revision;
     await projects.queue(
       "rv1909-v2",
@@ -1205,8 +1205,8 @@ test("pronunciation adaptations affect one synthesis and alignment without chang
     );
     await run();
     const originalAgain = await projects.detail("rv1909-v2", "jude");
-    assert.equal(spoken[2], before.content[0].verses[0].text);
-    assert.equal(aligned[2], before.content[0].verses[0].text);
+    assert.equal(spoken[2], adapted);
+    assert.equal(aligned[2], adapted);
     assert.notEqual(originalAgain.recordings["1:1"].revision, adaptedRevision);
     assert.deepEqual(originalAgain.content, before.content);
   } finally {
@@ -1344,3 +1344,150 @@ for (const environment of ["production", "development"] as const) {
     }
   });
 }
+
+test("continuous Qwen blocks synthesize once and phrase corrections replace only selected speech", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    const content = [
+      {
+        chapter: 1,
+        verses: [
+          { verse: 1, text: "First sentence." },
+          { verse: 2, text: "Second sentence." },
+        ],
+      },
+    ];
+    projects.content = async () => content;
+    const syntheses: string[] = [];
+    let splices = 0;
+    const dependencies: AudioGenerationDependencies = {
+      ...generation().dependencies,
+      synthesize: async (dir, text) => {
+        syntheses.push(text);
+        await fs.writeFile(path.join(dir, "verse.wav"), text);
+      },
+      duration: async () => 4,
+      alignBlock: async (_file, duration, texts) =>
+        texts.map((_, i) => ({
+          startSeconds: (i * duration) / texts.length,
+          endSeconds: ((i + 1) * duration) / texts.length,
+        })),
+      extract: async (source, target) => {
+        await fs.copyFile(source, target);
+      },
+      splice: async (_source, patch, target, start, end) => {
+        splices++;
+        assert.equal(start, 0);
+        assert.equal(end, 2);
+        await fs.copyFile(patch, target);
+      },
+    };
+    let run!: () => Promise<void>;
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, voicesOnly: true, voiceModel: "qwen3-base-1.7b" },
+      (task) => {
+        run = task;
+      },
+      dependencies,
+    );
+    await run();
+    const initial = await projects.read("rv1909-v2", "jude");
+    assert.equal(syntheses.length, 1);
+    assert.equal(Object.keys(initial.recordings).length, 2);
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      {
+        chapter: 1,
+        verse: 1,
+        patch: {
+          start: 0,
+          end: 5,
+          text: "Opening",
+          sourceText: "First sentence.",
+        },
+      },
+      (task) => {
+        run = task;
+      },
+      dependencies,
+    );
+    await run();
+    const corrected = await projects.read("rv1909-v2", "jude");
+    assert.equal(splices, 1);
+    assert.deepEqual(syntheses, [
+      "First sentence. Second sentence.",
+      "Opening",
+    ]);
+    assert.equal(
+      corrected.settings.pronunciation?.["1:1"],
+      "Opening sentence.",
+    );
+    assert.deepEqual(corrected.recordings["1:2"], initial.recordings["1:2"]);
+    assert.notEqual(
+      corrected.recordings["1:1"].revision,
+      initial.recordings["1:1"].revision,
+    );
+  } finally {
+    await clean();
+  }
+});
+
+test("a failed phrase replacement preserves the recording, approval and transcript", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    const content = [
+      { chapter: 1, verses: [{ verse: 1, text: "A complete sentence." }] },
+    ];
+    projects.content = async () => content;
+    let run!: () => Promise<void>;
+    const generated = generation();
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 1 },
+      (task) => {
+        run = task;
+      },
+      generated.dependencies,
+    );
+    await run();
+    const before = await projects.read("rv1909-v2", "jude");
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      {
+        chapter: 1,
+        verse: 1,
+        patch: {
+          start: 0,
+          end: 1,
+          text: "The",
+          sourceText: "A complete sentence.",
+        },
+      },
+      (task) => {
+        run = task;
+      },
+      {
+        ...generated.dependencies,
+        alignBlock: async () => {
+          throw new Error("alignment failed");
+        },
+        extract: async () => {},
+        splice: async () => {},
+      },
+    );
+    await run();
+    const after = await projects.read("rv1909-v2", "jude");
+    assert.equal(after.status, "failed");
+    assert.deepEqual(after.recordings, before.recordings);
+    assert.deepEqual(after.settings, before.settings);
+  } finally {
+    await clean();
+  }
+});

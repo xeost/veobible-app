@@ -13,7 +13,6 @@ export type AudioEditorHeader = Pick<
   | "id"
   | "edition"
   | "book"
-  | "output_environment"
   | "book_order"
   | "chapter_count"
   | "revision"
@@ -24,7 +23,10 @@ export type AudioEditorHeader = Pick<
   | "code"
   | "locale"
   | "label"
-> & { defaults_version: number | null };
+> & {
+  defaults_version: number | null;
+  outputEnvironment: AudioProject["outputEnvironment"];
+};
 
 export async function audioEditorHeader(
   database: D1Database,
@@ -34,24 +36,27 @@ export async function audioEditorHeader(
 ) {
   const row = await database
     .prepare(
-      `SELECT p.id,p.edition,p.book,p.output_environment,
+      `SELECT p.id,p.edition,p.book,
     p.book_order,p.chapter_count,p.revision,p.active_job_id,p.job_sequence,p.status,
     p.bible_version_id,v.code,v.locale,v.label,
     json_extract(p.settings,'$.voiceDefaultsVersion') defaults_version
     FROM audio_projects p JOIN bible_versions v ON v.id=p.bible_version_id
-    WHERE p.edition=? AND p.book=? AND p.output_environment=?`,
+    WHERE p.edition=? AND p.book=?`,
     )
-    .bind(edition, book, environment)
-    .first<AudioEditorHeader>();
+    .bind(edition, book)
+    .first<Omit<AudioEditorHeader, "outputEnvironment">>();
   if (!row) throw new AudioDatabaseError("Audio project not found.", 404);
-  return row;
+  return { ...row, outputEnvironment: environment };
 }
 
 /** Stored JSON was validated on write. Pass it through without parsing/cloning
  * every recording and trim merely to serialize it again for the browser. */
-export function audioProjectRowJson(row: AudioProjectRow) {
+export function audioProjectRowJson(
+  row: AudioProjectRow,
+  environment: AudioProject["outputEnvironment"],
+) {
   const scalar = JSON.stringify({
-    outputEnvironment: row.output_environment,
+    outputEnvironment: environment,
     edition: row.edition,
     book: row.book,
     title: row.title,
@@ -78,7 +83,7 @@ export async function audioEditorState(
   forward: Forward,
   extras: (header: AudioEditorHeader) => Promise<object>,
 ) {
-  const { edition, book, output_environment: environment } = header;
+  const { edition, book, outputEnvironment: environment } = header;
   const endpoint = `/v1/audio-projects/${edition}/${book}`;
   if (header.defaults_version !== 1)
     await findAudioProject(database, edition, book, environment);
@@ -133,7 +138,7 @@ export async function audioEditorState(
     since === null ? extras(header) : Promise.resolve({}),
   ]);
   return new Response(
-    `{"project":${audioProjectRowJson(row)},"extras":${JSON.stringify(extra)}}`,
+    `{"project":${audioProjectRowJson(row, environment)},"extras":${JSON.stringify(extra)}}`,
     {
       headers: {
         "Content-Type": "application/json",

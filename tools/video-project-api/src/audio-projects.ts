@@ -112,6 +112,7 @@ export function audioTasks(
             (input.alignOnly
               ? Boolean(project.recordings[`${c.chapter}:${v.verse}`])
               : input.regenerate ||
+                input.patch !== undefined ||
                 input.textOverride !== undefined ||
                 !project.recordings[`${c.chapter}:${v.verse}`]),
         )
@@ -385,6 +386,7 @@ export class AudioProjects {
         ...Object.keys(input.settings.trims),
         ...Object.keys(input.settings.pauses),
         ...Object.keys(input.settings.approvals ?? {}),
+        ...Object.keys(input.settings.pronunciation ?? {}),
       ])
         if (!refs.has(ref))
           throw new AudioProjectError("Verse not found.", 400);
@@ -632,11 +634,128 @@ export class AudioProjects {
     );
     project.status = "running";
     await this.write(project);
+    const blockGenerated = new Set<string>();
+    // Continuous Qwen takes are aligned once, then extracted into independent
+    // verse assets so existing review, regeneration and cleanup remain safe.
+    if (
+      input.voiceModel === "qwen3-base-1.7b" &&
+      !input.verse &&
+      !input.alignOnly &&
+      !input.assembleOnly &&
+      dependencies.alignBlock &&
+      dependencies.extract
+    ) {
+      const { audioSpeechBlocks } = await import("./audio-speech-blocks.js");
+      const missing = verses
+        .filter(
+          (v) =>
+            input.regenerate || !project.recordings[`${v.chapter}:${v.verse}`],
+        )
+        .map((v) => ({
+          ...v,
+          text:
+            project.settings.pronunciation?.[`${v.chapter}:${v.verse}`] ??
+            v.text,
+        }));
+      for (const block of audioSpeechBlocks(missing)) {
+        const staging = await fs.mkdtemp(path.join(internal, ".block-"));
+        const created: string[] = [];
+        try {
+          const texts = block.map(
+            (v) =>
+              project.settings.pronunciation?.[`${v.chapter}:${v.verse}`] ??
+              v.text,
+          );
+          block.forEach((v) =>
+            taskReporter?.(
+              { chapter: v.chapter, verse: v.verse },
+              "running",
+              0,
+            ),
+          );
+          await dependencies.synthesize(
+            staging,
+            texts.join(" "),
+            project,
+            input,
+            (progress) =>
+              block.forEach((v) =>
+                taskReporter?.(
+                  { chapter: v.chapter, verse: v.verse },
+                  "running",
+                  Math.min(70, progress * 0.7),
+                ),
+              ),
+          );
+          const source = path.join(staging, "verse.wav");
+          const duration = await dependencies.duration(source);
+          const cues = await dependencies.alignBlock(
+            source,
+            duration,
+            texts,
+            project.version.locale,
+          );
+          if (cues.length !== block.length)
+            throw new Error("Incomplete block alignment");
+          const assets: AudioProject["recordings"] = {};
+          const trims: AudioProject["settings"]["trims"] = {};
+          for (const [i, v] of block.entries()) {
+            const ref = `${v.chapter}:${v.verse}`;
+            const cue = validatedAudioTrim(cues[i], duration);
+            if (i && cue.startSeconds < cues[i - 1].endSeconds - 0.08)
+              throw new Error("Overlapping block alignment");
+            const revision = randomUUID();
+            const relative = `${project.book}/${v.chapter}-${v.verse}-${revision}`;
+            const directory = await safeFile(internal, relative);
+            await fs.mkdir(directory, { recursive: true });
+            created.push(directory);
+            await dependencies.extract(
+              source,
+              path.join(directory, "verse.wav"),
+              cue.startSeconds,
+              cue.endSeconds,
+            );
+            const length = await dependencies.duration(
+              path.join(directory, "verse.wav"),
+            );
+            await fs.writeFile(
+              path.join(directory, "verse.txt"),
+              texts[i] + "\n",
+            );
+            assets[ref] = {
+              file: `${relative}/verse.wav`,
+              duration: length,
+              revision,
+            };
+            trims[ref] = { startSeconds: 0, endSeconds: length };
+          }
+          Object.keys(assets).forEach((ref) => blockGenerated.add(ref));
+          Object.assign(project.recordings, assets);
+          Object.assign(project.settings.trims, trims);
+          delete project.chapters[String(block[0].chapter)];
+          project.progress = Math.round(
+            (blockGenerated.size / verses.length) * 85,
+          );
+          project.revision++;
+          await this.write(project);
+          created.length = 0;
+          block.forEach((v) =>
+            taskReporter?.({ chapter: v.chapter, verse: v.verse }, "done", 100),
+          );
+        } finally {
+          await fs.rm(staging, { recursive: true, force: true });
+          for (const directory of created)
+            await fs.rm(directory, { recursive: true, force: true });
+        }
+      }
+    }
     for (const [index, verse] of verses.entries()) {
       const ref = `${verse.chapter}:${verse.verse}`;
       const needsGeneration =
         !input.alignOnly &&
+        !blockGenerated.has(ref) &&
         (input.regenerate ||
+          input.patch !== undefined ||
           input.textOverride !== undefined ||
           !project.recordings[ref]);
       if (input.alignOnly) {
@@ -647,7 +766,7 @@ export class AudioProjects {
           await dependencies.align(
             await safeFile(internal, recording.file),
             recording.duration,
-            verse.text,
+            project.settings.pronunciation?.[ref] ?? verse.text,
             project.version.locale,
             (progress) =>
               taskReporter?.(task, "running", Math.min(99, progress)),
@@ -659,7 +778,34 @@ export class AudioProjects {
       }
       let generatedDirectory: string | undefined;
       if (needsGeneration) {
-        const speechText = input.textOverride ?? verse.text;
+        const originalText =
+          input.patch && project.recordings[ref]
+            ? (
+                await fs.readFile(
+                  (
+                    await safeFile(internal, project.recordings[ref].file)
+                  ).replace(/verse\.wav$/, "verse.txt"),
+                  "utf8",
+                )
+              ).trim()
+            : (project.settings.pronunciation?.[ref] ?? verse.text);
+        const edit = input.patch;
+        if (
+          edit &&
+          (edit.sourceText !== originalText ||
+            !project.recordings[ref] ||
+            !dependencies.alignBlock ||
+            !dependencies.splice ||
+            !dependencies.extract)
+        )
+          throw new Error(
+            "The verse changed. Reload it before correcting a phrase.",
+          );
+        const speechText = edit
+          ? originalText.slice(0, edit.start) +
+            edit.text +
+            originalText.slice(edit.end)
+          : (input.textOverride ?? originalText);
         const revision = randomUUID();
         const relative = `${project.book}/${verse.chapter}-${verse.verse}-${revision}`;
         const directory = await safeFile(internal, relative);
@@ -669,13 +815,64 @@ export class AudioProjects {
           taskReporter?.(task, "running", 0);
           await dependencies.synthesize(
             directory,
-            speechText,
+            edit ? edit.text : speechText,
             project,
             input,
             (progress) =>
               taskReporter?.(task, "running", Math.min(70, progress * 0.7)),
           );
           const wav = path.join(directory, "verse.wav");
+          if (edit) {
+            const source = await safeFile(
+              internal,
+              project.recordings[ref].file,
+            );
+            const parts = [
+              originalText.slice(0, edit.start),
+              originalText.slice(edit.start, edit.end),
+              originalText.slice(edit.end),
+            ];
+            const nonempty = parts
+              .map((text, index) => ({ text, index }))
+              .filter((v) => v.text.trim());
+            const cues = await dependencies.alignBlock!(
+              source,
+              project.recordings[ref].duration,
+              nonempty.map((v) => v.text),
+              project.version.locale,
+            );
+            const cut = validatedAudioTrim(
+              cues[nonempty.findIndex((v) => v.index === 1)],
+              project.recordings[ref].duration,
+            );
+            const generated = path.join(directory, "replacement.wav");
+            await fs.rename(wav, generated);
+            const patchDuration = await dependencies.duration(generated);
+            const patchTrim = validatedAudioTrim(
+              await dependencies.align(
+                generated,
+                patchDuration,
+                edit.text,
+                project.version.locale,
+                () => {},
+              ),
+              patchDuration,
+            );
+            const trimmed = path.join(directory, "phrase.wav");
+            await dependencies.extract!(
+              generated,
+              trimmed,
+              patchTrim.startSeconds,
+              patchTrim.endSeconds,
+            );
+            await dependencies.splice!(
+              source,
+              trimmed,
+              wav,
+              cut.startSeconds,
+              cut.endSeconds,
+            );
+          }
           const duration = await dependencies.duration(wav);
           if (!Number.isFinite(duration) || duration <= 0.02)
             throw new Error("Invalid generated audio duration");
@@ -702,7 +899,7 @@ export class AudioProjects {
           );
           await fs.writeFile(
             path.join(directory, "verse.txt"),
-            verse.text.trim() + "\n",
+            speechText.trim() + "\n",
           );
           project.recordings[ref] = {
             file: `${relative}/verse.wav`,
@@ -720,6 +917,10 @@ export class AudioProjects {
               parameters: input.voiceParameters,
             },
           };
+          project.settings.pronunciation = {
+            ...project.settings.pronunciation,
+            [ref]: speechText,
+          };
           project.settings.trims[ref] = trim;
           delete project.chapters[String(verse.chapter)];
           generatedDirectory = relative;
@@ -734,7 +935,7 @@ export class AudioProjects {
       );
       project.revision++;
       await this.write(project);
-      if (generatedDirectory) {
+      if (generatedDirectory && !input.patch) {
         // Persist the replacement before removing earlier revisions, including
         // folders left behind by older workers or interrupted attempts.
         const bookDirectory = await safeFile(internal, project.book);
@@ -817,6 +1018,9 @@ export class AudioProjects {
           };
           project.progress =
             85 + Math.round(((index + 1) / chapters.length) * 15);
+          project.progress = Math.round(
+            (blockGenerated.size / verses.length) * 85,
+          );
           project.revision++;
           await this.write(project);
           taskReporter?.({ chapter: chapter.chapter }, "done", 100);
@@ -849,6 +1053,25 @@ export type AudioGenerationDependencies = {
     project: AudioProject,
     input: z.infer<typeof audioGenerateSchema>,
     onProgress?: (progress: number) => void,
+  ) => Promise<void>;
+  alignBlock?: (
+    file: string,
+    duration: number,
+    texts: string[],
+    language: string,
+  ) => Promise<z.infer<typeof audioTrimSchema>[]>;
+  splice?: (
+    source: string,
+    patch: string,
+    target: string,
+    start: number,
+    end: number,
+  ) => Promise<void>;
+  extract?: (
+    source: string,
+    target: string,
+    start: number,
+    end: number,
   ) => Promise<void>;
   duration: (file: string) => Promise<number>;
   align: (
@@ -928,6 +1151,70 @@ export async function assembleAudioChapter(
   }
 }
 const productionDependencies: AudioGenerationDependencies = {
+  splice: async (source, patch, target, start, end) => {
+    // Preserve unselected speech and keep the original recording until publication.
+    const filters = [
+      `[0:a]atrim=end=${start},asetpts=PTS-STARTPTS[a]`,
+      `[1:a]asetpts=PTS-STARTPTS[b]`,
+      `[0:a]atrim=start=${end},asetpts=PTS-STARTPTS[c]`,
+      "[a][b][c]concat=n=3:v=0:a=1[out]",
+    ];
+    await execute(
+      config.ffmpegBin,
+      [
+        "-y",
+        "-i",
+        source,
+        "-i",
+        patch,
+        "-filter_complex",
+        filters.join(";"),
+        "-map",
+        "[out]",
+        "-c:a",
+        "pcm_s24le",
+        target,
+      ],
+      { timeout: 120000 },
+    );
+  },
+  alignBlock: async (file, duration, texts, language) => {
+    const { alignGeneratedSpeech } = await import("./forced-alignment.js");
+    const total = texts.reduce((sum, text) => sum + text.length, 0);
+    let offset = 0;
+    const { cues } = await alignGeneratedSpeech(
+      file,
+      duration,
+      language,
+      texts.map((text, i) => {
+        const start = offset;
+        offset += (duration * text.length) / total;
+        return { id: String(i), text, start, end: offset };
+      }),
+      config.ffmpegBin,
+      () => {},
+    );
+    return cues.map((cue) => ({
+      startSeconds: cue.start,
+      endSeconds: cue.end,
+    }));
+  },
+  extract: async (source, target, start, end) => {
+    await execute(
+      config.ffmpegBin,
+      [
+        "-y",
+        "-i",
+        source,
+        "-af",
+        `atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS`,
+        "-c:a",
+        "pcm_s24le",
+        target,
+      ],
+      { timeout: 120000 },
+    );
+  },
   align: async (file, duration, text, language, onProgress) => {
     const { alignGeneratedSpeech } = await import("./forced-alignment.js");
     const {
@@ -943,7 +1230,7 @@ const productionDependencies: AudioGenerationDependencies = {
     return { startSeconds: cue.start, endSeconds: cue.end };
   },
   synthesize: async (directory, text, project, input, onProgress) => {
-    // Adapted pronunciation text is a one-off request, never a saved transcript.
+    // Keep the supplied pronunciation transcript with the generated recording.
     const staging = await fs.mkdtemp(path.join(directory, ".speech-"));
     try {
       await generateVoice(

@@ -14,11 +14,10 @@ function fixture() {
     "INSERT INTO bible_versions(id,locale,code,label) VALUES(1,'es','rv1909','Reina Valera 1909'),(2,'en','kjv','King James Version')",
   );
   const insert = sqlite.prepare(
-    `INSERT INTO audio_projects(output_environment,bible_version_id,edition,book,title,book_order,chapter_count,verse_counts,settings,recordings,chapters,status) VALUES(?,?,?,?,?,?,2,'[2,2]',?,?,?,?)`,
+    `INSERT INTO audio_projects(bible_version_id,edition,book,title,book_order,chapter_count,verse_counts,settings,recordings,chapters,status) VALUES(?,?,?,?,?,2,'[2,2]',?,?,?,?)`,
   );
   for (let i = 1; i <= 66; i++)
     insert.run(
-      "development",
       1,
       "rv1909-v2",
       `book-${i}`,
@@ -32,7 +31,6 @@ function fixture() {
       i % 2 === 0 ? "draft" : "done",
     );
   insert.run(
-    "development",
     1,
     "rv1909-v10",
     "book-1",
@@ -43,30 +41,7 @@ function fixture() {
     "{}",
     "failed",
   );
-  insert.run(
-    "development",
-    2,
-    "kjv-v2",
-    "jude",
-    "Jude",
-    65,
-    "{}",
-    "{}",
-    "{}",
-    "queued",
-  );
-  insert.run(
-    "production",
-    1,
-    "rv1909-v2",
-    "book-1",
-    "Production only",
-    1,
-    "{}",
-    "{}",
-    "{}",
-    "running",
-  );
+  insert.run(2, "kjv-v2", "jude", "Jude", 65, "{}", "{}", "{}", "queued");
   const queries: string[] = [];
   const database = {
     prepare(sql: string) {
@@ -119,14 +94,6 @@ test("audio catalogue pages in book order, uses lightweight rows and isolates ed
           !sql.includes("p.recordings"),
       ),
     );
-    const production = await pageAudioProjects(
-      database,
-      new URLSearchParams(),
-      "production",
-    );
-    assert.equal(production.projects.length, 1);
-    assert.equal(production.projects[0].title, "Production only");
-    assert.equal(production.editions.length, 1);
   } finally {
     sqlite.close();
   }
@@ -225,7 +192,7 @@ test("marked audio lookup returns only selected projects in the active environme
     const production = await pageAudioProjects(database, params, "production");
     assert.deepEqual(
       production.projects.map((row) => row.id),
-      [69],
+      [1, 2],
     );
     for (const ids of [
       "",

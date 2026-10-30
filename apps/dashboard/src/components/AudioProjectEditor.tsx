@@ -413,6 +413,7 @@ export function AudioProjectEditor({
       assembleOnly?: boolean;
       voicesOnly?: boolean;
       alignOnly?: boolean;
+      patch?: { start: number; end: number; text: string; sourceText: string };
       textOverride?: string;
     } = {},
   ) => {

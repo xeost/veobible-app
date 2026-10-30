@@ -81,7 +81,7 @@ test("queue queries only participant IDs, deduplicates them and skips the databa
       [90, 90, 20],
     );
     sqlite.exec(
-      "CREATE TABLE audio_projects(id INTEGER,title TEXT,edition TEXT,book TEXT,output_environment TEXT,bible_version_id INTEGER); INSERT INTO audio_projects VALUES(3,'Génesis','rv1909-v2','genesis','development',1)",
+      "CREATE TABLE audio_projects(id INTEGER,title TEXT,edition TEXT,book TEXT,bible_version_id INTEGER); INSERT INTO audio_projects VALUES(3,'Génesis','rv1909-v2','genesis',1)",
     );
     queries.length = 0;
     const audioEntry = {
@@ -97,6 +97,7 @@ test("queue queries only participant IDs, deduplicates them and skips the databa
       database,
       [...entries.slice(0, 1), audioEntry],
       true,
+      "development",
     );
     assert.equal(mixed.items[0].href, "/audios/rv1909-v2/genesis");
     assert.equal(mixed.items[0].title, "Génesis");
@@ -109,6 +110,7 @@ test("queue queries only participant IDs, deduplicates them and skips the databa
           database,
           [{ ...audioEntry, outputEnvironment: "production" }],
           false,
+          "development",
         )
       ).items.length,
       0,

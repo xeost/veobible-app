@@ -1,3 +1,4 @@
+import { outputEnvironment as requestOutputEnvironment } from "./output-environment";
 import {
   loadVoiceStyleDefaults,
   selectedVoiceStyleParameters,
@@ -52,8 +53,7 @@ export async function audioApi(
   const url = new URL(req.url),
     parts = url.pathname.slice(5).split("/");
   if (parts[0] !== "audios") return null;
-  const outputEnvironment =
-    process.env.NODE_ENV === "production" ? "production" : "development";
+  const outputEnvironment = requestOutputEnvironment();
   const json = (data: unknown, status = 200) =>
     Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
   const forward = async (target: string, body: unknown) =>

@@ -1,3 +1,5 @@
+// This fixture represents the production dashboard database.
+Object.assign(process.env, { NODE_ENV: "production" });
 import {
   audioVerseApproval,
   isAudioVerseApproved,
@@ -26,6 +28,7 @@ function fixture() {
     "0001_dashboard.sql",
     "0004_audio_projects.sql",
     "0005_audio_project_environments.sql",
+    "0008_reset_audio_projects.sql",
   ])
     sqlite.exec(
       readFileSync(
@@ -386,88 +389,116 @@ test("edition/book uniqueness and foreign keys make a failed batch atomic", asyn
   }
 });
 
-test("database project identities, settings and callbacks are separated by environment", async () => {
-  const { sqlite, database, project } = fixture();
+test("separate dashboard databases own their projects and hydrate request environments", async () => {
+  const production = fixture(),
+    development = fixture();
   try {
-    await insertAudioProjects(database, [project]);
+    const project = production.project;
     const dev = { ...project, outputEnvironment: "development" as const };
-    await insertAudioProjects(database, [dev], "development");
-    const prodRow = await findAudioProject(
-      database,
-      project.edition,
-      project.book,
-    );
-    const devRow = await findAudioProject(
-      database,
-      project.edition,
-      project.book,
-      "development",
-    );
-    assert.notEqual(prodRow.row.id, devRow.row.id);
-    assert.equal((await listAudioProjects(database)).length, 1);
+    await insertAudioProjects(production.database, [project], "production");
+    await insertAudioProjects(development.database, [dev], "development");
     assert.equal(
-      (await listAudioProjects(database, "development"))[0].outputEnvironment,
+      (
+        await findAudioProject(
+          development.database,
+          dev.edition,
+          dev.book,
+          "development",
+        )
+      ).project.outputEnvironment,
       "development",
+    );
+    assert.equal(
+      (await listAudioProjects(production.database, "production"))[0]
+        .outputEnvironment,
+      "production",
     );
     await assert.rejects(
-      insertAudioProjects(database, [{ ...dev, edition: "rv1909-v3" }]),
+      insertAudioProjects(production.database, [project]),
+      /UNIQUE/,
+    );
+    await assert.rejects(
+      insertAudioProjects(production.database, [dev], "production"),
       /does not match/,
     );
     await saveAudioProject(
-      database,
+      development.database,
       dev.edition,
       dev.book,
       { revision: 0, settings: { ...dev.settings, pauses: { "1:1": 0.8 } } },
       "development",
     );
     assert.deepEqual(
-      (await findAudioProject(database, project.edition, project.book)).project
-        .settings.pauses,
+      (
+        await findAudioProject(
+          production.database,
+          project.edition,
+          project.book,
+          "production",
+        )
+      ).project.settings.pauses,
       {},
     );
-    const prodJob = await beginAudioJob(
-      database,
+    const job = await beginAudioJob(
+      production.database,
       project.edition,
       project.book,
+      "production",
+    );
+    await assert.rejects(
+      applyAudioEvent(
+        production.database,
+        job.id,
+        job.jobId,
+        {
+          sequence: 1,
+          project: { ...job.project, outputEnvironment: "development" },
+        },
+        job.token,
+      ),
+      /does not match/,
     );
     const devJob = await beginAudioJob(
-      database,
+      development.database,
       dev.edition,
       dev.book,
       "development",
     );
-    await assert.rejects(
-      applyAudioEvent(
-        database,
-        prodJob.id,
-        prodJob.jobId,
-        { sequence: 1, project: { ...devJob.project, status: "running" } },
-        prodJob.token,
-      ),
-      /does not match/,
-    );
-    await applyAudioEvent(
-      database,
-      devJob.id,
-      devJob.jobId,
-      {
-        sequence: 1,
-        project: { ...devJob.project, status: "running", progress: 35 },
-      },
-      devJob.token,
-    );
-    assert.equal(
-      (await findAudioProject(database, project.edition, project.book)).project
-        .progress,
-      0,
-    );
-    assert.equal(
-      (await findAudioProject(database, dev.edition, dev.book, "development"))
-        .project.progress,
-      35,
+    const previousMode = process.env.NODE_ENV;
+    Object.assign(process.env, { NODE_ENV: "development" });
+    try {
+      await applyAudioEvent(
+        development.database,
+        devJob.id,
+        devJob.jobId,
+        {
+          sequence: 1,
+          project: { ...devJob.project, status: "running", progress: 35 },
+        },
+        devJob.token,
+      );
+      assert.equal(
+        (await findAudioProject(development.database, dev.edition, dev.book))
+          .project.outputEnvironment,
+        "development",
+      );
+      assert.equal(
+        (await findAudioProject(development.database, dev.edition, dev.book))
+          .project.progress,
+        35,
+      );
+    } finally {
+      Object.assign(process.env, { NODE_ENV: previousMode });
+    }
+    assert.ok(
+      !production.sqlite
+        .prepare("PRAGMA table_info(audio_projects)")
+        .all()
+        .some((row) => row.name === "output_environment"),
     );
   } finally {
-    sqlite.close();
+    production.sqlite.close();
+    development.sqlite.close();
   }
 });
 
@@ -1129,9 +1160,16 @@ test("active editor polls stay compact and observe callbacks committed during in
     assert.equal(value.project.progress, 25);
     assert.equal(value.project.revision, header.revision + 1);
     assert.equal(extraCalls, 0);
-    await assert.rejects(
-      audioEditorHeader(database, project.edition, project.book, "development"),
-      /not found/,
+    assert.equal(
+      (
+        await audioEditorHeader(
+          database,
+          project.edition,
+          project.book,
+          "development",
+        )
+      ).outputEnvironment,
+      "development",
     );
   } finally {
     sqlite.close();

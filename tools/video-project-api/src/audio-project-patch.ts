@@ -23,6 +23,7 @@ export const audioPatchEventSchema = z.object({
       ),
       settings: z
         .object({
+          pronunciation: z.record(reference, z.string().nullable()).optional(),
           baseVoice: audioSettingsSchema.shape.baseVoice.optional(),
           voiceDefaultsVersion: z.literal(1).nullable().optional(),
           inheritBaseVoice: z.boolean().nullable().optional(),
@@ -73,6 +74,10 @@ export function audioProjectPatch(
     chapters: changed(before.chapters, after.chapters),
     settings: {
       // Resolved voice settings also have to reach the persisted project.
+      pronunciation: changed(
+        before.settings.pronunciation ?? {},
+        after.settings.pronunciation ?? {},
+      ),
       baseVoice: after.settings.baseVoice,
       voiceDefaultsVersion: after.settings.voiceDefaultsVersion ?? null,
       inheritBaseVoice: after.settings.inheritBaseVoice ?? null,

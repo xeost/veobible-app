@@ -28,6 +28,7 @@ import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
 import { VersePronunciationEditor } from "./VersePronunciationEditor";
 import { OriginalVerseAudio } from "./OriginalVerseAudio";
+import { AudioPhrasePatch } from "./AudioPhrasePatch";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { audioWaveformResourceKey } from "../lib/audio-editor-preparation";
 import { loadAudioWaveform } from "../lib/audio-waveform";
@@ -75,6 +76,7 @@ export function AudioChapter({
     assembleOnly?: boolean;
     voicesOnly?: boolean;
     alignOnly?: boolean;
+    patch?: { start: number; end: number; text: string; sourceText: string };
     textOverride?: string;
   }) => Promise<boolean>;
   media: (chapter: number, verse?: number, revision?: string) => string;
@@ -107,22 +109,31 @@ export function AudioChapter({
   const speechScope = `${project.edition}/${project.book}/${reference}`;
   const [speechState, dispatchSpeech] = useReducer(
     temporaryVerseText,
-    initialVerseText(speechScope, verse.text),
+    initialVerseText(
+      speechScope,
+      verse.text,
+      settings.pronunciation?.[reference],
+    ),
   );
   const speech =
     speechState.scope === speechScope && speechState.original === verse.text
       ? speechState
-      : initialVerseText(speechScope, verse.text);
+      : initialVerseText(
+          speechScope,
+          verse.text,
+          settings.pronunciation?.[reference],
+        );
   const editingSpeech = speech.draft !== null;
   useEffect(() => {
     dispatchSpeech({
       type: "select",
       scope: speechScope,
       original: verse.text,
+      accepted: settings.pronunciation?.[reference],
     });
-  }, [speechScope, verse.text]);
+  }, [speechScope, verse.text, settings.pronunciation?.[reference]]);
   useEffect(() => {
-    if (selectedVerse === undefined) dispatchSpeech({ type: "discard" });
+    if (selectedVerse === undefined) dispatchSpeech({ type: "cancel" });
   }, [selectedVerse]);
   const recording = project.recordings[reference];
   const [preparedKey, setPreparedKey] = useState<string | null>(null);
@@ -265,9 +276,32 @@ export function AudioChapter({
       disabled={locked}
       dispatch={(action) => {
         if (action.type === "edit") onSelectVerse(verse.verse);
+        if (action.type === "accept" || action.type === "restore") {
+          const pronunciation = { ...settings.pronunciation };
+          if (action.type === "restore") delete pronunciation[reference];
+          else if (speech.draft?.trim())
+            pronunciation[reference] = speech.draft.trim();
+          change({ ...settings, pronunciation });
+        }
         dispatchSpeech(action);
       }}
-    />
+    >
+      {recording && selectedVerse === verse.verse && (
+        <AudioPhrasePatch
+          key={`${reference}/${recording.revision}`}
+          text={speech.accepted}
+          disabled={locked || editingSpeech}
+          generate={(patch) =>
+            generate({
+              chapter: chapter.chapter,
+              verse: verse.verse,
+              regenerate: true,
+              patch,
+            })
+          }
+        />
+      )}
+    </VersePronunciationEditor>
   );
   const versePicker = (
     <div className="verse-picker" ref={picker} aria-label={t("Verses")}>

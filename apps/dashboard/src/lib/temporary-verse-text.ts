@@ -8,12 +8,13 @@ export type TemporaryVerseText = {
 export function initialVerseText(
   scope: string,
   original: string,
+  accepted = original,
 ): TemporaryVerseText {
-  return { scope, original, accepted: original, draft: null };
+  return { scope, original, accepted, draft: null };
 }
 
 type Action =
-  | { type: "select"; scope: string; original: string }
+  | { type: "select"; scope: string; original: string; accepted?: string }
   | { type: "edit" }
   | { type: "change"; text: string }
   | { type: "accept" }
@@ -27,9 +28,11 @@ export function temporaryVerseText(
 ): TemporaryVerseText {
   switch (action.type) {
     case "select":
-      return state.scope === action.scope && state.original === action.original
+      return state.scope === action.scope &&
+        state.original === action.original &&
+        (action.accepted === undefined || state.accepted === action.accepted)
         ? state
-        : initialVerseText(action.scope, action.original);
+        : initialVerseText(action.scope, action.original, action.accepted);
     case "edit":
       return { ...state, draft: state.accepted };
     case "change":

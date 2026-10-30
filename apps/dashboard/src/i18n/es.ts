@@ -1,4 +1,11 @@
 export const spanish: Record<string, string> = {
+  "Correct a phrase": "Corregir una frase",
+  "Select a complete phrase, enter its replacement, then listen to the verse before approving it.":
+    "Selecciona una frase completa, escribe su reemplazo y escucha el versículo antes de aprobarlo.",
+  "Select the phrase to replace": "Selecciona la frase que quieres reemplazar",
+  "Replacement phrase": "Frase de reemplazo",
+  "Generate replacement phrase": "Generar frase de reemplazo",
+
   "Could not connect to the local site. Restart the development services and try again.":
     "No se pudo conectar con el sitio local. Reinicia los servicios de desarrollo y vuelve a intentarlo.",
   "Review or exclude the included pages that need attention.":

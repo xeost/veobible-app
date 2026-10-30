@@ -53,9 +53,8 @@ export async function pageAudioProjects(
   const afterId = params.has("afterId")
     ? z.coerce.number().int().positive().safe().parse(params.get("afterId"))
     : null;
-  const base = `p.output_environment=?${edition ? " AND p.edition=?" : ""}${afterId !== null ? " AND p.id>?" : ""}${ids ? ` AND p.id IN (${ids.map(() => "?").join(",")})` : ""}`;
+  const base = `1=1${edition ? " AND p.edition=?" : ""}${afterId !== null ? " AND p.id>?" : ""}${ids ? ` AND p.id IN (${ids.map(() => "?").join(",")})` : ""}`;
   const baseValues = [
-    environment,
     ...(edition ? [edition] : []),
     ...(afterId !== null ? [afterId] : []),
     ...(ids ?? []),
@@ -104,9 +103,8 @@ export async function pageAudioProjects(
   const editions = (
     await database
       .prepare(
-        `SELECT DISTINCT p.edition,v.id,v.code,v.locale,v.label${join} WHERE p.output_environment=? ORDER BY v.locale,v.label,CAST(substr(p.edition,length(v.code)+3) AS INTEGER)`,
+        `SELECT DISTINCT p.edition,v.id,v.code,v.locale,v.label${join} ORDER BY v.locale,v.label,CAST(substr(p.edition,length(v.code)+3) AS INTEGER)`,
       )
-      .bind(environment)
       .all<AudioVersion & { edition: string }>()
   ).results;
   return {

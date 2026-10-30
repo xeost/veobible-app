@@ -1,5 +1,5 @@
 "use client";
-import type { Dispatch } from "react";
+import type { Dispatch, ReactNode } from "react";
 import { Check, Pencil, RotateCcw, X } from "lucide-react";
 import { useI18n } from "../i18n/context";
 import {
@@ -12,11 +12,13 @@ export function VersePronunciationEditor({
   speech,
   dispatch,
   disabled,
+  children,
 }: {
   reference: string;
   speech: TemporaryVerseText;
   dispatch: Dispatch<Parameters<typeof temporaryVerseText>[1]>;
   disabled: boolean;
+  children?: ReactNode;
 }) {
   const { t } = useI18n();
   const editing = speech.draft !== null;
@@ -87,6 +89,7 @@ export function VersePronunciationEditor({
       ) : (
         <p>{speech.accepted}</p>
       )}
+      {children}
     </div>
   );
 }

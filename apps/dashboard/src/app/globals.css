@@ -2741,6 +2741,17 @@ audio {
   line-height: 1.8;
   color: #d2c9dc;
 }
+.audio-phrase-patch {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #a187bc26;
+}
+.audio-phrase-patch > summary {
+  font-weight: 500;
+}
+.audio-phrase-patch > button {
+  margin-top: 12px;
+}
 .verse-playback {
   display: flex;
   justify-content: center;

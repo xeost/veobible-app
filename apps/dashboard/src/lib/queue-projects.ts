@@ -1,3 +1,4 @@
+import { outputEnvironment } from "./output-environment";
 export type QueueProject = {
   id: number;
   kind: "short" | "long" | "book";
@@ -33,7 +34,6 @@ type AudioQueueProject = {
   version_code: string;
   edition: string;
   book: string;
-  output_environment: string;
 };
 async function loadAudioQueueProjects(database: D1Database, ids: number[]) {
   const unique = [
@@ -46,7 +46,7 @@ async function loadAudioQueueProjects(database: D1Database, ids: number[]) {
       ...(
         await database
           .prepare(
-            `SELECT p.id,p.title,p.edition,p.book,p.output_environment,v.code version_code FROM audio_projects p JOIN bible_versions v ON v.id=p.bible_version_id WHERE p.id IN (${batch.map(() => "?").join(",")})`,
+            `SELECT p.id,p.title,p.edition,p.book,v.code version_code FROM audio_projects p JOIN bible_versions v ON v.id=p.bible_version_id WHERE p.id IN (${batch.map(() => "?").join(",")})`,
           )
           .bind(...batch)
           .all<AudioQueueProject>()
@@ -66,7 +66,15 @@ export async function loadQueueView<
     status: string;
     outputEnvironment?: string;
   },
->(database: D1Database, entries: T[], includeHistory: boolean) {
+>(
+  database: D1Database,
+  entries: T[],
+  includeHistory: boolean,
+  environment = outputEnvironment(),
+) {
+  entries = entries.filter(
+    (item) => (item.outputEnvironment ?? environment) === environment,
+  );
   const active = entries.filter((item) =>
     ["queued", "running"].includes(item.status),
   );
@@ -106,8 +114,7 @@ export async function loadQueueView<
       if (item.projectId === null) return [];
       if (item.kind === "audio") {
         const audio = audioProjects.get(item.projectId);
-        return audio &&
-          audio.output_environment === (item.outputEnvironment ?? "production")
+        return audio
           ? [
               {
                 ...item,

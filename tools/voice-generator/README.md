@@ -127,3 +127,29 @@ The Qwen encoder is constructed from its cached configuration and receives all i
 CosyVoice checkpoints use read-only memory mapping and strict parameter assignment to avoid holding a second complete copy of each component during loading. This reduces loading peaks without increasing the generator's memory budget.
 
 The adapter constructs only inference components and their transitive configuration references. Training datasets, GAN discriminators, optimizers and data processors from the official YAML are not initialized, avoiding training-only dependencies and unnecessary memory use.
+
+### Continuous audio projects with Qwen 1.7B
+
+Audio chapter voice generation groups consecutive missing verses into takes of
+approximately 160 words. Each take is synthesized once, aligned to its complete
+transcript and extracted into verse WAVs for review. Final chapter assembly uses
+those reviewed WAVs without synthesizing again. The budget is a word estimate,
+not a guaranteed duration; long individual verses and slow delivery still depend
+on the selected speech length limit.
+
+The audio editor stores pronunciation text independently of Bible display text.
+Phrase corrections select a character range in the recording transcript, align
+that range in the existing WAV, synthesize the replacement and splice it into a
+new verse revision. The completed verse is aligned again before publication.
+Failed generation/alignment leaves the previous revision intact. Listen to the
+whole verse before approval: alignment locates speech, but cannot guarantee a
+matching performance at the join. Earlier WAVs are retained after phrase patches.
+
+Qwen reference features are prepared with `create_voice_clone_prompt` and stored
+in a per-user system temporary directory. Subsequent subprocesses reuse them.
+The key includes reference audio content, exact transcript, model selection and
+qwen-tts package version. Derived tensors use safe tensor-only loading and atomic
+publication. Clearing temporary files simply causes preparation again. Model
+weights continue to use the standard shared Hugging Face cache. This optimization
+does not keep the synthesis model resident between subprocesses; savings require
+measurement on the target laptop.
