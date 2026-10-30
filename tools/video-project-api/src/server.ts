@@ -765,7 +765,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         summary: generationQueue.summary(environment ?? undefined),
         items: generationQueue
-          .snapshot()
+          .snapshot(url.searchParams.get("history") !== "0")
           .filter(
             (item) =>
               environment === null ||

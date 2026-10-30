@@ -350,11 +350,14 @@ test("speech blocks expose one stable row, range and summary throughout generati
   const id = queue.snapshot()[0].id;
   jobs[0].status = "done";
   assert.equal(queue.snapshot()[0].status, "running");
+  assert.deepEqual(queue.snapshot(false), queue.snapshot());
+  assert.equal(queue.snapshot(false)[0].verseEnd, 2);
   assert.equal(queue.summary().completed, 0);
   jobs[1].status = "done";
   assert.equal(queue.snapshot()[0].status, "done");
   assert.equal(queue.snapshot()[0].id, id);
   assert.equal(queue.summary().completed, 1);
+  assert.deepEqual(queue.snapshot(false), [queue.snapshot()[1]]);
   jobs[2].status = "failed";
   release();
   await gate;
@@ -362,4 +365,5 @@ test("speech blocks expose one stable row, range and summary throughout generati
   assert.equal(queue.snapshot().length, 2);
   assert.equal(queue.snapshot()[1].status, "failed");
   assert.equal(queue.summary().progress, 100);
+  assert.deepEqual(queue.snapshot(false), []);
 });

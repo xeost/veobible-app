@@ -54,7 +54,7 @@ import { settingsSchema, renderSchema } from "./video-schema";
 import { inheritVideoVoiceDefaults } from "./project-voice-defaults";
 import { videoFetch } from "./video-client";
 import { bindings } from "./env";
-import { loadQueueView } from "./queue-projects";
+import { readGenerationQueue } from "./worker-queue-read";
 import { signMediaAccess } from "../../../../tools/api-proxy/src/media-access.mjs";
 import {
   loadProjectSettings,
@@ -117,38 +117,14 @@ export async function videoApi(
     method = req.method;
   if (parts[0] === "summary" && method === "GET")
     return json(await loadDashboardSummary(database));
-  if (parts[0] === "generation-queue" && method === "GET") {
-    try {
-      const response = await videoFetch(
-        `/v1/queue?outputEnvironment=${outputEnvironment}`,
-      );
-      if (!response.ok) throw new Error("Queue unavailable");
-      const data = (await response.json()) as {
-        items: {
-          projectId: number | null;
-          kind: string;
-          status: string;
-          type?: string;
-          voice?: string;
-          locale?: string;
-        }[];
-        summary: { progress: number; completed: number; total: number };
-      };
-      const includeHistory =
-        new URL(req.url).searchParams.get("history") === "1";
-      return json({
-        connected: true,
-        summary: data.summary,
-        ...(await loadQueueView(database, data.items, includeHistory)),
-      });
-    } catch {
-      return json({
-        connected: false,
-        items: [],
-        summary: { progress: 0, completed: 0, total: 0 },
-      });
-    }
-  }
+  if (parts[0] === "generation-queue" && method === "GET")
+    return json(
+      await readGenerationQueue(
+        database,
+        url.searchParams.get("history") === "1",
+        videoFetch,
+      ),
+    );
   if (parts[0] !== "videos") return null;
   if (parts[1] === "publication" && parts.length === 2 && method === "PATCH") {
     const input = projectPublicationSchema.parse(await req.json());

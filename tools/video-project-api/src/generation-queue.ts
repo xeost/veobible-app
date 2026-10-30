@@ -187,9 +187,15 @@ export class GenerationQueue {
       } satisfies Entry;
     });
   }
-  snapshot() {
+  snapshot(includeHistory = true) {
     let position = 0;
-    return this.visibleEntries(this.entries).map(({ job, ...entry }) => ({
+    const visible = this.visibleEntries(this.entries);
+    const entries = includeHistory
+      ? visible
+      : visible.filter(({ job }) =>
+          ["queued", "running"].includes(job.status),
+        );
+    return entries.map(({ job, ...entry }) => ({
       ...entry,
       id: job.id,
       status: job.status,

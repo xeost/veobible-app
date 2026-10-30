@@ -178,7 +178,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
     <ProjectBreadcrumbContext.Provider value={setProjectBreadcrumb}>
       <div className="shell">
         <aside className={open ? "sidebar expanded" : "sidebar"}>
-          <Link href="/" className="brand">
+          <Link prefetch={false} href="/" className="brand">
             <BrandLogo />
             <div>
               <strong>{t("VeoBible")}</strong>
@@ -198,6 +198,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
               )
               .map(([href, label, Icon]) => (
                 <Link
+                  prefetch={false}
                   onClick={() => setOpen(false)}
                   key={href}
                   href={href}
@@ -271,6 +272,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
                 <Menu size={20} />
               </button>
               <Link
+                prefetch={false}
                 href="/"
                 className="breadcrumb-home icon-button"
                 aria-label={t("Home")}
@@ -282,7 +284,11 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
               <ChevronRight size={14} aria-hidden="true" />
               {isProjectEditor && section ? (
                 <>
-                  <Link href={section[0]} className="breadcrumb-section">
+                  <Link
+                    prefetch={false}
+                    href={section[0]}
+                    className="breadcrumb-section"
+                  >
                     {t(title)}
                   </Link>
                   <ChevronRight size={14} aria-hidden="true" />
@@ -387,6 +393,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
                   <div className="user-menu-separator" role="separator" />
                   {user.role === "admin" && (
                     <Link
+                      prefetch={false}
                       href="/settings"
                       role="menuitem"
                       onClick={closeUserMenu}
@@ -396,6 +403,7 @@ export function Shell({ children, user }: { children: ReactNode; user: User }) {
                     </Link>
                   )}
                   <Link
+                    prefetch={false}
                     href="/admin-tools"
                     role="menuitem"
                     onClick={closeUserMenu}

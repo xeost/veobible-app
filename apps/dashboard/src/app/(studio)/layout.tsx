@@ -1,7 +1,6 @@
-import { ToastProvider } from "../../components/ToastProvider";
 import { redirect } from "next/navigation";
 import { currentUser } from "../../lib/auth";
-import { Shell } from "../../components/Shell";
+import { StudioClient } from "../../components/StudioClient";
 import type { ReactNode } from "react";
 export default async function StudioLayout({
   children,
@@ -10,9 +9,5 @@ export default async function StudioLayout({
 }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  return (
-    <ToastProvider>
-      <Shell user={user}>{children}</Shell>
-    </ToastProvider>
-  );
+  return <StudioClient user={user}>{children}</StudioClient>;
 }
