@@ -1030,7 +1030,11 @@ async function handle(req: Request, lang: Language) {
         if (
           !hookUrl ||
           !env.WEBSITE_CONTENT ||
-          (env.SITE_LOCAL !== "true" && !env.SITE_EXPORT_TOKEN)
+          (env.SITE_LOCAL !== "true" &&
+            (!env.SITE_EXPORT_TOKEN ||
+              !env.R2_ACCOUNT_ID ||
+              !env.R2_ACCESS_KEY_ID ||
+              !env.R2_SECRET_ACCESS_KEY))
         )
           return json(
             {
@@ -1162,7 +1166,11 @@ async function handle(req: Request, lang: Language) {
           configured: Boolean(
             hookUrl &&
             env.WEBSITE_CONTENT &&
-            (env.SITE_LOCAL === "true" || env.SITE_EXPORT_TOKEN),
+            (env.SITE_LOCAL === "true" ||
+              (env.SITE_EXPORT_TOKEN &&
+                env.R2_ACCOUNT_ID &&
+                env.R2_ACCESS_KEY_ID &&
+                env.R2_SECRET_ACCESS_KEY)),
           ),
           syncError,
           trackingAvailable: Boolean(

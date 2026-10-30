@@ -17,11 +17,26 @@ export async function downloadRelease(endpoint, { development = false, buildId, 
   for (let attempt = 0; attempt < 30; attempt++) {
     response = await fetcher(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-      signal: AbortSignal.timeout(15000), cache: 'no-store'
+      signal: AbortSignal.timeout(15000), cache: 'no-store', redirect: 'manual'
     })
     if (response.status !== 409 || development || attempt === 29) break
     await response.body?.cancel()
     await wait(2000)
+  }
+  if (!development && response.status === 302) {
+    const location = response.headers.get('Location')
+    await response.body?.cancel()
+    const download = new URL(location ?? '')
+    if (download.protocol !== 'https:' ||
+        !/^[a-f0-9]{32}\.r2\.cloudflarestorage\.com$/.test(download.hostname) ||
+        download.port || download.username || download.password ||
+        !/^\/site-releases\/[1-9][0-9]*\.json$/.test(download.pathname) ||
+        !download.searchParams.has('X-Amz-Signature'))
+      throw new Error('Invalid website content download URL')
+    // Fetch R2 directly; never forward the dashboard export credential.
+    return fetcher(download, {
+      signal: AbortSignal.timeout(120000), cache: 'no-store', redirect: 'error'
+    })
   }
   return response
 }

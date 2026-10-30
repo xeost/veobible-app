@@ -95,6 +95,8 @@ jobs:
           DASHBOARD_API_PROXY_TOKEN: ${{ secrets.DASHBOARD_API_PROXY_TOKEN }}
           DASHBOARD_PUBLISH_API_TOKEN: ${{ secrets.DASHBOARD_PUBLISH_API_TOKEN }}
           DASHBOARD_SITE_EXPORT_TOKEN: ${{ secrets.DASHBOARD_SITE_EXPORT_TOKEN }}
+          DASHBOARD_R2_ACCESS_KEY_ID: ${{ secrets.DASHBOARD_R2_ACCESS_KEY_ID }}
+          DASHBOARD_R2_SECRET_ACCESS_KEY: ${{ secrets.DASHBOARD_R2_SECRET_ACCESS_KEY }}
       - name: Apply production database migrations
         run: pnpm db:migrate:remote
       - name: Deploy Worker and runtime secrets
@@ -104,3 +106,5 @@ jobs:
           DASHBOARD_API_PROXY_TOKEN: ${{ secrets.DASHBOARD_API_PROXY_TOKEN }}
           DASHBOARD_PUBLISH_API_TOKEN: ${{ secrets.DASHBOARD_PUBLISH_API_TOKEN }}
           DASHBOARD_SITE_EXPORT_TOKEN: ${{ secrets.DASHBOARD_SITE_EXPORT_TOKEN }}
+          DASHBOARD_R2_ACCESS_KEY_ID: ${{ secrets.DASHBOARD_R2_ACCESS_KEY_ID }}
+          DASHBOARD_R2_SECRET_ACCESS_KEY: ${{ secrets.DASHBOARD_R2_SECRET_ACCESS_KEY }}

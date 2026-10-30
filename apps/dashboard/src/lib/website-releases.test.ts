@@ -28,7 +28,7 @@ function fixture() {
         ? { body: value.text, json: async () => JSON.parse(value.text) }
         : null;
     },
-    async list({ prefix, cursor }: { prefix: string; cursor?: string }) {
+    async list({ prefix = "", cursor }: { prefix?: string; cursor?: string }) {
       // Force pagination to exercise the complete sweep.
       const entries = [...objects]
         .filter(([key]) => key.startsWith(prefix) && (!cursor || key > cursor))
@@ -50,6 +50,9 @@ function fixture() {
     WEBSITE_CONTENT: bucket,
     SITE_LOCAL: "true",
     SITE_EXPORT_TOKEN: "build-secret",
+    R2_ACCOUNT_ID: "a".repeat(32),
+    R2_ACCESS_KEY_ID: "test-access-key",
+    R2_SECRET_ACCESS_KEY: "test-secret-key",
   } as unknown as ReleaseEnvironment;
   const settle = (id: number, status = "success") =>
     sqlite
@@ -122,17 +125,33 @@ test("build exports require their own credential and an exact active build ident
     409,
   );
   f.bind(release.id, "abc");
+  f.env.WEBSITE_CONTENT.get = async () => {
+    throw new Error("Production downloads must bypass the Worker");
+  };
   const response = await exportRelease(f.request("?build=abc"), f.env);
-  assert.equal(response.status, 200);
+  assert.equal(response.status, 302);
   assert.equal(response.headers.get("Cache-Control"), "private, no-store");
-  assert.deepEqual(await response.json(), {
-    ...emptyContent,
-    revision: release.revision,
-    deploymentId: release.id,
-  });
+  assert.equal(response.body, null);
+  const download = new URL(response.headers.get("Location")!);
+  assert.equal(download.hostname, `${"a".repeat(32)}.r2.cloudflarestorage.com`);
+  assert.equal(download.pathname, `/site-releases/${release.id}.json`);
+  assert.equal(download.searchParams.get("X-Amz-Expires"), "300");
+  assert.equal(download.searchParams.get("X-Amz-SignedHeaders"), "host");
+  assert.match(download.searchParams.get("X-Amz-Signature")!, /^[a-f0-9]{64}$/);
+  assert.ok(!download.href.includes("build-secret"));
+  assert.ok(!download.href.includes("test-secret-key"));
   assert.equal(
     (await exportRelease(f.request("?build=other"), f.env)).status,
     409,
+  );
+  assert.equal(
+    (
+      await exportRelease(f.request("?build=abc"), {
+        ...f.env,
+        R2_SECRET_ACCESS_KEY: undefined,
+      })
+    ).status,
+    503,
   );
   f.settle(release.id, "failed");
   assert.equal(
@@ -209,8 +228,8 @@ test("retention sweeps all pages, keeps two successes plus active and developmen
   }
   const active = await prepareRelease(f.env, emptyContent, 1, "");
   for (const value of f.objects.values()) value.uploaded = new Date(0);
-  f.objects.set("releases/orphan.json", { text: "{}", uploaded: new Date(0) });
-  f.objects.set("releases/fresh.json", { text: "{}", uploaded: new Date() });
+  f.objects.set("orphan.json", { text: "{}", uploaded: new Date(0) });
+  f.objects.set("fresh.json", { text: "{}", uploaded: new Date() });
   f.setFailDelete(true);
   await assert.rejects(() => pruneReleases(f.env), /storage unavailable/);
   f.setFailDelete(false);
@@ -219,16 +238,16 @@ test("retention sweeps all pages, keeps two successes plus active and developmen
     [...f.objects.keys()].sort(),
     [
       "development/content.json",
-      "releases/4.json",
-      "releases/6.json",
+      "4.json",
+      "6.json",
       releaseKey(active.id),
-      "releases/fresh.json",
+      "fresh.json",
     ].sort(),
   );
   assert.equal((await readPublished(f.env))?.revision, active.revision);
   assert.equal(
     (
-      await (await f.env.WEBSITE_CONTENT.get("releases/6.json"))!.json<{
+      await (await f.env.WEBSITE_CONTENT.get("6.json"))!.json<{
         deploymentId: number;
       }>()
     ).deploymentId,

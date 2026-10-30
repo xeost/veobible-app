@@ -102,10 +102,30 @@ test("runtime secrets require signing and generation credentials and never reuse
     /32 bytes/,
   );
   assert.equal(
-    runtimeSecrets({ ...env, DASHBOARD_SITE_EXPORT_TOKEN: "e".repeat(32) })
-      .SITE_EXPORT_TOKEN,
+    runtimeSecrets({
+      ...env,
+      DASHBOARD_CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
+      DASHBOARD_SITE_EXPORT_TOKEN: "e".repeat(32),
+      DASHBOARD_R2_ACCESS_KEY_ID: "access-key",
+      DASHBOARD_R2_SECRET_ACCESS_KEY: "secret-key",
+    }).SITE_EXPORT_TOKEN,
     "e".repeat(32),
   );
+  assert.throws(
+    () =>
+      runtimeSecrets({ ...env, DASHBOARD_SITE_EXPORT_TOKEN: "e".repeat(32) }),
+    /DASHBOARD_R2_ACCESS_KEY_ID/,
+  );
+  const signing = runtimeSecrets({
+    ...env,
+    DASHBOARD_CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
+    DASHBOARD_SITE_EXPORT_TOKEN: "e".repeat(32),
+    DASHBOARD_R2_ACCESS_KEY_ID: "access-key",
+    DASHBOARD_R2_SECRET_ACCESS_KEY: "secret-key",
+  });
+  assert.equal(signing.R2_ACCOUNT_ID, "a".repeat(32));
+  assert.equal(signing.R2_ACCESS_KEY_ID, "access-key");
+  assert.equal(signing.R2_SECRET_ACCESS_KEY, "secret-key");
   assert.deepEqual(runtimeSecrets(env), {
     JWT_SECRET: env.DASHBOARD_JWT_SECRET,
     DASHBOARD_API_PROXY_TOKEN: env.DASHBOARD_API_PROXY_TOKEN,

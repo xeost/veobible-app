@@ -136,6 +136,21 @@ export function runtimeSecrets(environment = process.env) {
         "DASHBOARD_SITE_EXPORT_TOKEN must contain at least 32 bytes.",
       );
     secrets.SITE_EXPORT_TOKEN = environment.DASHBOARD_SITE_EXPORT_TOKEN;
+    for (const [name, inputName] of Object.entries({
+      R2_ACCESS_KEY_ID: "DASHBOARD_R2_ACCESS_KEY_ID",
+      R2_SECRET_ACCESS_KEY: "DASHBOARD_R2_SECRET_ACCESS_KEY",
+    })) {
+      if (!environment[inputName])
+        throw new Error(
+          `Missing deployment environment variable: ${inputName}`,
+        );
+      secrets[name] = environment[inputName];
+    }
+    if (!/^[a-f0-9]{32}$/.test(environment.DASHBOARD_CLOUDFLARE_ACCOUNT_ID))
+      throw new Error(
+        "Invalid DASHBOARD_CLOUDFLARE_ACCOUNT_ID for R2 downloads.",
+      );
+    secrets.R2_ACCOUNT_ID = environment.DASHBOARD_CLOUDFLARE_ACCOUNT_ID;
   }
   if (environment.DASHBOARD_PUBLISH_API_TOKEN) {
     secrets.CLOUDFLARE_API_TOKEN = environment.DASHBOARD_PUBLISH_API_TOKEN;

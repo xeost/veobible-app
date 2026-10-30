@@ -20,7 +20,7 @@
       "migrations_dir": "migrations",
     },
   ],
-  "r2_buckets": [{"binding":"WEBSITE_CONTENT","bucket_name":"veobible-website-content"}],
+  "r2_buckets": [{"binding":"WEBSITE_CONTENT","bucket_name":"site-releases"}],
   "vars": {
     "VIDEO_API_URL": "http://127.0.0.1:8430",
     "SITE_DEV_URL": "http://localhost:3000",
@@ -30,7 +30,7 @@
     "production": {
       "name": "veobible-dashboard",
       "triggers": {"crons": ["*/5 * * * *"]},
-      "r2_buckets": [{"binding":"WEBSITE_CONTENT","bucket_name":"veobible-website-content"}],
+      "r2_buckets": [{"binding":"WEBSITE_CONTENT","bucket_name":"site-releases"}],
       "d1_databases": [
         {
           "binding": "DB",

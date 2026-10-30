@@ -14,6 +14,9 @@ importers:
       '@remotion/player':
         specifier: 4.0.532
         version: 4.0.532(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      aws4fetch:
+        specifier: ^1.0.20
+        version: 1.0.20
       jose:
         specifier: ^6.2.12
         version: 6.2.12
@@ -1180,6 +1183,9 @@ packages:
 
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
+
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
 
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
@@ -2994,6 +3000,8 @@ snapshots:
       fast-uri: 3.1.8
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
+
+  aws4fetch@1.0.20: {}
 
   bail@2.0.2: {}
 

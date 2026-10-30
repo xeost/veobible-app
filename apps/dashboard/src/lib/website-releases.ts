@@ -1,3 +1,4 @@
+import { AwsClient } from "aws4fetch";
 import {
   validateContent,
   type SiteContent,
@@ -11,13 +12,16 @@ export interface ReleaseEnvironment {
   WEBSITE_CONTENT: R2Bucket;
   SITE_LOCAL?: string;
   SITE_EXPORT_TOKEN?: string;
+  R2_ACCOUNT_ID?: string;
+  R2_ACCESS_KEY_ID?: string;
+  R2_SECRET_ACCESS_KEY?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_API_TOKEN?: string;
 }
 const active = "'requested','queued','building','deploying','unknown'";
 export const MAX_RELEASE_BYTES = 32 * 1024 * 1024;
 const developmentKey = "development/content.json";
-export const releaseKey = (id: number | string) => `releases/${id}.json`;
+export const releaseKey = (id: number | string) => `${id}.json`;
 
 function encode(content: SiteContent, revision: string, deploymentId?: number) {
   const text = JSON.stringify({
@@ -138,6 +142,32 @@ export async function exportRelease(
         headers,
       });
     key = releaseKey(row.id);
+    if (
+      !env.R2_ACCOUNT_ID ||
+      !/^[a-f0-9]{32}$/.test(env.R2_ACCOUNT_ID) ||
+      !env.R2_ACCESS_KEY_ID ||
+      !env.R2_SECRET_ACCESS_KEY
+    )
+      return new Response("Download signing unavailable", {
+        status: 503,
+        headers,
+      });
+    const client = new AwsClient({
+      service: "s3",
+      region: "auto",
+      accessKeyId: env.R2_ACCESS_KEY_ID,
+      secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    });
+    const signed = await client.sign(
+      new Request(
+        `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/site-releases/${encodeURIComponent(key)}?X-Amz-Expires=300`,
+      ),
+      { aws: { signQuery: true } },
+    );
+    return new Response(null, {
+      status: 302,
+      headers: { ...headers, Location: signed.url },
+    });
   }
   const object = await env.WEBSITE_CONTENT.get(key);
   return object
@@ -157,13 +187,13 @@ export async function pruneReleases(env: ReleaseEnvironment, now = Date.now()) {
   let cursor: string | undefined;
   do {
     const page = await env.WEBSITE_CONTENT.list({
-      prefix: "releases/",
       cursor,
       limit: 1000,
     });
     const remove = page.objects
       .filter(
         (object) =>
+          object.key !== developmentKey &&
           !keep.has(object.key) &&
           object.uploaded.getTime() < now - 60 * 60 * 1000,
       )
