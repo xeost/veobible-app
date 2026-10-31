@@ -3667,7 +3667,7 @@ audio {
 .generated-reading-section {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 .generated-reading-section > .verse-sync {
   margin-top: 0;
@@ -4672,4 +4672,90 @@ audio {
 }
 .generation-queue-content > .generation-progress {
   margin: 16px 0;
+}
+
+.audio-chapter-player,
+.audio-layers {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.audio-take-player {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 0;
+  color: var(--text);
+}
+.audio-take-player > audio {
+  display: none;
+}
+.audio-take-player > input[type="range"] {
+  flex: 1;
+  min-width: 70px;
+  accent-color: var(--accent);
+}
+.audio-take-player > input.audio-take-volume[type="range"] {
+  flex: 0 1 72px;
+}
+.audio-take-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.audio-chapter-narration {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  min-height: 74px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.audio-chapter-narration p {
+  margin: 0;
+  line-height: 1.7;
+}
+.audio-layers > p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.audio-layers ol {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.audio-layer {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.audio-layer-disabled {
+  border-style: dashed;
+}
+.audio-layer-disabled .audio-layer-heading > strong {
+  color: var(--muted);
+}
+.audio-layer-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.audio-layer-heading small {
+  color: var(--muted);
+}
+.audio-layer-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.audio-layer > p {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.6;
 }

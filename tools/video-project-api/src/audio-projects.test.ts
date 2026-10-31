@@ -15,6 +15,7 @@ import { config } from "./engines/long/config.js";
 import {
   type AudioProject,
   audioEditionSchema,
+  audioEventSchema,
 } from "./audio-project-schema.js";
 const version = {
   id: 1,
@@ -314,6 +315,7 @@ test("generation resumes failures, preserves verses, saves trims and assembles c
     );
     assert.equal(path.basename(after.recordings["1:1"].file), "verse.wav");
     assert.deepEqual((await fs.readdir(currentDirectory)).sort(), [
+      "take.wav",
       "verse.txt",
       "verse.wav",
     ]);
@@ -322,20 +324,22 @@ test("generation resumes failures, preserves verses, saves trims and assembles c
       failed.content[0].verses[0].text.trim() + "\n",
     );
     assert.deepEqual(
-      (await fs.readdir(bookDirectory)).filter((name) =>
-        name.startsWith("1-1-"),
-      ),
-      [path.basename(currentDirectory)],
+      (await fs.readdir(bookDirectory))
+        .filter((name) => name.startsWith("1-1-"))
+        .sort(),
+      [
+        path.basename(currentDirectory),
+        path.basename(path.dirname(before.recordings["1:1"].file)),
+      ].sort(),
     );
     // The prefix for verse 1 must not remove verse 10 or any neighboring verse.
     for (const [ref, recording] of Object.entries(before.recordings)) {
       if (ref !== "1:1")
         await fs.access(path.join(root, "rv1909-v2_internal", recording.file));
     }
-    await assert.rejects(
-      fs.stat(path.join(root, "rv1909-v2_internal", first.file)),
-      { code: "ENOENT" },
-    );
+    await fs.access(path.join(root, "rv1909-v2_internal", first.file));
+    assert.equal(after.recordings["1:1"].base?.file, first.file);
+    assert.equal(after.recordings["1:1"].layers?.length, 1);
     assert.deepEqual(after.settings.trims["1:1"], {
       startSeconds: 0.17,
       endSeconds: 1.65,
@@ -416,6 +420,29 @@ test("real chapter assembly applies trims and pauses and produces playable MP3",
       Math.abs(duration - 2.5) < 0.15,
       `Unexpected duration ${duration}`,
     );
+    const layered = path.join(root, "layered.wav");
+    await assembleAudioChapter(
+      [
+        { file: input, trim: { startSeconds: 0, endSeconds: 0.5 }, pause: 0 },
+        { file: input, trim: { startSeconds: 1, endSeconds: 2 }, pause: 0 },
+      ],
+      layered,
+    );
+    const probe = JSON.parse(
+      (
+        await execute(config.ffprobeBin, [
+          "-v",
+          "error",
+          "-show_entries",
+          "stream=codec_name:format=duration",
+          "-of",
+          "json",
+          layered,
+        ])
+      ).stdout,
+    );
+    assert.equal(probe.streams[0].codec_name, "pcm_s24le");
+    assert.ok(Math.abs(Number(probe.format.duration) - 1.5) < 0.01);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -714,12 +741,21 @@ for (const environment of ["production", "development"] as const) {
           const folders = (await fs.readdir(bookDirectory)).filter((name) =>
             name.startsWith("1-1-"),
           );
-          assert.deepEqual(
-            folders,
-            result.recordings["1:1"]
-              ? [path.basename(path.dirname(result.recordings["1:1"].file))]
-              : [],
-          );
+          const recording = result.recordings["1:1"];
+          const retained = recording
+            ? [
+                ...new Set(
+                  [
+                    recording.file,
+                    recording.base?.file,
+                    ...(recording.layers ?? []).map((layer) => layer.file),
+                  ]
+                    .filter((file): file is string => Boolean(file))
+                    .map((file) => path.basename(path.dirname(file))),
+                ),
+              ]
+            : [];
+          assert.deepEqual(folders.sort(), retained.sort());
           if (result.recordings["1:1"])
             await fs.access(
               path.join(
@@ -821,6 +857,7 @@ test("final audio only assembles saved voices, requires complete chapters and ne
     await rejectIncomplete();
     let run!: () => Promise<void>;
     let plan: { chapter: number; verse?: number }[] = [];
+    const updates: AudioProject[] = [];
     const dependencies: AudioGenerationDependencies = {
       ...generation().dependencies,
       synthesize: async () => {
@@ -834,6 +871,7 @@ test("final audio only assembles saved voices, requires complete chapters and ne
       },
     };
     const assemble = async (chapter?: number) => {
+      updates.length = 0;
       await projects.queue(
         "rv1909-v2",
         "genesis",
@@ -843,6 +881,17 @@ test("final audio only assembles saved voices, requires complete chapters and ne
           plan = tasks;
         },
         dependencies,
+        async (project) => {
+          // Exercise the real callback boundary: NaN becomes null in JSON,
+          // which the dashboard correctly rejects as invalid progress.
+          const event = audioEventSchema.safeParse(
+            JSON.parse(
+              JSON.stringify({ sequence: updates.length + 1, project }),
+            ),
+          );
+          assert.ok(event.success, JSON.stringify(event.error?.issues));
+          updates.push(event.data.project);
+        },
       );
       await run();
       return projects.read("rv1909-v2", "genesis");
@@ -852,6 +901,18 @@ test("final audio only assembles saved voices, requires complete chapters and ne
     assert.deepEqual(first.recordings, detail.recordings);
     assert.deepEqual(first.settings, detail.settings);
     assert.ok(first.chapters["1"]);
+    assert.equal(first.status, "draft");
+    assert.equal(first.progress, 100);
+    assert.equal(
+      updates.some((project) => project.status === "failed"),
+      false,
+    );
+    assert.equal(
+      updates.find(
+        (project) => project.status === "running" && project.chapters["1"],
+      )?.progress,
+      100,
+    );
     assert.equal(first.chapters["2"], undefined);
     assert.match(
       await fs.readFile(
@@ -864,6 +925,14 @@ test("final audio only assembles saved voices, requires complete chapters and ne
     const all = await assemble();
     assert.deepEqual(plan, [{ chapter: 1 }, { chapter: 2 }]);
     assert.equal(all.status, "done");
+    assert.deepEqual(
+      updates
+        .filter(
+          (project) => project.status === "running" && project.progress >= 85,
+        )
+        .map((project) => project.progress),
+      [93, 100],
+    );
     assert.equal(Object.keys(all.chapters).length, 2);
     assert.deepEqual(all.recordings, first.recordings);
     assert.deepEqual(all.settings, first.settings);
@@ -1447,7 +1516,7 @@ test("continuous Qwen blocks synthesize once and phrase corrections replace only
     ];
     projects.content = async () => content;
     const syntheses: string[] = [];
-    let splices = 0;
+    let compositions = 0;
     const dependencies: AudioGenerationDependencies = {
       ...generation().dependencies,
       synthesize: async (dir, text) => {
@@ -1463,11 +1532,14 @@ test("continuous Qwen blocks synthesize once and phrase corrections replace only
       extract: async (source, target) => {
         await fs.copyFile(source, target);
       },
-      splice: async (_source, patch, target, start, end) => {
-        splices++;
-        assert.equal(start, 0);
-        assert.equal(end, 2);
-        await fs.copyFile(patch, target);
+      assemble: async (segments, output) => {
+        compositions++;
+        assert.equal(segments.length, 2);
+        assert.equal(segments[0].trim?.startSeconds, 0);
+        assert.equal(segments[0].trim?.endSeconds, 4);
+        assert.equal(segments[1].trim?.startSeconds, 2);
+        assert.equal(segments[1].trim?.endSeconds, 4);
+        await fs.writeFile(output, "composed");
       },
     };
     let run!: () => Promise<void>;
@@ -1507,7 +1579,7 @@ test("continuous Qwen blocks synthesize once and phrase corrections replace only
     );
     await run();
     const corrected = await projects.read("rv1909-v2", "jude");
-    assert.equal(splices, 1);
+    assert.equal(compositions, 1);
     assert.deepEqual(syntheses, [
       "First sentence. Second sentence.",
       "Opening",
@@ -1577,6 +1649,126 @@ test("a failed phrase replacement preserves the recording, approval and transcri
     assert.equal(after.status, "failed");
     assert.deepEqual(after.recordings, before.recordings);
     assert.deepEqual(after.settings, before.settings);
+  } finally {
+    await clean();
+  }
+});
+
+test("patch alternatives survive reload, reorder, hiding and deletion without synthesizing again", async () => {
+  const { root, projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    projects.content = async () => [
+      { chapter: 1, verses: [{ verse: 1, text: "First sentence." }] },
+    ];
+    const generated = generation();
+    let run!: () => Promise<void>;
+    const request = async (input: object, service = projects) => {
+      await service.queue(
+        "rv1909-v2",
+        "jude",
+        { chapter: 1, verse: 1, ...input },
+        (task) => {
+          run = task;
+        },
+        generated.dependencies,
+      );
+      await run();
+      const project = await service.read("rv1909-v2", "jude");
+      assert.notEqual(project.status, "failed");
+      return project;
+    };
+    const initial = await request({});
+    await request({ regenerate: true });
+    const two = await request({ regenerate: true });
+    const layers = two.recordings["1:1"].layers!;
+    assert.equal(layers.length, 2);
+    assert.notEqual(layers[0].revision, layers[1].revision);
+    assert.equal(layers[0].text, layers[1].text);
+    const restarted = new AudioProjects(root);
+    restarted.hydrate(two);
+    restarted.content = projects.content;
+    const edited = await request(
+      {
+        layerEdits: [
+          { revision: layers[1].revision, enabled: false },
+          { revision: layers[0].revision, enabled: true },
+        ],
+      },
+      restarted,
+    );
+    assert.deepEqual(
+      edited.recordings["1:1"].layers?.map((layer) => [
+        layer.revision,
+        layer.enabled,
+      ]),
+      [
+        [layers[1].revision, false],
+        [layers[0].revision, true],
+      ],
+    );
+    assert.equal(generated.count(), 3);
+    const hidden = await request(
+      {
+        layerEdits: layers.map((layer) => ({
+          revision: layer.revision,
+          enabled: false,
+        })),
+      },
+      restarted,
+    );
+    assert.deepEqual(
+      await fs.readFile(await restarted.media("rv1909-v2", "jude", 1, 1)),
+      await fs.readFile(
+        path.join(root, "rv1909-v2_internal", initial.recordings["1:1"].file),
+      ),
+    );
+    const deleted = await request({ layerEdits: [] }, restarted);
+    assert.deepEqual(deleted.recordings["1:1"].layers, []);
+    assert.equal(generated.count(), 3);
+    for (const layer of layers)
+      await assert.rejects(
+        fs.access(path.join(root, "rv1909-v2_internal", layer.file)),
+        { code: "ENOENT" },
+      );
+    await fs.access(
+      path.join(root, "rv1909-v2_internal", initial.recordings["1:1"].file),
+    );
+    assert.equal(
+      hidden.recordings["1:1"].base?.revision,
+      initial.recordings["1:1"].revision,
+    );
+  } finally {
+    await clean();
+  }
+});
+
+test("editing files can be cleaned after the first recording, before creating final audio", async () => {
+  const { projects, clean } = await fixture();
+  try {
+    await projects.create(version, "rv1909-v2");
+    let run!: () => Promise<void>;
+    await projects.queue(
+      "rv1909-v2",
+      "jude",
+      { chapter: 1, verse: 1 },
+      (task) => {
+        run = task;
+      },
+      generation().dependencies,
+    );
+    await run();
+    assert.equal(
+      Object.keys((await projects.read("rv1909-v2", "jude")).recordings).length,
+      1,
+    );
+    const cleaned = await projects.cleanChapterEditingFiles(
+      "rv1909-v2",
+      "jude",
+      1,
+    );
+    assert.deepEqual(cleaned.recordings, {});
+    assert.deepEqual(cleaned.chapters, {});
   } finally {
     await clean();
   }

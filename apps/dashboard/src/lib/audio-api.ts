@@ -276,13 +276,24 @@ export async function audioApi(
         : project.chapters[String(chapter)];
       if (!original && !asset)
         throw new AudioDatabaseError("Audio is not ready yet.", 404);
+      const requestedFile = url.searchParams.get("file");
+      const recording = verse
+        ? project.recordings[`${chapter}:${verse}`]
+        : undefined;
+      const allowedFiles = [
+        asset?.file,
+        recording?.base?.file,
+        ...(recording?.layers ?? []).map((layer) => layer.file),
+      ];
+      if (requestedFile && !allowedFiles.includes(requestedFile))
+        throw new AudioDatabaseError("Invalid audio file.", 400);
       const target = new URL(
         audioMediaUrl(
           await mediaAccess(),
           chapter,
           verse,
           url.searchParams.get("revision") ?? "",
-          asset?.file,
+          requestedFile ?? asset?.file,
           original,
         ),
       );

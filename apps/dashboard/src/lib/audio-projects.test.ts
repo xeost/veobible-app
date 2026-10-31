@@ -1254,3 +1254,81 @@ test("editing cleanup persists approvals and final audio and fences concurrent c
     sqlite.close();
   }
 });
+
+test("audio callbacks retain patch layers and final verse timings through reload and cleanup", async () => {
+  const { applyAudioPatch } = await import("./audio-projects");
+  const { audioProjectPatch } =
+    await import("../../../../tools/video-project-api/src/audio-project-patch");
+  const { sqlite, database, project } = fixture();
+  try {
+    await insertAudioProjects(database, [project]);
+    const job = await beginAudioJob(database, project.edition, project.book);
+    const base = {
+      file: "jude/1-1-base/verse.wav",
+      duration: 2,
+      revision: "base",
+      text: "A verse.",
+    };
+    const layer = {
+      ...base,
+      file: "jude/1-1-layer/phrase.wav",
+      revision: "layer",
+      enabled: false,
+      start: 0,
+      end: 2,
+      textStart: 0,
+      textEnd: 8,
+    };
+    const generated: AudioProject = structuredClone(job.project);
+    generated.recordings["1:1"] = {
+      ...base,
+      file: "jude/1-1-composite/verse.wav",
+      revision: "composite",
+      base,
+      layers: [layer],
+    };
+    generated.chapters["1"] = {
+      file: "65-jude-1.mp3",
+      revision: "final",
+      cues: [{ verse: 1, text: "A verse.", start: 0, end: 2 }],
+    };
+    generated.status = "running";
+    await applyAudioPatch(
+      database,
+      job.id,
+      job.jobId,
+      {
+        sequence: 1,
+        baseSequence: 0,
+        patch: audioProjectPatch(job.project, generated),
+      },
+      job.token,
+    );
+    const loaded = (
+      await findAudioProject(database, project.edition, project.book)
+    ).project;
+    assert.deepEqual(loaded.recordings, generated.recordings);
+    assert.deepEqual(loaded.chapters, generated.chapters);
+    const cleaned = structuredClone(generated);
+    cleaned.recordings = {};
+    cleaned.status = "done";
+    await applyAudioPatch(
+      database,
+      job.id,
+      job.jobId,
+      {
+        sequence: 2,
+        baseSequence: 1,
+        patch: audioProjectPatch(generated, cleaned),
+      },
+      job.token,
+    );
+    assert.deepEqual(
+      (await findAudioProject(database, project.edition, project.book)).project
+        .chapters,
+      generated.chapters,
+    );
+  } finally {
+    sqlite.close();
+  }
+});

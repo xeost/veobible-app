@@ -475,7 +475,15 @@ export async function applyAudioEvent(
         `${String(project.order).padStart(2, "0")}-${project.book}-${chapter}.mp3`
     )
       throw new AudioDatabaseError("Invalid audio file.", 400);
-  for (const recording of Object.values(project.recordings))
+  for (const recording of Object.values(project.recordings)
+    .flatMap((recording) => [
+      recording,
+      recording.base,
+      ...(recording.layers ?? []),
+    ])
+    .filter((recording): recording is NonNullable<typeof recording> =>
+      Boolean(recording),
+    ))
     if (
       !recording.file.startsWith(`${project.book}/`) ||
       recording.file.split(/[/\\]/).some((p) => p === ".." || p === ".")
@@ -578,7 +586,13 @@ export async function applyAudioPatch(
       "Choose a voice in the project's language.",
       400,
     );
-  for (const recording of Object.values(patch.recordings))
+  for (const recording of Object.values(patch.recordings)
+    .flatMap((recording) =>
+      recording ? [recording, recording.base, ...(recording.layers ?? [])] : [],
+    )
+    .filter((recording): recording is NonNullable<typeof recording> =>
+      Boolean(recording),
+    ))
     if (
       recording &&
       (!recording.file.startsWith(`${row.book}/`) ||

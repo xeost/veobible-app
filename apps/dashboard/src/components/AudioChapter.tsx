@@ -28,6 +28,8 @@ import { GenerationProgress } from "./GenerationProgress";
 import { VerseWaveform } from "./VerseWaveform";
 import { VersePronunciationEditor } from "./VersePronunciationEditor";
 import { OriginalVerseAudio } from "./OriginalVerseAudio";
+import { AudioLayers } from "./AudioLayers";
+import { AudioChapterPlayer } from "./AudioChapterPlayer";
 import { AudioPhrasePatch } from "./AudioPhrasePatch";
 import { AudioChapterVoiceMenu } from "./AudioChapterVoiceMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -78,9 +80,15 @@ export function AudioChapter({
     voicesOnly?: boolean;
     alignOnly?: boolean;
     patch?: { start: number; end: number; text: string; sourceText: string };
+    layerEdits?: { revision: string; enabled: boolean }[];
     textOverride?: string;
   }) => Promise<boolean>;
-  media: (chapter: number, verse?: number, revision?: string) => string;
+  media: (
+    chapter: number,
+    verse?: number,
+    revision?: string,
+    file?: string,
+  ) => string;
   originalMedia: (chapter: number, revision: string) => string;
   onPlay: (audio: HTMLAudioElement) => void;
   onToggleApproval: (reference: string) => Promise<void>;
@@ -290,7 +298,7 @@ export function AudioChapter({
       {recording && selectedVerse === verse.verse && (
         <AudioPhrasePatch
           key={`${reference}/${recording.revision}`}
-          text={speech.accepted}
+          text={recording.base?.text ?? speech.accepted}
           disabled={locked || editingSpeech}
           generate={(patch) =>
             generate({
@@ -443,7 +451,7 @@ export function AudioChapter({
           <Combine size={17} aria-hidden="true" />
           {t("Create final audio")}
         </button>
-        {final && (
+        {completed > 0 && (
           <>
             <span className="section-action-separator" aria-hidden="true" />
             <button
@@ -647,13 +655,29 @@ export function AudioChapter({
               </div>
             </div>
           )}
+          {recording?.layers?.length ? (
+            <AudioLayers
+              key={reference}
+              recording={recording}
+              disabled={locked}
+              media={(file, revision) =>
+                media(chapter.chapter, verse.verse, revision, file)
+              }
+              update={(layerEdits) =>
+                generate({
+                  chapter: chapter.chapter,
+                  verse: verse.verse,
+                  layerEdits,
+                })
+              }
+            />
+          ) : null}
           {final && (
-            <audio
-              className="audio-chapter-player"
-              controls
-              preload="none"
+            <AudioChapterPlayer
+              key={final.revision}
               src={media(chapter.chapter, undefined, final.revision)}
-              aria-label={`${t("Chapter")} ${chapter.chapter}`}
+              chapter={chapter}
+              project={project}
             />
           )}
         </div>
@@ -673,12 +697,12 @@ export function AudioChapter({
         >
           <p>
             {t(
-              "This will permanently delete all individual verse recordings, their text files, previous recording folders and saved verse cuts for this chapter to free disk space.",
+              "This will permanently delete all editing recordings, patches and saved verse cuts for this chapter to free disk space.",
             )}
           </p>
           <p>
             {t(
-              "The final chapter audio and existing verse approvals will be kept. To edit verse audio or cuts again, you will need to generate the verse voices again.",
+              "Any final chapter audio and existing verse approvals will be kept. To edit verse audio or cuts again, you will need to generate the verse voices again.",
             )}
           </p>
         </ConfirmDialog>

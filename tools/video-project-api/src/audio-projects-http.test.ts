@@ -593,7 +593,7 @@ await fs.writeFile(arg('--output'), JSON.stringify({model: 'fixture', chapters: 
             ),
           ),
         ),
-        ["verse.txt", "verse.wav"],
+        ["take.wav", "verse.txt", "verse.wav"],
       );
       state.chapters = { "1": { file: "65-jude-1.mp3", revision: "final" } };
       state.status = "done";

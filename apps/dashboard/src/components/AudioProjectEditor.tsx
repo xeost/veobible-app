@@ -414,6 +414,7 @@ export function AudioProjectEditor({
       voicesOnly?: boolean;
       alignOnly?: boolean;
       patch?: { start: number; end: number; text: string; sourceText: string };
+      layerEdits?: { revision: string; enabled: boolean }[];
       textOverride?: string;
     } = {},
   ) => {
@@ -452,15 +453,20 @@ export function AudioProjectEditor({
     }
     return queued;
   };
-  const media = (chapter: number, verse?: number, revision = "") => {
+  const media = (
+    chapter: number,
+    verse?: number,
+    revision = "",
+    file?: string,
+  ) => {
     const access =
       mediaAccess?.endpoint === endpoint ? mediaAccess.access : undefined;
     const asset = verse
       ? project?.recordings[`${chapter}:${verse}`]
       : project?.chapters[String(chapter)];
     return access && asset
-      ? audioMediaUrl(access, chapter, verse, revision, asset.file)
-      : `/api/${endpoint}/media?chapter=${chapter}${verse ? `&verse=${verse}` : ""}&revision=${encodeURIComponent(revision)}`;
+      ? audioMediaUrl(access, chapter, verse, revision, file ?? asset.file)
+      : `/api/${endpoint}/media?chapter=${chapter}${verse ? `&verse=${verse}` : ""}&revision=${encodeURIComponent(revision)}${file ? `&file=${encodeURIComponent(file)}` : ""}`;
   };
   const cleanEditingFiles = async (chapter: number) => {
     if (!project || busyRef.current || pendingRef.current) return false;
@@ -486,13 +492,13 @@ export function AudioProjectEditor({
       setDirty(false);
       dirtyRef.current = false;
       notify(
-        "Editing audio files deleted. The final chapter audio and verse approvals were kept.",
+        "Editing audio files deleted. Any final chapter audio and verse approvals were kept.",
         "success",
       );
       return true;
     } catch {
       notify(
-        "Could not clean editing audio files. Check that the final chapter audio is available and try again.",
+        "Could not clean editing audio files. Wait for audio generation to finish and try again.",
         "error",
       );
       return false;

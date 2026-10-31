@@ -1,4 +1,31 @@
 export const portuguese: Record<string, string> = {
+  Volume: "Volume",
+  "Audio patches": "Patches de áudio",
+  "The last enabled patch covers overlapping parts of earlier patches. Move patches down to give them priority.":
+    "O último patch ativado cobre as partes sobrepostas dos anteriores. Mova os patches para baixo para dar prioridade a eles.",
+  "Initial recording": "Gravação inicial",
+  "Disable patch": "Desativar patch",
+  "Enable patch": "Ativar patch",
+  Patch: "Patch",
+  "Move patch up": "Mover patch para cima",
+  "Move patch down": "Mover patch para baixo",
+  "Delete patch": "Excluir patch",
+  "Delete this patch? The initial recording and other patches will be kept.":
+    "Excluir este patch? A gravação inicial e os outros patches serão mantidos.",
+  "Final chapter audio": "Áudio final do capítulo",
+  "Play the final audio to follow the verse being narrated.":
+    "Reproduza o áudio final para acompanhar o versículo que está sendo narrado.",
+  "Playback position": "Posição de reprodução",
+  "Could not play this audio. Reload and try again.":
+    "Não foi possível reproduzir este áudio. Recarregue a página e tente novamente.",
+  "This will permanently delete all editing recordings, patches and saved verse cuts for this chapter to free disk space.":
+    "Todas as gravações de edição, os patches e os cortes salvos deste capítulo serão excluídos permanentemente para liberar espaço.",
+  "Any final chapter audio and existing verse approvals will be kept. To edit verse audio or cuts again, you will need to generate the verse voices again.":
+    "O áudio final do capítulo, se existir, e as aprovações dos versículos serão mantidos. Para editar o áudio ou os cortes novamente, será necessário gerar as vozes outra vez.",
+  "Editing audio files deleted. Any final chapter audio and verse approvals were kept.":
+    "Arquivos de edição excluídos. O áudio final do capítulo, se existir, e as aprovações dos versículos foram mantidos.",
+  "Could not clean editing audio files. Wait for audio generation to finish and try again.":
+    "Não foi possível limpar os arquivos de edição. Aguarde a geração de áudio terminar e tente novamente.",
   "Correct a phrase": "Corrigir uma frase",
   "Select a complete phrase, enter its replacement, then listen to the verse before approving it.":
     "Selecione uma frase completa, digite a substituição e ouça o versículo antes de aprová-lo.",

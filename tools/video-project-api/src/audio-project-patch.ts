@@ -1,25 +1,22 @@
 import { z } from "zod";
 import {
   audioSettingsSchema,
+  audioRecordingSchema,
+  audioChapterAssetSchema,
   audioTrimSchema,
   type AudioProject,
 } from "./audio-project-schema.js";
 
 const reference = z.string().regex(/^\d+:\d+$/);
-const recording = z.object({
-  file: z.string().min(1),
-  duration: z.number().finite().positive(),
-  revision: z.string(),
-});
 export const audioPatchEventSchema = z.object({
   sequence: z.number().int().positive(),
   baseSequence: z.number().int().nonnegative(),
   patch: z
     .object({
-      recordings: z.record(reference, recording.nullable()),
+      recordings: z.record(reference, audioRecordingSchema.nullable()),
       chapters: z.record(
         z.string().regex(/^\d+$/),
-        z.object({ file: z.string().min(1), revision: z.string() }).nullable(),
+        audioChapterAssetSchema.nullable(),
       ),
       settings: z
         .object({

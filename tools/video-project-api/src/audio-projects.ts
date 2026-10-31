@@ -1,3 +1,8 @@
+import {
+  audioLayerSegments,
+  audioLayerText,
+  orderedAudioLayers,
+} from "./audio-layers.js";
 import { audioSpeechBlocks } from "./audio-speech-blocks.js";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -23,6 +28,7 @@ import {
   audioSaveSchema,
   audioGenerateSchema,
   audioTrimSchema,
+  type AudioRecording,
   type AudioProject,
   type AudioProjectDetail,
   type AudioProjectSummary,
@@ -45,6 +51,31 @@ function validatedAudioTrim(value: unknown, duration: number) {
   if (!aligned.success || aligned.data.endSeconds > duration)
     throw new Error("Invalid generated audio alignment boundaries");
   return aligned.data;
+}
+async function renderAudioLayers(
+  recording: AudioRecording,
+  internal: string,
+  output: string,
+  dependencies: AudioGenerationDependencies,
+) {
+  const segments = await Promise.all(
+    audioLayerSegments(recording).map(async (segment) => ({
+      ...segment,
+      file: await safeFile(internal, segment.file),
+    })),
+  );
+  const plan = audioLayerSegments(recording);
+  const source = [recording.base, ...(recording.layers ?? [])].find(
+    (source) => source?.file === plan[0]?.file,
+  );
+  if (
+    plan.length === 1 &&
+    plan[0].trim.startSeconds === 0 &&
+    source &&
+    Math.abs(plan[0].trim.endSeconds - source.duration) < 0.000001
+  )
+    await fs.copyFile(segments[0].file, output);
+  else await dependencies.assemble(segments, output);
 }
 const missing = (error: unknown) =>
   (error as NodeJS.ErrnoException).code === "ENOENT";
@@ -116,10 +147,7 @@ export function audioTasks(
   ) {
     const missing = chapters.flatMap((c) =>
       c.verses
-        .filter(
-          (v) =>
-            input.regenerate || !project.recordings[`${c.chapter}:${v.verse}`],
-        )
+        .filter((v) => !project.recordings[`${c.chapter}:${v.verse}`])
         .map((v) => ({
           ...v,
           chapter: c.chapter,
@@ -144,6 +172,7 @@ export function audioTasks(
               ? Boolean(project.recordings[`${c.chapter}:${v.verse}`])
               : input.regenerate ||
                 input.patch !== undefined ||
+                input.layerEdits !== undefined ||
                 input.textOverride !== undefined ||
                 !project.recordings[`${c.chapter}:${v.verse}`]),
         )
@@ -484,7 +513,7 @@ export class AudioProjects {
             throw error;
           })
         : undefined;
-      if (!finalStat?.isFile() || finalStat.size === 0)
+      if (finalFile && (!finalStat?.isFile() || finalStat.size === 0))
         throw new AudioProjectError(
           "The final chapter audio is missing. Create it before cleaning editing files.",
         );
@@ -502,6 +531,36 @@ export class AudioProjects {
         // Validate every target before deleting anything; never follow links.
         const directory = await safeFile(internal, `${book}/${entry.name}`);
         if (entry.isDirectory()) directories.push(directory);
+      }
+      const finalAsset = project.chapters[String(chapter)];
+      if (finalAsset && !finalAsset.cues) {
+        const content = (await this.content(project)).find(
+          (item) => item.chapter === chapter,
+        );
+        if (
+          content &&
+          content.verses.every(
+            (verse) => project.recordings[`${chapter}:${verse.verse}`],
+          )
+        ) {
+          let cursor = 0;
+          finalAsset.cues = content.verses.map((verse) => {
+            const ref = `${chapter}:${verse.verse}`,
+              recording = project.recordings[ref],
+              trim = project.settings.trims[ref];
+            const duration =
+              (trim?.endSeconds ?? recording.duration) -
+              (trim?.startSeconds ?? 0);
+            const cue = {
+              verse: verse.verse,
+              text: verse.text,
+              start: cursor,
+              end: cursor + duration,
+            };
+            cursor += duration + (project.settings.pauses[ref] ?? 0.35);
+            return cue;
+          });
+        }
       }
       for (const directory of directories)
         await fs.rm(directory, { recursive: true, force: true });
@@ -684,10 +743,7 @@ export class AudioProjects {
     ) {
       const { audioSpeechBlocks } = await import("./audio-speech-blocks.js");
       const missing = verses
-        .filter(
-          (v) =>
-            input.regenerate || !project.recordings[`${v.chapter}:${v.verse}`],
-        )
+        .filter((v) => !project.recordings[`${v.chapter}:${v.verse}`])
         .map((v) => ({
           ...v,
           text:
@@ -793,6 +849,7 @@ export class AudioProjects {
         !blockGenerated.has(ref) &&
         (input.regenerate ||
           input.patch !== undefined ||
+          input.layerEdits !== undefined ||
           input.textOverride !== undefined ||
           !project.recordings[ref]);
       if (input.alignOnly) {
@@ -803,7 +860,9 @@ export class AudioProjects {
           await dependencies.align(
             await safeFile(internal, recording.file),
             recording.duration,
-            project.settings.pronunciation?.[ref] ?? verse.text,
+            recording.text ??
+              project.settings.pronunciation?.[ref] ??
+              verse.text,
             project.version.locale,
             (progress) =>
               taskReporter?.(task, "running", Math.min(99, progress)),
@@ -813,18 +872,78 @@ export class AudioProjects {
         project.settings.trims[ref] = trim;
         delete project.chapters[String(verse.chapter)];
       }
+      const previousRecording = project.recordings[ref];
+      const base =
+        previousRecording?.base ??
+        (previousRecording
+          ? {
+              file: previousRecording.file,
+              duration: previousRecording.duration,
+              revision: previousRecording.revision,
+              text:
+                previousRecording.text ??
+                (
+                  await fs.readFile(
+                    (await safeFile(internal, previousRecording.file)).replace(
+                      /verse\.wav$/,
+                      "verse.txt",
+                    ),
+                    "utf8",
+                  )
+                ).trim(),
+            }
+          : undefined);
+      if (input.layerEdits !== undefined) {
+        if (!previousRecording || !base)
+          throw new Error("Audio is not ready yet.");
+        const layers = orderedAudioLayers(
+          previousRecording.layers ?? [],
+          input.layerEdits,
+        );
+        const revision = randomUUID();
+        const relative = `${project.book}/${verse.chapter}-${verse.verse}-${revision}`;
+        const directory = await safeFile(internal, relative);
+        await fs.mkdir(directory, { recursive: true });
+        try {
+          const composite = { ...previousRecording, base, layers };
+          const wav = path.join(directory, "verse.wav");
+          await renderAudioLayers(composite, internal, wav, dependencies);
+          const duration = await dependencies.duration(wav);
+          const text = audioLayerText(composite);
+          const trim = validatedAudioTrim(
+            await dependencies.align(
+              wav,
+              duration,
+              text,
+              project.version.locale,
+              () => {},
+            ),
+            duration,
+          );
+          await fs.writeFile(path.join(directory, "verse.txt"), text + "\n");
+          project.recordings[ref] = {
+            ...composite,
+            file: `${relative}/verse.wav`,
+            duration,
+            revision,
+            text,
+          };
+          project.settings.trims[ref] = trim;
+          project.settings.pronunciation = {
+            ...project.settings.pronunciation,
+            [ref]: text,
+          };
+          delete project.chapters[String(verse.chapter)];
+        } catch (error) {
+          await fs.rm(directory, { recursive: true, force: true });
+          throw error;
+        }
+      }
       let generatedDirectory: string | undefined;
-      if (needsGeneration) {
+      if (needsGeneration && input.layerEdits === undefined) {
         const originalText =
-          input.patch && project.recordings[ref]
-            ? (
-                await fs.readFile(
-                  (
-                    await safeFile(internal, project.recordings[ref].file)
-                  ).replace(/verse\.wav$/, "verse.txt"),
-                  "utf8",
-                )
-              ).trim()
+          input.patch && base
+            ? base.text!
             : (project.settings.pronunciation?.[ref] ?? verse.text);
         const edit = input.patch;
         if (
@@ -832,7 +951,6 @@ export class AudioProjects {
           (edit.sourceText !== originalText ||
             !project.recordings[ref] ||
             !dependencies.alignBlock ||
-            !dependencies.splice ||
             !dependencies.extract)
         )
           throw new Error(
@@ -859,11 +977,12 @@ export class AudioProjects {
               taskReporter?.(task, "running", Math.min(70, progress * 0.7)),
           );
           const wav = path.join(directory, "verse.wav");
+          let phraseCut:
+            { startSeconds: number; endSeconds: number } | undefined;
+          let layerFile = `${relative}/take.wav`;
+          let layerDuration = 0;
           if (edit) {
-            const source = await safeFile(
-              internal,
-              project.recordings[ref].file,
-            );
+            const source = await safeFile(internal, base!.file);
             const parts = [
               originalText.slice(0, edit.start),
               originalText.slice(edit.start, edit.end),
@@ -874,14 +993,15 @@ export class AudioProjects {
               .filter((v) => v.text.trim());
             const cues = await dependencies.alignBlock!(
               source,
-              project.recordings[ref].duration,
+              base!.duration,
               nonempty.map((v) => v.text),
               project.version.locale,
             );
             const cut = validatedAudioTrim(
               cues[nonempty.findIndex((v) => v.index === 1)],
-              project.recordings[ref].duration,
+              base!.duration,
             );
+            phraseCut = cut;
             const generated = path.join(directory, "replacement.wav");
             await fs.rename(wav, generated);
             const patchDuration = await dependencies.duration(generated);
@@ -902,14 +1022,36 @@ export class AudioProjects {
               patchTrim.startSeconds,
               patchTrim.endSeconds,
             );
-            await dependencies.splice!(
-              source,
-              trimmed,
-              wav,
-              cut.startSeconds,
-              cut.endSeconds,
-            );
+            layerFile = `${relative}/phrase.wav`;
+            layerDuration = await dependencies.duration(trimmed);
+          } else if (base) {
+            await fs.copyFile(wav, path.join(directory, "take.wav"));
+            layerDuration = await dependencies.duration(wav);
           }
+          let composite: typeof previousRecording | undefined;
+          if (base && previousRecording) {
+            const layer = {
+              file: layerFile,
+              duration: layerDuration,
+              revision,
+              enabled: true,
+              start: phraseCut?.startSeconds ?? 0,
+              end: phraseCut?.endSeconds ?? base.duration,
+              textStart: edit?.start ?? 0,
+              textEnd: edit?.end ?? base.text!.length,
+              text: edit?.text ?? speechText,
+            };
+            composite = {
+              ...previousRecording,
+              base,
+              layers: [...(previousRecording.layers ?? []), layer],
+            };
+            await fs.rm(wav, { force: true });
+            await renderAudioLayers(composite, internal, wav, dependencies);
+          }
+          const renderedText = composite
+            ? audioLayerText(composite)
+            : speechText;
           const duration = await dependencies.duration(wav);
           if (!Number.isFinite(duration) || duration <= 0.02)
             throw new Error("Invalid generated audio duration");
@@ -920,7 +1062,7 @@ export class AudioProjects {
               wav,
               duration,
               adaptNarrationText(
-                speechText,
+                renderedText,
                 project.version.locale,
                 input.voiceTextAdaptations,
               ),
@@ -936,9 +1078,13 @@ export class AudioProjects {
           );
           await fs.writeFile(
             path.join(directory, "verse.txt"),
-            speechText.trim() + "\n",
+            renderedText.trim() + "\n",
           );
           project.recordings[ref] = {
+            ...(composite
+              ? { base: composite.base, layers: composite.layers }
+              : {}),
+            text: renderedText,
             file: `${relative}/verse.wav`,
             duration,
             revision,
@@ -956,7 +1102,7 @@ export class AudioProjects {
           };
           project.settings.pronunciation = {
             ...project.settings.pronunciation,
-            [ref]: speechText,
+            [ref]: renderedText,
           };
           project.settings.trims[ref] = trim;
           delete project.chapters[String(verse.chapter)];
@@ -972,9 +1118,19 @@ export class AudioProjects {
       );
       project.revision++;
       await this.write(project);
-      if (generatedDirectory && !input.patch) {
+      if (generatedDirectory || input.layerEdits !== undefined) {
         // Persist the replacement before removing earlier revisions, including
         // folders left behind by older workers or interrupted attempts.
+        const current = project.recordings[ref];
+        const retained = new Set(
+          [
+            current.file,
+            current.base?.file,
+            ...(current.layers ?? []).map((layer) => layer.file),
+          ]
+            .filter((file): file is string => Boolean(file))
+            .map((file) => path.posix.dirname(file)),
+        );
         const bookDirectory = await safeFile(internal, project.book);
         const prefix = `${verse.chapter}-${verse.verse}-`;
         for (const entry of await fs.readdir(bookDirectory, {
@@ -982,7 +1138,7 @@ export class AudioProjects {
         })) {
           if (!entry.isDirectory() || !entry.name.startsWith(prefix)) continue;
           const relative = `${project.book}/${entry.name}`;
-          if (relative === generatedDirectory) continue;
+          if (retained.has(relative)) continue;
           await fs.rm(await safeFile(internal, relative), {
             recursive: true,
             force: true,
@@ -1049,15 +1205,30 @@ export class AudioProjects {
             book: project.book,
             edition: project.edition,
           });
+          let cursor = 0;
+          const cues = chapter.verses.map((verse, index) => {
+            const recording =
+              project.recordings[`${chapter.chapter}:${verse.verse}`];
+            const segment = segments[index];
+            const duration =
+              (segment.trim?.endSeconds ?? recording.duration) -
+              (segment.trim?.startSeconds ?? 0);
+            const cue = {
+              verse: verse.verse,
+              text: verse.text,
+              start: cursor,
+              end: cursor + duration,
+            };
+            cursor += duration + segment.pause;
+            return cue;
+          });
           project.chapters[String(chapter.chapter)] = {
+            cues,
             file: filename,
             revision: randomUUID(),
           };
           project.progress =
             85 + Math.round(((index + 1) / chapters.length) * 15);
-          project.progress = Math.round(
-            (blockGenerated.size / verses.length) * 85,
-          );
           project.revision++;
           await this.write(project);
           taskReporter?.({ chapter: chapter.chapter }, "done", 100);
@@ -1176,9 +1347,9 @@ export async function assembleAudioChapter(
         "-i",
         list,
         "-c:a",
-        "libmp3lame",
-        "-b:a",
-        "192k",
+        ...(output.endsWith(".wav")
+          ? ["pcm_s24le"]
+          : ["libmp3lame", "-b:a", "192k"]),
         output,
       ],
       { timeout: 120000 },
